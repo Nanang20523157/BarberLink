@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardElevation="0dp"
+    android:orientation="vertical">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cvProduk"
+        android:layout_width="160dp"
+        android:layout_height="150dp"
+        app:cardBackgroundColor="@color/grey_background_card"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="4dp"
+        android:layout_marginVertical="8dp"
+        android:layout_marginEnd="9dp">
+
+        <TextView
+            android:id="@+id/tvProdukMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:gravity="center"
+            android:layout_marginHorizontal="5dp"
+            android:layout_marginTop="3dp"
+            android:fontFamily="@font/poppins_blackitalic"
+            android:lineSpacingExtra="-20sp"
+            tools:text="Hair Pomade"
+            android:textAlignment="center"
+            android:textColor="#A7A7AC"
+            android:textSize="37sp" />
+
+        <ImageView
+            android:id="@+id/ivProduk"
+            android:layout_width="160dp"
+            android:layout_height="150dp"
+            android:cropToPadding="false"
+            android:padding="15dp"
+            android:scaleType="fitCenter"
+            tools:src="@drawable/hair_powder" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:id="@+id/tNamaProdukMenu"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginTop="3dp"
+        android:fontFamily="@font/arial_regular"
+        tools:text="Pomade"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tHargaProdukMenu"
+        android:textStyle="bold"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="15dp"
+        android:layout_marginTop="-1dp"
+        android:textSize="15sp"
+        android:textColor="@color/black"
+        tools:text="Rp 20.000" />
+
+</androidx.appcompat.widget.LinearLayoutCompat>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="5dp"
+    android:layout_gravity="center"
+    android:backgroundTint="@color/white"
+    app:cardElevation="10dp"
+    app:cardCornerRadius="25dp">
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/tvHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/pin_pop_up_title"
+            android:textSize="20sp"
+            android:fontFamily="@font/arial_bold"
+            android:textColor="@color/black_font_color"
+            android:layout_gravity="center"
+            android:layout_marginTop="10dp"
+            />
+
+        <TextView
+            android:id="@+id/tvInstruction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/instructions_for_inserting_pin"
+            android:textSize="13sp"
+            android:fontFamily="@font/arial_regular"
+            android:textColor="@color/black_font_color"
+            android:layout_gravity="center"
+            android:paddingBottom="10dp" />
+
+        <com.chaos.view.PinView
+            android:id="@+id/pinView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="5dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="45dp"
+            android:layout_marginHorizontal="25dp"
+            app:itemCount="6"
+            app:itemHeight="48dp"
+            app:itemWidth="40dp"
+            android:itemBackground="@drawable/pin_background_field"
+            app:itemRadius="8dp"
+            app:lineWidth="2dp"
+            android:inputType="numberPassword" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</com.google.android.material.card.MaterialCardView>

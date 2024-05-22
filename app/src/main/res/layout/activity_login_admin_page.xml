@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".UserInterface.SignIn.Login.LoginAdminPage">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/background_splash">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="140dp"
+            android:background="@drawable/background_form"
+            android:orientation="vertical"
+            android:elevation="20dp"
+            android:outlineSpotShadowColor="@color/black"
+            android:outlineAmbientShadowColor="@color/black"
+            android:outlineProvider="background"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" >
+
+            <ImageView
+                android:id="@+id/barberlinkFontLogo"
+                android:layout_marginEnd="7dp"
+                android:layout_marginTop="30dp"
+                android:layout_width="220dp"
+                android:layout_gravity="end"
+                android:layout_height="55dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/black_shadow_app_name" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="13dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/arial_bold"
+                    android:text="@string/title_sign_in_uppercase"
+                    android:textColor="#000000"
+                    android:textSize="40sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_gravity="center"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/email_hint"
+                    android:layout_marginHorizontal="40dp"
+                    app:boxBackgroundColor="#00FFFFFF"
+                    app:placeholderText="example@example.com"
+                    app:placeholderTextColor="#b0b0b0"
+                    app:boxBackgroundMode="outline"
+                    app:boxCornerRadiusBottomEnd="10dp"
+                    app:boxCornerRadiusBottomStart="10dp"
+                    app:boxCornerRadiusTopEnd="10dp"
+                    app:boxCornerRadiusTopStart="10dp"
+                    app:boxStrokeColor="@color/green_lime_wf"
+                    app:hintTextColor="@color/green_lime_wf">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/signInEmail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="4dp"
+                        android:drawableStart="@drawable/ic_email"
+                        android:drawableTint="@color/drawable_tint_icon"
+                        android:inputType="text|textWebEmailAddress" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:boxCornerRadiusTopEnd="10dp"
+                    app:boxCornerRadiusBottomEnd="10dp"
+                    app:boxCornerRadiusTopStart="10dp"
+                    app:boxCornerRadiusBottomStart="10dp"
+                    android:layout_marginTop="15dp"
+                    android:layout_marginHorizontal="40dp"
+                    android:hint="@string/password_hint"
+                    app:hintTextColor="@color/green_lime_wf"
+                    android:layout_gravity="center"
+                    app:boxBackgroundColor="#00FFFFFF"
+                    app:boxBackgroundMode="outline"
+                    app:boxStrokeColor="@color/green_lime_wf"
+                    app:passwordToggleEnabled="true">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/signInPassword"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:drawablePadding="2dp"
+                        android:drawableStart="@drawable/ic_lock"
+                        android:drawableTint="@color/drawable_tint_icon"
+                        android:inputType="text|textPassword" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/forgetPassword"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/forget_password"
+                    android:layout_marginStart="45dp"
+                    android:layout_marginTop="5dp"
+                    android:textColor="@color/blue" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="15dp"
+                    android:layout_height="80dp"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="60dp"
+                    android:layout_gravity="center"
+                    android:paddingTop="5dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnLogin"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginBottom="7dp"
+                        android:backgroundTint="@color/black"
+                        android:minWidth="110dp"
+                        android:text="@string/login"
+                        android:textSize="14sp"
+                        android:textColor="@color/green_lime_wf"
+                        android:textStyle="bold"
+                        app:layout_constraintBottom_toTopOf="@id/textSkipIntro"
+                        app:layout_constraintEnd_toEndOf="@id/textSkipIntro"
+                        app:layout_constraintStart_toStartOf="@id/textSkipIntro" />
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_marginTop="20dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="@font/outfit_regular"
+                    android:text="@string/follow_us_on"
+                    android:textColor="#7B7F9E"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:layout_height="80dp"
+                    android:orientation="horizontal"
+                    android:layout_gravity="center"
+                    android:paddingTop="5dp">
+
+                    <ImageView
+                        android:id="@+id/ivInstagram"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginHorizontal="20dp"
+                        android:src="@drawable/instagram" />
+
+                    <ImageView
+                        android:id="@+id/ivTwitter"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginHorizontal="20dp"
+                        android:src="@drawable/twitter" />
+
+                    <ImageView
+                        android:id="@+id/ivFacebook"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginHorizontal="20dp"
+                        android:src="@drawable/facebook" />
+
+                </LinearLayout>
+
+                <!-- Sign Up Button -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="80dp"
+                    android:layout_gravity="center"
+                    android:orientation="horizontal"
+                    android:paddingTop="15dp"
+                    android:layout_marginBottom="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top|center"
+                        android:fontFamily="@font/arial_medium"
+                        android:text="@string/don_t_have_any_account"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+
+                    <TextView
+                        android:id="@+id/btnSignUp"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="top|center"
+                        android:layout_marginStart="3dp"
+                        android:fontFamily="@font/arial_medium"
+                        android:text="@string/underline_sign_up"
+                        android:textColor="@color/green_lime_wf"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.core.widget.NestedScrollView>
+

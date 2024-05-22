@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="yellow">#FFF7EE3E</color>
+    <color name="faded_yellow">#FFF4F2CB</color>
+    <color name="red">#FFF24726</color>
+    <color name="magenta">#FFDA0063</color>
+    <color name="blue">#FF2D9BF0</color>
+    <color name="sky_blue">#FF10BBBB</color>
+    <color name="silver_grey">#FFE6E6E6</color>
+    <color name="green_assets">#FF50C1B3</color>
+    <color name="green_lime">#FF91C853</color>
+    <color name="green_lime_wf">#FF8FD14F</color>
+
+    <!--  font color  -->
+    <color name="black_font_color">#FF1A1A1A</color>
+    <color name="dark_grey_font_color">#FF333131</color>
+    <color name="grey_font_color">#C0C0C0</color>
+
+    <!--  background gander  -->
+    <color name="masculine_faded_blue">#FFD1EBFE</color>
+    <color name="feminime_pink">#FFF9A1EE</color>
+
+    <!--  background  -->
+    <color name="slate_grey_background">#FF5A606D</color>
+    <color name="space_blue_background">#FF556080</color>
+    <color name="charcoal_grey_background">#FF666666</color>
+    <color name="light_grey_horizons_background">#FFF7F7F7</color>
+    <color name="light_blue_horizons_background">#FFAFD2ED</color>
+    <color name="platinum_grey_background">#FF808080</color>
+    <color name="disable_grey_background">#FFD3D3D3</color>
+
+    <!--  line & ornamen  -->
+    <color name="black_line_and_ornamen">#FF333333</color>
+
+    <!--  card balance  -->
+    <color name="light_black_gradation">#FF515252</color>
+    <color name="medium_black_gradation">#FF3E3E3E</color>
+    <color name="dark_black_gradation">#FF272626</color>
+    <color name="smoke_grey_logo_in_card">#FF807e7e</color>
+
+    <!--  frame image service  -->
+    <!--  green_lime  -->
+    <color name="dark_black_frame">#FF010101</color>
+    <color name="blue_side_frame">#FF12B9C1</color>
+
+    <!--  logo & bg splash barberlink  -->
+    <!--  green_lime  -->
+    <color name="black_middle_logo">#FF3E3E3E</color>
+    <!--  sky blue  -->
+
+    <!--  Assets  -->
+    <color name="drawable_tint_icon">#FF757575</color>
+    <color name="green_btn">#FF0CA789</color>
+    <color name="grey_background_card">#EFEFEF</color>
+
+</resources>
