@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BarberLink"
+        tools:targetApi="31">
+        <activity
+            android:name=".UserInterface.Admin.BerandaAdminPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Capster.HomePageCapster"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignIn.Gateway.SelectUserRolePage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignIn.Form.FormAccessCodeFragment"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Capster.SelectAccountPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignIn.Login.LoginAdminPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignUp.SignUpSuccess"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignUp.SignUpStepThree"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignUp.SignUpStepTwo"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignUp.SignUpStepOne"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Intro.Landing.LandingPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Intro.OnBoarding.OnBoardingPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Intro.Splash.SplashScreen"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".UserInterface.MainActivity"
+            android:exported="false" />
+    </application>
+
+</manifest>

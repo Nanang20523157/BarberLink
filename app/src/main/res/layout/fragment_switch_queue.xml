@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/white"
+    android:layout_gravity="center"
+    app:cardCornerRadius="25dp"
+    android:layout_marginHorizontal="10dp">
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/switch_queue_label"
+            android:textSize="24sp"
+            android:fontFamily="@font/arial_bold"
+            android:textStyle="bold"
+            android:layout_marginTop="60dp"
+            android:layout_marginHorizontal="35dp"
+            android:textColor="@color/black"
+            android:layout_centerHorizontal="true"/>
+
+        <!-- Dropdown Label -->
+        <TextView
+            android:id="@+id/tvDropdownLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tvTitle"
+            android:text="@string/select_capster_intructions"
+            android:textSize="14sp"
+            android:textColor="@color/black_font_color"
+            android:layout_marginTop="2dp"
+            android:layout_marginHorizontal="35dp"/>
+
+        <!-- AutoCompleteTextView for Dropdown -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/textInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="43dp"
+            app:hintEnabled="false"
+            app:boxStrokeColor="@color/green_lime_wf"
+            android:layout_marginTop="8dp"
+            android:layout_marginHorizontal="35dp"
+            android:layout_below="@id/tvDropdownLabel"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+            app:endIconMode="dropdown_menu">
+
+            <AutoCompleteTextView
+                android:id="@+id/autoCompleteTextView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingStart="15dp"
+                android:textSize="15sp"
+                android:hint="@string/hint_list_capster"
+                android:inputType="text"/>
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="33dp"
+            app:cardCornerRadius="20dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            android:layout_marginTop="10dp">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="25dp">
+
+                <ImageView
+                    android:id="@+id/ivPhotoProfile"
+                    android:layout_width="65dp"
+                    android:layout_height="65dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="13dp"
+                    android:layout_marginEnd="16dp"
+                    android:contentDescription="@string/user_profile_placeholder_desc"
+                    android:src="@drawable/placeholder_user_profile"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tvEmployeeName"
+                    app:layout_constraintHorizontal_bias="0.0"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/tvEmployeeName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    tools:text="Nanang Kurniawan Hermawan"
+                    android:textColor="@color/black_font_color"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/arial_bold"
+                    android:layout_marginTop="-4dp"
+                    android:maxLines="1"
+                    android:textSize="15.5sp"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="10dp"
+                    app:layout_constraintTop_toTopOf="@id/ivPhotoProfile"
+                    app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
+                    app:layout_constraintEnd_toStartOf="@id/llGander" />
+
+                <TextView
+                    android:id="@+id/tvUsername"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/username_template"
+                    android:fontFamily="@font/arial_medium"
+                    android:textSize="9.5sp"
+                    android:layout_marginTop="-2dp"
+                    android:textColor="@color/platinum_grey_background"
+                    app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                    app:layout_constraintTop_toBottomOf="@id/tvEmployeeName"/>
+
+                <LinearLayout
+                    android:id="@+id/llRating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="7dp"
+                    app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                    app:layout_constraintTop_toBottomOf="@id/tvUsername">
+
+                    <ImageView
+                        android:id="@+id/ivStarOne"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:src="@drawable/full_star"
+                        android:contentDescription="@string/image_star_content_desc"/>
+
+                    <ImageView
+                        android:id="@+id/ivStarTwo"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:src="@drawable/full_star"
+                        android:contentDescription="@string/image_star_content_desc"/>
+
+                    <ImageView
+                        android:id="@+id/ivStarThree"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:src="@drawable/full_star"
+                        android:contentDescription="@string/image_star_content_desc"/>
+
+                    <ImageView
+                        android:id="@+id/ivStarFour"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="4dp"
+                        android:src="@drawable/full_star"
+                        android:contentDescription="@string/image_star_content_desc"/>
+
+                    <ImageView
+                        android:id="@+id/ivStarFive"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/full_star"
+                        android:contentDescription="@string/image_star_content_desc"/>
+
+<!--                    <TextView-->
+<!--                        android:id="@+id/tvRating"-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="@string/five_star_rating"-->
+<!--                        android:textSize="11sp"-->
+<!--                        android:layout_marginTop="-2.15dp"-->
+<!--                        android:textAppearance="@style/TextAppearance.AppCompat.Small"/>-->
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvNumberOfReviews"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/number_of_reviews"
+                    android:fontFamily="@font/arial_medium"
+                    android:textSize="10.5sp"
+                    android:layout_marginTop="3dp"
+                    android:textColor="@color/black_font_color"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                    app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                    app:layout_constraintTop_toBottomOf="@id/llRating"/>
+
+                <LinearLayout
+                    android:id="@+id/llGander"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingVertical="2dp"
+                    android:gravity="center"
+                    android:background="@drawable/gander_background"
+                    android:paddingHorizontal="4dp"
+                    android:layout_marginEnd="15dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <ImageView
+                        android:id="@+id/ivGender"
+                        android:layout_width="12.5dp"
+                        android:layout_height="12.5dp"
+                        android:src="@drawable/ic_male"/>
+
+                    <TextView
+                        android:id="@+id/tvGander"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="laki-laki"
+                        android:fontFamily="@font/arial_bold"
+                        android:textColor="@color/black_font_color"
+                        android:textSize="10sp"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="3dp"
+                        android:gravity="center"
+                        android:layout_gravity="center_vertical"/>
+
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvRole"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    tools:text="Capster"
+                    android:background="@drawable/role_background_employee"
+                    android:fontFamily="@font/arial_bold"
+                    android:textColor="@color/green_lime_wf"
+                    android:gravity="center"
+                    android:layout_marginTop="15dp"
+                    android:textSize="12sp"
+                    android:paddingHorizontal="17dp"
+                    android:layout_gravity="bottom"
+                    android:layout_marginEnd="15dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSaveChanges"
+            android:layout_width="match_parent"
+            android:layout_height="47dp"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="40dp"
+            android:layout_marginHorizontal="70dp"
+            android:backgroundTint="@color/black"
+            android:minWidth="110dp"
+            android:text="@string/btn_save_changes"
+            android:textSize="13sp"
+            android:textColor="@color/green_lime_wf" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</com.google.android.material.card.MaterialCardView>

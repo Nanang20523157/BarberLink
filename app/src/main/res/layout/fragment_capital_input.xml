@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:layout_marginHorizontal="5dp"
+    android:backgroundTint="@color/grey_background_card"
+    app:cardElevation="10dp"
+    app:cardCornerRadius="35dp">
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/tvHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Modal Harian Awal"
+            android:textSize="22.5sp"
+            android:fontFamily="@font/arial_bold"
+            android:textColor="@color/black_font_color"
+            android:layout_gravity="start"
+            android:layout_marginTop="45dp"
+            android:layout_marginStart="30dp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/wrapperCapitalAmount"
+            android:layout_width="match_parent"
+            android:layout_height="43dp"
+            android:layout_below="@id/tvBarbershopNameLabel"
+            app:hintEnabled="false"
+            android:layout_marginHorizontal="30dp"
+            app:boxBackgroundColor="@color/white"
+            app:boxStrokeColor="@color/green_lime_wf"
+            android:layout_marginTop="3dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etCapitalAmount"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="3dp"
+                android:hint="Besaran Modal"
+                android:inputType="text"
+                android:drawablePadding="5dp"
+                android:textSize="12.5sp"
+                android:drawableStart="@drawable/ic_money"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Finish Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="25dp"
+            android:layout_marginHorizontal="70dp"
+            android:backgroundTint="@color/black"
+            android:text="Simpan"
+            android:textColor="#FFFFFF" />
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</com.google.android.material.card.MaterialCardView>
