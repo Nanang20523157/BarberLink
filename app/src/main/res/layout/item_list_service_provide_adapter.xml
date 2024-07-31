@@ -8,8 +8,8 @@
     android:layout_marginStart="2dp"
     android:layout_marginEnd="7dp"
     app:cardCornerRadius="17dp"
-    android:backgroundTint="@color/grey_background_card"
-    app:cardElevation="4dp">
+    android:backgroundTint="@color/light_grey_horizons_background"
+    app:cardElevation="2dp">
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -23,10 +23,10 @@
             android:layout_width="43dp"
             android:layout_height="43dp"
             android:layout_gravity="center_vertical"
-            android:background="?attr/selectableItemBackground"
+            android:background="@drawable/background_service_icon_medium"
             android:scaleType="centerCrop"
             android:layout_marginStart="2dp"
-            tools:src="@drawable/image_placeholder" />
+            tools:src="@drawable/service_icon_example" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -44,7 +44,7 @@
                 tools:text="Haircut"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
                 android:textColor="@android:color/black"
-                android:textSize="13sp"
+                android:textSize="13.5sp"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -54,14 +54,14 @@
                 android:gravity="center_vertical"
                 android:padding="5dp"
                 android:background="@drawable/background_dot_service"
-                android:layout_marginTop="5dp">
+                android:layout_marginTop="3.5dp">
 
                 <ImageView
                     android:layout_width="11dp"
                     android:layout_height="11dp"
                     android:layout_marginStart="4dp"
                     android:src="@drawable/full_star"
-                    android:contentDescription="@string/five_star_rating" />
+                    android:contentDescription="@string/star_image_desc" />
 
                 <TextView
                     android:id="@+id/tvRating"

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    android:id="@+id/cvCapsterProfile"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="150dp"
+    android:layout_height="157dp"
+    android:backgroundTint="@color/light_grey_horizons_background"
+    app:cardCornerRadius="23dp"
+    app:cardElevation="0.5dp"
+    android:layout_marginTop="1dp"
+    android:layout_gravity="center_horizontal">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingVertical="20dp"
+        android:paddingHorizontal="17dp"
+        android:gravity="center">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/ivCapsterPhotoProfile"
+            android:layout_width="55dp"
+            android:layout_height="55dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="@string/user_profile_placeholder_desc"
+            tools:src="@drawable/placeholder_user_profile" />
+
+        <TextView
+            android:id="@+id/tvCapsterName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:gravity="center"
+            android:text="Nanang Kurniawan"
+            android:textSize="15sp"
+            android:textColor="@android:color/black"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/llRating"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp"
+            android:layout_marginHorizontal="8dp">
+
+            <ImageView
+                android:id="@+id/ivStarOne"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/full_star"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/ivStarTwo"
+                app:layout_constraintHorizontal_chainStyle="spread_inside"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarTwo"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/full_star"
+                app:layout_constraintStart_toEndOf="@id/ivStarOne"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/ivStarThree"
+                app:layout_constraintHorizontal_chainStyle="spread_inside"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarThree"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/full_star"
+                app:layout_constraintStart_toEndOf="@id/ivStarTwo"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/ivStarFour"
+                app:layout_constraintHorizontal_chainStyle="spread_inside"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarFour"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/full_star"
+                app:layout_constraintStart_toEndOf="@id/ivStarThree"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/ivStarFive"
+                app:layout_constraintHorizontal_chainStyle="spread_inside"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarFive"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/full_star"
+                app:layout_constraintStart_toEndOf="@id/ivStarFour"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_chainStyle="spread_inside"
+                android:contentDescription="@string/star_image_desc"/>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            android:id="@+id/tvReviewsAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/number_of_reviews_placeholder"
+            android:fontFamily="@font/arial_medium"
+            android:textSize="10sp"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/black_font_color"
+            android:textAppearance="@style/TextAppearance.AppCompat.Small" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -17,7 +17,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/textTitle"
-        android:contentDescription="@string/app_name"/>
+        android:contentDescription="@string/image_slide_desc"/>
 
     <TextView
         android:id="@+id/textTitle"

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:elevation="10dp"
+    android:padding="20dp"
+    android:background="@drawable/rounded_background">
+
+    <TextView
+        android:id="@+id/tvWindowTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="5dp"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:text="@string/sinkronisasi_akun"
+        android:textColor="@android:color/black" />
+
+    <TextView
+        android:id="@+id/tvWindowDetail"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="5dp"
+        android:textSize="12.5sp"
+        android:text="@string/hello_template"
+        android:textColor="@android:color/black"
+        android:layout_marginTop="8dp" />
+
+    <Button
+        android:id="@+id/btnAccept"
+        android:layout_width="wrap_content"
+        android:layout_height="45dp"
+        android:paddingHorizontal="40dp"
+        android:layout_marginStart="1dp"
+        android:paddingTop="4.6dp"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:textAlignment="center"
+        android:textSize="13sp"
+        android:text="@string/create_account"
+        android:backgroundTint="@color/black"
+        android:textColor="@color/green_lime_wf"
+        android:textStyle="bold" />
+
+</LinearLayout>

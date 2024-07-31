@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    tools:context=".UserInterface.Teller.ComplateOrderPage">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <include
+            android:id="@+id/shimmerLayout"
+            layout="@layout/shimmer_layout_complate_order_page"
+            android:visibility="visible"/>
+
+        <include
+            android:id="@+id/realLayout"
+            layout="@layout/real_layout_complate_order_page"
+            android:visibility="visible"/>
+
+    </FrameLayout>
+
+</androidx.core.widget.NestedScrollView>
+

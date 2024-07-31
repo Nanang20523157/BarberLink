@@ -7,6 +7,7 @@
     <color name="red">#FFF24726</color>
     <color name="magenta">#FFDA0063</color>
     <color name="blue">#FF2D9BF0</color>
+    <color name="dark_blue">#FF0856cf</color>
     <color name="sky_blue">#FF10BBBB</color>
     <color name="silver_grey">#FFE6E6E6</color>
     <color name="green_assets">#FF50C1B3</color>
@@ -53,6 +54,30 @@
     <!--  Assets  -->
     <color name="drawable_tint_icon">#FF757575</color>
     <color name="green_btn">#FF0CA789</color>
-    <color name="grey_background_card">#EFEFEF</color>
+    <color name="grey_background_card">#FFEFEFEF</color>
+
+    <color name="grey_bg_uploud">#FFEBE9E9</color>
+    <color name="grey_blue">#FF7988C4</color>
+    <color name="blue_access_code">#FFCDDDFB</color>
+
+    <color name="grey_100">#FFF5F5F5</color>
+    <color name="grey_200">#FFEEEEEE</color>
+    <color name="grey_300">#FFD8D8D8</color>
+    <color name="grey_400">#FFB2B2B2</color>
+    <color name="grey_500">#FF808080</color>
+    <color name="text_grey_color">#FF808080</color>
+    <color name="white_text_color">#FFFEFEFE</color>
+
+    <color name="red_role">#FFFF1744</color>
+    <color name="orange_role">#FFFFC400</color>
+    <color name="green_role">#FF00E676</color>
+
+    <!--  color bg wa  -->
+    <color name="green_bg_wa">#FFD8FDD2</color>
+    <color name="green_text_wa">#FF235E38</color>
+    <color name="green_bg_flaticon">#FFA5E8C7</color>
+    <color name="green_icon_flaticon">#FF438665</color>
+    <color name="grey_bg_wa">#FFF6F5F3</color>
+    <color name="grey_text_wa">#FF6F7376</color>
 
 </resources>

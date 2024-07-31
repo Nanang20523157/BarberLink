@@ -1,68 +1,580 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rlCapitalInput"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:layout_gravity="center"
-    android:layout_marginHorizontal="5dp"
-    android:backgroundTint="@color/grey_background_card"
-    app:cardElevation="10dp"
-    app:cardCornerRadius="35dp">
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    android:orientation="vertical">
 
-    <androidx.appcompat.widget.LinearLayoutCompat
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
+        android:layout_height="match_parent"
+        android:background="@drawable/background_scrim">
 
-        <TextView
-            android:id="@+id/tvHeader"
-            android:layout_width="wrap_content"
+        <FrameLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Modal Harian Awal"
-            android:textSize="22.5sp"
-            android:fontFamily="@font/arial_bold"
-            android:textColor="@color/black_font_color"
-            android:layout_gravity="start"
-            android:layout_marginTop="45dp"
-            android:layout_marginStart="30dp" />
+            android:layout_gravity="center"
+            android:clipToPadding="false"
+            android:clipChildren="false">
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/wrapperCapitalAmount"
-            android:layout_width="match_parent"
-            android:layout_height="43dp"
-            android:layout_below="@id/tvBarbershopNameLabel"
-            app:hintEnabled="false"
-            android:layout_marginHorizontal="30dp"
-            app:boxBackgroundColor="@color/white"
-            app:boxStrokeColor="@color/green_lime_wf"
-            android:layout_marginTop="3dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etCapitalAmount"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cdCapitalForm"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:padding="3dp"
-                android:hint="Besaran Modal"
-                android:inputType="text"
-                android:drawablePadding="5dp"
-                android:textSize="12.5sp"
-                android:drawableStart="@drawable/ic_money"/>
-        </com.google.android.material.textfield.TextInputLayout>
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginVertical="30dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                app:cardCornerRadius="30dp">
 
-        <!-- Finish Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSave"
-            android:layout_width="match_parent"
-            android:layout_height="45dp"
-            android:layout_marginTop="40dp"
-            android:layout_marginBottom="25dp"
-            android:layout_marginHorizontal="70dp"
-            android:backgroundTint="@color/black"
-            android:text="Simpan"
-            android:textColor="#FFFFFF" />
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:paddingVertical="20dp"
+                    android:paddingHorizontal="25dp">
 
-    </androidx.appcompat.widget.LinearLayoutCompat>
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/wrapperQueueTrackerStatistics"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tvTitle"
+                        android:layout_marginTop="35dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        android:layout_marginHorizontal="15dp">
 
-</com.google.android.material.card.MaterialCardView>
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/cvDateFilterLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="0dp"
+                            android:backgroundTint="@color/charcoal_grey_background"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintStart_toStartOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvDateFilterLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/tgl_label"
+                                android:textColor="@color/green_lime_wf"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="25dp"/>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/cvDateFilterValue"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:layout_marginStart="15dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="0dp"
+                            android:backgroundTint="@color/light_grey_horizons_background"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/cvDateFilterLabel"
+                            app:layout_constraintEnd_toEndOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvDateFilterValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                tools:text="05 September 2024"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="25dp"/>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <TextView
+                        android:id="@+id/tvHeader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_initial_daily_capital"
+                        android:textSize="22.5sp"
+                        android:fontFamily="@font/arial_bold"
+                        android:textColor="@color/black_font_color"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="14dp" />
+
+                    <TextView
+                        android:id="@+id/tvSearchDropdownLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/outlet_name_label"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:layout_marginTop="3dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_alignParentStart="true"
+                        android:layout_marginHorizontal="10dp"/>
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/matrialCardView"
+                        android:layout_width="match_parent"
+                        android:layout_height="45dp"
+                        android:layout_marginHorizontal="14dp"
+                        android:layout_marginBottom="20dp"
+                        android:elevation="18dp"
+                        app:cardCornerRadius="7.61dp"
+                        android:outlineAmbientShadowColor="@color/black"
+                        android:outlineSpotShadowColor="@color/black"
+                        android:layout_below="@id/tvSearchDropdownLabel">
+
+                        <!-- AutoCompleteTextView for Dropdown -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/wrapperOutletName"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            app:hintEnabled="false"
+                            app:errorEnabled="true"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:boxBackgroundColor="@color/white"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            android:backgroundTint="@android:color/transparent"
+                            app:boxStrokeColor="@android:color/transparent"
+                            android:layout_below="@id/tvSearchDropdownLabel"
+                            android:layout_alignParentStart="true"
+                            app:boxStrokeWidth="0dp"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:endIconMode="dropdown_menu">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/acOutletName"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:paddingStart="15dp"
+                                android:paddingEnd="0dp"
+                                android:textSize="15sp"
+                                android:hint="@string/hint_outlet_name"
+                                android:inputType="text"/>
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </androidx.cardview.widget.CardView>
+
+                    <TextView
+                        android:id="@+id/outletCustomError"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="visible"
+                        android:text="@string/required"
+                        android:textColor="@color/red"
+                        android:textSize="10sp"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="0dp"
+                        android:layout_marginHorizontal="11dp"
+                        android:layout_marginTop="-14.5dp"
+                        android:letterSpacing="0.03333333" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="bottom"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginStart="16dp"
+                        android:fontFamily="@font/outfit_regular"
+                        android:text="@string/quick_select"
+                        android:textColor="#808080"
+                        android:textSize="13sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:layout_marginHorizontal="8dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        android:orientation="horizontal">
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cd100000"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_gravity="center"
+                            android:layout_marginHorizontal="5dp"
+                            android:elevation="5dp"
+                            app:cardCornerRadius="7dp">
+
+                            <TextView
+                                android:id="@+id/tv100000"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:layout_marginHorizontal="10dp"
+                                android:layout_marginVertical="5dp"
+                                android:fontFamily="@font/outfit_regular"
+                                android:text="@string/rp_100_000"
+                                android:textColor="@color/text_grey_color"
+                                android:textSize="12.5sp" />
+
+                        </androidx.cardview.widget.CardView>
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cd150000"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_gravity="center"
+                            android:layout_marginHorizontal="5dp"
+                            android:elevation="5dp"
+                            app:cardCornerRadius="7dp">
+
+                            <TextView
+                                android:id="@+id/tv150000"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:layout_marginHorizontal="10dp"
+                                android:layout_marginVertical="5dp"
+                                android:fontFamily="@font/outfit_regular"
+                                android:text="@string/rp_150_000"
+                                android:textColor="#808080"
+                                android:textSize="12.5sp" />
+
+                        </androidx.cardview.widget.CardView>
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cd200000"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="5dp"
+                            android:elevation="5dp"
+                            app:cardCornerRadius="7dp">
+
+                            <TextView
+                                android:id="@+id/tv200000"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:layout_marginHorizontal="10dp"
+                                android:layout_marginVertical="5dp"
+                                android:fontFamily="@font/outfit_regular"
+                                android:text="@string/rp_200_000"
+                                android:textColor="#808080"
+                                android:textSize="12.5sp" />
+
+                        </androidx.cardview.widget.CardView>
+
+                    </LinearLayout>
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="6dp">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="match_parent"
+                            android:layout_marginTop="-12dp"
+                            android:layout_height="2dp"
+                            android:layout_marginHorizontal="15dp"
+                            android:layout_alignStart="@id/wrapperCapitalAmount"
+                            android:layout_alignEnd="@id/wrapperCapitalAmount"
+                            android:layout_below="@id/wrapperCapitalAmount"
+                            android:layout_centerHorizontal="true"
+                            android:elevation="0dp"
+                            app:cardBackgroundColor="@color/charcoal_grey_background"/>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/wrapperCapitalAmount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="11dp"
+                            app:hintEnabled="true"
+                            app:hintTextColor="@color/black"
+                            android:textColorHint="#b0b0b0"
+                            android:hint="@string/hint_amount_of_capital"
+                            app:placeholderText="@string/hint_amount_of_capital"
+                            app:placeholderTextColor="#b0b0b0"
+                            app:errorEnabled="true"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            app:boxCornerRadiusBottomStart="9dp"
+                            app:boxCornerRadiusBottomEnd="9dp"
+                            app:boxCornerRadiusTopEnd="9dp"
+                            app:boxCornerRadiusTopStart="9dp"
+                            app:boxBackgroundColor="#00FFFFFF"
+                            app:boxBackgroundMode="outline"
+                            app:prefixText="Rp"
+                            app:prefixTextAppearance="@style/PrefixTextAppearance">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etDailyCapital"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:drawableTint="@android:color/transparent"
+                                android:drawableStart="@drawable/ic_money"
+                                android:drawablePadding="10dp"
+                                android:inputType="number|numberDecimal"
+                                android:text="@string/text_0"
+                                android:textSize="23sp" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </RelativeLayout>
+
+                    <!-- Information Text -->
+                    <LinearLayout
+                        android:id="@+id/llInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-11dp"
+                        android:layout_marginHorizontal="15dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:gravity="center">
+
+                        <ImageView
+                            android:id="@+id/ivInfo"
+                            android:layout_width="15dp"
+                            android:layout_height="15dp"
+                            android:layout_marginStart="-1.5dp"
+                            android:layout_marginTop="0.5dp"
+                            android:src="@drawable/ic_error"/>
+
+                        <TextView
+                            android:id="@+id/tvInfo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="2dp"
+                            android:layout_marginTop="0.4dp"
+                            android:fontFamily="@font/opensans_regular"
+                            android:text="@string/data_secure"
+                            android:textColor="@color/red"
+                            android:textSize="10sp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvWriterName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/author_identity"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginHorizontal="20dp"/>
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="15dp"
+                        android:layout_marginTop="3dp"
+                        android:paddingVertical="20dp"
+                        android:paddingHorizontal="20dp"
+                        android:background="@drawable/background_user_notes">
+
+                        <de.hdodenhof.circleimageview.CircleImageView
+                            android:id="@+id/ivPhotoProfile"
+                            android:layout_width="43dp"
+                            android:layout_height="43dp"
+                            android:layout_marginStart="3dp"
+                            android:src="@drawable/placeholder_user_profile" />
+
+                        <TextView
+                            android:id="@+id/tvNama"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_toEndOf="@id/ivPhotoProfile"
+                            android:layout_marginStart="15dp"
+                            android:layout_marginTop="0dp"
+                            android:fontFamily="@font/outfit_medium"
+                            android:text="@string/user_author"
+                            android:textColor="#000000"
+                            android:textSize="17sp" />
+
+                        <TextView
+                            android:id="@+id/tvDateLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_toEndOf="@id/ivPhotoProfile"
+                            android:layout_below="@id/tvNama"
+                            android:layout_marginStart="15dp"
+                            android:layout_marginTop="3dp"
+                            android:fontFamily="@font/outfit_regular"
+                            android:text="@string/date_label"
+                            android:textColor="#808080"
+                            android:textSize="11sp" />
+
+                        <TextView
+                            android:id="@+id/tvDateValue"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_toEndOf="@id/tvDateLabel"
+                            android:layout_alignTop="@id/tvDateLabel"
+                            android:layout_marginStart="2dp"
+                            android:singleLine="true"
+                            android:ellipsize="marquee"
+                            android:marqueeRepeatLimit="marquee_forever"
+                            android:fontFamily="@font/outfit_regular"
+                            android:text="@string/example_date_value"
+                            android:textColor="#808080"
+                            android:textSize="11sp" />
+
+                    </RelativeLayout>
+
+                    <!--            <com.google.android.material.textfield.TextInputLayout-->
+                    <!--                android:id="@+id/wrapperOutletName"-->
+                    <!--                android:layout_width="match_parent"-->
+                    <!--                android:layout_height="wrap_content"-->
+                    <!--                android:layout_marginHorizontal="27dp"-->
+                    <!--                app:hintEnabled="true"-->
+                    <!--                app:hintTextColor="@color/black"-->
+                    <!--                android:textColorHint="#b0b0b0"-->
+                    <!--                android:hint="@string/hint_outlet_name"-->
+                    <!--                app:placeholderText="Nama Outlet"-->
+                    <!--                app:placeholderTextColor="#b0b0b0"-->
+                    <!--                app:errorEnabled="false"-->
+                    <!--                app:boxStrokeErrorColor="@color/red"-->
+                    <!--                app:boxBackgroundColor="@color/white"-->
+                    <!--                app:errorIconDrawable="@drawable/ic_error"-->
+                    <!--                app:errorIconTint="@color/red"-->
+                    <!--                app:errorTextColor="@color/red"-->
+                    <!--                app:boxStrokeColor="@color/green_lime_wf"-->
+                    <!--                android:layout_marginTop="0dp"-->
+                    <!--                app:endIconMode="dropdown_menu">-->
+
+                    <!--                <AutoCompleteTextView-->
+                    <!--                    android:id="@+id/etOutletName"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="44dp"-->
+                    <!--                    android:inputType="text"-->
+                    <!--                    android:drawablePadding="5.5dp"-->
+                    <!--                    android:textSize="12.5sp"-->
+                    <!--                    android:paddingHorizontal="15dp"-->
+                    <!--                    android:drawableStart="@drawable/ic_shop"-->
+                    <!--                    app:endIconMode="dropdown_menu"/>-->
+
+                    <!--                <TextView-->
+                    <!--                    android:id="@+id/outletCustomError"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="wrap_content"-->
+                    <!--                    android:visibility="gone"-->
+                    <!--                    android:text="@string/required"-->
+                    <!--                    android:textColor="@color/red"-->
+                    <!--                    android:textSize="11sp"-->
+                    <!--                    android:layout_marginTop="-17.2dp"-->
+                    <!--                    android:letterSpacing="0.03333333"-->
+                    <!--                    android:layout_marginStart="6dp" />-->
+
+                    <!--            </com.google.android.material.textfield.TextInputLayout>-->
+
+                    <!--            <com.google.android.material.textfield.TextInputLayout-->
+                    <!--                android:id="@+id/wrapperCapitalAmount"-->
+                    <!--                android:layout_width="match_parent"-->
+                    <!--                android:layout_height="wrap_content"-->
+                    <!--                android:layout_marginHorizontal="27dp"-->
+                    <!--                app:hintEnabled="true"-->
+                    <!--                app:hintTextColor="@color/black"-->
+                    <!--                android:textColorHint="#b0b0b0"-->
+                    <!--                android:hint="@string/hint_amount_of_capital"-->
+                    <!--                app:placeholderText="Nama Barbershop"-->
+                    <!--                app:placeholderTextColor="#b0b0b0"-->
+                    <!--                app:errorEnabled="false"-->
+                    <!--                app:boxStrokeErrorColor="@color/red"-->
+                    <!--                app:boxBackgroundColor="@color/white"-->
+                    <!--                app:errorIconDrawable="@drawable/ic_error"-->
+                    <!--                app:errorIconTint="@color/red"-->
+                    <!--                app:errorTextColor="@color/red"-->
+                    <!--                app:boxStrokeColor="@color/green_lime_wf"-->
+                    <!--                android:layout_marginTop="1dp">-->
+
+                    <!--                <com.google.android.material.textfield.TextInputEditText-->
+                    <!--                    android:id="@+id/etCapitalAmount"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="44dp"-->
+                    <!--                    android:drawableStart="@drawable/ic_money"-->
+                    <!--                    android:inputType="number"-->
+                    <!--                    android:drawablePadding="3.5dp"-->
+                    <!--                    android:textSize="12.5sp"-->
+                    <!--                    android:paddingHorizontal="15dp" />-->
+
+                    <!--                <TextView-->
+                    <!--                    android:id="@+id/capitalCustomError"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="wrap_content"-->
+                    <!--                    android:visibility="gone"-->
+                    <!--                    android:text="@string/required"-->
+                    <!--                    android:textColor="@color/red"-->
+                    <!--                    android:textSize="11sp"-->
+                    <!--                    android:layout_marginTop="-17.2dp"-->
+                    <!--                    android:letterSpacing="0.03333333"-->
+                    <!--                    android:layout_marginStart="6dp" />-->
+
+                    <!--            </com.google.android.material.textfield.TextInputLayout>-->
+
+                    <!-- Finish Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSave"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="30dp"
+                        android:layout_marginBottom="30dp"
+                        android:layout_marginHorizontal="70dp"
+                        android:paddingVertical="0dp"
+                        android:gravity="center"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/black"
+                        android:text="@string/btn_save"
+                        android:textColor="@color/green_lime_wf" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="5dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                android:visibility="gone"
+                android:layout_gravity="center"
+                app:cardCornerRadius="30dp">
+
+                <ProgressBar
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_margin="5dp"
+                    android:elevation="20dp"
+                    android:indeterminateTint="@color/sky_blue" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </FrameLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+
+</RelativeLayout>

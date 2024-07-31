@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white"
+    app:cardBackgroundColor="@color/white"
     android:layout_gravity="center"
     app:cardCornerRadius="50dp"
     android:layout_marginHorizontal="40dp">
@@ -20,7 +20,8 @@
             android:layout_height="60dp"
             android:layout_marginTop="40dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_questions"/>
+            android:src="@drawable/ic_questions"
+            android:contentDescription="@string/image_question_icon_desc" />
 
         <TextView
             android:id="@+id/tvQuestion"
@@ -107,9 +108,11 @@
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:layout_marginEnd="10dp"
+                android:textColor="@color/white"
                 android:text="@string/btn_yes"
                 android:textSize="12sp"
-                android:backgroundTint="@color/green_btn" />
+                android:backgroundTint="@color/green_btn"
+                style="?android:attr/buttonBarButtonStyle" />
 
             <Button
                 android:id="@+id/btnNo"
@@ -117,10 +120,12 @@
                 android:layout_height="43dp"
                 android:layout_weight="1"
                 android:text="@string/btn_no"
+                android:textColor="@color/white"
                 android:textSize="12sp"
                 android:layout_marginEnd="8dp"
                 android:backgroundTint="@color/magenta"
-                android:layout_marginStart="10dp" />
+                android:layout_marginStart="10dp"
+                style="?android:attr/buttonBarButtonStyle" />
         </LinearLayout>
 
     </androidx.appcompat.widget.LinearLayoutCompat>

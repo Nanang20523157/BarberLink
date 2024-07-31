@@ -28,6 +28,8 @@
                 android:id="@+id/barberlinkFontLogo"
                 android:layout_marginEnd="7dp"
                 android:layout_marginTop="30dp"
+                android:padding="16dp"
+                android:clipToOutline="false"
                 android:layout_width="220dp"
                 android:layout_gravity="end"
                 android:layout_height="55dp"
@@ -37,7 +39,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="13dp"
+                android:layout_marginTop="5dp"
                 android:orientation="vertical">
 
                 <TextView
@@ -48,48 +50,73 @@
                     android:fontFamily="@font/arial_bold"
                     android:text="@string/title_sign_in_uppercase"
                     android:textColor="#000000"
-                    android:textSize="40sp" />
+                    android:textSize="39sp" />
 
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/signInEmailLayout"
                     android:layout_width="match_parent"
-                    android:layout_gravity="center"
                     android:layout_height="wrap_content"
                     android:hint="@string/email_hint"
                     android:layout_marginHorizontal="40dp"
                     app:boxBackgroundColor="#00FFFFFF"
                     app:placeholderText="example@example.com"
                     app:placeholderTextColor="#b0b0b0"
+                    app:errorEnabled="true"
+                    app:boxStrokeErrorColor="@color/red"
+                    app:errorIconDrawable="@drawable/ic_error"
+                    app:errorIconTint="@color/red"
+                    app:errorTextColor="@color/red"
                     app:boxBackgroundMode="outline"
                     app:boxCornerRadiusBottomEnd="10dp"
                     app:boxCornerRadiusBottomStart="10dp"
                     app:boxCornerRadiusTopEnd="10dp"
                     app:boxCornerRadiusTopStart="10dp"
                     app:boxStrokeColor="@color/green_lime_wf"
-                    app:hintTextColor="@color/green_lime_wf">
+                    app:hintTextColor="@color/black">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/signInEmail"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:drawablePadding="4dp"
+                        android:layout_height="56dp"
+                        android:drawablePadding="3dp"
                         android:drawableStart="@drawable/ic_email"
                         android:drawableTint="@color/drawable_tint_icon"
                         android:inputType="text|textWebEmailAddress" />
 
+                    <TextView
+                        android:id="@+id/emailCustomError"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/required"
+                        android:textColor="@color/red"
+                        android:textSize="12sp"
+                        android:layout_marginTop="-16.2dp"
+                        android:letterSpacing="0.03333333"
+                        android:layout_marginStart="9dp" />
+
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/signInPasswordLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:boxCornerRadiusTopEnd="10dp"
                     app:boxCornerRadiusBottomEnd="10dp"
                     app:boxCornerRadiusTopStart="10dp"
                     app:boxCornerRadiusBottomStart="10dp"
-                    android:layout_marginTop="15dp"
+                    app:placeholderText="Password"
+                    app:placeholderTextColor="#b0b0b0"
+                    android:layout_marginTop="4dp"
                     android:layout_marginHorizontal="40dp"
                     android:hint="@string/password_hint"
-                    app:hintTextColor="@color/green_lime_wf"
-                    android:layout_gravity="center"
+                    app:hintTextColor="@color/black"
+                    app:errorEnabled="true"
+                    app:counterEnabled="true"
+                    app:counterMaxLength="15"
+                    app:boxStrokeErrorColor="@color/red"
+                    app:errorIconDrawable="@drawable/ic_error"
+                    app:errorIconTint="@color/red"
+                    app:errorTextColor="@color/red"
                     app:boxBackgroundColor="#00FFFFFF"
                     app:boxBackgroundMode="outline"
                     app:boxStrokeColor="@color/green_lime_wf"
@@ -98,11 +125,26 @@
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/signInPassword"
                         android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:drawablePadding="2dp"
+                        android:layout_height="56dp"
+                        android:drawablePadding="3dp"
+                        android:maxLength="15"
+                        android:paddingEnd="12dp"
+                        android:paddingStart="15dp"
                         android:drawableStart="@drawable/ic_lock"
                         android:drawableTint="@color/drawable_tint_icon"
                         android:inputType="text|textPassword" />
+
+                    <TextView
+                        android:id="@+id/passwordCustomError"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/required"
+                        android:textColor="@color/red"
+                        android:textSize="12sp"
+                        android:layout_marginTop="-16.2dp"
+                        android:letterSpacing="0.03333333"
+                        android:layout_marginStart="9dp"
+                        android:layout_marginEnd="47dp"/>
 
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -165,7 +207,8 @@
                         android:layout_height="18dp"
                         android:layout_marginTop="5dp"
                         android:layout_marginHorizontal="20dp"
-                        android:src="@drawable/instagram" />
+                        android:src="@drawable/instagram"
+                        android:contentDescription="@string/instagram_icon_app_desc" />
 
                     <ImageView
                         android:id="@+id/ivTwitter"
@@ -173,7 +216,8 @@
                         android:layout_height="18dp"
                         android:layout_marginTop="5dp"
                         android:layout_marginHorizontal="20dp"
-                        android:src="@drawable/twitter" />
+                        android:src="@drawable/twitter"
+                        android:contentDescription="@string/twitter_icon_app_desc" />
 
                     <ImageView
                         android:id="@+id/ivFacebook"
@@ -181,7 +225,8 @@
                         android:layout_height="18dp"
                         android:layout_marginTop="5dp"
                         android:layout_marginHorizontal="20dp"
-                        android:src="@drawable/facebook" />
+                        android:src="@drawable/facebook"
+                        android:contentDescription="@string/facebook_icon_app_desc" />
 
                 </LinearLayout>
 
@@ -191,7 +236,7 @@
                     android:layout_height="80dp"
                     android:layout_gravity="center"
                     android:orientation="horizontal"
-                    android:paddingTop="15dp"
+                    android:paddingTop="5dp"
                     android:layout_marginBottom="10dp">
 
                     <TextView
@@ -208,7 +253,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="top|center"
-                        android:layout_marginStart="3dp"
+                        android:paddingHorizontal="4dp"
+                        android:paddingVertical="10dp"
                         android:fontFamily="@font/arial_medium"
                         android:text="@string/underline_sign_up"
                         android:textColor="@color/green_lime_wf"
@@ -219,6 +265,33 @@
             </LinearLayout>
 
         </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="5dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:cardElevation="30dp"
+            android:visibility="gone"
+            android:layout_marginTop="18dp"
+            android:layout_centerHorizontal="true"
+            app:cardCornerRadius="30dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.5"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ProgressBar
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:layout_margin="5dp"
+                android:elevation="20dp"
+                android:indeterminateTint="@color/sky_blue" />
+
+        </com.google.android.material.card.MaterialCardView>
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

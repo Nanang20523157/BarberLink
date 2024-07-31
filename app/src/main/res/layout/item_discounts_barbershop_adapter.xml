@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:layout_marginHorizontal="4dp"
+    android:layout_marginTop="5dp"
+    android:background="@drawable/background_card_discounts">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/tvDiscountsAmount"
+            android:layout_width="60dp"
+            android:layout_height="match_parent"
+            tools:text="25"
+            android:textSize="48sp"
+            android:textAlignment="center"
+            android:paddingTop="7.5dp"
+            android:layout_marginStart="14dp"
+            android:textColor="@color/black_font_color"
+            android:fontFamily="@font/bangers_regular"/>
+
+        <TextView
+            android:layout_width="13dp"
+            android:layout_height="match_parent"
+            android:text="@string/persen_text"
+            android:textSize="15sp"
+            android:paddingTop="25dp"
+            android:layout_marginStart="-5dp"
+            android:layout_marginEnd="13dp"
+            android:textColor="@color/black_font_color"
+            android:fontFamily="@font/bangers_regular"/>
+
+    </LinearLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        android:layout_weight="1"
+        app:cardBackgroundColor="@color/light_grey_horizons_background">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/tvTitleDiscounts"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                tools:text="Diskon Lebaran"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"
+                android:layout_marginTop="20dp"
+                android:layout_marginStart="25dp"
+                android:layout_marginEnd="20dp"
+                android:maxLines="1"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tvDiscountsCode"/>
+
+            <TextView
+                android:id="@+id/tvDescriptionDiscounts"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black_font_color"
+                tools:text="Lorem ipsum dolor sit amet, consectetur joljm; h adipiscing elit. Sed do eiusmod giu tempor..."
+                android:textSize="10.5sp"
+                android:maxLines="2"
+                android:ellipsize="end"
+                android:layout_marginTop="1dp"
+                android:layout_marginStart="1.5dp"
+                android:layout_marginEnd="25.5dp"
+                app:layout_constraintTop_toBottomOf="@id/tvTitleDiscounts"
+                app:layout_constraintStart_toStartOf="@id/tvTitleDiscounts"
+                app:layout_constraintEnd_toEndOf="parent"/>
+
+            <TextView
+                android:id="@+id/tvValidityPeriod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="21 Jan - 11 Feb 2024"
+                android:textSize="11sp"
+                android:layout_marginTop="10dp"
+                android:layout_marginStart="1dp"
+                android:layout_marginBottom="23dp"
+                android:textStyle="bold"
+                android:textColor="@color/slate_grey_background"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintTop_toBottomOf="@id/tvDescriptionDiscounts"
+                app:layout_constraintStart_toStartOf="@id/tvTitleDiscounts"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/flButtonClaim"/>
+
+            <TextView
+                android:id="@+id/tvDiscountsCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="#EXTRA25"
+                android:textSize="14sp"
+                android:layout_marginTop="21.5dp"
+                android:layout_marginEnd="25dp"
+                android:textColor="@color/black"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+
+            <FrameLayout
+                android:id="@+id/flButtonClaim"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="13.5dp"
+                app:layout_constraintEnd_toEndOf="@id/tvDiscountsCode"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCancelPromo"
+                    android:layout_width="80dp"
+                    android:layout_height="33dp"
+                    android:visibility="invisible"
+                    android:backgroundTint="@color/black_font_color"
+                    android:gravity="center"
+                    android:text="@string/btn_cancel"
+                    android:textColor="@color/magenta"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnClaimPromo"
+                    android:layout_width="80dp"
+                    android:layout_height="33dp"
+                    android:visibility="visible"
+                    android:gravity="center"
+                    android:text="@string/btn_claim"
+                    android:textColor="@color/green_lime_wf"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="@android:color/transparent"
+                    app:strokeColor="@color/charcoal_grey_background"
+                    app:strokeWidth="1.5dp" />
+
+            </FrameLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>

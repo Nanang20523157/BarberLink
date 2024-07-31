@@ -1,0 +1,1264 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Financial Records Section -->
+        <TextView
+            android:id="@+id/labelFinancialRecords"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:layout_marginStart="10dp"
+            android:layout_centerHorizontal="true"
+            android:textStyle="bold"
+            android:text="@string/financial_report"
+            android:textColor="@color/black"
+            android:textSize="15sp" />
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/capitalCardView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/labelFinancialRecords"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="10dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="1dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cvImageCapital"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="15dp"
+                    android:layout_marginStart="15dp"
+                    app:cardCornerRadius="5dp"
+                    app:cardElevation="0.5dp">
+
+                    <ImageView
+                        android:id="@+id/ivCapital"
+                        android:layout_width="25dp"
+                        android:layout_height="25dp"
+                        android:layout_margin="7dp"
+                        android:src="@drawable/capital" />
+
+                </androidx.cardview.widget.CardView>
+
+                <TextView
+                    android:id="@+id/labelCapital"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/daily_capital_amount"
+                    android:layout_toEndOf="@id/cvImageCapital"
+                    android:textColor="@color/black"
+                    android:textSize="10.5sp" />
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmerWholeCapital"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0"
+                    android:layout_marginTop="1dp"
+                    android:layout_marginStart="10dp"
+                    android:layout_below="@id/labelCapital"
+                    android:layout_toEndOf="@id/cvImageCapital" >
+
+                    <TextView
+                        android:id="@+id/wholeCapital"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/rp_3_900_000"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_empat_dp_300"
+                        android:textStyle="bold"
+                        android:textSize="16.5sp" />
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </RelativeLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cashFlowCardView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/capitalCardView"
+            android:layout_marginTop="10dp"
+            android:layout_marginHorizontal="10dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <androidx.cardview.widget.CardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/grey_300"
+                    app:cardCornerRadius="10dp"
+                    app:cardElevation="0.5dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="0.5dp"
+                            app:cardBackgroundColor="@color/white"
+                            app:cardElevation="0dp"
+                            app:cardCornerRadius="0.5dp">
+
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content">
+
+                                <ImageView
+                                    android:id="@+id/ivIncome"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_marginTop="13dp"
+                                    android:layout_marginStart="20dp"
+                                    android:src="@drawable/income" />
+
+                                <TextView
+                                    android:id="@+id/labelIncome"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:layout_marginTop="16dp"
+                                    android:text="@string/income_label"
+                                    android:layout_toEndOf="@id/ivIncome"
+                                    android:textColor="@color/black"
+                                    android:textSize="9.5sp" />
+
+                                <com.facebook.shimmer.ShimmerFrameLayout
+                                    android:id="@+id/shimmerWholeIncome"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:shimmer_auto_start="true"
+                                    app:shimmer_base_alpha="0.7"
+                                    app:shimmer_direction="left_to_right"
+                                    app:shimmer_duration="500"
+                                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                    app:shimmer_repeat_delay="500"
+                                    app:shimmer_shape="linear"
+                                    app:shimmer_tilt="0"
+                                    android:layout_marginTop="2.5dp"
+                                    android:layout_marginStart="18dp"
+                                    android:layout_marginBottom="13dp"
+                                    android:layout_below="@id/labelIncome">
+
+                                    <TextView
+                                        android:id="@+id/wholeIncome"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="18dp"
+                                        android:text="@string/rp_3_900_000"
+                                        android:textColor="@color/grey_300"
+                                        android:textStyle="bold"
+                                        android:background="@drawable/shimmer_corner_empat_dp_300"
+                                        android:textSize="15sp" />
+
+                                </com.facebook.shimmer.ShimmerFrameLayout>
+
+                            </RelativeLayout>
+
+                        </androidx.cardview.widget.CardView>
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="0.5dp"
+                            android:layout_weight="1"
+                            app:cardBackgroundColor="@color/white"
+                            app:cardElevation="0dp"
+                            app:cardCornerRadius="0dp">
+
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content">
+
+                                <ImageView
+                                    android:id="@+id/ivExpenditure"
+                                    android:layout_width="16dp"
+                                    android:layout_height="16dp"
+                                    android:layout_marginTop="13dp"
+                                    android:layout_marginStart="21dp"
+                                    android:src="@drawable/expanditure" />
+
+                                <TextView
+                                    android:id="@+id/labelExpenditure"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:layout_marginTop="16dp"
+                                    android:text="@string/expanditure_label"
+                                    android:layout_toEndOf="@id/ivExpenditure"
+                                    android:textColor="@color/black"
+                                    android:textSize="9.5sp" />
+
+                                <com.facebook.shimmer.ShimmerFrameLayout
+                                    android:id="@+id/shimmerWholeExpenditure"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    app:shimmer_auto_start="true"
+                                    app:shimmer_base_alpha="0.7"
+                                    app:shimmer_direction="left_to_right"
+                                    app:shimmer_duration="500"
+                                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                    app:shimmer_repeat_delay="500"
+                                    app:shimmer_shape="linear"
+                                    app:shimmer_tilt="0"
+                                    android:layout_marginTop="2.5dp"
+                                    android:layout_marginStart="21dp"
+                                    android:layout_marginBottom="13dp"
+                                    android:layout_below="@id/labelExpenditure">
+
+                                    <TextView
+                                        android:id="@+id/wholeExpenditure"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="18dp"
+                                        android:text="@string/rp_3_900_000"
+                                        android:textColor="@color/grey_300"
+                                        android:background="@drawable/shimmer_corner_empat_dp_300"
+                                        android:textStyle="bold"
+                                        android:textSize="15sp" />
+
+                                </com.facebook.shimmer.ShimmerFrameLayout>
+
+                            </RelativeLayout>
+
+                        </androidx.cardview.widget.CardView>
+
+                    </LinearLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/differenceLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="13dp"
+                        android:layout_marginBottom="13dp"
+                        android:text="@string/different_label"
+                        android:textColor="@color/black"
+                        android:textSize="10.5sp" />
+
+                    <com.facebook.shimmer.ShimmerFrameLayout
+                        android:id="@+id/shimmerDifferenceValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:shimmer_auto_start="true"
+                        app:shimmer_base_alpha="0.7"
+                        app:shimmer_direction="left_to_right"
+                        app:shimmer_duration="500"
+                        app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                        app:shimmer_repeat_delay="500"
+                        app:shimmer_shape="linear"
+                        app:shimmer_tilt="0"
+                        android:layout_marginStart="5dp"
+                        android:layout_marginTop="13dp"
+                        android:layout_marginBottom="13dp">
+
+                        <TextView
+                            android:id="@+id/differenceValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/plus_rp_3_900_000"
+                            android:textColor="@color/grey_300"
+                            android:background="@drawable/shimmer_corner_empat_dp_300"
+                            android:textStyle="bold"
+                            android:textSize="10.5sp" />
+
+                    </com.facebook.shimmer.ShimmerFrameLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Queue Information Section -->
+        <TextView
+            android:id="@+id/tvInformasiAntrian"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/queue_information_label"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="27dp"
+            android:layout_below="@id/cashFlowCardView"/>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvComplatedQueue"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="8dp"
+            app:cardElevation="1dp"
+            app:cardCornerRadius="12dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            android:layout_below="@+id/tvInformasiAntrian">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/ivComplatedQueue"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="25dp"
+                    android:background="@drawable/gradient_lime"
+                    android:contentDescription="@string/icon_completed_queue_desc"
+                    android:padding="10dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:srcCompat="@drawable/ic_succes" />
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_complatedQueue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0"
+                    android:layout_marginStart="20dp"
+                    app:layout_constraintStart_toEndOf="@id/ivComplatedQueue"
+                    app:layout_constraintTop_toTopOf="@id/ivComplatedQueue"
+                    app:layout_constraintBottom_toBottomOf="@id/ivComplatedQueue">
+
+                    <androidx.appcompat.widget.LinearLayoutCompat
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvComplatedQueueValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="23dp"
+                            android:fontFamily="@font/arial_bold"
+                            android:textColor="@color/grey_300"
+                            android:background="@drawable/shimmer_corner_empat_dp_300"
+                            android:textSize="26sp"
+                            android:text="@string/text_1200" />
+
+                        <!--    android:layout_marginTop="-5dp"    -->
+
+                        <TextView
+                            android:id="@+id/tvComplatedQueueLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:text="@string/status_completed_queue"
+                            android:textColor="@color/grey_300"
+                            android:textSize="12sp"
+                            android:background="@drawable/shimmer_corner_empat_dp_300" />
+
+                        <!--    android:layout_marginTop="-3dp"    -->
+
+                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvWaitingQueue"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="10dp"
+            app:cardElevation="1dp"
+            app:cardCornerRadius="12dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            android:layout_below="@+id/cvComplatedQueue">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/ivWaitingQueue"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="8dp"
+                    android:layout_marginStart="25dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    android:background="@drawable/gradient_mojito"
+                    app:srcCompat="@drawable/ic_pending"
+                    android:contentDescription="@string/icon_waiting_queue_ilustration" />
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_waitingQueue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0"
+                    android:layout_marginStart="20dp"
+                    app:layout_constraintStart_toEndOf="@id/ivWaitingQueue"
+                    app:layout_constraintTop_toTopOf="@id/ivWaitingQueue"
+                    app:layout_constraintBottom_toBottomOf="@id/ivWaitingQueue">
+
+                    <androidx.appcompat.widget.LinearLayoutCompat
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvWaitingQueueValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="23dp"
+                            android:fontFamily="@font/arial_bold"
+                            android:textColor="@color/grey_300"
+                            android:background="@drawable/shimmer_corner_empat_dp_300"
+                            android:textSize="26sp"
+                            android:text="@string/text_1200" />
+
+                        <!--    android:layout_marginTop="-5dp"    -->
+
+                        <TextView
+                            android:id="@+id/tvWaitingQueueLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:text="@string/status_waiting_queue"
+                            android:textColor="@color/grey_300"
+                            android:textSize="12sp"
+                            android:background="@drawable/shimmer_corner_empat_dp_300" />
+
+                        <!--    android:layout_marginTop="-3dp"    -->
+
+                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvCancelQueue"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginTop="10dp"
+            app:cardElevation="1dp"
+            app:cardCornerRadius="12dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            android:layout_below="@+id/cvWaitingQueue">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/ivCancelQueue"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:padding="3dp"
+                    android:layout_marginStart="25dp"
+                    app:tint="@color/white"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    android:background="@drawable/gradient_butterfly"
+                    app:srcCompat="@drawable/ic_cancel"
+                    android:contentDescription="@string/icon_cancel_queue_ilustration" />
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_cancelQueue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0"
+                    android:layout_marginStart="20dp"
+                    app:layout_constraintStart_toEndOf="@id/ivCancelQueue"
+                    app:layout_constraintTop_toTopOf="@id/ivCancelQueue"
+                    app:layout_constraintBottom_toBottomOf="@id/ivCancelQueue">
+
+                    <androidx.appcompat.widget.LinearLayoutCompat
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvCancelQueueValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="35dp"
+                            android:fontFamily="@font/arial_bold"
+                            android:textColor="@color/grey_300"
+                            android:background="@drawable/shimmer_corner_empat_dp_300"
+                            android:textSize="26sp"
+                            android:text="@string/text_1200" />
+
+                        <!--    android:layout_marginTop="-5dp"    -->
+
+                        <TextView
+                            android:id="@+id/tvCancelQueueLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:text="@string/status_waiting_queue"
+                            android:textColor="@color/grey_300"
+                            android:textSize="15sp"
+                            android:background="@drawable/shimmer_corner_empat_dp_300" />
+
+                        <!--    android:layout_marginTop="-3dp"    -->
+
+                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Service Revenue Section -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/serviceRevenueCardView"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:layout_below="@id/cvCancelQueue"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="15dp"
+            android:layout_marginHorizontal="10dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background">
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/labelServiceRevenue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="1.5dp"
+                    android:layout_marginVertical="1.3dp"
+                    android:paddingHorizontal="35dp"
+                    android:background="@drawable/background_income_from_service"
+                    android:gravity="center"
+                    android:text="@string/income_from_service"
+                    android:textColor="@color/black"
+                    android:textSize="12sp"
+                    android:textStyle="bold"/>
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmerWholeServiceRevenue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0"
+                    android:layout_gravity="center"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="25dp"
+                    android:layout_below="@id/labelServiceRevenue"
+                    android:layout_toEndOf="@id/labelServiceRevenue">
+
+                    <TextView
+                        android:id="@+id/wholeServiceRevenue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:text="@string/rp_13_900_000"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        android:textStyle="bold"
+                        android:textSize="22sp" />
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </androidx.cardview.widget.CardView>
+
+        <ImageView
+            android:id="@+id/dashedLine"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginHorizontal="11dp"
+            android:layout_below="@id/serviceRevenueCardView"
+            android:src="@drawable/dashed_line_horizontal"/>
+
+        <!-- Sales Information Section -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/salesInformationCardView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/dashedLine"
+            android:layout_marginTop="15dp"
+            android:layout_marginHorizontal="10dp"
+            android:layout_marginBottom="20dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background"
+            app:cardCornerRadius="15dp">
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/labelSalesInformation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="21dp"
+                    android:layout_gravity="center"
+                    android:text="@string/sales_information"
+                    android:textColor="@color/black"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="15dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="6dp"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="10dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cvImageSuccessOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginStart="13dp"
+                                android:layout_centerVertical="true"
+                                app:cardBackgroundColor="@color/white"
+                                app:cardCornerRadius="5dp"
+                                app:cardElevation="0.5dp">
+
+                                <ImageView
+                                    android:id="@+id/ivSuccessOrder"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_marginVertical="7dp"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:src="@drawable/order_success" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <TextView
+                                android:id="@+id/labelSuccessOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginTop="14dp"
+                                android:text="@string/order_complate_label"
+                                android:textStyle="bold"
+                                android:layout_toEndOf="@id/cvImageSuccessOrder"
+                                android:textColor="@color/green_btn"
+                                android:textSize="9.5sp" />
+
+                            <com.facebook.shimmer.ShimmerFrameLayout
+                                android:id="@+id/shimmerSuccessOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:shimmer_auto_start="true"
+                                app:shimmer_base_alpha="0.7"
+                                app:shimmer_direction="left_to_right"
+                                app:shimmer_duration="500"
+                                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                app:shimmer_repeat_delay="500"
+                                app:shimmer_shape="linear"
+                                app:shimmer_tilt="0"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginBottom="13dp"
+                                android:layout_toEndOf="@id/cvImageSuccessOrder"
+                                android:layout_below="@id/labelSuccessOrder">
+
+                                <TextView
+                                    android:id="@+id/successOrderCounting"
+                                    android:layout_width="50dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/text_1200"
+                                    android:textColor="@color/grey_300"
+                                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                                    android:textStyle="bold"
+                                    android:textSize="15.5sp" />
+
+                            </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="10dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cvImageCancelOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginStart="13dp"
+                                android:layout_centerVertical="true"
+                                app:cardBackgroundColor="@color/white"
+                                app:cardCornerRadius="5dp"
+                                app:cardElevation="0.5dp">
+
+                                <ImageView
+                                    android:id="@+id/ivCancelOrder"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_marginVertical="7dp"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:src="@drawable/order_canceled" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <TextView
+                                android:id="@+id/labelCancelOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginTop="14dp"
+                                android:text="@string/canceled_order_label"
+                                android:textStyle="bold"
+                                android:layout_toEndOf="@id/cvImageCancelOrder"
+                                android:textColor="@color/red_role"
+                                android:textSize="9.5sp" />
+
+                            <com.facebook.shimmer.ShimmerFrameLayout
+                                android:id="@+id/shimmerCancelOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:shimmer_auto_start="true"
+                                app:shimmer_base_alpha="0.7"
+                                app:shimmer_direction="left_to_right"
+                                app:shimmer_duration="500"
+                                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                app:shimmer_repeat_delay="500"
+                                app:shimmer_shape="linear"
+                                app:shimmer_tilt="0"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginBottom="13dp"
+                                android:layout_toEndOf="@id/cvImageCancelOrder"
+                                android:layout_below="@id/labelCancelOrder">
+
+                                <TextView
+                                    android:id="@+id/cancelOrderCounting"
+                                    android:layout_width="50dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/text_1200"
+                                    android:textColor="@color/grey_300"
+                                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                                    android:textStyle="bold"
+                                    android:textSize="15.5sp" />
+
+                            </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="6dp"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="10dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cvImageIncomingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginStart="13dp"
+                                android:layout_centerVertical="true"
+                                app:cardBackgroundColor="@color/white"
+                                app:cardCornerRadius="5dp"
+                                app:cardElevation="0.5dp">
+
+                                <ImageView
+                                    android:id="@+id/ivIncomingOrder"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_marginVertical="7dp"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:src="@drawable/incoming_order" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <TextView
+                                android:id="@+id/labelIncomingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginTop="14dp"
+                                android:text="@string/income_order_label"
+                                android:textStyle="bold"
+                                android:layout_toEndOf="@id/cvImageIncomingOrder"
+                                android:textColor="@color/green_lime_wf"
+                                android:textSize="9.5sp" />
+
+                            <com.facebook.shimmer.ShimmerFrameLayout
+                                android:id="@+id/shimmerIncomingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:shimmer_auto_start="true"
+                                app:shimmer_base_alpha="0.7"
+                                app:shimmer_direction="left_to_right"
+                                app:shimmer_duration="500"
+                                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                app:shimmer_repeat_delay="500"
+                                app:shimmer_shape="linear"
+                                app:shimmer_tilt="0"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginBottom="13dp"
+                                android:layout_toEndOf="@id/cvImageIncomingOrder"
+                                android:layout_below="@id/labelIncomingOrder">
+
+                                <TextView
+                                    android:id="@+id/incomingOrderCounting"
+                                    android:layout_width="50dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/text_1200"
+                                    android:textColor="@color/grey_300"
+                                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                                    android:textStyle="bold"
+                                    android:textSize="15.5sp" />
+
+                            </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="10dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cvImageReturnOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginStart="13dp"
+                                android:layout_centerVertical="true"
+                                app:cardBackgroundColor="@color/white"
+                                app:cardCornerRadius="5dp"
+                                app:cardElevation="0.5dp">
+
+                                <ImageView
+                                    android:id="@+id/ivReturnOrder"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_marginVertical="7dp"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:src="@drawable/order_return" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <TextView
+                                android:id="@+id/labelReturnOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginTop="14dp"
+                                android:text="@string/return_label_order"
+                                android:textStyle="bold"
+                                android:layout_toEndOf="@id/cvImageReturnOrder"
+                                android:textColor="@color/orange_role"
+                                android:textSize="9.5sp" />
+
+                            <com.facebook.shimmer.ShimmerFrameLayout
+                                android:id="@+id/shimmerReturnOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:shimmer_auto_start="true"
+                                app:shimmer_base_alpha="0.7"
+                                app:shimmer_direction="left_to_right"
+                                app:shimmer_duration="500"
+                                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                app:shimmer_repeat_delay="500"
+                                app:shimmer_shape="linear"
+                                app:shimmer_tilt="0"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginBottom="13dp"
+                                android:layout_toEndOf="@id/cvImageReturnOrder"
+                                android:layout_below="@id/labelReturnOrder">
+
+                                <TextView
+                                    android:id="@+id/returnOrderCounting"
+                                    android:layout_width="50dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/text_1200"
+                                    android:textColor="@color/grey_300"
+                                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                                    android:textStyle="bold"
+                                    android:textSize="15.5sp" />
+
+                            </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginEnd="6dp"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="10dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cvImagePackagingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginStart="13dp"
+                                android:layout_centerVertical="true"
+                                app:cardBackgroundColor="@color/white"
+                                app:cardCornerRadius="5dp"
+                                app:cardElevation="0.5dp">
+
+                                <ImageView
+                                    android:id="@+id/ivPackagingOrder"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_marginVertical="7dp"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:src="@drawable/order_packing" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <TextView
+                                android:id="@+id/labelPackagingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginTop="14dp"
+                                android:text="@string/packaging_order_label"
+                                android:textStyle="bold"
+                                android:layout_toEndOf="@id/cvImagePackagingOrder"
+                                android:textColor="@color/sky_blue"
+                                android:textSize="9.5sp" />
+
+                            <com.facebook.shimmer.ShimmerFrameLayout
+                                android:id="@+id/shimmerPackagingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:shimmer_auto_start="true"
+                                app:shimmer_base_alpha="0.7"
+                                app:shimmer_direction="left_to_right"
+                                app:shimmer_duration="500"
+                                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                app:shimmer_repeat_delay="500"
+                                app:shimmer_shape="linear"
+                                app:shimmer_tilt="0"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginBottom="13dp"
+                                android:layout_toEndOf="@id/cvImagePackagingOrder"
+                                android:layout_below="@id/labelPackagingOrder">
+
+                                <TextView
+                                    android:id="@+id/packagingOrderCounting"
+                                    android:layout_width="50dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/text_1200"
+                                    android:textColor="@color/grey_300"
+                                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                                    android:textStyle="bold"
+                                    android:textSize="15.5sp" />
+
+                            </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginStart="6dp"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="10dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <androidx.cardview.widget.CardView
+                                android:id="@+id/cvImageShippingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginVertical="10dp"
+                                android:layout_marginStart="13dp"
+                                android:layout_centerVertical="true"
+                                app:cardBackgroundColor="@color/white"
+                                app:cardCornerRadius="5dp"
+                                app:cardElevation="0.5dp">
+
+                                <ImageView
+                                    android:id="@+id/ivShippingOrder"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:layout_marginVertical="7dp"
+                                    android:layout_marginStart="8dp"
+                                    android:layout_marginEnd="6dp"
+                                    android:src="@drawable/order_delivery" />
+
+                            </androidx.cardview.widget.CardView>
+
+                            <TextView
+                                android:id="@+id/labelShippingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginTop="14dp"
+                                android:text="@string/shipping_order"
+                                android:textStyle="bold"
+                                android:layout_toEndOf="@id/cvImageShippingOrder"
+                                android:textColor="@color/blue"
+                                android:textSize="9.5sp" />
+
+                            <com.facebook.shimmer.ShimmerFrameLayout
+                                android:id="@+id/shimmerShippingOrder"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                app:shimmer_auto_start="true"
+                                app:shimmer_base_alpha="0.7"
+                                app:shimmer_direction="left_to_right"
+                                app:shimmer_duration="500"
+                                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                                app:shimmer_repeat_delay="500"
+                                app:shimmer_shape="linear"
+                                app:shimmer_tilt="0"
+                                android:layout_marginStart="9dp"
+                                android:layout_marginBottom="13dp"
+                                android:layout_toEndOf="@id/cvImageShippingOrder"
+                                android:layout_below="@id/labelShippingOrder">
+
+                                <TextView
+                                    android:id="@+id/shippingOrderCounting"
+                                    android:layout_width="50dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/text_1200"
+                                    android:textColor="@color/grey_300"
+                                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                                    android:textStyle="bold"
+                                    android:textSize="15.5sp" />
+
+                            </com.facebook.shimmer.ShimmerFrameLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                <TextView
+                    android:id="@+id/labelTotalOrder"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="13dp"
+                    android:layout_marginStart="40dp"
+                    android:layout_gravity="start"
+                    android:text="@string/total_sales_label"
+                    android:textColor="@color/black"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:paddingVertical="15dp"
+                    android:layout_marginBottom="30dp"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginHorizontal="27dp"
+                    android:background="@drawable/background_income_from_service">
+
+                    <com.facebook.shimmer.ShimmerFrameLayout
+                        android:id="@+id/shimmerIncomeFromProduct"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:shimmer_auto_start="true"
+                        app:shimmer_base_alpha="0.7"
+                        app:shimmer_direction="left_to_right"
+                        app:shimmer_duration="500"
+                        app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                        app:shimmer_repeat_delay="500"
+                        app:shimmer_shape="linear"
+                        app:shimmer_tilt="0">
+
+                        <TextView
+                            android:id="@+id/tvIncomeFromProduct"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/rp_1_000_000"
+                            android:textStyle="bold"
+                            android:textColor="@color/grey_300"
+                            android:background="@drawable/shimmer_corner_lima_dp_300"
+                            android:gravity="center"
+                            android:textSize="22dp"/>
+
+                    </com.facebook.shimmer.ShimmerFrameLayout>
+
+                </LinearLayout>
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </androidx.cardview.widget.CardView>
+
+    </RelativeLayout>
+
+</androidx.core.widget.NestedScrollView>

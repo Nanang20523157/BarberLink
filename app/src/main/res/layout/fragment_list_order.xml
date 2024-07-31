@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="16dp">
+
+    <!-- Back Button -->
+    <ImageView
+        android:id="@+id/ivBack"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="22dp"
+        android:contentDescription="@string/icon_back_button_desc"
+        android:src="@drawable/ic_back" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="@string/toolbar_list_order_fragment"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#000000" />
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chipGroupFilters"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_below="@id/tvTitle"
+        android:paddingHorizontal="8dp"
+        android:layout_marginTop="17dp"
+        app:chipSpacing="6dp">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipAll"
+            android:layout_width="90dp"
+            android:layout_height="wrap_content"
+            android:text="@string/all_text"
+            android:textSize="13.5dp"
+            app:chipCornerRadius="30dp"
+            app:chipStrokeColor="@color/green_bg_wa"
+            android:textAlignment="center"
+            android:textColor="@color/green_text_wa"
+            android:textStyle="bold"
+            app:chipBackgroundColor="@color/green_bg_wa"
+            app:checkedIconVisible="false"
+            app:chipIconVisible="false"
+            app:closeIconVisible="false" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipUnread"
+            android:layout_width="85dp"
+            android:layout_height="wrap_content"
+            android:text="@string/package_text"
+            android:textSize="13.5dp"
+            android:textStyle="bold"
+            app:chipCornerRadius="30dp"
+            app:chipStrokeColor="@color/grey_200"
+            android:textAlignment="center"
+            android:textColor="@color/grey_text_wa"
+            app:chipBackgroundColor="@color/grey_200"
+            app:checkedIconVisible="false"
+            app:chipIconVisible="false"
+            app:closeIconVisible="false" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chipGroup"
+            android:layout_width="113dp"
+            android:layout_height="wrap_content"
+            android:text="@string/non_package_text"
+            android:textStyle="bold"
+            android:textSize="13.5dp"
+            app:chipCornerRadius="30dp"
+            app:chipStrokeColor="@color/grey_200"
+            android:textAlignment="center"
+            android:textColor="@color/grey_text_wa"
+            app:chipBackgroundColor="@color/grey_200"
+            app:checkedIconVisible="false"
+            app:chipIconVisible="false"
+            app:closeIconVisible="false" />
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <!-- RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvListOrder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:layout_below="@id/chipGroupFilters"
+        tools:listitem="@layout/item_list_order_package_adapter"
+        android:orientation="vertical"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        android:nestedScrollingEnabled="true"/>
+
+<!--    android:clipChildren="false"-->
+<!--    android:clipToPadding="false"-->
+<!--    android:nestedScrollingEnabled="true"-->
+<!--    android:orientation="vertical"-->
+<!--    app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"-->
+<!--    app:spanCount="2"-->
+<!--    tools:itemCount="10"-->
+<!--    tools:listitem="@layout/item_list_service_booking_adapter"-->
+
+</RelativeLayout>

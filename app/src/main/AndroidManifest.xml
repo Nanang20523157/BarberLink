@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -13,6 +15,42 @@
         android:theme="@style/Theme.BarberLink"
         tools:targetApi="31">
         <activity
+            android:name=".Adapter.ItemListCapsterAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Admin.DashboardAdminPage"
+            android:exported="false" />
+        <activity
+            android:name=".Adapter.ItemListOrderPackageAdapter"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.SignIn.Login.SelectOutletDestination"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Admin.ManageOutletPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Admin.AdminSettingPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Capster.QueueControlPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Teller.ComplateOrderPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Teller.BestDealsPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Teller.ReviewOrderPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Teller.BarberBookingPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Teller.QueueTrackerPage"
+            android:exported="false" />
+        <activity
             android:name=".UserInterface.Admin.BerandaAdminPage"
             android:exported="false" />
         <activity
@@ -22,14 +60,12 @@
             android:name=".UserInterface.SignIn.Gateway.SelectUserRolePage"
             android:exported="false" />
         <activity
-            android:name=".UserInterface.SignIn.Form.FormAccessCodeFragment"
-            android:exported="false" />
-        <activity
             android:name=".UserInterface.Capster.SelectAccountPage"
             android:exported="false" />
         <activity
             android:name=".UserInterface.SignIn.Login.LoginAdminPage"
-            android:exported="false" />
+            android:exported="false"
+            android:launchMode="singleInstancePerTask" />
         <activity
             android:name=".UserInterface.SignUp.SignUpSuccess"
             android:exported="false" />
@@ -41,7 +77,8 @@
             android:exported="false" />
         <activity
             android:name=".UserInterface.SignUp.SignUpStepOne"
-            android:exported="false" />
+            android:exported="false"
+            android:launchMode="singleInstancePerTask" />
         <activity
             android:name=".UserInterface.Intro.Landing.LandingPage"
             android:exported="false" />
@@ -50,7 +87,8 @@
             android:exported="false" />
         <activity
             android:name=".UserInterface.Intro.Splash.SplashScreen"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.BarberLink.FullScreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

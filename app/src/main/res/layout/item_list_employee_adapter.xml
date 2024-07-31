@@ -9,9 +9,9 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:backgroundTint="@color/grey_background_card"
+        android:backgroundTint="@color/light_grey_horizons_background"
         app:cardCornerRadius="23dp"
-        app:cardElevation="4dp"
+        app:cardElevation="2dp"
         android:layout_marginVertical="8dp"
         android:layout_marginStart="2dp"
         android:layout_marginEnd="7dp">
@@ -23,15 +23,16 @@
             android:padding="23dp"
             android:gravity="center">
 
-            <ImageView
+            <de.hdodenhof.circleimageview.CircleImageView
                 android:id="@+id/ivPhotoProfile"
                 android:layout_width="57dp"
                 android:layout_height="57dp"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginStart="13dp"
                 android:layout_marginEnd="16dp"
+                android:scaleType="centerCrop"
                 android:contentDescription="@string/user_profile_placeholder_desc"
-                tools:src="@drawable/placeholder_user_profile"
+                android:src="@drawable/placeholder_user_profile"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@id/tvEmployeeName"
                 app:layout_constraintHorizontal_bias="0.0"
@@ -52,7 +53,7 @@
                     android:layout_marginStart="4dp"
                     android:layout_marginTop="2.4dp"
                     android:src="@drawable/full_star"
-                    android:contentDescription="@string/five_star_rating" />
+                    android:contentDescription="@string/star_image_desc" />
 
                 <TextView
                     android:id="@+id/tvRating"
@@ -77,7 +78,8 @@
                     android:layout_width="13dp"
                     android:layout_height="13dp"
                     android:src="@drawable/ic_book"
-                    android:layout_marginTop="1.7dp"/>
+                    android:layout_marginTop="1.7dp"
+                    android:contentDescription="@string/booking_icon_desc" />
 
                 <TextView
                     android:id="@+id/tvHargaLayanan"

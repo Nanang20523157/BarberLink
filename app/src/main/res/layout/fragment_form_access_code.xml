@@ -1,140 +1,243 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_marginVertical="10dp"
-    android:layout_marginHorizontal="10dp"
-    app:cardCornerRadius="25dp"
-    app:cardElevation="10dp"
-    android:backgroundTint="@color/light_grey_horizons_background">
+    android:layout_height="match_parent"
+    android:background="@drawable/background_scrim">
 
-    <androidx.appcompat.widget.LinearLayoutCompat
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:cardElevation="15dp"
+            app:cardCornerRadius="30dp"
+            android:layout_marginTop="150dp"
+            android:visibility="visible"
+            android:layout_centerHorizontal="true"
+            android:layout_alignTop="@id/cardFormAccessCode">
+
+            <ProgressBar
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:layout_margin="5dp"
+                android:elevation="20dp"
+                android:indeterminateTint="@color/sky_blue" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardFormAccessCode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginVertical="10dp"
+            android:layout_gravity="top"
+            android:layout_marginHorizontal="10dp"
             app:cardCornerRadius="25dp"
-            app:cardElevation="4dp"
+            app:cardElevation="10dp"
             android:backgroundTint="@color/light_grey_horizons_background">
 
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:layout_gravity="center">
+                android:orientation="vertical">
 
-                <TextView
-                    android:id="@+id/tvHeader"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/title_page_input_code_access"
-                    android:fontFamily="@font/arial_bold"
-                    android:textColor="@color/black_font_color"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="10dp"
-                    android:layout_gravity="center"/>
-
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="10dp"
-                    android:paddingVertical="10dp"
-                    android:layout_marginHorizontal="25dp"
-                    android:background="@drawable/background_yellow_attention"
-                    android:layout_marginTop="16dp">
+                    app:cardCornerRadius="25dp"
+                    app:cardElevation="0.5dp"
+                    android:layout_margin="3dp"
+                    android:backgroundTint="@color/light_grey_horizons_background">
 
-                    <ImageView
-                        android:layout_width="12.5dp"
-                        android:layout_height="12.5dp"
-                        android:layout_marginTop="2dp"
-                        android:layout_marginStart="3dp"
-                        android:src="@drawable/ic_info"/>
-
-                    <TextView
-                        android:id="@+id/tvInstruction"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/arial_medium"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginEnd="7dp"
-                        android:text="@string/instructions_guide_to_generate_code_access"
-                        android:textSize="12.5sp"/>
-
-                </LinearLayout>
-
-                <!-- Barbershop Name Label -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_below="@id/tvSectionTitle"
-                    android:text="@string/label_code_access_teller"
-                    android:textSize="12.5sp"
-                    android:fontFamily="@font/arial_regular"
-                    android:textColor="@color/black_font_color"
-                    android:layout_marginTop="7dp"
-                    android:layout_marginStart="27dp"/>
-
-                <!-- Barbershop Name Input -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/wrapperAccessCode"
-                    android:layout_width="match_parent"
-                    android:layout_height="43dp"
-                    android:layout_marginHorizontal="25dp"
-                    android:layout_below="@id/tvBarbershopNameLabel"
-                    app:hintEnabled="false"
-                    app:boxBackgroundColor="@color/white"
-                    app:boxStrokeColor="@color/green_lime_wf"
-                    android:layout_marginTop="5dp">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etAccessCode"
+                    <androidx.appcompat.widget.LinearLayoutCompat
                         android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:padding="3dp"
-                        android:hint="@string/hint_code_access"
-                        android:inputType="text"
-                        android:textSize="12.5sp" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingHorizontal="20dp"
+                        android:paddingTop="25dp"
+                        android:paddingBottom="25dp"
+                        android:layout_gravity="center">
 
-                <!-- Next Button -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnNext"
-                    android:layout_width="wrap_content"
+                        <TextView
+                            android:id="@+id/tvHeader"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/title_page_input_code_access"
+                            android:fontFamily="@font/arial_bold"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="17sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="10dp"
+                            android:layout_gravity="center"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="10dp"
+                            android:layout_marginHorizontal="25dp"
+                            android:background="@drawable/background_yellow_attention"
+                            android:layout_marginTop="10dp">
+
+                            <ImageView
+                                android:layout_width="12.5dp"
+                                android:layout_height="12.5dp"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginStart="3dp"
+                                android:src="@drawable/ic_info"
+                                android:contentDescription="@string/image_info_icon_desc" />
+
+                            <TextView
+                                android:id="@+id/tvInstruction"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/arial_medium"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="7dp"
+                                android:text="@string/instructions_guide_to_generate_code_access"
+                                android:textSize="12sp"/>
+
+                        </LinearLayout>
+
+                        <!-- Barbershop Name Label -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@id/tvSectionTitle"
+                            android:text="Isi field dibawah Ini:"
+                            android:textSize="12sp"
+                            android:fontFamily="@font/arial_regular"
+                            android:textColor="@color/black_font_color"
+                            android:layout_marginTop="9dp"
+                            android:layout_marginStart="27dp"/>
+
+                        <!--                <com.google.android.material.textfield.TextInputLayout-->
+                        <!--                    android:id="@+id/wrapperBarbershopName"-->
+                        <!--                    android:layout_width="match_parent"-->
+                        <!--                    android:layout_height="wrap_content"-->
+                        <!--                    android:layout_marginHorizontal="25dp"-->
+                        <!--                    app:hintEnabled="true"-->
+                        <!--                    app:hintTextColor="@color/black"-->
+                        <!--                    android:textColorHint="#b0b0b0"-->
+                        <!--                    android:hint="@string/hint_outlet_name"-->
+                        <!--                    app:placeholderText="Nama Barbershop"-->
+                        <!--                    app:placeholderTextColor="#b0b0b0"-->
+                        <!--                    app:errorEnabled="true"-->
+                        <!--                    app:boxStrokeErrorColor="@color/red"-->
+                        <!--                    app:boxBackgroundColor="@color/white"-->
+                        <!--                    app:errorIconDrawable="@drawable/ic_error"-->
+                        <!--                    app:errorIconTint="@color/red"-->
+                        <!--                    app:errorTextColor="@color/red"-->
+                        <!--                    app:boxStrokeColor="@color/green_lime_wf"-->
+                        <!--                    android:layout_marginTop="-1dp">-->
+
+                        <!--                    <AutoCompleteTextView-->
+                        <!--                        android:id="@+id/etBarbershopName"-->
+                        <!--                        android:layout_width="match_parent"-->
+                        <!--                        android:layout_height="43dp"-->
+                        <!--                        android:inputType="text"-->
+                        <!--                        android:drawablePadding="5.5dp"-->
+                        <!--                        android:textSize="12.5sp"-->
+                        <!--                        android:paddingHorizontal="15dp"-->
+                        <!--                        android:drawableStart="@drawable/ic_shop" />-->
+
+                        <!--                    <TextView-->
+                        <!--                        android:id="@+id/barberCustomError"-->
+                        <!--                        android:layout_width="match_parent"-->
+                        <!--                        android:layout_height="wrap_content"-->
+                        <!--                        android:visibility="visible"-->
+                        <!--                        android:text="@string/required"-->
+                        <!--                        android:textColor="@color/red"-->
+                        <!--                        android:textSize="11sp"-->
+                        <!--                        android:layout_marginTop="-17.2dp"-->
+                        <!--                        android:letterSpacing="0.03333333"-->
+                        <!--                        android:layout_marginStart="6dp" />-->
+
+                        <!--                </com.google.android.material.textfield.TextInputLayout>-->
+
+                        <!-- Barbershop Name Input -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/wrapperAccessCode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="25dp"
+                            app:hintEnabled="true"
+                            app:hintTextColor="@color/black"
+                            android:textColorHint="#b0b0b0"
+                            android:hint="@string/hint_code_access_teller"
+                            app:placeholderText="@string/hint_code_access"
+                            app:placeholderTextColor="#b0b0b0"
+                            app:errorEnabled="true"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:boxBackgroundColor="@color/white"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            android:layout_marginTop="-1dp">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etAccessCode"
+                                android:layout_width="match_parent"
+                                android:layout_height="43dp"
+                                android:inputType="text"
+                                android:textSize="12.5sp" />
+
+                            <TextView
+                                android:id="@+id/codeCustomError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="visible"
+                                android:text="@string/required"
+                                android:textColor="@color/red"
+                                android:textSize="11sp"
+                                android:layout_marginTop="-17.2dp"
+                                android:letterSpacing="0.03333333"
+                                android:layout_marginStart="6dp" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Next Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnNext"
+                            android:layout_width="wrap_content"
+                            android:layout_height="45dp"
+                            android:layout_gravity="center"
+                            android:layout_marginTop="15dp"
+                            android:minWidth="140dp"
+                            android:backgroundTint="@color/disable_grey_background"
+                            android:text="@string/next_text"
+                            android:textColor="#FFFFFF" />
+
+                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    android:id="@+id/tvNote"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="15dp"
-                    android:minWidth="140dp"
-                    android:backgroundTint="@color/disable_grey_background"
-                    android:text="@string/next"
-                    android:textColor="#FFFFFF" />
+                    android:text="@string/text_information_for_code_access"
+                    android:textSize="12.5sp"
+                    android:fontFamily="@font/arial_medium"
+                    android:paddingVertical="15dp"
+                    android:paddingHorizontal="30dp"
+                    android:layout_marginHorizontal="25dp"
+                    android:textAlignment="center"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="27dp"
+                    android:background="@drawable/role_background"/>
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
         </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tvNote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/text_information_for_code_access"
-            android:textSize="12sp"
-            android:fontFamily="@font/arial_medium"
-            android:paddingVertical="15dp"
-            android:paddingHorizontal="30dp"
-            android:layout_marginHorizontal="25dp"
-            android:textAlignment="center"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="27dp"
-            android:background="@drawable/role_background"/>
+    </RelativeLayout>
 
-    </androidx.appcompat.widget.LinearLayoutCompat>
-
-</com.google.android.material.card.MaterialCardView>
+</RelativeLayout>
