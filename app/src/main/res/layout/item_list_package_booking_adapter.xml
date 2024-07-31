@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="8dp"
+    android:layout_marginStart="2dp"
+    android:layout_marginEnd="7dp"
+    app:cardCornerRadius="25dp"
+    android:backgroundTint="@color/light_grey_horizons_background"
+    app:cardElevation="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/tvPackageTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="Paket Spesialis"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+            android:textColor="@android:color/black"
+            android:textSize="13sp"
+            android:layout_marginTop="8dp"
+            android:textStyle="bold"
+            android:layout_marginStart="15dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/tvDescription"
+            android:layout_width="180dp"
+            android:layout_height="wrap_content"
+            tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor..."
+            android:textSize="11sp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:textColor="@android:color/black"
+            android:layout_marginTop="2dp"
+            app:layout_constraintStart_toStartOf="@id/tvPackageTitle"
+            app:layout_constraintTop_toBottomOf="@id/tvPackageTitle"/>
+
+        <LinearLayout
+            android:id="@+id/llRating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="17dp"
+            android:layout_marginStart="20dp"
+            app:layout_constraintTop_toTopOf="@id/tvPackageTitle"
+            app:layout_constraintBottom_toBottomOf="@id/tvPackageTitle"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <ImageView
+                android:layout_width="11dp"
+                android:layout_height="11dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/full_star"
+                android:contentDescription="@string/star_image_desc" />
+
+            <TextView
+                android:id="@+id/tvRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="4.5"
+                android:layout_marginStart="2.7dp"
+                android:layout_marginTop="0.8dp"
+                android:textSize="11sp"
+                android:fontFamily="@font/arial_bold"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:textColor="@android:color/black" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvHargaPaket"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            tools:text="Rp 30.000"
+            android:layout_marginStart="25dp"
+            android:textSize="11.2sp"
+            android:textStyle="bold"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            android:textColor="@color/black_font_color"
+            app:layout_constraintTop_toTopOf="@id/tvDescription"
+            app:layout_constraintEnd_toEndOf="@id/llRating"
+            app:layout_constraintStart_toEndOf="@id/tvDescription"/>
+
+
+        <LinearLayout
+            android:id="@+id/linearLayout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="55dp"
+            android:layout_marginBottom="15dp"
+            android:layout_marginStart="-0.5dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="@id/tvDescription"
+            app:layout_constraintTop_toBottomOf="@id/tvPackageTitle">
+
+            <ImageView
+                android:id="@+id/ivImageOne"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="9dp"
+                android:visibility="invisible"
+                android:background="@drawable/background_service_icon_small"
+                android:scaleType="fitXY"
+                tools:src="@drawable/service_icon_example" />
+
+            <ImageView
+                android:id="@+id/ivImageTwo"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="9dp"
+                android:visibility="gone"
+                android:background="@drawable/background_service_icon_small"
+                android:scaleType="fitXY"
+                tools:src="@drawable/service_icon_example"  />
+
+            <ImageView
+                android:id="@+id/ivImageThree"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="9dp"
+                android:visibility="gone"
+                android:background="@drawable/background_service_icon_small"
+                android:scaleType="fitXY"
+                tools:src="@drawable/service_icon_example"  />
+
+            <ImageView
+                android:id="@+id/ivImageFour"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="9dp"
+                android:visibility="gone"
+                android:background="@drawable/background_service_icon_small"
+                android:scaleType="fitXY"
+                tools:src="@drawable/service_icon_example"  />
+
+            <TextView
+                android:id="@+id/tvMoreItem"
+                android:layout_width="23dp"
+                android:layout_height="23dp"
+                android:visibility="gone"
+                android:gravity="center"
+                tools:text="+1"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:background="@drawable/background_dot_service"/>
+
+        </LinearLayout>
+
+        <!-- Cancel Button -->
+        <FrameLayout
+            android:id="@+id/flButtonOrder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="-5dp"
+            app:layout_constraintBottom_toBottomOf="@+id/linearLayout"
+            app:layout_constraintEnd_toEndOf="@id/tvHargaPaket"
+            app:layout_constraintTop_toTopOf="@id/linearLayout">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCancelOrder"
+                android:layout_width="80dp"
+                android:layout_height="33dp"
+                android:visibility="visible"
+                android:backgroundTint="@color/black_font_color"
+                android:gravity="center"
+                android:text="@string/btn_cancel"
+                android:textColor="@color/magenta"
+                android:textSize="9sp"
+                android:textStyle="bold" />
+
+            <!-- Cancel Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSelectOrder"
+                android:layout_width="80dp"
+                android:layout_height="33dp"
+                android:visibility="invisible"
+                android:gravity="center"
+                android:text="@string/btn_select"
+                android:textColor="@color/green_lime_wf"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:backgroundTint="@android:color/transparent"
+                app:strokeColor="@color/charcoal_grey_background"
+                app:strokeWidth="1.5dp" />
+
+        </FrameLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

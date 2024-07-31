@@ -6,6 +6,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:context=".UserInterface.Capster.SelectAccountPage">
 
     <!-- Back Button -->
@@ -26,7 +28,7 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="16dp"
-        android:text="@string/title_select_account_page"
+        android:text="@string/toolbar_select_account_page"
         android:textSize="18sp"
         android:textStyle="bold"
         android:textColor="#000000" />
@@ -35,6 +37,8 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
+        android:clipToPadding="false"
+        android:clipChildren="false"
         android:layout_below="@id/tvTitle">
 
         <androidx.cardview.widget.CardView
@@ -46,7 +50,6 @@
             android:elevation="18dp"
             app:cardCornerRadius="7.61dp"
             android:outlineAmbientShadowColor="@color/black"
-            shadowColor="@color/black"
             android:outlineSpotShadowColor="@color/black"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -58,7 +61,7 @@
                 android:layout_height="match_parent"
                 app:iconifiedByDefault="false"
                 app:queryBackground="@android:color/transparent"
-                app:queryHint="Cari pegawai..." />
+                app:queryHint="Cari Pegawai..." />
 
         </androidx.cardview.widget.CardView>
 
@@ -71,17 +74,39 @@
             android:text="@string/label_list_account_employee"
             android:fontFamily="@font/arial_bold"
             android:textColor="@color/black_font_color"
-            android:textSize="16sp"
+            android:textSize="17sp"
             android:textAppearance="@style/TextAppearance.AppCompat.Medium"
             android:layout_marginTop="16dp" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_employee_list"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_marginTop="-2dp"
-            android:layout_weight="1"
-            tools:listitem="@layout/item_list_employee_adapter"/>
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_employee_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginTop="3dp"
+                android:layout_weight="1"
+                tools:listitem="@layout/item_list_pick_user_adapter"/>
+
+            <TextView
+                android:id="@+id/tvEmptyEmployee"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="@string/no_data"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:paddingBottom="20dp"
+                android:fontFamily="@font/arial_regular"
+                android:textColor="@color/black_font_color"
+                android:layout_marginTop="10dp"
+                android:visibility="visible"/>
+
+        </FrameLayout>
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 

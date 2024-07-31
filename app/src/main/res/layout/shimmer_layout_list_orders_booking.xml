@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <View
+        android:id="@+id/viewDashedLine"
+        android:layout_width="165dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="-67dp"
+        android:layout_marginBottom="-2dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignBottom="@id/shimmer_view_container"
+        android:background="@drawable/dashed_line_vertical" />
+
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/shimmer_view_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:shimmer_auto_start="true"
+        app:shimmer_base_alpha="0.7"
+        android:layout_marginStart="30dp"
+        app:shimmer_direction="left_to_right"
+        app:shimmer_duration="500"
+        app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+        app:shimmer_repeat_delay="500"
+        app:shimmer_shape="linear"
+        app:shimmer_tilt="0">
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="5dp"
+            android:layout_marginStart="2dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="20dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                android:orientation="vertical">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cvMainInfoOutlet"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="20dp"
+                    app:cardElevation="0dp"
+                    android:backgroundTint="@color/light_grey_horizons_background">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="175dp"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp"
+                        android:layout_gravity="center">
+
+                        <ImageView
+                            android:id="@+id/ivIconService"
+                            android:layout_width="37dp"
+                            android:layout_height="37dp"
+                            android:layout_marginTop="3dp"
+                            android:layout_marginStart="3dp"
+                            android:background="@drawable/shimmer_corner_lima_dp_300"
+                            android:scaleType="centerInside"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"/>
+
+                        <LinearLayout
+                            android:id="@+id/llRating"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginStart="-2.5dp"
+                            android:layout_marginTop="7dp"
+                            app:layout_constraintStart_toStartOf="@id/ivIconService"
+                            app:layout_constraintEnd_toEndOf="@id/ivIconService"
+                            app:layout_constraintTop_toBottomOf="@id/ivIconService">
+
+                            <!-- Star Icons -->
+                            <ImageView
+                                android:id="@+id/ivStar"
+                                android:layout_width="12dp"
+                                android:layout_height="12dp"
+                                android:layout_marginEnd="2dp"
+                                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                                android:contentDescription="@string/star_image_desc"/>
+
+                            <TextView
+                                android:id="@+id/tvRating"
+                                android:layout_width="wrap_content"
+                                android:layout_height="12dp"
+                                android:text="@string/five_star_rating"
+                                android:textSize="11sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/grey_300"
+                                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                                android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/llOutletDetails"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginEnd="5dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toEndOf="@id/ivIconService"
+                            app:layout_constraintTop_toTopOf="@id/ivIconService">
+
+                            <TextView
+                                android:id="@+id/tvServiceName"
+                                android:layout_width="match_parent"
+                                android:layout_height="28dp"
+                                android:background="@drawable/shimmer_corner_empat_dp_300"
+                                android:maxLines="2"
+                                android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+                                android:textColor="@android:color/black"
+                                android:textSize="13sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvServiceDescription"
+                                android:layout_width="match_parent"
+                                android:layout_height="12dp"
+                                android:layout_marginTop="1dp"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textColor="@color/black"
+                                android:textSize="10.5sp"
+                                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                                app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                                app:layout_constraintTop_toBottomOf="@id/llRating" />
+
+                            <TextView
+                                android:id="@+id/tvServiceDescription2"
+                                android:layout_width="match_parent"
+                                android:layout_height="12dp"
+                                android:layout_marginTop="1dp"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textColor="@color/black"
+                                android:textSize="10.5sp"
+                                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                                app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                                app:layout_constraintTop_toBottomOf="@id/llRating" />
+
+                            <TextView
+                                android:id="@+id/tvServiceDescription3"
+                                android:layout_width="match_parent"
+                                android:layout_height="12dp"
+                                android:layout_marginTop="1dp"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textColor="@color/black"
+                                android:textSize="10.5sp"
+                                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                                app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                                app:layout_constraintTop_toBottomOf="@id/llRating" />
+
+                        </LinearLayout>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="visible">
+
+                    <!-- Cancel Button -->
+                    <FrameLayout
+                        android:id="@+id/flButtonOrder"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginBottom="10dp">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnCancelOrder"
+                            android:layout_width="75dp"
+                            android:layout_height="33dp"
+                            android:visibility="invisible"
+                            android:backgroundTint="@color/black_font_color"
+                            android:gravity="center"
+                            android:text="@string/btn_cancel"
+                            android:textColor="@color/magenta"
+                            android:textSize="9sp"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSelectOrder"
+                            android:layout_width="75dp"
+                            android:layout_height="33dp"
+                            android:visibility="visible"
+                            android:gravity="center"
+                            android:textColor="@color/green_lime_wf"
+                            android:textSize="9sp"
+                            android:textStyle="bold"
+                            android:backgroundTint="@color/grey_300"
+                            app:strokeColor="@color/grey_300"
+                            app:strokeWidth="1.5dp" />
+
+                    </FrameLayout>
+
+                    <!-- Price -->
+                    <TextView
+                        android:id="@+id/price"
+                        android:layout_width="53dp"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentBottom="true"
+                        android:layout_alignParentEnd="true"
+                        android:background="@drawable/shimmer_corner_empat_dp_300"
+                        android:layout_marginTop="-3dp"
+                        android:textStyle="bold"
+                        android:textSize="11.5sp"
+                        android:textColor="@android:color/black"
+                        app:layout_constraintTop_toTopOf="@id/flButtonOrder"
+                        app:layout_constraintBottom_toBottomOf="@id/flButtonOrder"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintHorizontal_bias="0.35"
+                        app:layout_constraintStart_toEndOf="@id/flButtonOrder"/>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </com.facebook.shimmer.ShimmerFrameLayout>
+
+
+</RelativeLayout>

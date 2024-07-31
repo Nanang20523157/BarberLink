@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "330899598346",
+    "project_id": "barberlink-bfb66",
+    "storage_bucket": "barberlink-bfb66.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:330899598346:android:3f4a66cdd0a7f9f71783f3",
+        "android_client_info": {
+          "package_name": "com.example.barberlink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAA2u0tnpDtK3MEdHCehbPq0vPbM1omFWI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

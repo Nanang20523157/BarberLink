@@ -1,69 +1,71 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     tools:context=".UserInterface.Intro.OnBoarding.OnBoardingPage">
 
-    <ImageView
-        android:id="@+id/barberlinkLogo"
-        android:layout_width="0dp"
-        android:layout_height="70dp"
-        android:layout_marginTop="40dp"
-        android:src="@drawable/full_small_blue_logo"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/introSliderPager"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:foregroundGravity="center"
-        android:layout_marginTop="5dp"
-        android:layout_marginBottom="5dp"
-        android:overScrollMode="never"
-        app:layout_constraintBottom_toTopOf="@id/indicatorsContainer"
-        app:layout_constraintTop_toBottomOf="@id/barberlinkLogo"/>
-
-    <LinearLayout
-        android:id="@+id/indicatorsContainer"
+    <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:gravity="center"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toTopOf="@id/btnNext" />
+        android:orientation="vertical">
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnNext"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="7dp"
-        android:layout_marginStart="-5dp"
-        android:backgroundTint="@color/black"
-        android:minWidth="110dp"
-        android:text="@string/next"
-        android:textSize="14sp"
-        android:textColor="@color/green_lime_wf"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@id/textSkipIntro"
-        app:layout_constraintEnd_toEndOf="@id/textSkipIntro"
-        app:layout_constraintStart_toStartOf="@id/textSkipIntro" />
+        <ImageView
+            android:id="@+id/barberlinkLogo"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:layout_marginTop="40dp"
+            android:src="@drawable/full_small_blue_logo"
+            android:contentDescription="@string/full_logo_barberlink_app_desc" />
 
-    <TextView
-        android:id="@+id/textSkipIntro"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/skip_intro"
-        android:textColor="@color/black_font_color"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        app:layout_constraintVertical_bias="0.88"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/introSliderPager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:foregroundGravity="center"
+            android:layout_marginTop="-5dp"
+            android:layout_marginBottom="5dp"
+            android:overScrollMode="never" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <LinearLayout
+            android:id="@+id/indicatorsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:layout_marginTop="-30dp"
+            android:gravity="center"
+            android:orientation="horizontal" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnNext"
+            android:layout_width="wrap_content"
+            android:layout_height="45dp"
+            android:layout_marginBottom="7dp"
+            android:backgroundTint="@color/black"
+            android:minWidth="100dp"
+            android:text="@string/next_text"
+            android:gravity="center"
+            android:paddingBottom="7dp"
+            android:layout_gravity="center_horizontal"
+            android:textSize="14sp"
+            android:textColor="@color/green_lime_wf"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textSkipIntro"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/skip_intro"
+            android:padding="8dp"
+            android:layout_gravity="center_horizontal"
+            android:textColor="@color/black_font_color"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginTop="-5dp"
+            android:layout_marginBottom="42dp"/>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</androidx.core.widget.NestedScrollView>

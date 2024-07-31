@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/shimmer_view_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:shimmer_auto_start="true"
+    app:shimmer_base_alpha="0.7"
+    app:shimmer_direction="left_to_right"
+    app:shimmer_duration="500"
+    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+    app:shimmer_repeat_delay="500"
+    app:shimmer_shape="linear"
+    app:shimmer_tilt="0">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="4dp"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/light_grey_horizons_background"
+        android:layout_marginTop="5dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/tvTitleVoucher"
+                android:layout_width="150dp"
+                android:layout_height="wrap_content"
+                android:background="@drawable/shimmer_corner_empat_dp_300"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"
+                android:layout_marginTop="20dp"
+                android:layout_marginStart="25dp"
+                android:layout_marginEnd="20dp"
+                android:maxLines="1"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/tvVoucherCode"/>
+
+            <TextView
+                android:id="@+id/tvDescriptionVoucher"
+                android:layout_width="210dp"
+                android:layout_height="10.5dp"
+                android:textColor="@color/black_font_color"
+                android:textSize="10.5sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="2dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintTop_toBottomOf="@id/tvTitleVoucher"
+                app:layout_constraintStart_toStartOf="@id/tvTitleVoucher"
+                app:layout_constraintEnd_toStartOf="@id/tvVoucherCode"/>
+
+            <TextView
+                android:id="@+id/tvDescriptionVoucher2"
+                android:layout_width="210dp"
+                android:layout_height="10.5dp"
+                android:textColor="@color/black_font_color"
+                android:textSize="10.5sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="1dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/shimmer_corner_tiga_dp_300"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintTop_toBottomOf="@id/tvDescriptionVoucher"
+                app:layout_constraintStart_toStartOf="@id/tvTitleVoucher"
+                app:layout_constraintEnd_toStartOf="@id/tvVoucherCode"/>
+
+            <TextView
+                android:id="@+id/tvValidityPeriod"
+                android:layout_width="110dp"
+                android:layout_height="wrap_content"
+                android:background="@drawable/shimmer_corner_empat_dp_300"
+                android:textSize="11sp"
+                android:layout_marginTop="13.5dp"
+                android:layout_marginBottom="23dp"
+                android:textStyle="bold"
+                android:textColor="@color/slate_grey_background"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintTop_toBottomOf="@id/tvDescriptionVoucher2"
+                app:layout_constraintStart_toStartOf="@id/tvTitleVoucher"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/flButtonClaim"/>
+
+            <TextView
+                android:id="@+id/tvVoucherCode"
+                android:layout_width="80dp"
+                android:layout_height="wrap_content"
+                android:background="@drawable/shimmer_corner_empat_dp_300"
+                android:textSize="14sp"
+                android:layout_marginTop="21.5dp"
+                android:layout_marginEnd="25dp"
+                android:textColor="@color/black"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+
+            <TextView
+                android:id="@+id/tvVoucherAmount"
+                android:layout_width="65dp"
+                android:layout_height="wrap_content"
+                android:background="@drawable/shimmer_corner_empat_dp_300"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:layout_marginTop="1dp"
+                android:layout_marginEnd="25.5dp"
+                android:textColor="@color/magenta"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/tvVoucherCode"/>
+
+            <FrameLayout
+                android:id="@+id/flButtonClaim"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:layout_constraintEnd_toEndOf="@id/tvVoucherCode"
+                android:layout_marginBottom="13.5dp"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCancelPromo"
+                    android:layout_width="80dp"
+                    android:layout_height="33dp"
+                    android:visibility="visible"
+                    android:backgroundTint="@color/grey_300"
+                    android:gravity="center"
+                    android:textColor="@color/magenta"
+                    android:textSize="9sp"
+                    android:textStyle="bold" />
+
+            </FrameLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+
+</com.facebook.shimmer.ShimmerFrameLayout>

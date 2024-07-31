@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white"
+    android:background="@color/light_grey_horizons_background"
     android:layout_gravity="center"
     app:cardCornerRadius="50dp"
     android:layout_marginHorizontal="40dp">
@@ -21,7 +21,8 @@
             android:layout_height="100dp"
             android:layout_marginTop="30dp"
             android:layout_gravity="center"
-            android:src="@drawable/success"/>
+            android:src="@drawable/success"
+            android:contentDescription="@string/success_image_desc" />
 
         <TextView
             android:id="@+id/tvInformation"

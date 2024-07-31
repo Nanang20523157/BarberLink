@@ -1,6 +1,6 @@
 package com.example.barberlink.DataClass
 
-data class IntroSlide(
+data class IntroDataSlide(
     // membuat Variabel Representasi
     val title: String,
     val description: String,

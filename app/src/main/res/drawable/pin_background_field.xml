@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:state_selected="true">
-        <shape>
-            <solid android:color="@color/white"/>
-<!--            <corners android:radius="30dp"/>-->
-        </shape>
-    </item>
+<!--    <item android:state_selected="true">-->
+<!--        <shape>-->
+<!--            <solid android:color="@color/white"/>-->
+<!--&lt;!&ndash;            <corners android:radius="30dp"/>&ndash;&gt;-->
+<!--        </shape>-->
+<!--    </item>-->
     <item>
         <shape>
             <solid android:color="@color/silver_grey"/>

@@ -1,0 +1,529 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".UserInterface.Teller.ReviewOrderPage">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:padding="16dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Back Button -->
+            <ImageView
+                android:id="@+id/ivBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentStart="true"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="10dp"
+                android:src="@drawable/ic_back"
+                android:contentDescription="@string/icon_back_button_desc" />
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="16dp"
+                android:text="@string/toolbar_review_order_page"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/wrapperDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvTitle"
+                android:paddingTop="17dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cvDateLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginStart="4dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    android:backgroundTint="@color/light_grey_horizons_background"
+                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/cvDateValue">
+
+                    <TextView
+                        android:id="@+id/tvDateLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/tgl_label"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="10dp"
+                        android:paddingHorizontal="25dp"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cvDateValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    android:backgroundTint="@color/light_grey_horizons_background"
+                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/cvDateLabel"
+                    app:layout_constraintEnd_toStartOf="@id/cvMonthValue">
+
+                    <TextView
+                        android:id="@+id/tvDateValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="05"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="10dp"
+                        android:paddingHorizontal="25dp"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cvMonthValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    android:backgroundTint="@color/light_grey_horizons_background"
+                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/cvDateValue"
+                    app:layout_constraintEnd_toStartOf="@id/cvYearValue">
+
+                    <TextView
+                        android:id="@+id/tvMonthValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="Desember"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="10dp"
+                        android:paddingHorizontal="25dp"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cvYearValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="5dp"
+                    android:layout_marginEnd="4dp"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="0dp"
+                    android:backgroundTint="@color/light_grey_horizons_background"
+                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/cvMonthValue"
+                    app:layout_constraintEnd_toEndOf="parent">
+
+                    <TextView
+                        android:id="@+id/tvYearValue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="2020"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="10dp"
+                        android:paddingHorizontal="25dp"/>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <TextView
+                android:id="@+id/tvLabelCustomerIdentity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_customer_identity"
+                android:layout_marginStart="9dp"
+                android:layout_marginTop="10dp"
+                android:layout_below="@id/wrapperDate"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"
+                android:layout_gravity="center"/>
+
+            <FrameLayout
+                android:id="@+id/containerInjectLayoutTop"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvLabelCustomerIdentity">
+
+                <include
+                    android:id="@+id/shimmerLayoutCustomer"
+                    layout="@layout/shimmer_layout_review_order_customer"
+                    android:visibility="visible"/>
+
+                <include
+                    android:id="@+id/realLayoutCustomer"
+                    layout="@layout/real_layout_review_order_customer"
+                    android:visibility="visible"/>
+
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tvLabelOrderCustomer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_your_orders"
+                android:layout_marginStart="9dp"
+                android:layout_marginTop="7dp"
+                android:layout_below="@id/containerInjectLayoutTop"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"
+                android:layout_gravity="center"/>
+
+            <TextView
+                android:id="@+id/tvNumberOfItems"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/number_of_total_items_template"
+                android:textSize="11sp"
+                android:layout_marginTop="15dp"
+                android:layout_marginBottom="10dp"
+                android:layout_marginStart="25dp"
+                android:layout_marginEnd="18dp"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black_font_color"
+                android:layout_below="@id/containerInjectLayoutTop"
+                android:layout_alignParentEnd="true"/>
+
+            <!-- RecyclerView -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvListOrderItems"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/tvLabelOrderCustomer"
+                android:layout_toStartOf="@id/containerInjectLayoutMid"
+                android:layout_alignBottom="@+id/containerInjectLayoutMid"
+                tools:itemCount="3"
+                android:layout_marginTop="4dp"
+                tools:listitem="@layout/item_list_orders_booking_adapter"
+                android:orientation="vertical"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                android:nestedScrollingEnabled="true"/>
+
+            <LinearLayout
+                android:id="@+id/slideindicatorsContainer"
+                android:layout_width="10dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="11dp"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:layout_alignTop="@id/containerInjectLayoutMid"
+                android:layout_alignBottom="@id/containerInjectLayoutMid" >
+
+<!--                <ImageView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:src="@drawable/item_indicator_active"-->
+<!--                    android:layout_marginVertical="0.5dp"/>-->
+
+<!--                <ImageView-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:src="@drawable/item_indicator_inactive"-->
+<!--                    android:layout_marginVertical="0.5dp"/>-->
+
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/containerInjectLayoutMid"
+                android:layout_width="155dp"
+                android:layout_height="162dp"
+                android:layout_below="@id/tvNumberOfItems"
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="7dp"
+                android:layout_alignParentEnd="true">
+
+                <include
+                    android:id="@+id/shimmerLayoutCapster"
+                    layout="@layout/shimmer_layout_queue_control_capster"
+                    android:visibility="visible"/>
+
+                <include
+                    android:id="@+id/realLayoutCapster"
+                    layout="@layout/real_layout_queue_control_capster"
+                    android:visibility="visible"/>
+
+            </FrameLayout>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cvKodePromo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="0dp"
+                android:layout_marginTop="17dp"
+                android:layout_below="@id/rvListOrderItems"
+                android:layout_marginHorizontal="4dp"
+                android:backgroundTint="@color/light_grey_horizons_background">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <TextView
+                        android:id="@+id/tvLabelKodePromo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_code_promo"
+                        android:fontFamily="@font/arial_bold"
+                        android:textSize="15.5sp"
+                        android:textColor="@color/black"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginHorizontal="20dp"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent" />
+
+                    <TextView
+                        android:id="@+id/tvKodePromo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="20dp"
+                        android:fontFamily="@font/arial_regular"
+                        tools:text="---"
+                        android:textColor="@color/black"
+                        android:layout_marginBottom="15dp"
+                        android:layout_marginTop="-1.5dp"
+                        android:textSize="12.5sp"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toStartOf="@id/btnKodePromo"
+                        app:layout_constraintStart_toStartOf="@id/tvLabelKodePromo"
+                        app:layout_constraintTop_toBottomOf="@id/tvLabelKodePromo"
+                        app:layout_constraintVertical_bias="0.0"
+                        app:layout_constraintHorizontal_bias="0.0"/>
+
+                    <TextView
+                        android:id="@+id/tvNumberOfClaimKode"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="20dp"
+                        android:fontFamily="@font/arial_regular"
+                        tools:text="Claim: 0"
+                        android:textColor="@color/black"
+                        android:layout_marginTop="12dp"
+                        android:textSize="10.5sp"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintEnd_toEndOf="@id/btnKodePromo"
+                        app:layout_constraintStart_toStartOf="@id/btnKodePromo"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnKodePromo"
+                        android:layout_width="65dp"
+                        android:layout_height="31.5dp"
+                        android:paddingHorizontal="0dp"
+                        android:paddingVertical="3dp"
+                        android:layout_marginEnd="17dp"
+                        android:layout_marginTop="-3dp"
+                        android:backgroundTint="@color/black"
+                        android:text="@string/btn_select"
+                        android:textSize="9sp"
+                        android:gravity="center"
+                        android:textColor="@color/green_lime_wf"
+                        android:textStyle="bold"
+                        app:layout_constraintTop_toBottomOf="@id/tvNumberOfClaimKode"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintVertical_bias="0"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cvCoinUse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="0dp"
+                android:layout_marginTop="7dp"
+                android:layout_below="@id/cvKodePromo"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:backgroundTint="@color/light_grey_horizons_background">
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/coin"
+                        android:layout_marginStart="15dp"
+                        android:contentDescription="@string/icon_coin_barber_desc" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="7dp"
+                        android:fontFamily="@font/arial_medium"
+                        android:text="@string/exchange_coin_template"
+                        android:textSize="13.5sp"/>
+
+                    <com.google.android.material.materialswitch.MaterialSwitch
+                        android:id="@+id/switch2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:scaleX="0.48"
+                        android:scaleY="0.48"
+                        android:layout_marginEnd="8dp"
+                        android:layout_marginVertical="5dp"
+                        android:checked="true"/>
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <FrameLayout
+                android:id="@+id/containerInjectLayoutBtm"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/cvCoinUse"
+                android:clipToPadding="false"
+                android:clipChildren="false">
+
+                <include
+                    android:id="@+id/shimmerLayoutPayment"
+                    layout="@layout/shimmer_layout_review_order_payment"
+                    android:visibility="visible"/>
+
+                <include
+                    android:id="@+id/realLayoutPayment"
+                    layout="@layout/real_layout_review_order_payment"
+                    android:visibility="visible"/>
+
+            </FrameLayout>
+
+        </RelativeLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="30dp"
+        android:elevation="10dp"
+        android:background="@drawable/background_bottom_float_area"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <ImageView
+            android:id="@+id/ivPaymentMethodIcon"
+            android:layout_width="33dp"
+            android:layout_height="33dp"
+            android:layout_marginStart="40dp"
+            android:src="@drawable/dollars"
+            android:layout_marginBottom="20dp"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnSendRequest"
+            android:contentDescription="@string/icon_payment_desc" />
+
+        <!--    activity_review_order_page.xml has more than 80 views, bad for performance    -->
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="3dp"
+            app:layout_constraintTop_toTopOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintBottom_toBottomOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintStart_toEndOf="@id/ivPaymentMethodIcon">
+
+            <TextView
+                android:id="@+id/tvPaymentMethod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="QRIS"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvPaymentAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Rp 15.000"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ivSelectPaymentMethod"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/ic_circle_bullet"
+            app:layout_constraintTop_toTopOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintBottom_toBottomOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintEnd_toEndOf="@id/btnSendRequest"
+            app:tint="@color/charcoal_grey_background"
+            android:layout_marginTop="7dp"
+            android:layout_marginEnd="5dp"
+            android:contentDescription="@string/icon_more_desc" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnSendRequest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="35dp"
+            android:layout_marginVertical="20dp"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="4dp"
+            android:backgroundTint="@color/black_font_color"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="47dp"
+                android:text="@string/btn_send_request"
+                android:textSize="14sp"
+                android:textColor="@color/green_lime_wf"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="-2dp"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

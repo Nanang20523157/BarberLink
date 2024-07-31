@@ -6,7 +6,7 @@
     <corners
         android:topLeftRadius="20dp"
         android:topRightRadius="20dp"
-        android:bottomRightRadius="35dp"
-        android:bottomLeftRadius="35dp"/>
-    <solid android:color="#EAE1F3"/>
+        android:bottomRightRadius="30dp"
+        android:bottomLeftRadius="30dp"/>
+    <solid android:color="@color/blue_access_code"/>
 </shape>

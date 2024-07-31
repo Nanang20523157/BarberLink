@@ -10,13 +10,14 @@
 
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/cvProduk"
-        android:layout_width="160dp"
-        android:layout_height="150dp"
-        app:cardBackgroundColor="@color/grey_background_card"
+        android:layout_width="150dp"
+        android:layout_height="140dp"
+        app:cardBackgroundColor="@color/light_grey_horizons_background"
         app:cardCornerRadius="20dp"
-        app:cardElevation="4dp"
+        app:cardElevation="2dp"
         android:layout_marginVertical="8dp"
-        android:layout_marginEnd="9dp">
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="7dp">
 
         <TextView
             android:id="@+id/tvProdukMenu"
@@ -24,23 +25,24 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical"
             android:gravity="center"
-            android:layout_marginHorizontal="5dp"
+            android:layout_marginHorizontal="10dp"
             android:layout_marginTop="3dp"
             android:fontFamily="@font/poppins_blackitalic"
-            android:lineSpacingExtra="-20sp"
+            android:lineSpacingExtra="-13sp"
             tools:text="Hair Pomade"
             android:textAlignment="center"
             android:textColor="#A7A7AC"
-            android:textSize="37sp" />
+            android:textSize="26sp" />
 
         <ImageView
             android:id="@+id/ivProduk"
-            android:layout_width="160dp"
-            android:layout_height="150dp"
+            android:layout_width="150dp"
+            android:layout_height="140dp"
             android:cropToPadding="false"
             android:padding="15dp"
             android:scaleType="fitCenter"
-            tools:src="@drawable/hair_powder" />
+            tools:src="@drawable/hair_powder"
+            android:contentDescription="@string/preview_image_product_desc" />
 
     </com.google.android.material.card.MaterialCardView>
 
@@ -53,7 +55,7 @@
         android:layout_marginTop="3dp"
         android:fontFamily="@font/arial_regular"
         tools:text="Pomade"
-        android:textSize="14sp"
+        android:textSize="13.5sp"
         android:textStyle="bold" />
 
     <TextView
@@ -64,7 +66,7 @@
         android:layout_marginStart="20dp"
         android:layout_marginEnd="15dp"
         android:layout_marginTop="-1dp"
-        android:textSize="15sp"
+        android:textSize="14sp"
         android:textColor="@color/black"
         tools:text="Rp 20.000" />
 

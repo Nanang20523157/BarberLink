@@ -65,6 +65,7 @@
                 app:layout_constraintEnd_toStartOf="@id/tvPhoneNumber">
 
                 <TextView
+                    android:id="@+id/tvOutletName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     tools:text="JANUR BARBERSHOP"
@@ -75,9 +76,10 @@
                     android:textColor="@color/black_font_color" />
 
                 <TextView
+                    android:id="@+id/tvTagLine"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/string_format_tag_line_barber"
+                    android:text="@string/tag_line_barber_template"
                     android:textSize="8.5sp"
                     android:maxLines="3"
                     android:fontFamily="@font/arial_medium"
@@ -85,6 +87,7 @@
                     android:textColor="@color/black_font_color" />
 
                 <LinearLayout
+                    android:id="@+id/llRating"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -98,7 +101,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarTwo"
@@ -106,7 +109,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarThree"
@@ -114,7 +117,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarFour"
@@ -122,7 +125,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarFive"
@@ -130,7 +133,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="6dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <TextView
                         android:id="@+id/tvRating"
@@ -146,7 +149,7 @@
                     android:id="@+id/tvReviewsAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/number_of_reviews"
+                    android:text="@string/template_number_of_reviews"
                     android:fontFamily="@font/arial_medium"
                     android:textSize="10.5sp"
                     android:layout_marginStart="3dp"
@@ -198,21 +201,24 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_marginEnd="19dp"
-                    android:src="@drawable/ic_edit" />
+                    android:src="@drawable/ic_edit"
+                    android:contentDescription="@string/btn_edit_icon_desc" />
 
                 <ImageView
                     android:id="@+id/btnView"
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_marginEnd="19dp"
-                    android:src="@drawable/ic_view" />
+                    android:src="@drawable/ic_view"
+                    android:contentDescription="@string/btn_view_icon_desc" />
 
                 <ImageView
                     android:id="@+id/btnMore"
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_marginTop="1dp"
-                    android:src="@drawable/ic_circle_arrow" />
+                    android:src="@drawable/ic_circle_arrow"
+                    android:contentDescription="@string/btn_expanse_collapse_desc" />
             </LinearLayout>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
@@ -274,7 +280,8 @@
                 android:layout_marginTop="1dp"
                 android:layout_marginEnd="10dp"
                 android:src="@drawable/ic_copy"
-                app:tint="@color/platinum_grey_background" />
+                app:tint="@color/platinum_grey_background"
+                android:contentDescription="@string/button_icon_copy_desc" />
         </LinearLayout>
 
         <LinearLayout
@@ -332,7 +339,6 @@
             app:layout_constraintTop_toBottomOf="@id/tvLabelKodeKasir"
             app:layout_constraintEnd_toEndOf="parent"
             android:paddingVertical="5dp">
-
 
             <ImageView
                 android:layout_width="12dp"

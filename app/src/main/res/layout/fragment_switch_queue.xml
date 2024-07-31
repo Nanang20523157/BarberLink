@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@color/white"
+    android:background="@color/light_grey_horizons_background"
     android:layout_gravity="center"
     app:cardCornerRadius="25dp"
     android:layout_marginHorizontal="10dp">
@@ -34,7 +34,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_below="@id/tvTitle"
-            android:text="@string/select_capster_intructions"
+            android:text="@string/label_select_capster_intructions"
             android:textSize="14sp"
             android:textColor="@color/black_font_color"
             android:layout_marginTop="2dp"
@@ -58,6 +58,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:paddingStart="15dp"
+                android:paddingEnd="0dp"
                 android:textSize="15sp"
                 android:hint="@string/hint_list_capster"
                 android:inputType="text"/>
@@ -79,13 +80,14 @@
                 android:paddingHorizontal="10dp"
                 android:paddingVertical="25dp">
 
-                <ImageView
+                <de.hdodenhof.circleimageview.CircleImageView
                     android:id="@+id/ivPhotoProfile"
                     android:layout_width="65dp"
                     android:layout_height="65dp"
                     android:layout_gravity="center_vertical"
                     android:layout_marginStart="13dp"
                     android:layout_marginEnd="16dp"
+                    android:scaleType="centerCrop"
                     android:contentDescription="@string/user_profile_placeholder_desc"
                     android:src="@drawable/placeholder_user_profile"
                     app:layout_constraintBottom_toBottomOf="parent"
@@ -139,7 +141,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarTwo"
@@ -147,7 +149,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarThree"
@@ -155,7 +157,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarFour"
@@ -163,7 +165,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="4dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
                     <ImageView
                         android:id="@+id/ivStarFive"
@@ -171,7 +173,7 @@
                         android:layout_height="12dp"
                         android:layout_marginEnd="6dp"
                         android:src="@drawable/full_star"
-                        android:contentDescription="@string/image_star_content_desc"/>
+                        android:contentDescription="@string/star_image_desc"/>
 
 <!--                    <TextView-->
 <!--                        android:id="@+id/tvRating"-->
@@ -187,7 +189,7 @@
                     android:id="@+id/tvNumberOfReviews"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/number_of_reviews"
+                    android:text="@string/template_number_of_reviews"
                     android:fontFamily="@font/arial_medium"
                     android:textSize="10.5sp"
                     android:layout_marginTop="3dp"
@@ -203,7 +205,7 @@
                     android:orientation="horizontal"
                     android:paddingVertical="2dp"
                     android:gravity="center"
-                    android:background="@drawable/gander_background"
+                    android:background="@drawable/gander_masculine_background"
                     android:paddingHorizontal="4dp"
                     android:layout_marginEnd="15dp"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -213,7 +215,8 @@
                         android:id="@+id/ivGender"
                         android:layout_width="12.5dp"
                         android:layout_height="12.5dp"
-                        android:src="@drawable/ic_male"/>
+                        android:src="@drawable/ic_male"
+                        android:contentDescription="@string/icon_gander_ilustration" />
 
                     <TextView
                         android:id="@+id/tvGander"
@@ -246,6 +249,53 @@
                     android:layout_marginEnd="15dp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintBottom_toBottomOf="parent"/>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    app:layout_constraintHorizontal_bias="0.4"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:gravity="center"
+                    app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <TextView
+                        android:id="@+id/tvQuestionMark"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:text="@string/question_mark"
+                        android:layout_marginTop="-8dp"
+                        android:textColor="@color/grey_font"
+                        android:textSize="30sp"
+                        android:textStyle="bold"
+                        android:visibility="visible" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/tvRandomCapster"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="10dp"
+                        android:layout_marginHorizontal="30dp"
+                        app:cardElevation="0dp"
+                        android:backgroundTint="@color/black_font_color">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="35dp"
+                            android:text="@string/anyone_available"
+                            android:textSize="12sp"
+                            android:textColor="@color/green_lime_wf"
+                            android:textStyle="bold"
+                            android:gravity="center"
+                            android:layout_marginTop="-2dp"/>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

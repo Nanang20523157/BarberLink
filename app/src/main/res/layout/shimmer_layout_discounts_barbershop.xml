@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/shimmer_view_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:shimmer_auto_start="true"
+    app:shimmer_base_alpha="0.7"
+    app:shimmer_direction="left_to_right"
+    app:shimmer_duration="500"
+    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+    app:shimmer_repeat_delay="500"
+    app:shimmer_shape="linear"
+    app:shimmer_tilt="0">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginHorizontal="4dp"
+        android:layout_marginTop="5dp"
+        android:background="@drawable/background_card_discounts">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/tvDiscountsAmount"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:textSize="48sp"
+                android:textAlignment="center"
+                android:background="@drawable/shimmer_corner_empat_dp_400"
+                android:layout_marginStart="26dp"
+                android:textColor="@color/black_font_color"
+                android:fontFamily="@font/bangers_regular"/>
+
+            <TextView
+                android:layout_width="13dp"
+                android:layout_height="14dp"
+                android:text="@string/persen_text"
+                android:textSize="15sp"
+                android:layout_marginTop="-18dp"
+                android:background="@drawable/shimmer_corner_tiga_dp_400"
+                android:layout_marginStart="1dp"
+                android:layout_marginEnd="15dp"
+                android:textColor="@color/grey_400"
+                android:fontFamily="@font/bangers_regular"/>
+
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0dp"
+            android:layout_weight="1"
+            app:cardBackgroundColor="@color/light_grey_horizons_background">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/tvTitleDiscounts"
+                    android:layout_width="150dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black_font_color"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginStart="25dp"
+                    android:layout_marginEnd="20dp"
+                    android:maxLines="1"
+                    app:layout_constraintHorizontal_bias="0"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tvDiscountsCode"/>
+
+                <TextView
+                    android:id="@+id/tvDescriptionDiscounts"
+                    android:layout_width="210dp"
+                    android:layout_height="10.5dp"
+                    android:textColor="@color/black_font_color"
+                    android:textSize="10.5sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_marginTop="2dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/shimmer_corner_tiga_dp_300"
+                    app:layout_constraintHorizontal_bias="0"
+                    app:layout_constraintTop_toBottomOf="@id/tvTitleDiscounts"
+                    app:layout_constraintStart_toStartOf="@id/tvTitleDiscounts"
+                    app:layout_constraintEnd_toEndOf="parent"/>
+
+                <TextView
+                    android:id="@+id/tvDescriptionDiscounts2"
+                    android:layout_width="210dp"
+                    android:layout_height="10.5dp"
+                    android:textColor="@color/black_font_color"
+                    android:textSize="10.5sp"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_marginTop="1dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/shimmer_corner_tiga_dp_300"
+                    app:layout_constraintHorizontal_bias="0"
+                    app:layout_constraintTop_toBottomOf="@id/tvDescriptionDiscounts"
+                    app:layout_constraintStart_toStartOf="@id/tvTitleDiscounts"
+                    app:layout_constraintEnd_toEndOf="parent"/>
+
+                <TextView
+                    android:id="@+id/tvValidityPeriod"
+                    android:layout_width="110dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:textSize="11sp"
+                    android:layout_marginTop="13.5dp"
+                    android:layout_marginBottom="23dp"
+                    android:textStyle="bold"
+                    android:textColor="@color/slate_grey_background"
+                    app:layout_constraintHorizontal_bias="0"
+                    app:layout_constraintTop_toBottomOf="@id/tvDescriptionDiscounts2"
+                    app:layout_constraintStart_toStartOf="@id/tvTitleDiscounts"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/flButtonClaim"/>
+
+                <TextView
+                    android:id="@+id/tvDiscountsCode"
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:textSize="14sp"
+                    android:layout_marginTop="21.5dp"
+                    android:layout_marginEnd="25dp"
+                    android:textColor="@color/black"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"/>
+
+                <FrameLayout
+                    android:id="@+id/flButtonClaim"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="13.5dp"
+                    app:layout_constraintEnd_toEndOf="@id/tvDiscountsCode"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCancelPromo"
+                        android:layout_width="80dp"
+                        android:layout_height="33dp"
+                        android:visibility="visible"
+                        android:backgroundTint="@color/grey_300"
+                        android:gravity="center"
+                        android:textColor="@color/magenta"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+
+                </FrameLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</com.facebook.shimmer.ShimmerFrameLayout>

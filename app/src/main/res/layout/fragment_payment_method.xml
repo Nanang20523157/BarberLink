@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:padding="16dp">
+
+    <!-- Back Button -->
+    <ImageView
+        android:id="@+id/ivBack"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="22dp"
+        android:contentDescription="@string/icon_back_button_desc"
+        android:src="@drawable/ic_back" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tvTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="16dp"
+        android:text="@string/toolbar_payment_method_fragment"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#000000" />
+
+    <TextView
+        android:id="@+id/tvIntruction"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/label_select_payment_method"
+        android:layout_below="@id/tvTitle"
+        android:layout_marginTop="30dp"
+        android:layout_marginStart="25dp"
+        android:layout_marginEnd="30dp"
+        android:textSize="17sp"
+        android:textStyle="bold"
+        android:textColor="@color/black_font_color"/>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cvPopUp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tvIntruction"
+        android:layout_marginTop="13dp"
+        android:layout_marginBottom="20dp">
+
+        <ImageView
+            android:id="@+id/ivCashPayment"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_marginTop="3dp"
+            android:layout_marginStart="25dp"
+            android:padding="5.5dp"
+            app:srcCompat="@drawable/wallet"
+            android:layout_gravity="center_vertical"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            android:contentDescription="@string/image_cash_desc" />
+
+        <ImageView
+            android:id="@+id/ivQRISPayment"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="25dp"
+            android:padding="4dp"
+            app:srcCompat="@drawable/scan"
+            android:layout_gravity="center_vertical"
+            app:layout_constraintTop_toBottomOf="@id/ivCashPayment"
+            app:layout_constraintStart_toStartOf="parent"
+            android:contentDescription="@string/image_qris_desc" />
+
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginTop="2.4dp"
+            app:layout_constraintTop_toTopOf="@id/ivCashPayment"
+            app:layout_constraintStart_toEndOf="@id/ivCashPayment"
+            app:layout_constraintEnd_toStartOf="@id/radioGroup"
+            app:layout_constraintBottom_toBottomOf="@id/ivCashPayment" >
+
+            <TextView
+                android:id="@+id/tvCashPayment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/title_cash_tunai"
+                android:layout_marginTop="-5dp"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"/>
+
+            <TextView
+                android:id="@+id/tvSubtitleCash"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_cash_tunai"
+                android:textSize="11sp"
+                android:maxLines="2"
+                android:fontFamily="@font/arial_regular"
+                android:textColor="@color/black_font_color" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            app:layout_constraintTop_toTopOf="@id/ivQRISPayment"
+            app:layout_constraintStart_toEndOf="@id/ivQRISPayment"
+            app:layout_constraintEnd_toStartOf="@id/radioGroup"
+            app:layout_constraintBottom_toBottomOf="@id/ivQRISPayment" >
+
+            <TextView
+                android:id="@+id/tvQRISPayment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/title_qris_nontunai"
+                android:layout_marginTop="-5dp"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"/>
+
+            <TextView
+                android:id="@+id/tvSubtitleQRIS"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/subtitle_qris_nontunai"
+                android:textSize="11sp"
+                android:maxLines="2"
+                android:fontFamily="@font/arial_regular"
+                android:textColor="@color/black_font_color"/>
+
+        </LinearLayout>
+
+        <RadioGroup
+            android:id="@+id/radioGroup"
+            android:layout_width="33dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="30dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <RadioButton
+                android:id="@+id/rbSampay"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:scaleY="0.85"
+                android:scaleX="0.85" />
+
+            <RadioButton
+                android:id="@+id/rbCash"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:layout_marginTop="4.5dp"
+                android:scaleY="0.85"
+                android:scaleX="0.85" />
+
+        </RadioGroup>
+
+        <Button
+            android:id="@+id/btnSelectPayment"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_gravity="center_horizontal|bottom"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp"
+            android:layout_marginHorizontal="20dp"
+            android:backgroundTint="@color/black_font_color"
+            android:text="@string/btn_select_payment_method"
+            android:textColor="@color/green_lime_wf"
+            app:cornerRadius="7dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/ivQRISPayment"/>
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+</RelativeLayout>
+

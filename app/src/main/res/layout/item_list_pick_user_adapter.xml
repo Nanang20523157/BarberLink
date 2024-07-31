@@ -7,7 +7,7 @@
     android:layout_marginHorizontal="4dp"
     app:cardCornerRadius="20dp"
     android:backgroundTint="@color/light_grey_horizons_background"
-    android:layout_marginTop="10dp">
+    android:layout_marginVertical="3dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -17,13 +17,14 @@
         android:paddingVertical="25dp"
         android:clipToPadding="false">
 
-        <ImageView
+        <de.hdodenhof.circleimageview.CircleImageView
             android:id="@+id/ivPhotoProfile"
-            android:layout_width="67dp"
-            android:layout_height="67dp"
+            android:layout_width="55dp"
+            android:layout_height="55dp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="13dp"
             android:layout_marginEnd="16dp"
+            android:scaleType="centerCrop"
             android:contentDescription="@string/user_profile_placeholder_desc"
             android:src="@drawable/placeholder_user_profile"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -40,13 +41,13 @@
             android:textColor="@color/black_font_color"
             android:ellipsize="end"
             android:fontFamily="@font/arial_bold"
-            android:layout_marginTop="-4dp"
             android:maxLines="1"
             android:textSize="15.5sp"
+            android:layout_marginTop="-2.5dp"
             android:textAppearance="@style/TextAppearance.AppCompat.Medium"
             android:textStyle="bold"
             android:layout_marginEnd="10dp"
-            app:layout_constraintTop_toTopOf="@id/ivPhotoProfile"
+            app:layout_constraintTop_toTopOf="@id/llGander"
             app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
             app:layout_constraintEnd_toStartOf="@id/llGander" />
 
@@ -77,7 +78,7 @@
                 android:layout_height="12dp"
                 android:layout_marginEnd="4dp"
                 android:src="@drawable/full_star"
-                android:contentDescription="@string/image_star_content_desc"/>
+                android:contentDescription="@string/star_image_desc"/>
 
             <ImageView
                 android:id="@+id/ivStarTwo"
@@ -85,7 +86,7 @@
                 android:layout_height="12dp"
                 android:layout_marginEnd="4dp"
                 android:src="@drawable/full_star"
-                android:contentDescription="@string/image_star_content_desc"/>
+                android:contentDescription="@string/star_image_desc"/>
 
             <ImageView
                 android:id="@+id/ivStarThree"
@@ -93,7 +94,7 @@
                 android:layout_height="12dp"
                 android:layout_marginEnd="4dp"
                 android:src="@drawable/full_star"
-                android:contentDescription="@string/image_star_content_desc"/>
+                android:contentDescription="@string/star_image_desc"/>
 
             <ImageView
                 android:id="@+id/ivStarFour"
@@ -101,7 +102,7 @@
                 android:layout_height="12dp"
                 android:layout_marginEnd="4dp"
                 android:src="@drawable/full_star"
-                android:contentDescription="@string/image_star_content_desc"/>
+                android:contentDescription="@string/star_image_desc"/>
 
             <ImageView
                 android:id="@+id/ivStarFive"
@@ -109,7 +110,7 @@
                 android:layout_height="12dp"
                 android:layout_marginEnd="6dp"
                 android:src="@drawable/full_star"
-                android:contentDescription="@string/image_star_content_desc"/>
+                android:contentDescription="@string/star_image_desc"/>
 
             <TextView
                 android:id="@+id/tvRating"
@@ -119,13 +120,14 @@
                 android:textSize="11sp"
                 android:layout_marginTop="-1.8dp"
                 android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
+
         </LinearLayout>
 
         <TextView
             android:id="@+id/tvReviewsAmount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="(1234 Reviews)"
+            android:text="@string/number_of_reviews_placeholder"
             android:fontFamily="@font/arial_medium"
             android:textSize="10.5sp"
             android:layout_marginTop="2.5dp"
@@ -142,7 +144,7 @@
             android:orientation="horizontal"
             android:paddingVertical="2dp"
             android:gravity="center"
-            android:background="@drawable/gander_background"
+            android:background="@drawable/gander_feminime_background"
             android:paddingHorizontal="4dp"
             android:layout_marginEnd="15dp"
             android:layout_marginTop="-1dp"
@@ -153,14 +155,14 @@
                 android:id="@+id/ivGender"
                 android:layout_width="12.5dp"
                 android:layout_height="12.5dp"
-                android:src="@drawable/ic_male"
+                android:src="@drawable/ic_female"
                 android:contentDescription="@string/icon_gander_ilustration" />
 
             <TextView
                 android:id="@+id/tvGander"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="laki-laki"
+                tools:text="perempuan"
                 android:fontFamily="@font/arial_bold"
                 android:textColor="@color/black_font_color"
                 android:textSize="10sp"
@@ -177,16 +179,17 @@
             android:layout_height="30dp"
             android:layout_gravity="bottom"
             android:layout_marginEnd="15dp"
+            android:layout_marginTop="17dp"
             android:background="@drawable/role_background_employee"
             android:fontFamily="@font/arial_bold"
             android:gravity="center"
-            android:textColor="@color/green_lime_wf"
+            android:textColor="@color/red_role"
             android:textSize="12sp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@id/llGander"
-            app:layout_constraintVertical_bias="0.96"
-            tools:text="Capster" />
+            app:layout_constraintTop_toBottomOf="@id/llGander"
+            app:layout_constraintVertical_bias="1"
+            tools:text=" Administrator " />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
