@@ -25,9 +25,21 @@ object GetDateUtils {
         return dateFormat.format(date).uppercase()
     }
 
+    fun getMonthYear(timestamp: Timestamp): String {
+        val date = timestamp.toDate()
+        val dateFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault()) // Menggunakan lokal perangkat default
+        return dateFormat.format(date)
+    }
+
     fun formatTimestampToDate(timestamp: Timestamp): String {
         val date = timestamp.toDate()
         val format = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID"))
+        return format.format(date)
+    }
+
+    fun formatTimestampToDateWithDay(timestamp: Timestamp): String {
+        val date = timestamp.toDate()
+        val format = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale("id", "ID"))
         return format.format(date)
     }
 
@@ -51,4 +63,5 @@ object GetDateUtils {
 
         return "$day, $formattedDate ($formattedTime)"
     }
+
 }

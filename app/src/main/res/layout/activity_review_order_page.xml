@@ -157,7 +157,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_customer_identity"
-                android:layout_marginStart="9dp"
+                android:layout_marginStart="10dp"
                 android:layout_marginTop="10dp"
                 android:layout_below="@id/wrapperDate"
                 android:textSize="17sp"
@@ -169,54 +169,151 @@
                 android:id="@+id/containerInjectLayoutTop"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:paddingBottom="2dp"
                 android:layout_below="@id/tvLabelCustomerIdentity">
 
                 <include
                     android:id="@+id/shimmerLayoutCustomer"
-                    layout="@layout/shimmer_layout_review_order_customer"
-                    android:visibility="visible"/>
+                    layout="@layout/shimmer_layout_review_order_customer" />
 
                 <include
                     android:id="@+id/realLayoutCustomer"
-                    layout="@layout/real_layout_review_order_customer"
-                    android:visibility="visible"/>
+                    layout="@layout/real_layout_review_order_customer" />
 
             </FrameLayout>
 
+            <RelativeLayout
+                android:id="@+id/rlBundlings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="7dp"
+                android:layout_below="@id/containerInjectLayoutTop">
+
+                <TextView
+                    android:id="@+id/tvLabelPaketBundling"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_list_paket_bundling"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="7dp"
+                    android:visibility="visible"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black_font_color"
+                    android:layout_gravity="center"/>
+
+                <LinearLayout
+                    android:id="@+id/seeAllPaketBundling"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignTop="@+id/tvLabelPaketBundling"
+                    android:layout_alignBottom="@+id/tvLabelPaketBundling"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginEnd="5dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="1.5dp"
+                        android:layout_marginEnd="2dp"
+                        android:fontFamily="@font/arial_regular"
+                        android:text="@string/see_more"
+                        android:textColor="@color/black_font_color"
+                        android:textSize="11.5sp" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="2.5dp"
+                        android:src="@drawable/ic_see_all" />
+
+                </LinearLayout>
+
+                <!-- RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvListPaketBundling"
+                    android:layout_width="match_parent"
+                    android:layout_height="155dp"
+                    android:layout_below="@id/tvLabelPaketBundling"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_list_package_booking_adapter"
+                    android:orientation="horizontal"
+                    android:visibility="visible"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:paddingHorizontal="2dp"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    android:nestedScrollingEnabled="true"/>
+
+            </RelativeLayout>
+
             <TextView
-                android:id="@+id/tvLabelOrderCustomer"
+                android:id="@+id/tvLabelListService"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/label_your_orders"
-                android:layout_marginStart="9dp"
-                android:layout_marginTop="7dp"
-                android:layout_below="@id/containerInjectLayoutTop"
+                android:text="@string/label_list_service"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="0dp"
+                android:layout_below="@id/rlBundlings"
                 android:textSize="17sp"
                 android:textStyle="bold"
                 android:textColor="@color/black_font_color"
                 android:layout_gravity="center"/>
 
-            <TextView
-                android:id="@+id/tvNumberOfItems"
+<!--            <TextView-->
+<!--                android:id="@+id/tvNumberOfItems"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:text="@string/number_of_total_items_template"-->
+<!--                android:textSize="11sp"-->
+<!--                android:layout_marginTop="9dp"-->
+<!--                android:layout_marginBottom="10dp"-->
+<!--                android:layout_marginStart="25dp"-->
+<!--                android:layout_marginEnd="18dp"-->
+<!--                android:fontFamily="@font/arial_medium"-->
+<!--                android:textColor="@color/black_font_color"-->
+<!--                android:layout_below="@id/rlBundlings"-->
+<!--                android:layout_alignParentEnd="true"/>-->
+
+            <LinearLayout
+                android:id="@+id/seeAllListService"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/number_of_total_items_template"
-                android:textSize="11sp"
-                android:layout_marginTop="15dp"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="25dp"
-                android:layout_marginEnd="18dp"
-                android:fontFamily="@font/arial_medium"
-                android:textColor="@color/black_font_color"
-                android:layout_below="@id/containerInjectLayoutTop"
-                android:layout_alignParentEnd="true"/>
+                android:layout_marginEnd="12dp"
+                android:layout_alignParentEnd="true"
+                android:layout_alignTop="@id/tvLabelListService"
+                android:layout_alignBottom="@id/tvLabelListService">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="2dp"
+                    android:layout_marginTop="2.5dp"
+                    android:layout_gravity="center_vertical"
+                    android:fontFamily="@font/arial_regular"
+                    android:text="@string/see_more"
+                    android:textColor="@color/black_font_color"
+                    android:textSize="11.5sp" />
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginTop="3.5dp"
+                    android:src="@drawable/ic_see_all" />
+
+            </LinearLayout>
 
             <!-- RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvListOrderItems"
+                android:id="@+id/rvListServices"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/tvLabelOrderCustomer"
+                android:layout_below="@id/tvLabelListService"
                 android:layout_toStartOf="@id/containerInjectLayoutMid"
                 android:layout_alignBottom="@+id/containerInjectLayoutMid"
                 tools:itemCount="3"
@@ -230,7 +327,7 @@
                 android:id="@+id/slideindicatorsContainer"
                 android:layout_width="10dp"
                 android:layout_height="match_parent"
-                android:layout_marginStart="11dp"
+                android:layout_marginStart="10.5dp"
                 android:orientation="vertical"
                 android:gravity="center"
                 android:layout_alignTop="@id/containerInjectLayoutMid"
@@ -254,22 +351,21 @@
                 android:id="@+id/containerInjectLayoutMid"
                 android:layout_width="155dp"
                 android:layout_height="162dp"
-                android:layout_below="@id/tvNumberOfItems"
+                android:layout_below="@id/seeAllListService"
                 android:clipToPadding="false"
                 android:clipChildren="false"
+                android:layout_marginTop="9dp"
                 android:layout_marginStart="2dp"
-                android:layout_marginEnd="7dp"
+                android:layout_marginEnd="2dp"
                 android:layout_alignParentEnd="true">
 
                 <include
                     android:id="@+id/shimmerLayoutCapster"
-                    layout="@layout/shimmer_layout_queue_control_capster"
-                    android:visibility="visible"/>
+                    layout="@layout/shimmer_layout_queue_control_capster" />
 
                 <include
                     android:id="@+id/realLayoutCapster"
-                    layout="@layout/real_layout_queue_control_capster"
-                    android:visibility="visible"/>
+                    layout="@layout/real_layout_queue_control_capster" />
 
             </FrameLayout>
 
@@ -280,7 +376,7 @@
                 app:cardCornerRadius="10dp"
                 app:cardElevation="0dp"
                 android:layout_marginTop="17dp"
-                android:layout_below="@id/rvListOrderItems"
+                android:layout_below="@id/rvListServices"
                 android:layout_marginHorizontal="4dp"
                 android:backgroundTint="@color/light_grey_horizons_background">
 
@@ -312,8 +408,9 @@
                         android:layout_marginBottom="15dp"
                         android:layout_marginTop="-1.5dp"
                         android:textSize="12.5sp"
-                        android:ellipsize="end"
-                        android:maxLines="1"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:singleLine="true"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toStartOf="@id/btnKodePromo"
                         app:layout_constraintStart_toStartOf="@id/tvLabelKodePromo"
@@ -327,7 +424,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="20dp"
                         android:fontFamily="@font/arial_regular"
-                        tools:text="Claim: 0"
+                        tools:text="@string/claim_amount_promo"
                         android:textColor="@color/black"
                         android:layout_marginTop="12dp"
                         android:textSize="10.5sp"
@@ -384,6 +481,7 @@
                         android:contentDescription="@string/icon_coin_barber_desc" />
 
                     <TextView
+                        android:id="@+id/tvUserCoins"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -393,14 +491,14 @@
                         android:textSize="13.5sp"/>
 
                     <com.google.android.material.materialswitch.MaterialSwitch
-                        android:id="@+id/switch2"
+                        android:id="@+id/switchUseCoins"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:scaleX="0.48"
                         android:scaleY="0.48"
+                        style="@style/Widget.App.Switch"
                         android:layout_marginEnd="8dp"
-                        android:layout_marginVertical="5dp"
-                        android:checked="true"/>
+                        android:layout_marginVertical="5dp" />
 
                 </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -416,13 +514,11 @@
 
                 <include
                     android:id="@+id/shimmerLayoutPayment"
-                    layout="@layout/shimmer_layout_review_order_payment"
-                    android:visibility="visible"/>
+                    layout="@layout/shimmer_layout_review_order_payment" />
 
                 <include
                     android:id="@+id/realLayoutPayment"
-                    layout="@layout/real_layout_review_order_payment"
-                    android:visibility="visible"/>
+                    layout="@layout/real_layout_review_order_payment" />
 
             </FrameLayout>
 
@@ -471,7 +567,7 @@
                 android:id="@+id/tvPaymentMethod"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="QRIS"
+                tools:text="CASH"
                 android:fontFamily="@font/arial_medium"
                 android:textColor="@color/black"
                 android:textSize="16sp" />
@@ -480,7 +576,7 @@
                 android:id="@+id/tvPaymentAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="Rp 15.000"
+                android:text="@string/triple_dash"
                 android:textSize="15sp"
                 android:textStyle="bold" />
 
@@ -506,7 +602,7 @@
             android:layout_marginHorizontal="35dp"
             android:layout_marginVertical="20dp"
             app:cardCornerRadius="10dp"
-            app:cardElevation="4dp"
+            app:cardElevation="1dp"
             android:backgroundTint="@color/black_font_color"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"

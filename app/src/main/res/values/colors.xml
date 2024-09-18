@@ -19,7 +19,7 @@
     <color name="dark_grey_font_color">#FF333131</color>
     <color name="grey_font_color">#C0C0C0</color>
 
-    <!--  background gander  -->
+    <!--  background gender  -->
     <color name="masculine_faded_blue">#FFD1EBFE</color>
     <color name="feminime_pink">#FFF9A1EE</color>
 
@@ -69,6 +69,8 @@
     <color name="white_text_color">#FFFEFEFE</color>
 
     <color name="red_role">#FFFF1744</color>
+    <color name="pink_calendar">#FFEB2A6D</color>
+    <color name="grey_calendar">#FFF4F5F7</color>
     <color name="orange_role">#FFFFC400</color>
     <color name="green_role">#FF00E676</color>
 

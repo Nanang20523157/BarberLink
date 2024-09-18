@@ -58,7 +58,7 @@
                     android:orientation="horizontal"
                     android:padding="7dp"
                     android:background="@drawable/shimmer_corner_empat_dp_300"
-                    android:layout_marginTop="10dp">
+                    android:layout_marginTop="15dp">
 
                     <ImageView
                         android:layout_width="11dp"
@@ -72,10 +72,10 @@
                         android:layout_width="16.5dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="3dp"
-                        android:textSize="11sp"
                         android:fontFamily="@font/arial_bold"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                        android:textColor="@android:color/black" />
+                        android:textColor="@android:color/black"
+                        android:textSize="11sp" />
 
                     <View
                         android:layout_width="2dp"

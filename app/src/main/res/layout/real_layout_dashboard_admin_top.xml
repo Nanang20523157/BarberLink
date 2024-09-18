@@ -125,7 +125,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="5dp"
             android:layout_marginTop="-1dp"
-            android:text="-Rp 1.000.000"
+            tools:text="-Rp 1.000.000"
             android:textStyle="bold"
             android:textSize="12sp"
             android:textColor="@color/magenta"

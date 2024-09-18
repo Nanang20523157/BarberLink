@@ -65,12 +65,12 @@ class AdminSettingPage : AppCompatActivity(), View.OnClickListener {
         currentView = view
         if (!isNavigating) {
             isNavigating = true
-            val intent = Intent(context, destination).apply {
+            val intentNavigate = Intent(context, destination).apply {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-            startActivity(intent)
+            startActivity(intentNavigate)
             overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) // Mengatur animasi transisi
-            finish()
+            finishAffinity()
         } else return
     }
 

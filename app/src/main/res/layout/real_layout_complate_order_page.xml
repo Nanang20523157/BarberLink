@@ -207,7 +207,7 @@
                     android:layout_height="wrap_content"
                     android:textAlignment="center"
                     android:ellipsize="end"
-                    tools:text="`Lorem ipsum dolor bgiugi sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+                    tools:text="@string/lorem_ipsum"
                     android:textSize="11sp"
                     android:layout_marginTop="8.5dp"
                     android:layout_marginBottom="4dp"
@@ -263,6 +263,7 @@
         </androidx.appcompat.widget.LinearLayoutCompat>
 
         <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/llPaymentDetail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="15dp"
@@ -298,37 +299,7 @@
                     android:ellipsize="end"
                     tools:text="Rp 70.000"
                     android:textSize="11sp"
-                    android:layout_marginBottom="4dp"
-                    android:fontFamily="@font/arial_medium"
-                    android:textColor="@color/black_font_color"/>
-
-            </androidx.appcompat.widget.LinearLayoutCompat>
-
-            <androidx.appcompat.widget.LinearLayoutCompat
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="-3dp"
-                android:layout_marginHorizontal="25dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/label_specialization_costs"
-                    android:layout_weight="1"
-                    android:textSize="11sp"
-                    android:fontFamily="@font/arial_medium"
-                    android:textColor="@color/platinum_grey_background" />
-
-                <TextView
-                    android:id="@+id/tvSpesialisasiCost"
-                    android:layout_width="113dp"
-                    android:layout_height="wrap_content"
-                    android:textAlignment="textEnd"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    tools:text="Rp 15.000"
-                    android:textSize="11sp"
+                    android:layout_marginTop="1dp"
                     android:layout_marginBottom="4dp"
                     android:fontFamily="@font/arial_medium"
                     android:textColor="@color/black_font_color"/>
@@ -360,9 +331,42 @@
                     android:ellipsize="end"
                     tools:text="-Rp 25.000"
                     android:textSize="11sp"
+                    android:layout_marginTop="1dp"
                     android:layout_marginBottom="4dp"
                     android:fontFamily="@font/arial_medium"
                     android:textColor="@color/red"/>
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="-3dp"
+                android:layout_marginHorizontal="25dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ppn_label"
+                    android:layout_weight="1"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/arial_medium"
+                    android:textColor="@color/platinum_grey_background" />
+
+                <TextView
+                    android:id="@+id/tvPPNCost"
+                    android:layout_width="113dp"
+                    android:layout_height="wrap_content"
+                    android:textAlignment="textEnd"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:text="-"
+                    android:textSize="11sp"
+                    android:layout_marginTop="1dp"
+                    android:layout_marginBottom="4dp"
+                    android:fontFamily="@font/arial_medium"
+                    android:textColor="@color/black_font_color"/>
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -398,14 +402,14 @@
         </androidx.appcompat.widget.LinearLayoutCompat>
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/btnUsePromo"
+            android:id="@+id/btnNavigateToHomePage"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="55dp"
             android:layout_marginTop="7dp"
-            android:layout_marginBottom="50dp"
+            android:layout_marginBottom="65dp"
             app:cardCornerRadius="10dp"
-            app:cardElevation="4dp"
+            app:cardElevation="1dp"
             android:backgroundTint="@color/black_font_color"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"

@@ -3,8 +3,10 @@ package com.example.barberlink.UserInterface.SignUp
 import UserAdminData
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.BerandaAdminPage
@@ -19,14 +21,15 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
     private var isNavigating = false
     private var currentView: View? = null
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpSuccessBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        intent.getParcelableExtra<UserAdminData>(SignUpStepTwo.ADMIN_KEY)?.let {
+        intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
             initiateAdminData(it)
-        } ?: intent.getParcelableExtra<UserAdminData>(SignUpStepThree.ADMIN_KEY)?.let {
+        } ?: intent.getParcelableExtra(SignUpStepThree.ADMIN_KEY, UserAdminData::class.java)?.let {
             initiateAdminData(it)
         }
 

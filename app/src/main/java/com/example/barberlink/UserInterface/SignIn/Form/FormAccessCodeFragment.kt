@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,10 +23,13 @@ import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.SelectAccountPage
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
-import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.databinding.FragmentFormAccessCodeBinding
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 // TODO: Rename parameter arguments, choose names that match
@@ -46,12 +50,6 @@ class FormAccessCodeFragment : DialogFragment() {
     private lateinit var context: Context
     private var currentView: View? = null
     private var isNavigating = false
-    private lateinit var currentMonth: String
-    private lateinit var timeStampFilter: Timestamp
-    private lateinit var todayDate: String
-    private lateinit var calendar: Calendar
-    private lateinit var startOfDay: Timestamp
-    private lateinit var startOfNextDay: Timestamp
     private var loginType: String = ""
     private val binding get() = _binding!!
     // TODO: Rename and change types of parameters
@@ -59,6 +57,13 @@ class FormAccessCodeFragment : DialogFragment() {
     private val employeesList = mutableListOf<Employee>()
     private val capsterList = mutableListOf<Employee>()
     private val reservationList =  mutableListOf<Reservation>()
+
+    // Interface yang akan diimplementasikan oleh Activity
+    interface OnClearBackStackListener {
+        fun onClearBackStackRequested()
+    }
+
+    private var listener: OnClearBackStackListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -81,28 +86,45 @@ class FormAccessCodeFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        timeStampFilter = Timestamp.now()
         sessionManager = SessionManager(context)
         setBtnNextToDisableState()
         setupEditTextListeners()
-        currentMonth = GetDateUtils.getCurrentMonthYear(timeStampFilter)
-        todayDate = GetDateUtils.formatTimestampToDate(timeStampFilter)
 
         binding.btnNext.setOnClickListener {
             if (isInputValid) {
-                if (loginType === "Login as Employee") getEmployeesData()
-                else if (loginType === "Login as Teller") getCapsterData()
+                if (loginType == "Login as Employee") getEmployeesData()
+                else if (loginType == "Login as Teller") getCapsterData()
             } else {
                 isInputValid = validateInput()
             }
+            Log.d("FormAccessCodeFragment", "Login type: $loginType")
         }
+
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        try {
+            // Mengaitkan listener dengan activity yang memanggil
+            listener = context as? OnClearBackStackListener
+        } catch (e: ClassCastException) {
+            throw ClassCastException("$context harus mengimplementasikan OnClearBackStackListener")
+        }
+    }
+
+    // Panggil listener saat Anda perlu menghapus back stack
+    private fun triggerClearBackStack() {
+        listener?.onClearBackStackRequested()
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        listener = null
     }
 
     private fun getEmployeesData() {
         binding.progressBar.visibility = View.VISIBLE
-        // Jika outletSelected tidak null
         outletSelected?.let { outlet ->
-            // Ambil daftar employeeUid dari outletSelected
             val employeeUidList = outlet.listEmployees
             if (employeeUidList.isEmpty()) {
                 Toast.makeText(context, "Anda belum menambahkan daftar karyawan untuk outlet", Toast.LENGTH_SHORT).show()
@@ -110,43 +132,40 @@ class FormAccessCodeFragment : DialogFragment() {
                 return
             }
 
-            // Query ke Firestore untuk mendapatkan employees
+            // Ambil data awal
             db.collectionGroup("employees")
                 .whereEqualTo("root_ref", outlet.rootRef)
                 .get()
                 .addOnSuccessListener { documents ->
-                    if (documents != null && !documents.isEmpty) {
-                        employeesList.clear()
-                        for (document in documents) {
-                            val employee = document.toObject(Employee::class.java)
-                            employee.userRef = document.reference.path
-                            employee.outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                            // Cek apakah employee.uid ada di dalam daftar employeeUid
-                            if (employee.uid in employeeUidList) employeesList.add(employee)
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val newEmployeesList = documents.mapNotNull { document ->
+                            document.toObject(Employee::class.java)?.apply {
+                                userRef = document.reference.path
+                                outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                            }?.takeIf { it.uid in employeeUidList }
                         }
-                        if (employeesList.isNotEmpty()) {
-                            navigatePage(context, SelectAccountPage::class.java, false, binding.btnNext)
-                        } else {
-                            Toast.makeText(context, "Tidak ditemukan data karyawan yang sesuai", Toast.LENGTH_SHORT).show()
+
+                        withContext(Dispatchers.Main) {
+                            binding.progressBar.visibility = View.GONE
+                            employeesList.clear()
+                            employeesList.addAll(newEmployeesList)
+                            if (employeesList.isNotEmpty()) {
+                                navigatePage(context, SelectAccountPage::class.java, false, binding.btnNext)
+                            } else {
+                                Toast.makeText(context, "Tidak ditemukan data karyawan yang sesuai", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    } else {
-                        Toast.makeText(context, "Daftar karyawan pada barbershop Anda masih kosong", Toast.LENGTH_SHORT).show()
                     }
                 }
                 .addOnFailureListener { exception ->
-                    Toast.makeText(context, "Error getting employees: ${exception.message}", Toast.LENGTH_SHORT).show()
-                }
-                .addOnCompleteListener {
-                    binding.progressBar.visibility = View.GONE
+                    handleError("Error getting employees: ${exception.message}")
                 }
         }
     }
 
     private fun getCapsterData() {
         binding.progressBar.visibility = View.VISIBLE
-
         outletSelected?.let { outlet ->
-            // Ambil daftar employeeUid dari outletSelected
             val employeeUidList = outlet.listEmployees
             if (employeeUidList.isEmpty()) {
                 Toast.makeText(context, "Anda belum menambahkan daftar capster untuk outlet", Toast.LENGTH_SHORT).show()
@@ -154,77 +173,85 @@ class FormAccessCodeFragment : DialogFragment() {
                 return
             }
 
+            // Ambil data awal
             db.document(outlet.rootRef)
                 .collection("divisions")
                 .document("capster")
                 .collection("employees")
                 .get()
                 .addOnSuccessListener { documents ->
-                    if (documents != null && !documents.isEmpty) {
-                        capsterList.clear()
-                        for (document in documents) {
-                            val employee = document.toObject(Employee::class.java)
-                            employee.userRef = document.reference.path
-                            employee.outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                            // Check if the employee is in the listEmployees of the selected outlet
-                            if (employee.uid in employeeUidList) capsterList.add(employee)
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val newCapsterList = documents.mapNotNull { document ->
+                            document.toObject(Employee::class.java).apply {
+                                userRef = document.reference.path
+                                outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                            }.takeIf { it.uid in employeeUidList }
                         }
-                        if (capsterList.isNotEmpty()) {
-                            getAllReservationData()
-                        } else {
-                            Toast.makeText(context, "Tidak ditemukan data capter yang sesuai", Toast.LENGTH_SHORT).show()
+
+                        withContext(Dispatchers.Main) {
+                            binding.progressBar.visibility = View.GONE
+                            capsterList.clear()
+                            capsterList.addAll(newCapsterList)
+                            if (capsterList.isNotEmpty()) {
+                                getAllReservationData()
+                            } else {
+                                Toast.makeText(context, "Tidak ditemukan data capster yang sesuai", Toast.LENGTH_SHORT).show()
+                            }
                         }
-                    } else {
-                        Toast.makeText(context, "Daftar capster pada barbershop Anda masih kosong", Toast.LENGTH_SHORT).show()
                     }
                 }
                 .addOnFailureListener { exception ->
-                    Toast.makeText(context, "Error getting capster: ${exception.message}", Toast.LENGTH_SHORT).show()
-                }
-                .addOnCompleteListener {
-                    binding.progressBar.visibility = View.GONE
+                    handleError("Error getting capster: ${exception.message}")
                 }
         }
     }
 
     private fun getAllReservationData() {
-        // Mendapatkan tanggal hari ini tanpa waktu
-        calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        startOfDay = Timestamp(calendar.time)
+        binding.progressBar.visibility = View.VISIBLE
+        outletSelected?.let { outlet ->
+            val calendar = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val startOfDay = Timestamp(calendar.time)
+            calendar.add(Calendar.DAY_OF_MONTH, 1)
+            val startOfNextDay = Timestamp(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
-        startOfNextDay = Timestamp(calendar.time)
-
-        // Query ke Firestore untuk mendapatkan reservations dengan timestamp_created hari ini
-        outletSelected.let { outlet ->
-            db.collection("${outlet?.rootRef}/outlets/${outlet?.uid}/reservations")
+            // Ambil data awal
+            db.collection("${outlet.rootRef}/outlets/${outlet.uid}/reservations")
                 .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfDay)
                 .whereLessThan("timestamp_to_booking", startOfNextDay)
                 .get()
                 .addOnSuccessListener { documents ->
-                    reservationList.clear()
-                    if (documents != null && !documents.isEmpty) {
-                        for (document in documents) {
-                            val reservation = document.toObject(Reservation::class.java)
-                            if (reservation.queueStatus != "pending" && reservation.queueStatus != "expired") reservationList.add(reservation)
-                        }
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val newReservationList = documents.mapNotNull { document ->
+                            document.toObject(Reservation::class.java)
+                        }.filter { it.queueStatus !in listOf("pending", "expired") }
 
-                        // Navigasi ke halaman QueueTrackerPage setelah mendapatkan data
-                        navigatePage(context, QueueTrackerPage::class.java, true, binding.btnNext)
-                    } else {
-                        Toast.makeText(context, "Tidak ditemukan reservasi untuk hari ini", Toast.LENGTH_SHORT).show()
+                        withContext(Dispatchers.Main) {
+                            binding.progressBar.visibility = View.GONE
+                            reservationList.clear()
+                            reservationList.addAll(newReservationList)
+                            navigatePage(context, QueueTrackerPage::class.java, true, binding.btnNext)
+//                            if (reservationList.isNotEmpty()) {
+//                            } else {
+//                                Toast.makeText(context, "Tidak ditemukan reservasi untuk hari ini", Toast.LENGTH_SHORT).show()
+//                            }
+                        }
                     }
                 }
                 .addOnFailureListener { exception ->
-                    Toast.makeText(context, "Error getting reservations: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    handleError("Error getting reservations: ${exception.message}")
                 }
-                .addOnCompleteListener {
-                    binding.progressBar.visibility = View.GONE
-                }
+        }
+    }
+
+    private fun handleError(message: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            binding.progressBar.visibility = View.GONE
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -260,10 +287,11 @@ class FormAccessCodeFragment : DialogFragment() {
                 }
                 outletSelected?.uid?.let {
                     sessionManager.setSessionTeller(true)
-                    sessionManager.setDataTellerRef("${outletSelected?.rootRef}/outlets/$it}")
+                    sessionManager.setDataTellerRef("${outletSelected?.rootRef}/outlets/$it")
                 }
 
                 // Tutup DialogFragment jika ada
+                triggerClearBackStack()
                 dismiss() // Menutup DialogFragment
                 parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
                 context.startActivity(intent)
@@ -275,6 +303,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(employeesList))
                 }
                 // Tutup DialogFragment jika ada
+                triggerClearBackStack()
                 dismiss() // Menutup DialogFragment
                 parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
                 context.startActivity(intent)

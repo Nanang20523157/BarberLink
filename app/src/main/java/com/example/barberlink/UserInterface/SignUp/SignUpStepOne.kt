@@ -15,8 +15,8 @@ import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserRolesData
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivitySignUpStepOneBinding
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 
 class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
@@ -116,7 +116,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             setBtnNextToEnableState()
 
             // Format nomor telepon
-            formattedPhoneNumber = formatPhoneNumber(input)
+            formattedPhoneNumber = PhoneUtils.formatPhoneNumberCodeCountry(input)
         }
     }
 
@@ -154,24 +154,6 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    private fun formatPhoneNumber(phoneNumber: String): String {
-        val sanitizedPhoneNumber = phoneNumber.replace(" ", "").replace("-", "")
-        val builder = StringBuilder()
-        builder.append("+62 ")
-
-        val phoneNumberLength = sanitizedPhoneNumber.length
-        var i = 1
-        while (i < phoneNumberLength) {
-            if (i % 4 == 0) {
-                builder.append("-")
-            }
-            builder.append(sanitizedPhoneNumber[i])
-            i++
-        }
-
-        return builder.toString()
-    }
-
     private fun checkPhoneNumberInFirestoreAndNavigate() {
         binding.progressBar.visibility = View.VISIBLE
         userAdminData = UserAdminData()
@@ -183,18 +165,14 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
                 .addOnSuccessListener { document ->
                     binding.progressBar.visibility = View.GONE
                     if (document.exists()) {
-                        applyAllDataToUserRolesData(document)
+                        document.toObject(UserRolesData::class.java)?.let {
+                            userRolesData = it
+                        }
 
                         if (userRolesData?.role == "admin" || userRolesData?.role == "hybrid") {
                             setTextViewToErrorState(R.string.phone_number_already_exists_text)
                         } else if (userRolesData?.role == "customer") {
-                            if (userRolesData?.customerProvider == "email") {
-                                userRolesData?.customerRef?.let { getDataCustomerReference(it) }
-                            } else {
-                                // Next Time, ambil data seperti fullname & profile
-                                setTextViewToValidState()
-                                navigatePage(this, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
-                            }
+                            userRolesData?.customerRef?.let { getDataCustomerReference(it) }
                         }
                     } else {
                         setTextViewToValidState()
@@ -214,18 +192,18 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    private fun applyAllDataToUserRolesData(document: DocumentSnapshot) {
-        document.toObject(UserRolesData::class.java)?.let {
-            userRolesData?.apply {
-                adminProvider = it.adminProvider
-                adminRef = it.adminRef
-                customerProvider = it.customerProvider
-                customerRef = it.customerRef
-                role = it.role
-                uid = it.uid
-            }
-        }
-    }
+//    private fun applyAllDataToUserRolesData(document: DocumentSnapshot) {
+//        document.toObject(UserRolesData::class.java)?.let {
+//            userRolesData?.apply {
+//                adminProvider = it.adminProvider
+//                adminRef = it.adminRef
+//                customerProvider = it.customerProvider
+//                customerRef = it.customerRef
+//                role = it.role
+//                uid = it.uid
+//            }
+//        }
+//    }
 
     private fun getDataCustomerReference(customerRef: String) {
         binding.progressBar.visibility = View.VISIBLE
@@ -234,13 +212,18 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             .addOnSuccessListener { customerDocument ->
                 binding.progressBar.visibility = View.GONE
                 if (customerDocument.exists()) {
-                    applyAllDataToUserCustomerData(customerDocument)
+                    customerDocument.toObject(UserCustomerData::class.java)?.let {
+                        userCustomerData = it
+                    }
 
-                    userAdminData?.uid = userCustomerData?.uid.toString()
-                    userAdminData?.imageCompanyProfile = userCustomerData?.photoProfile.toString()
-                    userAdminData?.ownerName = userCustomerData?.fullname.toString()
-                    userAdminData?.email = userCustomerData?.email.toString()
-                    userAdminData?.password = userCustomerData?.password.toString()
+                    userAdminData?.apply {
+                        uid = userCustomerData?.uid.toString()
+                        imageCompanyProfile = userCustomerData?.photoProfile.toString()
+                        ownerName = userCustomerData?.fullname.toString()
+                        email = userCustomerData?.email.toString()
+                        password = userCustomerData?.password.toString()
+                    }
+
                     setTextViewToValidState()
                     navigatePage(this, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
                 }
@@ -251,23 +234,23 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             }
     }
 
-    private fun applyAllDataToUserCustomerData(document: DocumentSnapshot) {
-        document.toObject(UserCustomerData::class.java)?.let {
-            userCustomerData?.apply {
-                email = it.email
-                fullname = it.fullname
-                gander = it.gander
-                membership = it.membership
-                password = it.password
-                phone = it.phone
-                photoProfile = it.photoProfile
-                uid = it.uid
-                username = it.username
-                appointmentList = it.appointmentList
-                reservationList = it.reservationList
-            }
-        }
-    }
+//    private fun applyAllDataToUserCustomerData(document: DocumentSnapshot) {
+//        document.toObject(UserCustomerData::class.java)?.let {
+//            userCustomerData?.apply {
+//                email = it.email
+//                fullname = it.fullname
+//                gender = it.gender
+//                membership = it.membership
+//                password = it.password
+//                phone = it.phone
+//                photoProfile = it.photoProfile
+//                uid = it.uid
+//                username = it.username
+//                appointmentList = it.appointmentList
+//                reservationList = it.reservationList
+//            }
+//        }
+//    }
 
     companion object {
         const val ADMIN_KEY = "admin_key_step_one"

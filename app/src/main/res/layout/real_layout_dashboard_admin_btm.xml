@@ -120,7 +120,7 @@
                             android:layout_weight="1"
                             android:layout_marginEnd="0.5dp"
                             app:cardBackgroundColor="@color/white"
-                            app:cardElevation="0dp"
+                            app:cardElevation="2dp"
                             app:cardCornerRadius="0.5dp">
 
                             <RelativeLayout
@@ -997,7 +997,7 @@
                     android:background="@drawable/background_income_from_service">
 
                     <TextView
-                        android:id="@+id/tvIncomeFromProduct"
+                        android:id="@+id/wholeProductRevenue"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/rp_1_000_000"

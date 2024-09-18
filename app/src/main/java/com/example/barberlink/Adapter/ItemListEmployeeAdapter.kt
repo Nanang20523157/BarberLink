@@ -10,7 +10,6 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.R
-import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListEmployeeAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeCardBinding
 
@@ -78,10 +77,36 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(employee: Employee) {
-            with (binding) {
+            with(binding) {
                 tvName.text = employee.fullname
-                tvHargaLayanan.text = NumberUtils.toKFormat(employee.specializationCost)
                 tvRating.text = employee.employeeRating.toString()
+
+                // Set status and modify margins based on availability
+                if (employee.availabilityStatus) {
+                    tvStatus.text = root.context.getString(R.string.enter_text)
+                    tvStatus.setTextColor(ContextCompat.getColor(root.context, R.color.green_btn))
+
+                    // Set margin start for ivStart and tvStatus when available
+                    val ivStartLayoutParams = ivStar.layoutParams as ViewGroup.MarginLayoutParams
+                    ivStartLayoutParams.marginStart = (4 * root.resources.displayMetrics.density).toInt()
+                    ivStar.layoutParams = ivStartLayoutParams
+
+                    val tvStatusLayoutParams = tvStatus.layoutParams as ViewGroup.MarginLayoutParams
+                    tvStatusLayoutParams.marginStart = (2.5 * root.resources.displayMetrics.density).toInt()
+                    tvStatus.layoutParams = tvStatusLayoutParams
+                } else {
+                    tvStatus.text = root.context.getString(R.string.holiday_text)
+                    tvStatus.setTextColor(ContextCompat.getColor(root.context, R.color.magenta))
+
+                    // Set margin start for ivStart and tvStatus when not available
+                    val ivStartLayoutParams = ivStar.layoutParams as ViewGroup.MarginLayoutParams
+                    ivStartLayoutParams.marginStart = (6 * root.resources.displayMetrics.density).toInt()
+                    ivStar.layoutParams = ivStartLayoutParams
+
+                    val tvStatusLayoutParams = tvStatus.layoutParams as ViewGroup.MarginLayoutParams
+                    tvStatusLayoutParams.marginStart = (3 * root.resources.displayMetrics.density).toInt()
+                    tvStatus.layoutParams = tvStatusLayoutParams
+                }
 
                 // Use Glide to load the image
                 if (employee.photoProfile.isNotEmpty()) {
@@ -91,9 +116,13 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .into(ivPhotoProfile)
+                } else {
+                    // Jika photoProfile kosong atau null, atur gambar default
+                    ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
                 }
             }
         }
+
     }
 
     companion object {

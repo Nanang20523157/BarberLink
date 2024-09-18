@@ -15,9 +15,13 @@ import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.databinding.ActivitySelectOutletDestinationBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
-class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.OnItemClicked {
+class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.OnItemClicked, FormAccessCodeFragment.OnClearBackStackListener {
     private lateinit var binding: ActivitySelectOutletDestinationBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val outletsList = mutableListOf<Outlet>()
@@ -28,12 +32,14 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private lateinit var outletListener: ListenerRegistration
     private var keyword: String = ""
     private var loginType: String = ""
+    private var shouldClearBackStack = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectOutletDestinationBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        fragmentManager = supportFragmentManager
         loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
 
         with(binding) {
@@ -71,31 +77,32 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                     Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
-                if (documents != null) {
-                    outletsList.clear()
-                    for (document in documents) {
-                        val outlet = document.toObject(Outlet::class.java)
-                        outletsList.add(outlet)
+
+                documents?.let {
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val outlets = it.mapNotNull {
+                                doc -> doc.toObject(Outlet::class.java)
+                        }
+
+                        outletsList.clear()
+                        outletsList.addAll(outlets)
+                        filterOutlets(keyword, false)
                     }
-                    filterOutlets(keyword, false)
-                    // Notify adapter or update UI
                 }
             }
     }
 
     private fun getAllOutletsData() {
-        db.collectionGroup("outlets")
-            .get()
-            .addOnSuccessListener { documents ->
-                outletsList.clear()
-                if (documents != null && !documents.isEmpty) {
-                    for (document in documents) {
-                        val outlet = document.toObject(Outlet::class.java)
-                        outletsList.add(outlet)
+        db.collectionGroup("outlets").get()
+            .addOnSuccessListener { snapshot ->
+                CoroutineScope(Dispatchers.Default).launch {
+                    val outlets = snapshot.documents.mapNotNull { document ->
+                        document.toObject(Outlet::class.java)
                     }
-                    filterOutlets("", true)  // Show all data initially
-                } else {
-                    Toast.makeText(this, "No outlets found", Toast.LENGTH_SHORT).show()
+
+                    outletsList.clear()
+                    outletsList.addAll(outlets)
+                    filterOutlets("", true)  // Update UI with the data
                 }
             }
             .addOnFailureListener { exception ->
@@ -104,28 +111,33 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     }
 
     private fun filterOutlets(query: String, withShimmer: Boolean) {
-        val lowerCaseQuery = query.lowercase(Locale.getDefault())
-        filteredList.clear()
-
-        if (lowerCaseQuery.isEmpty()) {
-            filteredList.addAll(outletsList)
-        } else {
-            val result = mutableListOf<Outlet>()
-            for (outlet in outletsList) {
-                if (outlet.outletName.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
-                    outlet.taglineOrDesc.lowercase(Locale.getDefault()).contains(lowerCaseQuery)) {
-                    result.add(outlet)
+        CoroutineScope(Dispatchers.Default).launch {
+            val lowerCaseQuery = query.lowercase(Locale.getDefault())
+            val filteredResult = if (lowerCaseQuery.isEmpty()) {
+                outletsList
+            } else {
+                outletsList.filter { outlet ->
+                    outlet.outletName.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
                 }
             }
-            filteredList.addAll(result)
+
+            filteredList.apply {
+                clear()
+                addAll(filteredResult)
+            }
+            withContext(Dispatchers.Main) {
+                outletAdapter.submitList(filteredList)
+
+
+                binding.tvEmptyOutlet.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
+                if (withShimmer) outletAdapter.setShimmer(false)
+                else outletAdapter.notifyDataSetChanged()
+            }
         }
-        outletAdapter.submitList(filteredList)
-        binding.tvEmptyOutlet.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
-        if (withShimmer) outletAdapter.setShimmer(false)
     }
 
     override fun onItemClickListener(outlet: Outlet) {
-        fragmentManager = supportFragmentManager
+        shouldClearBackStack = false
         dialogFragment = FormAccessCodeFragment.newInstance(outlet, loginType)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
@@ -133,15 +145,19 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        transaction
-            .add(android.R.id.content, dialogFragment, "FormAccessCodeFragment")
-            .addToBackStack("FormAccessCodeFragment")
-            .commit()
+        if (!isDestroyed && !isFinishing) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "FormAccessCodeFragment")
+                .addToBackStack("FormAccessCodeFragment")
+                .commit()
+        }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
+            shouldClearBackStack = true
             dialogFragment.dismiss()
             fragmentManager.popBackStack()
         } else {
@@ -150,17 +166,26 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        clearBackStack()
 
-        outletListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
+    }
+
+    override fun onClearBackStackRequested() {
+        shouldClearBackStack = true
     }
 
     private fun clearBackStack() {
-        val fragmentManager = supportFragmentManager
         while (fragmentManager.backStackEntryCount > 0) {
-            fragmentManager.popBackStack()
+            fragmentManager.popBackStackImmediate()
         }
     }
 

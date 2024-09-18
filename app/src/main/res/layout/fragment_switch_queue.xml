@@ -112,7 +112,7 @@
                     android:layout_marginEnd="10dp"
                     app:layout_constraintTop_toTopOf="@id/ivPhotoProfile"
                     app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
-                    app:layout_constraintEnd_toStartOf="@id/llGander" />
+                    app:layout_constraintEnd_toStartOf="@id/llGender" />
 
                 <TextView
                     android:id="@+id/tvUsername"
@@ -122,6 +122,7 @@
                     android:fontFamily="@font/arial_medium"
                     android:textSize="9.5sp"
                     android:layout_marginTop="-2dp"
+                    android:layout_marginStart="0.5dp"
                     android:textColor="@color/platinum_grey_background"
                     app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
                     app:layout_constraintTop_toBottomOf="@id/tvEmployeeName"/>
@@ -199,13 +200,13 @@
                     app:layout_constraintTop_toBottomOf="@id/llRating"/>
 
                 <LinearLayout
-                    android:id="@+id/llGander"
+                    android:id="@+id/llGender"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:paddingVertical="2dp"
                     android:gravity="center"
-                    android:background="@drawable/gander_masculine_background"
+                    android:background="@drawable/gender_masculine_background"
                     android:paddingHorizontal="4dp"
                     android:layout_marginEnd="15dp"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -216,10 +217,10 @@
                         android:layout_width="12.5dp"
                         android:layout_height="12.5dp"
                         android:src="@drawable/ic_male"
-                        android:contentDescription="@string/icon_gander_ilustration" />
+                        android:contentDescription="@string/icon_gender_ilustration" />
 
                     <TextView
-                        android:id="@+id/tvGander"
+                        android:id="@+id/tvGender"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         tools:text="laki-laki"

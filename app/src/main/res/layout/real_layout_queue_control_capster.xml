@@ -26,7 +26,7 @@
             android:layout_height="55dp"
             android:scaleType="centerCrop"
             android:contentDescription="@string/user_profile_placeholder_desc"
-            tools:src="@drawable/placeholder_user_profile" />
+            android:src="@drawable/placeholder_user_profile" />
 
         <TextView
             android:id="@+id/tvCapsterName"
@@ -34,11 +34,12 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="5dp"
             android:gravity="center"
-            android:text="Nanang Kurniawan"
+            android:text="@string/random_capster"
             android:textSize="15sp"
             android:textColor="@android:color/black"
-            android:maxLines="1"
-            android:ellipsize="end" />
+            android:singleLine="true"
+            android:ellipsize="marquee"
+            android:marqueeRepeatLimit="marquee_forever"/>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/llRating"

@@ -3,23 +3,29 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_scrim">
+    android:background="@drawable/background_scrim"
+    android:clickable="true"
+    android:focusable="true">
 
     <RelativeLayout
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:paddingVertical="20dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:layout_centerInParent="true">
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:backgroundTint="@color/light_grey_horizons_background"
-            app:cardElevation="15dp"
-            app:cardCornerRadius="30dp"
-            android:layout_marginTop="150dp"
-            android:visibility="visible"
+            android:layout_alignTop="@id/cardFormAccessCode"
             android:layout_centerHorizontal="true"
-            android:layout_alignTop="@id/cardFormAccessCode">
+            android:layout_marginTop="150dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            android:visibility="gone"
+            app:cardCornerRadius="30dp"
+            app:cardElevation="15dp">
 
             <ProgressBar
                 android:layout_width="35dp"
@@ -34,12 +40,11 @@
             android:id="@+id/cardFormAccessCode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginVertical="10dp"
-            android:layout_gravity="top"
             android:layout_marginHorizontal="10dp"
+            android:layout_marginVertical="10dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
             app:cardCornerRadius="25dp"
-            app:cardElevation="10dp"
-            android:backgroundTint="@color/light_grey_horizons_background">
+            app:cardElevation="10dp">
 
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="match_parent"
@@ -49,59 +54,59 @@
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:cardCornerRadius="25dp"
-                    app:cardElevation="0.5dp"
                     android:layout_margin="3dp"
-                    android:backgroundTint="@color/light_grey_horizons_background">
+                    android:backgroundTint="@color/light_grey_horizons_background"
+                    app:cardCornerRadius="25dp"
+                    app:cardElevation="0.5dp">
 
                     <androidx.appcompat.widget.LinearLayoutCompat
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_gravity="center"
                         android:orientation="vertical"
                         android:paddingHorizontal="20dp"
                         android:paddingTop="25dp"
-                        android:paddingBottom="25dp"
-                        android:layout_gravity="center">
+                        android:paddingBottom="25dp">
 
                         <TextView
                             android:id="@+id/tvHeader"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/title_page_input_code_access"
+                            android:layout_gravity="center"
+                            android:layout_marginTop="10dp"
                             android:fontFamily="@font/arial_bold"
+                            android:text="@string/title_page_input_code_access"
                             android:textColor="@color/black_font_color"
                             android:textSize="17sp"
-                            android:textStyle="bold"
-                            android:layout_marginTop="10dp"
-                            android:layout_gravity="center"/>
+                            android:textStyle="bold" />
 
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="25dp"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/background_yellow_attention"
                             android:orientation="horizontal"
                             android:paddingHorizontal="10dp"
-                            android:paddingVertical="10dp"
-                            android:layout_marginHorizontal="25dp"
-                            android:background="@drawable/background_yellow_attention"
-                            android:layout_marginTop="10dp">
+                            android:paddingVertical="10dp">
 
                             <ImageView
                                 android:layout_width="12.5dp"
                                 android:layout_height="12.5dp"
-                                android:layout_marginTop="2dp"
                                 android:layout_marginStart="3dp"
-                                android:src="@drawable/ic_info"
-                                android:contentDescription="@string/image_info_icon_desc" />
+                                android:layout_marginTop="2dp"
+                                android:contentDescription="@string/image_info_icon_desc"
+                                android:src="@drawable/ic_info" />
 
                             <TextView
                                 android:id="@+id/tvInstruction"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:fontFamily="@font/arial_medium"
                                 android:layout_marginStart="8dp"
                                 android:layout_marginEnd="7dp"
+                                android:fontFamily="@font/arial_medium"
                                 android:text="@string/instructions_guide_to_generate_code_access"
-                                android:textSize="12sp"/>
+                                android:textSize="12sp" />
 
                         </LinearLayout>
 
@@ -110,12 +115,12 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_below="@id/tvSectionTitle"
-                            android:text="Isi field dibawah Ini:"
-                            android:textSize="12sp"
-                            android:fontFamily="@font/arial_regular"
-                            android:textColor="@color/black_font_color"
+                            android:layout_marginStart="27dp"
                             android:layout_marginTop="9dp"
-                            android:layout_marginStart="27dp"/>
+                            android:fontFamily="@font/arial_regular"
+                            android:text="Isi field dibawah Ini:"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="12sp" />
 
                         <!--                <com.google.android.material.textfield.TextInputLayout-->
                         <!--                    android:id="@+id/wrapperBarbershopName"-->
@@ -167,39 +172,41 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginHorizontal="25dp"
-                            app:hintEnabled="true"
-                            app:hintTextColor="@color/black"
-                            android:textColorHint="#b0b0b0"
+                            android:layout_marginTop="1dp"
                             android:hint="@string/hint_code_access_teller"
-                            app:placeholderText="@string/hint_code_access"
-                            app:placeholderTextColor="#b0b0b0"
-                            app:errorEnabled="true"
-                            app:boxStrokeErrorColor="@color/red"
+                            android:textColorHint="#b0b0b0"
                             app:boxBackgroundColor="@color/white"
+                            app:boxBackgroundMode="outline"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:errorEnabled="true"
                             app:errorIconDrawable="@drawable/ic_error"
                             app:errorIconTint="@color/red"
                             app:errorTextColor="@color/red"
-                            app:boxStrokeColor="@color/green_lime_wf"
-                            android:layout_marginTop="-1dp">
+                            app:hintEnabled="true"
+                            app:hintTextColor="@color/black"
+                            app:placeholderText="@string/hint_code_access"
+                            app:placeholderTextColor="#b0b0b0">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etAccessCode"
                                 android:layout_width="match_parent"
-                                android:layout_height="43dp"
+                                android:layout_height="50dp"
                                 android:inputType="text"
+                                android:padding="3dp"
                                 android:textSize="12.5sp" />
 
                             <TextView
                                 android:id="@+id/codeCustomError"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:visibility="visible"
+                                android:layout_marginStart="6dp"
+                                android:layout_marginTop="-17.2dp"
+                                android:letterSpacing="0.03333333"
                                 android:text="@string/required"
                                 android:textColor="@color/red"
                                 android:textSize="11sp"
-                                android:layout_marginTop="-17.2dp"
-                                android:letterSpacing="0.03333333"
-                                android:layout_marginStart="6dp" />
+                                android:visibility="visible" />
 
                         </com.google.android.material.textfield.TextInputLayout>
 
@@ -210,8 +217,8 @@
                             android:layout_height="45dp"
                             android:layout_gravity="center"
                             android:layout_marginTop="15dp"
-                            android:minWidth="140dp"
                             android:backgroundTint="@color/disable_grey_background"
+                            android:minWidth="140dp"
                             android:text="@string/next_text"
                             android:textColor="#FFFFFF" />
 
@@ -223,16 +230,16 @@
                     android:id="@+id/tvNote"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/text_information_for_code_access"
-                    android:textSize="12.5sp"
-                    android:fontFamily="@font/arial_medium"
-                    android:paddingVertical="15dp"
-                    android:paddingHorizontal="30dp"
                     android:layout_marginHorizontal="25dp"
-                    android:textAlignment="center"
                     android:layout_marginTop="20dp"
                     android:layout_marginBottom="27dp"
-                    android:background="@drawable/role_background"/>
+                    android:background="@drawable/role_background"
+                    android:fontFamily="@font/arial_medium"
+                    android:paddingHorizontal="30dp"
+                    android:paddingVertical="15dp"
+                    android:text="@string/text_information_for_code_access"
+                    android:textAlignment="center"
+                    android:textSize="12.5sp" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 

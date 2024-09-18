@@ -3,13 +3,13 @@ package com.example.barberlink.UserInterface.SignIn.Gateway
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.BerandaAdminPage
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
-import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
 import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
@@ -29,9 +29,6 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectUserRolePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        adminSession = sessionManager.getSessionAdmin()
-        tellerSession = sessionManager.getSessionTeller()
-        capsterSession = sessionManager.getSessionCapster()
 
         with(binding) {
             ivBack.setOnClickListener(this@SelectUserRolePage)
@@ -43,6 +40,9 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     }
 
     override fun onClick(v: View?) {
+        adminSession = sessionManager.getSessionAdmin()
+        tellerSession = sessionManager.getSessionTeller()
+        capsterSession = sessionManager.getSessionCapster()
         with(binding) {
             when (v?.id) {
                 R.id.ivBack -> {
@@ -54,6 +54,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
                     navigatePage(this@SelectUserRolePage, SignUpStepOne::class.java, btnSignUp)
                 }
                 R.id.btnAdminOwner -> {
+                    Log.d("SelectUserRolePage", "Admin Session: $adminSession <> ${sessionManager.getDataAdminRef()}")
                     if (adminSession) navigatePage(this@SelectUserRolePage, BerandaAdminPage::class.java, btnAdminOwner)
                     else navigatePage(this@SelectUserRolePage, LoginAdminPage::class.java, btnAdminOwner)
                 }
@@ -92,15 +93,15 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         } else return
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        super.onBackPressed()
-        val intent = Intent(this, LandingPage::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-        startActivity(intent)
-        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-        finish()
-    }
+//    @Deprecated("Deprecated in Java")
+//    override fun onBackPressed() {
+//        super.onBackPressed()
+//        val intent = Intent(this, LandingPage::class.java)
+//        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+//        startActivity(intent)
+//        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//        finish()
+//    }
 
     override fun onResume() {
         super.onResume()

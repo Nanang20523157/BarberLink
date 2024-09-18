@@ -29,7 +29,7 @@ object NumberUtils {
                 "${divided}.${remainder}K"
             }
         } else {
-            number.toString()
+            "${number}K"
         }
     }
 
@@ -42,7 +42,12 @@ object NumberUtils {
     fun numberToCurrency(number: Double): String {
         val localeID = Locale("id", "ID")
         val currencyFormat = NumberFormat.getCurrencyInstance(localeID)
-        val formattedValue = currencyFormat.format(number)
+        var formattedValue = currencyFormat.format(number)
+
+        // Add a space after the currency symbol
+        if (formattedValue.startsWith("Rp")) {
+            formattedValue = formattedValue.replace("Rp", "Rp ")
+        }
 
         // Remove trailing ",00" if the value has no decimal places
         val cleanValue = if (number % 1 == 0.0) {
@@ -51,6 +56,6 @@ object NumberUtils {
             formattedValue
         }
 
-        return cleanValue.replace(",", ".")
+        return cleanValue
     }
 }

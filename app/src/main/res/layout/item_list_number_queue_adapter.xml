@@ -32,6 +32,7 @@
                 android:paddingHorizontal="7dp"
                 android:paddingVertical="3dp"
                 android:textSize="13sp"
+                android:gravity="center"
                 android:textAlignment="center"
                 android:textStyle="bold"
                 android:textColor="@color/black_font_color" />

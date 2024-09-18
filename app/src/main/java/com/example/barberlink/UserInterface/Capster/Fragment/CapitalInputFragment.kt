@@ -66,6 +66,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private lateinit var calendar: Calendar
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
+    private var isGetData: Boolean = true
 
     private lateinit var context: Context
     private var uidDailyCapital: String = ""
@@ -119,7 +120,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
 
          capitalFragmentViewModel.snackBarMessage.observe(this) { showSnackBar(it)  }
-
     }
 
     private fun init() {
@@ -143,7 +143,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
         startOfDay = Timestamp(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
         startOfNextDay = Timestamp(calendar.time)
         // currentMonth = GetDateUtils.getCurrentMonthYear(timestamp)
         todayDate = GetDateUtils.formatTimestampToDate(timestamp)
@@ -614,114 +614,78 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
     private fun listenToDailyCapital(outletSelected: Outlet) {
         capitalListener?.remove()
-        // Referensi ke koleksi yang sesuai
+
+        if (!::timeStampFilter.isInitialized) {
+            Toast.makeText(context, "Timestamp filter not set", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val dailyCapitalRef = db.document(outletSelected.rootRef)
             .collection("outlets")
             .document(outletSelected.uid)
             .collection("daily_capital")
 
-        // Jika timeStampFilter sudah ada
-        if (this::timeStampFilter.isInitialized) {
-            // Mengambil dokumen dari Firestore dengan query rentang tanggal
-            capitalListener = dailyCapitalRef
-                .whereGreaterThanOrEqualTo("createdOn", startOfDay)
-                .whereLessThanOrEqualTo("createdOn", startOfNextDay)
-                .addSnapshotListener { querySnapshot, exception ->
-                    if (exception != null) {
-                        Toast.makeText(context, "Error listening to daily capital data: ${exception.message}", Toast.LENGTH_SHORT).show()
-                        return@addSnapshotListener
-                    }
-
-                    if (querySnapshot != null && !querySnapshot.isEmpty) {
-                        // Mendapatkan dokumen pertama yang sesuai dengan query
-                        val document = querySnapshot.firstOrNull()
-                        // Map data ke objek DailyCapital
-                        val dailyCapital = document?.toObject(DailyCapital::class.java)
-                        // Lakukan sesuatu dengan dailyCapital
-                        dailyCapital?.let {
-                            // Contoh: Menampilkan data
-                            setDailyCapitalValue(dailyCapital)
-                        } ?: run {
-                            setDailyCapitalValue(null)
-                        }
-                    } else {
-                        setDailyCapitalValue(null)
-                    }
+        capitalListener = dailyCapitalRef
+            .whereGreaterThanOrEqualTo("created_on", startOfDay)
+            .whereLessThan("created_on", startOfNextDay)
+            .addSnapshotListener { querySnapshot, exception ->
+                if (exception != null) {
+                    Toast.makeText(context, "Error listening to daily capital data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    return@addSnapshotListener
                 }
-        } else {
-            // Tangani kasus di mana timeStampFilter belum diinisialisasi
-            Toast.makeText(context, "Timestamp filter not set", Toast.LENGTH_SHORT).show()
-        }
+
+                if (isGetData) {
+                    isGetData = false
+                    return@addSnapshotListener
+                }
+                val dailyCapital = querySnapshot?.documents?.firstOrNull()?.toObject(DailyCapital::class.java)
+                setDailyCapitalValue(dailyCapital)
+            }
     }
 
     private fun getDailyCapital(outletName: String) {
-        val outletSelected = outletList?.find { it.outletName == outletName }
-        // Referensi ke koleksi yang sesuai
-        val dailyCapitalRef = if (outletSelected != null) {
-            db.document(outletSelected.rootRef)
-                .collection("outlets")
-                .document(outletSelected.uid)
-                .collection("daily_capital")
-        } else null
+        isGetData = true
+        val outletSelected = outletList?.find { it.outletName == outletName } ?: return
 
-        // Jika timeStampFilter sudah ada
-        if (this::timeStampFilter.isInitialized) {
-            // Mengambil dokumen dari Firestore dengan query rentang tanggal
-            dailyCapitalRef?.whereGreaterThanOrEqualTo("createdOn", startOfDay)
-                ?.whereLessThanOrEqualTo("createdOn", startOfNextDay)
-                ?.get()
-                ?.addOnSuccessListener { querySnapshot ->
-                    if (querySnapshot != null && !querySnapshot.isEmpty) {
-                        // Mendapatkan dokumen pertama yang sesuai dengan query
-                        val document = querySnapshot.firstOrNull()
-                        // Map data ke objek DailyCapital
-                        val dailyCapital = document?.toObject(DailyCapital::class.java)
-                        // Lakukan sesuatu dengan dailyCapital
-                        dailyCapital?.let {
-                            // Contoh: Menampilkan data
-                            setDailyCapitalValue(dailyCapital)
-                        } ?: run {
-                            setDailyCapitalValue(null)
-                        }
-                    } else {
-                        setDailyCapitalValue(null)
-                    }
-
-                    if (outletSelected != null) {
-                        listenToDailyCapital(outletSelected)
-                    }
-                }?.addOnFailureListener { exception ->
-                    Toast.makeText(context, "Error getting document: ${exception.message}", Toast.LENGTH_SHORT).show()
-                }
-        } else {
-            // Tangani kasus di mana timeStampFilter belum diinisialisasi
+        if (!::timeStampFilter.isInitialized) {
             Toast.makeText(context, "Timestamp filter not set", Toast.LENGTH_SHORT).show()
+            return
         }
-    }
 
+        val dailyCapitalRef = db.document(outletSelected.rootRef)
+            .collection("outlets")
+            .document(outletSelected.uid)
+            .collection("daily_capital")
+
+        dailyCapitalRef
+            .whereGreaterThanOrEqualTo("created_on", startOfDay)
+            .whereLessThan("created_on", startOfNextDay)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                val dailyCapital = querySnapshot.documents.firstOrNull()?.toObject(DailyCapital::class.java)
+                setDailyCapitalValue(dailyCapital)
+                listenToDailyCapital(outletSelected)  // Re-register listener after fetching
+            }
+            .addOnFailureListener { exception ->
+                Toast.makeText(context, "Error getting document: ${exception.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
 
     private fun setDailyCapitalValue(capitalAmount: DailyCapital?) {
         val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-        val inputCapital: String = binding.etDailyCapital.text.toString()
-        if (capitalAmount != null) {
+        val inputCapital = binding.etDailyCapital.text.toString()
+        val capitalText = if (capitalAmount != null) {
             uidDailyCapital = capitalAmount.uid
             setUserIdentity(capitalAmount)
-            Toast.makeText(
-                context,
-                "Catatan Modal Harian: Rp ${format.format(capitalAmount?.outletCapital)}",
-                Toast.LENGTH_LONG
-            ).show()
-            selectCardView(null, null, capitalAmount?.outletCapital)
+            "Catatan Modal Harian: Rp ${format.format(capitalAmount.outletCapital)}"
         } else {
             uidDailyCapital = ""
             setUserIdentity(null)
-            Toast.makeText(
-                context,
-                "Catatan Modal Harian: (Tidak Tersedia)",
-                Toast.LENGTH_LONG
-            ).show()
-            selectCardView(null, null, 0)
+            "Catatan Modal Harian: (Tidak Tersedia)"
         }
+
+        Toast.makeText(context, capitalText, Toast.LENGTH_LONG).show()
+        selectCardView(null, null, capitalAmount?.outletCapital ?: 0)
 
         if (dailyCapital != inputCapital) {
             Handler(Looper.getMainLooper()).postDelayed({
@@ -731,8 +695,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 )
             }, 1000)
         }
-
     }
+
 
     private fun setFocus(editText: View) {
         editText.requestFocus()
@@ -776,16 +740,26 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         datePicker.addOnPositiveButtonClickListener { selection ->
             val date = Date(selection)
 
-            setDateFilterValue(Timestamp(date))
+            if (!isSameDay(date, timeStampFilter.toDate())) {
+                setDateFilterValue(Timestamp(date))
 
-            if (outletName.isNotEmpty()) {
-                getDailyCapital(outletName)
+                if (outletName.isNotEmpty()) {
+                    getDailyCapital(outletName)
+                }
             }
+
         }
 
         datePicker.show(parentFragmentManager, "DATE_PICKER")
     }
 
+    private fun isSameDay(date1: Date, date2: Date): Boolean {
+        val cal1 = Calendar.getInstance().apply { time = date1 }
+        val cal2 = Calendar.getInstance().apply { time = date2 }
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
 
     companion object {
         /**

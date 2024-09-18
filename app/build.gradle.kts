@@ -40,6 +40,7 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
+
 }
 
 dependencies {
@@ -51,21 +52,29 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore:25.0.0")
     implementation("com.google.firebase:firebase-storage:21.0.0")
     implementation("com.google.firebase:firebase-auth:23.0.0")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.2")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.2")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
+
+    // Coroutines Core
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+
+    // Coroutines Android
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
 
     // ImageSlider
     implementation("com.github.denzcoskun:ImageSlideshow:0.1.2")
 
     // Glide
     implementation("com.github.bumptech.glide:glide:4.16.0")
-    annotationProcessor("com.github.bumptech.glide:compiler:4.13.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
 
     // PinView
-    implementation("com.github.ChaosLeong:PinView:1.4.3")
+    implementation("io.github.chaosleung:pinview:1.4.4")
 
     // CircularImageView
     implementation("de.hdodenhof:circleimageview:3.1.0")
@@ -74,7 +83,7 @@ dependencies {
     implementation("com.airbnb.android:lottie:3.7.0")
 
     // Gson
-    implementation("com.google.code.gson:gson:2.8.8")
+    implementation("com.google.code.gson:gson:2.10.1")
 
     // ImagePicker
     implementation ("com.github.dhaval2404:imagepicker:2.1")
@@ -86,13 +95,13 @@ dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
     // ViewModel and LiveData
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.5.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
 
     // Kotlin extensions for ViewModel and LiveData
-    implementation("androidx.fragment:fragment-ktx:1.5.1")
+    implementation("androidx.fragment:fragment-ktx:1.8.2")
 
     // YearPickerOnly
-    implementation("com.whiteelephant:monthandyearpicker:1.3.0")
+    implementation("com.github.demogorgorn:MonthAndYearPicker:1.0.11")
 
 }

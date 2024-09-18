@@ -223,7 +223,7 @@
                     android:fontFamily="@font/arial_regular"
                     android:textColor="@color/black_font_color"
                     android:layout_marginTop="10dp"
-                    android:visibility="visible"/>
+                    android:visibility="gone"/>
 
             </FrameLayout>
 
@@ -268,6 +268,22 @@
 <!--    </com.google.android.material.card.MaterialCardView>-->
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabQueueBoard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:layout_marginEnd="27dp"
+        android:layout_marginBottom="100dp"
+        android:src="@drawable/ic_queueboard"
+        android:scaleType="fitXY"
+        android:padding="0dp"
+        app:tint="@android:color/black"
+        style="@style/Widget.App.FloatingActionButton"
+        app:fabCustomSize="50dp"
+        app:maxImageSize="33dp"
+        android:contentDescription="@string/fab_to_queue_board" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabRandomCapster"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -278,8 +294,8 @@
         android:scaleType="fitXY"
         android:padding="0dp"
         app:tint="@color/black"
-        app:fabCustomSize="65dp"
-        app:maxImageSize="43dp"
+        app:fabCustomSize="56dp"
+        app:maxImageSize="34dp"
         android:contentDescription="@string/fab_to_random_capster" />
 
 </FrameLayout>

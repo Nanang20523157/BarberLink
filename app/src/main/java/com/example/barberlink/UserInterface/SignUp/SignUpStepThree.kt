@@ -9,6 +9,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.InputType
@@ -16,6 +17,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.barberlink.DataClass.UserRolesData
@@ -45,19 +47,20 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepThreeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        intent.getParcelableExtra<UserAdminData>(SignUpStepTwo.ADMIN_KEY).let {
-            it?.let { userAdminData = it }
+        intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
+            userAdminData = it
         }
-        intent.getParcelableExtra<UserRolesData>(SignUpStepTwo.ROLES_KEY).let {
-            it?.let { userRolesData = it }
+        intent.getParcelableExtra(SignUpStepTwo.ROLES_KEY, UserRolesData::class.java)?.let {
+            userRolesData = it
         }
-        intent.getStringExtra(SignUpStepTwo.IMAGE_KEY).let {
-            it?.let { imageUri = Uri.parse(it) }
+        intent.getStringExtra(SignUpStepTwo.IMAGE_KEY)?.let {
+            imageUri = Uri.parse(it)
         }
 
         binding.btnCreateAccount.setOnClickListener(this)
@@ -174,7 +177,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                 binding.progressBar.visibility = View.GONE
                 Toast.makeText(
                     this,
-                    "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
+                    "Koneksi internet tidak stabil. Harap periksa koneksi Anda dan coba lagi.",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -212,7 +215,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                     val credential = user?.email?.let { EmailAuthProvider.getCredential(it, userAdminCopy.password) }
                     // Re-authenticate the user with the current password
                     if (credential != null) {
-                        user?.reauthenticate(credential)?.addOnCompleteListener { reAuthTask ->
+                        user.reauthenticate(credential)?.addOnCompleteListener { reAuthTask ->
                             if (reAuthTask.isSuccessful) {
                                 // Update the password
                                 user.updatePassword(password).addOnCompleteListener { updateTask ->
@@ -230,7 +233,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                     }
                 }
             } else {
-                handleFailure("Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.", "RETRIEVE_UID")
+                handleFailure("Koneksi internet tidak stabil. Harap periksa koneksi Anda dan coba lagi.", "RETRIEVE_UID")
             }
         }.execute() // Pastikan untuk mengeksekusi AsyncTask
     }
@@ -341,7 +344,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                                 }
                             }
                         } else {
-                            handleFailure("Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.", "UPDATE_ROLES")
+                            handleFailure("Koneksi internet tidak stabil. Harap periksa koneksi Anda dan coba lagi.", "UPDATE_ROLES")
                         }
                     }.execute() // Pastikan untuk mengeksekusi AsyncTask
                 }

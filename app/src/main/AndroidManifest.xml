@@ -21,7 +21,7 @@
             android:name=".UserInterface.Admin.DashboardAdminPage"
             android:exported="false" />
         <activity
-            android:name=".Adapter.ItemListOrderPackageAdapter"
+            android:name=".Adapter.ItemPackageFullCardAdapter"
             android:exported="false" />
         <activity
             android:name=".UserInterface.SignIn.Login.SelectOutletDestination"
@@ -49,7 +49,8 @@
             android:exported="false" />
         <activity
             android:name=".UserInterface.Teller.QueueTrackerPage"
-            android:exported="false" />
+            android:exported="false"
+            android:launchMode="singleTop" />
         <activity
             android:name=".UserInterface.Admin.BerandaAdminPage"
             android:exported="false" />
@@ -58,7 +59,8 @@
             android:exported="false" />
         <activity
             android:name=".UserInterface.SignIn.Gateway.SelectUserRolePage"
-            android:exported="false" />
+            android:exported="false"
+            android:launchMode="singleInstancePerTask" />
         <activity
             android:name=".UserInterface.Capster.SelectAccountPage"
             android:exported="false" />
