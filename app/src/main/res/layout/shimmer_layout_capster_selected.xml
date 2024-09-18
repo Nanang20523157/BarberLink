@@ -21,7 +21,7 @@
         android:layout_marginHorizontal="4dp"
         android:layout_below="@id/tvLabelDataCapster"
         app:cardCornerRadius="20dp"
-        app:cardElevation="0dp"
+        app:cardElevation="0.5dp"
         android:backgroundTint="@color/light_grey_horizons_background"
         android:layout_marginTop="5dp">
 
@@ -65,9 +65,9 @@
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium"
                 android:textStyle="bold"
                 android:layout_marginEnd="10dp"
-                app:layout_constraintTop_toTopOf="@id/llGander"
+                app:layout_constraintTop_toTopOf="@id/llGender"
                 app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
-                app:layout_constraintEnd_toStartOf="@id/llGander" />
+                app:layout_constraintEnd_toStartOf="@id/llGender" />
 
             <TextView
                 android:id="@+id/tvUsername"
@@ -157,7 +157,7 @@
                 app:layout_constraintTop_toBottomOf="@id/llRating"/>
 
             <LinearLayout
-                android:id="@+id/llGander"
+                android:id="@+id/llGender"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -175,10 +175,10 @@
                     android:id="@+id/ivGender"
                     android:layout_width="12.5dp"
                     android:layout_height="12.5dp"
-                    android:contentDescription="@string/icon_gander_ilustration" />
+                    android:contentDescription="@string/icon_gender_ilustration" />
 
                 <TextView
-                    android:id="@+id/tvGander"
+                    android:id="@+id/tvGender"
                     android:layout_width="37dp"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/arial_bold"
@@ -193,10 +193,10 @@
 
             <TextView
                 android:id="@+id/tvRestQueueFromCapster"
-                android:layout_width="45dp"
+                android:layout_width="127dp"
                 android:layout_height="30dp"
                 android:layout_gravity="bottom"
-                android:layout_marginEnd="5dp"
+                android:layout_marginEnd="17dp"
                 android:background="@drawable/shimmer_corner_lima_dp_300"
                 android:textStyle="bold"
                 android:gravity="center"
@@ -204,41 +204,41 @@
                 android:textColor="@color/magenta"
                 android:textSize="15sp"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/llBook"
-                app:layout_constraintTop_toTopOf="@id/llGander"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="@id/llGender"
                 app:layout_constraintVertical_bias="1" />
 
-            <LinearLayout
-                android:id="@+id/llBook"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center"
-                android:visibility="invisible"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="@id/llGander"
-                app:layout_constraintVertical_bias="0.9">
+<!--            <LinearLayout-->
+<!--                android:id="@+id/llBook"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:gravity="center"-->
+<!--                android:visibility="visible"-->
+<!--                app:layout_constraintBottom_toBottomOf="parent"-->
+<!--                app:layout_constraintEnd_toEndOf="parent"-->
+<!--                app:layout_constraintTop_toTopOf="@id/llGender"-->
+<!--                app:layout_constraintVertical_bias="0.9">-->
 
-                <ImageView
-                    android:id="@+id/ivBook"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"
-                    android:background="@drawable/shimmer_corner_empat_dp_300"
-                    android:layout_marginEnd="2dp"
-                    android:contentDescription="@string/booking_icon_desc" />
+<!--                <ImageView-->
+<!--                    android:id="@+id/ivBook"-->
+<!--                    android:layout_width="25dp"-->
+<!--                    android:layout_height="25dp"-->
+<!--                    android:background="@drawable/shimmer_corner_empat_dp_300"-->
+<!--                    android:layout_marginEnd="2dp"-->
+<!--                    android:contentDescription="@string/booking_icon_desc" />-->
 
-                <TextView
-                    android:layout_width="21dp"
-                    android:layout_height="wrap_content"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:layout_marginTop="-0.6dp"
-                    android:background="@drawable/shimmer_corner_empat_dp_300"
-                    android:textColor="@color/black_font_color"
-                    android:layout_marginEnd="17dp" />
+<!--                <TextView-->
+<!--                    android:layout_width="21dp"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:textSize="17sp"-->
+<!--                    android:textStyle="bold"-->
+<!--                    android:layout_marginTop="-0.6dp"-->
+<!--                    android:background="@drawable/shimmer_corner_empat_dp_300"-->
+<!--                    android:textColor="@color/black_font_color"-->
+<!--                    android:layout_marginEnd="17dp" />-->
 
-            </LinearLayout>
+<!--            </LinearLayout>-->
 
             <LinearLayout
                 android:layout_width="0dp"

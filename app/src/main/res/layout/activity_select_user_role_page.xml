@@ -178,7 +178,7 @@
                     android:id="@+id/kasirTellerLabel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/btn_select_kasir_teller"
+                    android:text="@string/btn_take_number"
                     android:gravity="center"
                     android:paddingVertical="6dp"
                     android:paddingHorizontal="12dp"

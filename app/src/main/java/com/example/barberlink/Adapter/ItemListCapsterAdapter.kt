@@ -1,7 +1,6 @@
 package com.example.barberlink.Adapter
 
 import Employee
-import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,6 +23,7 @@ class ItemListCapsterAdapter(
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
     interface OnItemClicked {
         fun onItemClickListener(employee: Employee, rootView: View)
     }
@@ -88,18 +88,20 @@ class ItemListCapsterAdapter(
             val reviewCount = 2134
 
             with(binding) {
+                tvCapsterName.isSelected = true
                 tvCapsterName.text = employee.fullname
-                tvUsername.text = root.context.getString(R.string.username_template, employee.username)
+                val username = employee.username.ifEmpty { "---" }
+                tvUsername.text = root.context.getString(R.string.username_template, username)
                 tvRating.text = employee.employeeRating.toString()
                 tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
-                tvRestOfQueue.text = NumberUtils.convertToFormattedString(employee.restOfQueue)
+                tvRestQueueFromCapster.text = NumberUtils.convertToFormattedString(employee.restOfQueue)
 
-                setUserGander(employee.gender)
-                val specializationCost = NumberUtils.toKFormat(employee.specializationCost)
-                tvSpecializationCost.text = specializationCost
+                setUserGender(employee.gender)
+//                val specializationCost = NumberUtils.toKFormat(employee.specializationCost)
+//                tvSpecializationCost.text = specializationCost
 
-                if (employee.availabilityStatus) setBtnNextToEnableState()
-                else setBtnNextToDisableState()
+//                if (employee.availabilityStatus) setBtnNextToEnableState()
+//                else setBtnNextToDisableState()
 
                 if (employee.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
@@ -108,62 +110,114 @@ class ItemListCapsterAdapter(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .into(ivPhotoProfile)
+                } else {
+                    // Jika photoProfile kosong atau null, atur gambar default
+                    ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
                 }
 
                 root.setOnClickListener {
                     itemClicked.onItemClickListener(employee, root)
                 }
 
-                llStatusBooking.setOnClickListener {
-                    itemClicked.onItemClickListener(employee, root)
+//                llStatusBooking.setOnClickListener {
+//                    itemClicked.onItemClickListener(employee, root)
+//                }
+            }
+
+        }
+
+        private fun setUserGender(gender: String) {
+            with(binding) {
+                val density = root.resources.displayMetrics.density
+                val tvGenderLayoutParams = tvGender.layoutParams as ViewGroup.MarginLayoutParams
+                val ivGenderLayoutParams = ivGender.layoutParams as ViewGroup.MarginLayoutParams
+
+                when (gender) {
+                    "Laki-laki" -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (2 * density).toInt(),
+                            (0 * density).toInt(),
+                            (3 * density).toInt(),
+                            (0 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.male)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.black_font_color))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_masculine_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_male)
+                        )
+                        // Mengatur margin start ivGender menjadi 0
+                        ivGenderLayoutParams.marginStart = 0
+                    }
+                    "Perempuan" -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (2 * density).toInt(),
+                            (-0.5 * density).toInt(),
+                            (3 * density).toInt(),
+                            (0.1 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.female)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.black_font_color))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_feminime_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_female)
+                        )
+                        // Mengatur margin start menjadi 0
+                        ivGenderLayoutParams.marginStart = 0
+                    }
+                    else -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (3.5 * density).toInt(),
+                            (-0.5 * density).toInt(),
+                            (3 * density).toInt(),
+                            (0.1 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.unknown)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.dark_black_gradation))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_unknown_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_unknown)
+                        )
+                        // Mengatur margin start menjadi 1
+                        ivGenderLayoutParams.marginStart = (1 * density).toInt()
+                    }
                 }
-            }
 
-        }
-
-        private fun setUserGander(gander: String) {
-            with(binding) {
-                if (gander === "Laki-laki") {
-                    llGander.background = AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.gander_masculine_background
-                    )
-                    ivGender.setImageDrawable(
-                        AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.ic_male
-                    ))
-                } else if (gander === "Perempuan") {
-                    llGander.background = AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.gander_feminime_background
-                    )
-                    ivGender.setImageDrawable(
-                        AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.ic_female
-                    ))
-                }
+                // Memastikan layoutParams diupdate setelah diatur
+                tvGender.layoutParams = tvGenderLayoutParams
+                ivGender.layoutParams = ivGenderLayoutParams
             }
         }
 
-        private fun setBtnNextToDisableState() {
-            with(binding) {
-                llStatusBooking.isEnabled = false
-                llStatusBooking.background = ContextCompat.getDrawable(root.context, R.drawable.background_disable_btn_book)
-                tvBooking.setTypeface(null, Typeface.BOLD)
-                tvBooking.setTextColor(ContextCompat.getColor(root.context, R.color.charcoal_grey_background))
-            }
-        }
-
-        private fun setBtnNextToEnableState() {
-            with(binding) {
-                llStatusBooking.isEnabled = true
-                llStatusBooking.background = ContextCompat.getDrawable(root.context, R.drawable.background_btn_generate)
-                tvBooking.setTypeface(null, Typeface.BOLD)
-                tvBooking.setTextColor(ContextCompat.getColor(root.context, R.color.green_lime_wf))
-            }
-        }
+//        private fun setBtnNextToDisableState() {
+//            with(binding) {
+//                llStatusBooking.isEnabled = false
+//                llStatusBooking.background = ContextCompat.getDrawable(root.context, R.drawable.background_disable_btn_book)
+//                tvBooking.setTypeface(null, Typeface.BOLD)
+//                tvBooking.setTextColor(ContextCompat.getColor(root.context, R.color.charcoal_grey_background))
+//            }
+//        }
+//
+//        private fun setBtnNextToEnableState() {
+//            with(binding) {
+//                llStatusBooking.isEnabled = true
+//                llStatusBooking.background = ContextCompat.getDrawable(root.context, R.drawable.background_btn_generate)
+//                tvBooking.setTypeface(null, Typeface.BOLD)
+//                tvBooking.setTextColor(ContextCompat.getColor(root.context, R.color.green_lime_wf))
+//            }
+//        }
 
     }
 

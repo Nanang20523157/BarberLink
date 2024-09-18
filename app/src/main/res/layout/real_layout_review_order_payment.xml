@@ -12,7 +12,7 @@
     android:layout_below="@id/cvCoinUse"
     android:layout_marginStart="4dp"
     android:layout_marginEnd="4dp"
-    android:layout_marginBottom="190dp"
+    android:layout_marginBottom="150dp"
     android:backgroundTint="@color/light_grey_horizons_background">
 
     <TextView
@@ -30,7 +30,7 @@
     <androidx.appcompat.widget.LinearLayoutCompat
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="56dp"
+        android:layout_marginTop="56.3dp"
         android:layout_marginHorizontal="30dp"
         android:orientation="vertical"
         android:gravity="center_horizontal"
@@ -63,6 +63,7 @@
                 android:ellipsize="end"
                 android:text="@string/short_number_of_total_items_template"
                 android:textSize="12sp"
+                android:layout_marginTop="1dp"
                 android:layout_marginBottom="4dp"
                 android:fontFamily="@font/arial_medium"
                 android:textColor="@color/black_font_color"/>
@@ -86,7 +87,7 @@
                 android:textColor="@color/platinum_grey_background" />
 
             <TextView
-                android:id="@+id/tvSubTotalItems"
+                android:id="@+id/tvSubTotalPrice"
                 android:layout_width="113dp"
                 android:layout_height="wrap_content"
                 android:textAlignment="textEnd"
@@ -94,37 +95,7 @@
                 android:ellipsize="end"
                 tools:text="Rp 70.000"
                 android:textSize="12sp"
-                android:layout_marginBottom="4dp"
-                android:fontFamily="@font/arial_medium"
-                android:textColor="@color/black_font_color"/>
-
-        </androidx.appcompat.widget.LinearLayoutCompat>
-
-        <androidx.appcompat.widget.LinearLayoutCompat
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="-3dp"
-            android:layout_marginHorizontal="25dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/label_specialization_costs"
-                android:layout_weight="1"
-                android:textSize="12sp"
-                android:fontFamily="@font/arial_medium"
-                android:textColor="@color/platinum_grey_background" />
-
-            <TextView
-                android:id="@+id/tvSpesialisasiFee"
-                android:layout_width="113dp"
-                android:layout_height="wrap_content"
-                android:textAlignment="textEnd"
-                android:maxLines="1"
-                android:ellipsize="end"
-                tools:text="Rp 15.000"
-                android:textSize="12sp"
+                android:layout_marginTop="1dp"
                 android:layout_marginBottom="4dp"
                 android:fontFamily="@font/arial_medium"
                 android:textColor="@color/black_font_color"/>
@@ -156,6 +127,7 @@
                 android:ellipsize="end"
                 tools:text="-Rp 10.000"
                 android:textSize="12sp"
+                android:layout_marginTop="1dp"
                 android:layout_marginBottom="4dp"
                 android:fontFamily="@font/arial_medium"
                 android:textColor="@color/red"/>
@@ -187,6 +159,7 @@
                 android:ellipsize="end"
                 tools:text="-Rp 15.000"
                 android:textSize="12sp"
+                android:layout_marginTop="1dp"
                 android:layout_marginBottom="4dp"
                 android:fontFamily="@font/arial_medium"
                 android:textColor="@color/red"/>
@@ -197,7 +170,39 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="-3dp"
+            android:layout_marginHorizontal="25dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ppn_label"
+                android:layout_weight="1"
+                android:textSize="12sp"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/platinum_grey_background" />
+
+            <TextView
+                android:id="@+id/tvPPNCost"
+                android:layout_width="113dp"
+                android:layout_height="wrap_content"
+                android:textAlignment="textEnd"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:text="-"
+                android:textSize="12sp"
+                android:layout_marginTop="1dp"
+                android:layout_marginBottom="4dp"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black_font_color"/>
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4.2dp"
             android:layout_marginHorizontal="25dp">
 
             <TextView

@@ -9,18 +9,18 @@ import kotlinx.parcelize.Parcelize
 data class Reservation(
     @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
     @get:PropertyName("best_deals_ref") @set:PropertyName("best_deals_ref") var bestDealsRef: List<String> = listOf(),
-    @get:PropertyName("queue_number") @set:PropertyName("queue_number") var queueNumber: String = "",
     @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo = CapsterInfo(),
     @get:PropertyName("customer_info") @set:PropertyName("customer_info") var customerInfo: CustomerInfo = CustomerInfo(),
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
-    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderRef: List<OrderInfo> = listOf(),
+    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo> = listOf(),
     @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
     @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
     @get:PropertyName("payment_detail") @set:PropertyName("payment_detail") var paymentDetail: PaymentDetail = PaymentDetail(),
+    @get:PropertyName("queue_number") @set:PropertyName("queue_number") var queueNumber: String = "",
     @get:PropertyName("queue_status") @set:PropertyName("queue_status") var queueStatus: String = "",
     @get:PropertyName("timestamp_completed") @set:PropertyName("timestamp_completed") var timestampCompleted: Timestamp? = null,
     @get:PropertyName("timestamp_created") @set:PropertyName("timestamp_created") var timestampCreated: Timestamp = Timestamp.now(),
-    @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_book") var timestampToBooking: Timestamp? = null,
+    @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_booking") var timestampToBooking: Timestamp? = null,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
 ) : Parcelable
 
@@ -53,15 +53,7 @@ data class PaymentDetail(
     @get:PropertyName("payment_method") @set:PropertyName("payment_method") var paymentMethod: String = "",
     @get:PropertyName("payment_status") @set:PropertyName("payment_status") var paymentStatus: Boolean = false,
     @get:PropertyName("promo_used") @set:PropertyName("promo_used") var promoUsed: Int = 0,
-    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
     @get:PropertyName("subtotal_items") @set:PropertyName("subtotal_items") var subtotalItems: Int = 0,
+//    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
 ) : Parcelable
 
-@Parcelize
-data class QueueDataTracker(
-    var capsterName: String = "",
-    var currentQueue: String = "",
-    var completedQueue: String = "",
-    var totalQueue: String = "",
-    var restOfQueue: String = "",
-) : Parcelable

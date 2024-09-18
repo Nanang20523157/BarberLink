@@ -32,22 +32,18 @@
                 android:layout_marginEnd="16dp"
                 android:scaleType="centerCrop"
                 android:contentDescription="@string/user_profile_placeholder_desc"
-                android:src="@drawable/placeholder_user_profile"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@id/tvEmployeeName"
-                app:layout_constraintHorizontal_bias="0.0"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
+                android:src="@drawable/placeholder_user_profile" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="108dp"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:padding="7dp"
                 android:background="@drawable/background_dot_service"
-                android:layout_marginTop="10dp">
+                android:layout_marginTop="15dp">
 
                 <ImageView
+                    android:id="@+id/ivStar"
                     android:layout_width="11dp"
                     android:layout_height="11dp"
                     android:layout_marginStart="4dp"
@@ -74,24 +70,26 @@
                     android:layout_marginEnd="4dp"
                     android:background="@color/platinum_grey_background" />
 
-                <ImageView
-                    android:layout_width="13dp"
-                    android:layout_height="13dp"
-                    android:src="@drawable/ic_book"
-                    android:layout_marginTop="1.7dp"
-                    android:contentDescription="@string/booking_icon_desc" />
+<!--                <ImageView-->
+<!--                    android:layout_width="13dp"-->
+<!--                    android:layout_height="13dp"-->
+<!--                    android:src="@drawable/ic_book"-->
+<!--                    android:layout_marginTop="1.7dp"-->
+<!--                    android:contentDescription="@string/booking_icon_desc" />-->
 
                 <TextView
-                    android:id="@+id/tvHargaLayanan"
+                    android:id="@+id/tvStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    tools:text="25K"
-                    android:layout_marginStart="3dp"
-                    android:layout_marginEnd="4dp"
-                    android:textSize="11.2sp"
+                    android:gravity="center"
+                    tools:text="MASUK"
+                    android:layout_marginStart="2.7dp"
+                    android:layout_marginEnd="0dp"
+                    android:textSize="11.5sp"
                     android:textStyle="bold"
                     android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                    android:textColor="@color/dark_grey_font_color" />
+                    android:textColor="@color/green_btn" />
+
             </LinearLayout>
 
         </LinearLayout>

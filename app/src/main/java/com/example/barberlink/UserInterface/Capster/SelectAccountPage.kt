@@ -2,11 +2,13 @@ package com.example.barberlink.UserInterface.Capster
 
 import Employee
 import Outlet
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.FragmentManager
@@ -18,9 +20,13 @@ import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.databinding.ActivitySelectAccountPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
-class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemClicked {
+class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemClicked, PinInputFragment.OnClearBackStackListener {
     private lateinit var binding: ActivitySelectAccountPageBinding
     private val employeeList = mutableListOf<Employee>()
     private val filteredList = mutableListOf<Employee>()
@@ -31,16 +37,19 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     private lateinit var employeeListener: ListenerRegistration
     private var keyword: String = ""
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private var shouldClearBackStack = true
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySelectAccountPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        intent.getParcelableArrayListExtra<Employee>(FormAccessCodeFragment.EMPLOYEE_DATA_KEY).let { list ->
-            list?.let { employeeList.addAll(it) }
+        fragmentManager = supportFragmentManager
+        intent.getParcelableArrayListExtra(FormAccessCodeFragment.EMPLOYEE_DATA_KEY, Employee::class.java)?.let {
+            employeeList.addAll(it)
         }
-        intent.getParcelableExtra<Outlet>(FormAccessCodeFragment.OUTLET_DATA_KEY)?.let {
+        intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, Outlet::class.java)?.let {
             outletSelected = it
             listenToEmployeesData()
         }
@@ -74,81 +83,88 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     }
 
     private fun listenToEmployeesData() {
-        // Jika outletSelected tidak null
         outletSelected.let { outlet ->
-            // Ambil daftar employeeUid dari outletSelected
             val employeeUidList = outlet.listEmployees
 
-            // Query ke Firestore untuk mendapatkan employees
             employeeListener = db.collectionGroup("employees")
                 .whereEqualTo("root_ref", outlet.rootRef)
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         Toast.makeText(this, "Error listening to employees data: ${exception.message}", Toast.LENGTH_SHORT).show()
                         return@addSnapshotListener
                     }
 
-                    if (documents != null) {
-                        // Temp list untuk menampung data baru
-                        val newEmployeesList = mutableListOf<Employee>()
+                    documents?.let { snapshot ->
+                        CoroutineScope(Dispatchers.Default).launch {
+                            val newEmployeesList = snapshot.documents.mapNotNull { document ->
+                                document.toObject(Employee::class.java)?.apply {
+                                    userRef = document.reference.path
+                                    outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                }?.takeIf { it.uid in employeeUidList }
+                            }
 
-                        for (document in documents) {
-                            val employee = document.toObject(Employee::class.java)
-                            employee.userRef = document.reference.path
-                            employee.outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                            // Cek apakah employee.uid ada di dalam daftar employeeUid
-                            if (employee.uid in employeeUidList) newEmployeesList.add(employee)
+                            employeeList.apply {
+                                clear()
+                                addAll(newEmployeesList)
+                            }
+
+                            filterEmployee(keyword, false)
                         }
-
-                        employeeList.clear()
-                        employeeList.addAll(newEmployeesList)
-                        filterEmployee(keyword, false)
                     }
-
                 }
         }
     }
 
     private fun filterEmployee(query: String, withShimmer: Boolean) {
-        val lowerCaseQuery = query.lowercase(Locale.getDefault())
-        filteredList.clear()
-
-        if (lowerCaseQuery.isEmpty()) {
-            filteredList.addAll(employeeList)
-        } else {
-            val result = mutableListOf<Employee>()
-            for (employee in employeeList) {
-                if (employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
-                    employee.username.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
-                    employee.role.lowercase(Locale.getDefault()).contains(lowerCaseQuery)) {
-                    result.add(employee)
+        CoroutineScope(Dispatchers.Default).launch {
+            val lowerCaseQuery = query.lowercase(Locale.getDefault())
+            val result = if (lowerCaseQuery.isEmpty()) {
+                employeeList.toList()
+            } else {
+                employeeList.filter { employee ->
+                    employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
+                            employee.username.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
+                            employee.role.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
                 }
             }
-            filteredList.addAll(result)
+
+            filteredList.apply {
+                clear()
+                addAll(result)
+            }
+
+            withContext(Dispatchers.Main) {
+                employeeAdapter.submitList(filteredList)
+                binding.tvEmptyEmployee.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
+                if (withShimmer) employeeAdapter.setShimmer(false)
+                else employeeAdapter.notifyDataSetChanged()
+            }
         }
-        employeeAdapter.submitList(filteredList)
-        binding.tvEmptyEmployee.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
-        if (withShimmer) employeeAdapter.setShimmer(false)
     }
 
+
     override fun onItemClickListener(employee: Employee) {
-        fragmentManager = supportFragmentManager
-        dialogFragment = PinInputFragment.newInstance(employee)
+        shouldClearBackStack = false
+        dialogFragment = PinInputFragment.newInstance(employee, outletSelected)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
         // For a polished look, specify a transition animation.
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        transaction
-            .add(android.R.id.content, dialogFragment, "PinInputFragment")
-            .addToBackStack("PinInputFragment")
-            .commit()
+        if (!isDestroyed && !isFinishing) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "PinInputFragment")
+                .addToBackStack("PinInputFragment")
+                .commit()
+        }
     }
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
+            shouldClearBackStack = true
             dialogFragment.dismiss()
             fragmentManager.popBackStack()
         } else {
@@ -157,17 +173,26 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        clearBackStack()
 
-        employeeListener.remove()
+        if (::employeeListener.isInitialized) employeeListener.remove()
+    }
+
+    override fun onClearBackStackRequested() {
+        shouldClearBackStack = true
     }
 
     private fun clearBackStack() {
-        val fragmentManager = supportFragmentManager
         while (fragmentManager.backStackEntryCount > 0) {
-            fragmentManager.popBackStack()
+            fragmentManager.popBackStackImmediate()
         }
     }
 

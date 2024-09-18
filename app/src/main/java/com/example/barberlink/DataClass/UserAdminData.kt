@@ -1,6 +1,7 @@
 
 import android.os.Parcelable
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.RawValue
@@ -18,8 +19,7 @@ data class UserAdminData(
     @get:PropertyName("phone") @set:PropertyName("phone") var phone: String = "",
     @get:PropertyName("image_company_profile") @set:PropertyName("image_company_profile") var imageCompanyProfile: String = "",
     @get:PropertyName("subscription_status") @set:PropertyName("subscription_status") var subscriptionStatus: Boolean = true,
-    @get:PropertyName("operational_hour") @set:PropertyName("operational_hour") var operationalHour: @RawValue OperationalHour = OperationalHour(),
-    @get:PropertyName("list_customers") @set:PropertyName("list_customers") var listCustomers: @RawValue List<String> = emptyList()
+    @get:PropertyName("operational_hour") @set:PropertyName("operational_hour") var operationalHour: @RawValue OperationalHour = OperationalHour()
 ) : Parcelable
 
 // Operational hours for different days
@@ -40,50 +40,29 @@ data class DailySchedule(
     @get:PropertyName("close") @set:PropertyName("close") var close: String = ""
 ) : Parcelable
 
-// Best deal data class
-@Parcelize
-data class BestDeal(
-    @get:PropertyName("applies_to") @set:PropertyName("applies_to") var appliesTo: String = "",
-    @get:PropertyName("best_deal_amount") @set:PropertyName("best_deal_amount") var bestDealAmount: Int = 0,
-    @get:PropertyName("best_deal_category") @set:PropertyName("best_deal_category") var bestDealCategory: String = "",
-    @get:PropertyName("best_deal_code") @set:PropertyName("best_deal_code") var bestDealCode: String = "",
-    @get:PropertyName("best_deal_desc") @set:PropertyName("best_deal_desc") var bestDealDesc: String = "",
-    @get:PropertyName("best_deal_format") @set:PropertyName("best_deal_format") var bestDealFormat: String = "",
-    @get:PropertyName("best_deal_title") @set:PropertyName("best_deal_title") var bestDealTitle: String = "",
-    @get:PropertyName("effective_date") @set:PropertyName("effective_date") var effectiveTimestamp: Timestamp = Timestamp.now(),
-    @get:PropertyName("expired_date") @set:PropertyName("expired_date") var expiredTimestamp: Timestamp = Timestamp.now(),
-    @get:PropertyName("repetition_status") @set:PropertyName("repetition_status") var repetitionStatus: Boolean = false,
-    @get:PropertyName("repetition_time") @set:PropertyName("repetition_time") var repetitionTime: List<String> = emptyList(),
-    @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
-    @get:PropertyName("target") @set:PropertyName("target") var target: String = "",
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
-
 // Bundling package data class
 @Parcelize
 data class BundlingPackage(
+    @get:PropertyName("accumulated_price") @set:PropertyName("accumulated_price") var accumulatedPrice: Int = 0,
+    @get:PropertyName("apply_to_general") @set:PropertyName("apply_to_general") var applyToGeneral: Boolean = true,
+    @get:PropertyName("auto_selected") @set:PropertyName("auto_selected") var autoSelected: Boolean = false,
+    @get:PropertyName("default_item") @set:PropertyName("default_item") var defaultItem: Boolean = false,
     @get:PropertyName("list_items") @set:PropertyName("list_items") var listItems: @RawValue List<String> = emptyList(),
     @get:PropertyName("package_counting") @set:PropertyName("package_counting") var packageCounting: @RawValue Map<String, Int> = emptyMap(),
     @get:PropertyName("package_desc") @set:PropertyName("package_desc") var packageDesc: String = "",
-    @get:PropertyName("package_price") @set:PropertyName("package_price") var packagePrice: Int = 0,
+    @get:PropertyName("package_discount") @set:PropertyName("package_discount") var packageDiscount: Int = 0,
     @get:PropertyName("package_name") @set:PropertyName("package_name") var packageName: String = "",
-    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
+    @get:PropertyName("package_price") @set:PropertyName("package_price") var packagePrice: Int = 0,
     @get:PropertyName("package_rating") @set:PropertyName("package_rating") var packageRating: Double = 5.0,
+    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
-    var listItemDetails: @RawValue List<Service> = emptyList(),
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
+    @get:Exclude @set:Exclude var priceToDisplay: Int = 0,
+    var listItemDetails: @RawValue List<Service> = emptyList(),
+    var bundlingQuantity: Int = 0
 ) : Parcelable
 
-// Category data class
-@Parcelize
-data class Category(
-    @get:PropertyName("category_name") @set:PropertyName("category_name") var categoryName: String = "",
-    @get:PropertyName("category_type") @set:PropertyName("category_type") var categoryType: String = "",
-    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
-    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
 
 // Division data class
 @Parcelize
@@ -98,31 +77,37 @@ data class Division(
 data class Employee(
     @get:PropertyName("accumulated_lateness") @set:PropertyName("accumulated_lateness") var accumulatedLateness: @RawValue Map<String, Int> = emptyMap(),
     @get:PropertyName("amount_of_bon") @set:PropertyName("amount_of_bon") var amountOfBon: Int = 0,
+    @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: @RawValue List<Timestamp>? = null,
     @get:PropertyName("availability_status") @set:PropertyName("availability_status") var availabilityStatus: Boolean = true,
-    @get:PropertyName("customer_counting") @set:PropertyName("customer_counting") var customerCounting: @RawValue Map<String, Int> = emptyMap(),
     @get:PropertyName("current_queue") @set:PropertyName("current_queue") var currentQueue: String = "",
+    @get:PropertyName("customer_counting") @set:PropertyName("customer_counting") var customerCounting: @RawValue Map<String, Int> = emptyMap(),
+    @get:PropertyName("email") @set:PropertyName("email") var email: String = "",
+    @get:PropertyName("employee_rating") @set:PropertyName("employee_rating") var employeeRating: Double = 5.0,
     @get:PropertyName("fullname") @set:PropertyName("fullname") var fullname: String = "",
     @get:PropertyName("gender") @set:PropertyName("gender") var gender: String = "",
+    @get:PropertyName("list_placement") @set:PropertyName("list_placement") var listPlacement: List<String> = emptyList(),
+    @get:PropertyName("password") @set:PropertyName("password") var password: String = "",
     @get:PropertyName("phone") @set:PropertyName("phone") var phone: String = "",
     @get:PropertyName("photo_profile") @set:PropertyName("photo_profile") var photoProfile: String = "",
-    @get:PropertyName("employee_rating") @set:PropertyName("employee_rating") var employeeRating: Double = 5.0,
-    @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: @RawValue List<String> = emptyList(),
     @get:PropertyName("pin") @set:PropertyName("pin") var pin: String = "",
     @get:PropertyName("point") @set:PropertyName("point") var point: Int = 0,
     @get:PropertyName("positions") @set:PropertyName("positions") var positions: String = "",
-    @get:PropertyName("product_commission") @set:PropertyName("product_commission") var productCommission: @RawValue Map<String, Int> = emptyMap(),
     @get:PropertyName("role") @set:PropertyName("role") var role: String = "",
     @get:PropertyName("role_detail") @set:PropertyName("role_detail") var roleDetail: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("salary") @set:PropertyName("salary") var salary: Int = 0,
-    @get:PropertyName("service_commission") @set:PropertyName("service_commission") var serviceCommission: @RawValue Map<String, Int> = emptyMap(),
-    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "----------------",
     @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
     var userRef: String = "",
     var outletRef: String = "",
-    var restOfQueue: Int = 0
+    var restOfQueue: Int = 0,
+//    @get:PropertyName("service_commission") @set:PropertyName("service_commission") var serviceCommission: @RawValue Map<String, Int> = emptyMap(),
+//    @get:PropertyName("product_commission") @set:PropertyName("product_commission") var productCommission: @RawValue Map<String, Int> = emptyMap(),
+//    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
+//    @get:PropertyName("rest_queue_counting") @set:PropertyName("rest_queue_counting") var restQueueCounting: Int = 0,
+//    @get:PropertyName("user_review_counting") @set:PropertyName("user_review_counting") var userReviewCounting: Int = 0
 ) : Parcelable
+
 
 @Parcelize
 data class AttendanceRecord(
@@ -139,23 +124,30 @@ data class LeavePermission(
 data class Outlet(
     @get:PropertyName("active_devices") @set:PropertyName("active_devices") var activeDevices: Int = 0,
     @get:PropertyName("img_outlet") @set:PropertyName("img_outlet") var imgOutlet: String = "",
+    @get:PropertyName("last_updated") @set:PropertyName("last_updated") var lastUpdated: Timestamp = Timestamp.now(),
     @get:PropertyName("list_best_deals") @set:PropertyName("list_best_deals") var listBestDeals: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_bundling") @set:PropertyName("list_bundling") var listBundling: @RawValue List<String> = emptyList(),
+    @get:PropertyName("list_customers") @set:PropertyName("list_customers") var listCustomers: MutableList<Customer>? = null,
     @get:PropertyName("list_employees") @set:PropertyName("list_employees") var listEmployees: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_products") @set:PropertyName("list_products") var listProducts: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_services") @set:PropertyName("list_services") var listServices: @RawValue List<String> = emptyList(),
     @get:PropertyName("open_status") @set:PropertyName("open_status") var openStatus: Boolean = false,
     @get:PropertyName("outlet_access_code") @set:PropertyName("outlet_access_code") var outletAccessCode: String = "",
-    @get:PropertyName("outlet_rating") @set:PropertyName("outlet_rating") var outletRating: Double = 5.0,
     @get:PropertyName("outlet_name") @set:PropertyName("outlet_name") var outletName: String = "",
     @get:PropertyName("outlet_phone_number") @set:PropertyName("outlet_phone_number") var outletPhoneNumber: String = "",
-    @get:PropertyName("last_updated") @set:PropertyName("last_updated") var lastUpdated: Timestamp = Timestamp.now(),
+    @get:PropertyName("outlet_rating") @set:PropertyName("outlet_rating") var outletRating: Double = 5.0,
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("tagline_or_desc") @set:PropertyName("tagline_or_desc") var taglineOrDesc: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
-    var isCollapseCard: Boolean = true,
-//    @get:PropertyName("status_active") @set:PropertyName("status_active") var statusActive: Boolean = false,
+    @get:Exclude @set:Exclude var isCollapseCard: Boolean = true,
+    //    @get:PropertyName("status_active") @set:PropertyName("status_active") var statusActive: Boolean = false,
 //    var dailyCapitalIsEmpty: Boolean = true,
+) : Parcelable
+
+@Parcelize
+data class Customer(
+    @get:PropertyName("last_reserve") @set:PropertyName("last_reserve") var lastReserve: Timestamp = Timestamp.now(),
+    @get:PropertyName("uid_customer") @set:PropertyName("uid_customer") var uidCustomer: String = ""
 ) : Parcelable
 
 @Parcelize
@@ -201,9 +193,20 @@ data class Appointment(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
 ) : Parcelable
 
+// Product category data class
+@Parcelize
+data class ProductCategory(
+    @get:PropertyName("category_name") @set:PropertyName("category_name") var categoryName: String = "",
+//    @get:PropertyName("category_type") @set:PropertyName("category_type") var categoryType: String = "",
+//    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
+//    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
+) : Parcelable
+
 // Product data class
 @Parcelize
 data class Product(
+    @get:PropertyName("apply_to_general") @set:PropertyName("apply_to_general") var applyToGeneral: Boolean = true,
     @get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
     @get:PropertyName("img_product") @set:PropertyName("img_product") var imgProduct: String = "",
     @get:PropertyName("product_category") @set:PropertyName("product_category") var productCategory: String = "",
@@ -212,12 +215,12 @@ data class Product(
     @get:PropertyName("product_name") @set:PropertyName("product_name") var productName: String = "",
     @get:PropertyName("product_price") @set:PropertyName("product_price") var productPrice: Int = 0,
     @get:PropertyName("product_rating") @set:PropertyName("product_rating") var productRating: Double = 4.5,
-    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
+    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("seller") @set:PropertyName("seller") var seller: @RawValue Seller = Seller(),
-    @get:PropertyName("tag") @set:PropertyName("tag") var tag: @RawValue List<String> = emptyList(),
     @get:PropertyName("stock_quantity") @set:PropertyName("stock_quantity") var stockQuantity: Int = 0,
+    @get:PropertyName("tag") @set:PropertyName("tag") var tag: @RawValue List<String> = emptyList(),
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
 //    @get:PropertyName("sold_quantity") @set:PropertyName("sold_quantity") var soldQuantity: Int = 0
 ) : Parcelable
@@ -239,11 +242,25 @@ data class Role(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
 ) : Parcelable
 
+// Service category data class
+@Parcelize
+data class ServiceCategory(
+    @get:PropertyName("category_name") @set:PropertyName("category_name") var categoryName: String = "",
+//    @get:PropertyName("category_type") @set:PropertyName("category_type") var categoryType: String = "",
+//    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
+//    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
+) : Parcelable
+
 // Service data class
 @Parcelize
 data class Service(
+    @get:PropertyName("apply_to_general") @set:PropertyName("apply_to_general") var applyToGeneral: Boolean = true,
+    @get:PropertyName("auto_selected") @set:PropertyName("auto_selected") var autoSelected: Boolean = false,
     @get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
-    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
+    @get:PropertyName("default_item") @set:PropertyName("default_item") var defaultItem: Boolean = false,
+    @get:PropertyName("free_of_charge") @set:PropertyName("free_of_charge") var freeOfCharge: Boolean = false,
+    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("service_category") @set:PropertyName("service_category") var serviceCategory: String = "",
@@ -254,5 +271,8 @@ data class Service(
     @get:PropertyName("service_name") @set:PropertyName("service_name") var serviceName: String = "",
     @get:PropertyName("service_price") @set:PropertyName("service_price") var servicePrice: Int = 0,
     @get:PropertyName("service_rating") @set:PropertyName("service_rating") var serviceRating: Double = 5.0,
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
+    @get:Exclude @set:Exclude var priceToDisplay: Int = 0,
+    @get:Exclude @set:Exclude var serviceQuantity: Int = 0
 ) : Parcelable
+

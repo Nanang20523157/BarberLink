@@ -7,12 +7,15 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -23,6 +26,7 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.ExitQueueTrackerFragment
+import com.example.barberlink.UserInterface.Teller.Fragment.RandomCapsterFragment
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
 import com.example.barberlink.databinding.ActivityQueueTrackerPageBinding
@@ -30,22 +34,32 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCapsterAdapter.OnItemClicked {
     private lateinit var binding: ActivityQueueTrackerPageBinding
-    private val sessionManager: SessionManager by lazy { SessionManager(this@QueueTrackerPage) }
+    private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var sessionTeller: Boolean = false
     private var dataTellerRef: String = ""
     private lateinit var outletSelected: Outlet
     private lateinit var capsterSelected: Employee
     private lateinit var timeSelected: Timestamp
+    private var isFirstLoad: Boolean = true
+    // private var isChangeDate: Boolean = false
+    private var isShimmerVisible: Boolean = false
     private var todayDate: String = ""
     private var isNavigating = false
     private var currentView: View? = null
+    private lateinit var textWatcher: TextWatcher
     private lateinit var calendar: Calendar
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
@@ -59,13 +73,16 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private var totalQueue: Int = 0
     private var restQueue: Int = 0
     private var keyword: String = ""
+    private val capsterListMutex = Mutex()
+    private val reservationMutex = Mutex()
+
 
     private val reservationList = mutableListOf<Reservation>()
     private val capsterList = mutableListOf<Employee>()
     private val filteredList = mutableListOf<Employee>()
     private var capsterNames = mutableListOf<String>()
 
-
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityQueueTrackerPageBinding.inflate(layoutInflater)
@@ -73,34 +90,36 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         sessionTeller = sessionManager.getSessionTeller()
         dataTellerRef = sessionManager.getDataTellerRef() ?: ""
         init()
-        showShimmer(true)
+        showShimmer(shimmerBoard = true, shimmerList = true)
 
         // Check if the intent has the key ACTION_GET_DATA
         if (intent.hasExtra(SelectUserRolePage.ACTION_GET_DATA) && sessionTeller) {
             getSpecificOutletData()
         } else {
-            outletSelected = intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY) ?: Outlet()
-            if (outletSelected.uid.isNotEmpty()) setupListeners()
-
-            intent.getParcelableArrayListExtra<Employee>(FormAccessCodeFragment.CAPSTER_DATA_KEY).let { list ->
+            outletSelected = intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
+            intent.getParcelableArrayListExtra(FormAccessCodeFragment.CAPSTER_DATA_KEY, Employee::class.java)?.let { list ->
                 capsterList.clear()
                 capsterNames.clear()
-                list?.let {
+                list.let {
                     capsterList.addAll(it)
-                    capsterNames = capsterList.map { capster ->
-                        capster.fullname }.toMutableList()
+                    capsterNames = capsterList.filter { capster ->
+                        capster.availabilityStatus // Mengambil hanya yang statusnya true
+                    }.map { capster ->
+                        capster.fullname
+                    }.toMutableList()
                     setupAutoCompleteTextView()
-                    filterCapster("", false)
                 }
+
             }
-            intent.getParcelableArrayListExtra<Reservation>(FormAccessCodeFragment.RESERVE_DATA_KEY).let { list ->
+            intent.getParcelableArrayListExtra<Reservation>(FormAccessCodeFragment.RESERVE_DATA_KEY)?.let { list ->
                 reservationList.clear()
-                list?.let {
+                list.let {
                     reservationList.addAll(it)
-                    calculateQueueData()
-                    displayQueueData(true)
+                    calculateQueueData(true)
                 }
             }
+
+            if (outletSelected.uid.isNotEmpty()) setupListeners()
         }
 
         binding.apply {
@@ -108,14 +127,27 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             ivExits.setOnClickListener(this@QueueTrackerPage)
             fabRandomCapster.setOnClickListener(this@QueueTrackerPage)
             cvDateLabel.setOnClickListener(this@QueueTrackerPage)
+            fabQueueBoard.setOnClickListener(this@QueueTrackerPage)
         }
 
-        // Tambah 1 ke active_devices
-        updateActiveDevices(1)
+        // Listener untuk menerima hasil dari fragment
+        supportFragmentManager.setFragmentResultListener("capster_result_data", this) { _, bundle ->
+            val capsterData = bundle.getParcelable<Employee>("capster_data")
+
+            // Cek status outlet sebelum navigasi
+            if (outletSelected.openStatus) {
+                capsterSelected = capsterData ?: Employee() // Set capster ke Employee kosong jika null
+                navigatePage(this@QueueTrackerPage, BarberBookingPage::class.java, binding.fabRandomCapster)
+            } else {
+                Toast.makeText(this@QueueTrackerPage, "Outlet barbershop masih Tutup!!!", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupListeners() {
-        listenToOutletData()
+        // Tambah 1 ke active_devices
+        updateActiveDevices(1)
+        listenSpecificOutletData()
         listenToCapsterData()
         listenToReservationData()
     }
@@ -125,63 +157,123 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             capsterAdapter = ItemListCapsterAdapter(this@QueueTrackerPage)
             rvListCapster.layoutManager = LinearLayoutManager(this@QueueTrackerPage, LinearLayoutManager.VERTICAL, false)
             rvListCapster.adapter = capsterAdapter
+            realLayout.tvCurrentQueue.isSelected = true
 
             calendar = Calendar.getInstance()
             setDateFilterValue(Timestamp.now())
 
             // Tambahkan TextWatcher untuk AutoCompleteTextView
-            binding.realLayout.autoCompleteTextView.addTextChangedListener(object : TextWatcher {
+            textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     // Tidak perlu melakukan apapun sebelum teks berubah
                 }
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    val textKey = if (s.toString() == "All") "" else s
+                    Log.d("textKey", textKey.toString())
                     // Menangani perubahan teks di sini
-                    if (capsterNames.contains(s.toString()) || s.toString().isEmpty() && s.toString() != keyword) {
-                        keyword = s.toString()
+                    if ((capsterNames.contains(textKey.toString()) || textKey.toString().isEmpty()) && textKey.toString() != keyword) {
+                        keyword = textKey.toString()
                         capsterAdapter.setShimmer(true)
-                        calculateQueueData()
-                        displayQueueData(false)
-                        filterCapster(keyword, true)
+                        isShimmerVisible = true
+                        calculateQueueData(keyword.isEmpty())
                     }
                 }
 
                 override fun afterTextChanged(s: Editable?) {
                     // Tidak perlu melakukan apapun setelah teks berubah
                 }
-            })
+            }
+
+            binding.realLayout.autoCompleteTextView.addTextChangedListener(textWatcher)
         }
 
     }
 
-    private fun showShimmer(show: Boolean) {
-        if (show) {
-            capsterAdapter.setShimmer(true)
-            binding.shimmerLayout.root.visibility = View.VISIBLE
-            binding.realLayout.root.visibility = View.GONE
+    private fun showShimmer(shimmerBoard: Boolean, shimmerList: Boolean) {
+        isShimmerVisible = shimmerList
+        capsterAdapter.setShimmer(shimmerList)
+        binding.shimmerLayout.root.visibility = if (shimmerBoard) View.VISIBLE else View.GONE
+        binding.realLayout.root.visibility = if (shimmerBoard) View.GONE else View.VISIBLE
+    }
+
+    private fun setupAutoCompleteTextView() {
+        capsterNames.let {
+            if (it.isNotEmpty()) {
+                // Tambahkan pilihan "All" di indeks pertama
+                val modifiedCapsterNames = mutableListOf("All")
+                modifiedCapsterNames.addAll(it)
+
+                // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
+                val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, modifiedCapsterNames)
+
+                // Set adapter ke AutoCompleteTextView
+                binding.realLayout.autoCompleteTextView.setAdapter(adapter)
+
+                // Langsung set nilai "All" di AutoCompleteTextView
+                binding.realLayout.autoCompleteTextView.setText("All", false)
+            }
+        }
+    }
+
+    private fun displayQueueData(withShimmer: Boolean) {
+        CoroutineScope(Dispatchers.Main).launch {
+            binding.realLayout.apply {
+                val lowerCaseQuery = keyword.lowercase(Locale.getDefault())
+                val currentQueueData = if (keyword.isNotEmpty()) {
+                    // Menggunakan firstOrNull untuk menghindari NoSuchElementException
+                    val indexRef = capsterList.firstOrNull {
+                        it.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+                    }?.userRef ?: "00" // Default value jika tidak ditemukan
+                    currentQueue[indexRef] ?: "00"
+                } else {
+                    val combinedValue = combineValues(currentQueue)
+                    combinedValue.ifEmpty { "00" }
+                }
+
+                if (withShimmer) {
+                    tvCurrentQueue.text = currentQueueData
+                    tvRestQueue.text = convertToFormattedString(restQueue)
+                    tvComplateQueue.text = convertToFormattedString(completeQueue)
+                    tvTotalQueue.text = convertToFormattedString(totalQueue)
+
+                    showShimmer(shimmerBoard = false, shimmerList = false)
+                } else {
+                    animateTextViewsUpdate(
+                        currentQueueData,
+                        convertToFormattedString(restQueue),
+                        convertToFormattedString(completeQueue),
+                        convertToFormattedString(totalQueue)
+                    )
+                }
+            }
+        }
+
+    }
+
+    private fun combineValues(map: Map<String, String>): String {
+        val values = map.values.toList()
+        return if (values.size == 1) {
+            values.first()
         } else {
-            capsterAdapter.setShimmer(false)
-            binding.shimmerLayout.root.visibility = View.GONE
-            binding.realLayout.root.visibility = View.VISIBLE
+            values.joinToString(separator = " - ")
         }
-
     }
 
-    private fun listenToOutletData() {
+    private fun listenSpecificOutletData() {
         outletListener = db.document(dataTellerRef).addSnapshotListener { documentSnapshot, exception ->
             if (exception != null) {
                 Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
                 return@addSnapshotListener
             }
 
-            if (documentSnapshot != null && documentSnapshot.exists()) {
-                val outletData = documentSnapshot.toObject(Outlet::class.java)
-                outletData?.let {
-                    // Lakukan sesuatu dengan data outlet
-                    outletSelected = it
+            documentSnapshot?.let { document ->
+                if (document.exists()) {
+                    val outletData = document.toObject(Outlet::class.java)
+                    outletData?.let {
+                        outletSelected = it
+                    }
                 }
-            } else {
-                Toast.makeText(this, "Outlet document does not exist", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -204,35 +296,44 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         return@addSnapshotListener
                     }
 
-                    if (documents != null && !documents.isEmpty) {
-                        capsterList.clear()
-                        capsterNames.clear()
-                        for (document in documents) {
-                            val employee = document.toObject(Employee::class.java)
-                            employee.userRef = document.reference.path
-                            employee.outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                            if (employee.uid in employeeUidList) {
-                                capsterList.add(employee)
-                                capsterNames.add(employee.fullname)
+                    documents?.let {
+                        CoroutineScope(Dispatchers.Default).launch {
+                            val (newCapsterList, newCapsterNames) = it.documents.mapNotNull { document ->
+                                document.toObject(Employee::class.java)?.apply {
+                                    userRef = document.reference.path
+                                    outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter availabilityStatus == true
+                                    ?.let { employee ->
+                                        employee to employee.fullname
+                                    }
+                            }.unzip()
+
+                            capsterList.apply {
+                                clear()
+                                addAll(newCapsterList)
+                            }
+                            capsterNames.apply {
+                                clear()
+                                addAll(newCapsterNames)
+                            }
+                            capsterList.forEach { capster ->
+                                capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
+                            }
+                            filterCapster(keyword, false)
+
+                            withContext(Dispatchers.Main) {
+                                if (capsterList.isNotEmpty()) {
+                                    setupAutoCompleteTextView()
+                                }
                             }
                         }
-
-                        capsterList.forEach { capster ->
-                            capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
-                        }
-                        if (capsterList.isNotEmpty()) {
-                            setupAutoCompleteTextView()
-                            filterCapster(keyword, false)
-                        }
-                    } else {
-                        Toast.makeText(this, "Daftar capster pada barbershop Anda masih kosong", Toast.LENGTH_SHORT).show()
                     }
                 }
         }
     }
 
+
     private fun listenToReservationData() {
-        // Mendapatkan tanggal hari ini tanpa waktu
         outletSelected.let { outlet ->
             reservationListener = db.collection("${outlet.rootRef}/outlets/${outlet.uid}/reservations")
                 .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfDay)
@@ -243,114 +344,72 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         return@addSnapshotListener
                     }
 
-                    reservationList.clear()
-                    if (documents != null && !documents.isEmpty) {
-                        for (document in documents) {
-                            val reservation = document.toObject(Reservation::class.java)
-                            if (reservation.queueStatus != "pending" && reservation.queueStatus != "expired") reservationList.add(reservation)
-                        }
+                    documents?.let {
+                        CoroutineScope(Dispatchers.Default).launch {
+                            val newReservationList = it.documents.mapNotNull { document ->
+                                document.toObject(Reservation::class.java)
+                            }.filter { it.queueStatus !in listOf("pending", "expired") }
 
-                        calculateQueueData()
-                        displayQueueData(false)
-                        filterCapster(keyword, false)
-                    } else {
-                        Toast.makeText(this, "No reservations found", Toast.LENGTH_SHORT).show()
+                            reservationList.clear()
+                            reservationList.addAll(newReservationList)
+                            calculateQueueData(true)
+                        }
                     }
                 }
-        }
-    }
-
-    private fun setupAutoCompleteTextView() {
-        capsterNames.let {
-            if (it.isNotEmpty()) {
-                // Create an ArrayAdapter using the outlet names
-                val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, capsterNames)
-
-                // Set the adapter to the AutoCompleteTextView
-                binding.realLayout.autoCompleteTextView.setAdapter(adapter)
-            }
         }
     }
 
     private fun filterCapster(query: String, withShimmer: Boolean) {
-        val lowerCaseQuery = query.lowercase(Locale.getDefault())
-        filteredList.clear()
-
-        if (lowerCaseQuery.isEmpty()) {
-            filteredList.addAll(capsterList)
-        } else {
-            val result = mutableListOf<Employee>()
-            for (employee in capsterList) {
-                if (employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery)) {
-                    result.add(employee)
+        CoroutineScope(Dispatchers.Default).launch {
+            val lowerCaseQuery = query.lowercase(Locale.getDefault())
+            val filteredResult = if (lowerCaseQuery.isEmpty()) {
+                // Hanya filter capster yang availabilityStatus-nya true
+                capsterList.filter { employee -> employee.availabilityStatus }
+            } else {
+                // Filter berdasarkan fullname dan availabilityStatus
+                capsterList.filter { employee ->
+                    employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) &&
+                            employee.availabilityStatus
                 }
             }
-            filteredList.addAll(result)
-        }
-        capsterAdapter.submitList(filteredList)
-        binding.tvEmptyCapster.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
-        if (withShimmer) capsterAdapter.setShimmer(false)
-    }
 
-
-    private fun displayQueueData(firstData: Boolean) {
-        binding.realLayout.apply {
-            val currentQueueData = if (keyword.isNotEmpty()) {
-                currentQueue[keyword] ?: ""
-            } else {
-                combineValues(currentQueue)
+            filteredList.apply {
+                clear()
+                addAll(filteredResult)
             }
 
-            if (firstData) {
-                tvCurrentQueue.text = currentQueueData
-                tvRestQueue.text = convertToFormattedString(restQueue)
-                tvComplateQueue.text = convertToFormattedString(completeQueue)
-                tvTotalQueue.text = convertToFormattedString(totalQueue)
-
-                showShimmer(false)
-            } else {
-                animateTextViewsUpdate(
-                    currentQueueData,
-                    convertToFormattedString(restQueue),
-                    convertToFormattedString(completeQueue),
-                    convertToFormattedString(totalQueue)
-                )
+            withContext(Dispatchers.Main) {
+                capsterAdapter.submitList(filteredList)
+                binding.tvEmptyCapster.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
+                if (withShimmer) {
+                    capsterAdapter.setShimmer(false)
+                    isShimmerVisible = false
+                } else {
+                    capsterAdapter.notifyDataSetChanged()
+                }
             }
-        }
-    }
-
-    private fun combineValues(map: Map<String, String>): String {
-        val values = map.values.toList()
-        return if (values.size == 1) {
-            values.first()
-        } else {
-            values.joinToString(separator = " - ")
         }
     }
 
     private fun getSpecificOutletData() {
-        db.document(dataTellerRef).get()
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    val outletData = documentSnapshot.toObject(Outlet::class.java)
-                    outletData?.let {
-                        // Lakukan sesuatu dengan data outlet
-                        outletSelected = it
-                        setupListeners()
-                        getCapsterData()
-                    }
-                } else {
-                    Toast.makeText(this, "Outlet document does not exist", Toast.LENGTH_SHORT).show()
+        Log.d("DataTellerRef", "Data Teller Ref: $dataTellerRef")
+        db.document(dataTellerRef).get().addOnSuccessListener { documentSnapshot ->
+            if (documentSnapshot.exists()) {
+                val outletData = documentSnapshot.toObject(Outlet::class.java)
+                outletData?.let {
+                    outletSelected = it
+                    getCapsterData()
                 }
+            } else {
+                Toast.makeText(this, "Outlet document does not exist", Toast.LENGTH_SHORT).show()
             }
-            .addOnFailureListener { exception ->
-                Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
-            }
+        }.addOnFailureListener { exception ->
+            Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun getCapsterData() {
         outletSelected.let { outlet ->
-            // Ambil dafter employeeUid dari outletSelected
             val employeeUidList = outlet.listEmployees
             if (employeeUidList.isEmpty()) {
                 Toast.makeText(this, "Anda belum menambahkan daftar capster untuk outlet", Toast.LENGTH_SHORT).show()
@@ -363,28 +422,33 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 .collection("employees")
                 .get()
                 .addOnSuccessListener { documents ->
-                    if (documents != null && !documents.isEmpty) {
-                        capsterList.clear()
-                        capsterNames.clear()
-                        for (document in documents) {
-                            val employee = document.toObject(Employee::class.java)
-                            employee.userRef = document.reference.path
-                            employee.outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                            // Check if the employee is in the listEmployees of the selected outlet
-                            if (employee.uid in employeeUidList) {
-                                capsterList.add(employee)
-                                capsterNames.add(employee.fullname)
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val (newCapsterList, newCapsterNames) = documents.documents.mapNotNull { document ->
+                            document.toObject(Employee::class.java)?.apply {
+                                userRef = document.reference.path
+                                outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                            }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter untuk availabilityStatus == true
+                                ?.let { employee ->
+                                    employee to employee.fullname
+                                }
+                        }.unzip()
+
+                        if (newCapsterList.isEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@QueueTrackerPage, "Tidak ditemukan data capster yang sesuai", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            capsterListMutex.withLock {
+                                capsterList.clear()
+                                capsterNames.clear()
+                                capsterList.addAll(newCapsterList)
+                                capsterNames.addAll(newCapsterNames)
+                            }
+                            withContext(Dispatchers.Main) {
+                                setupAutoCompleteTextView()
+                                getAllReservationData()
                             }
                         }
-                        if (capsterList.isNotEmpty()) {
-                            setupAutoCompleteTextView()
-                            filterCapster("", false)
-                            getAllReservationData(true)
-                        } else {
-                            Toast.makeText(this, "Tidak ditemukan data capter yang sesuai", Toast.LENGTH_SHORT).show()
-                        }
-                    } else {
-                        Toast.makeText(this, "Daftar capster pada barbershop Anda masih kosong", Toast.LENGTH_SHORT).show()
                     }
                 }
                 .addOnFailureListener { exception ->
@@ -393,73 +457,100 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
-    private fun getAllReservationData(firstData: Boolean) {
-        // Query ke Firestore untuk mendapatkan reservations dengan timestamp_created hari ini
+    private fun getAllReservationData() {
         outletSelected.let { outlet ->
             db.collection("${outlet.rootRef}/outlets/${outlet.uid}/reservations")
                 .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfDay)
                 .whereLessThan("timestamp_to_booking", startOfNextDay)
                 .get()
                 .addOnSuccessListener { documents ->
-                    reservationList.clear()
-                    if (documents != null && !documents.isEmpty) {
-                        for (document in documents) {
-                            val reservation = document.toObject(Reservation::class.java)
-                            if (reservation.queueStatus != "pending" && reservation.queueStatus != "expired") reservationList.add(reservation)
-                        }
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val newReservationList = documents.mapNotNull { document ->
+                            document.toObject(Reservation::class.java)
+                        }.filter { it.queueStatus !in listOf("pending", "expired") }
 
-                        calculateQueueData()
-                        displayQueueData(firstData)
-                        if (!firstData) filterCapster(keyword, false)
-                    } else {
-                        Toast.makeText(this, "No reservations found", Toast.LENGTH_SHORT).show()
+                        reservationList.clear()
+                        reservationList.addAll(newReservationList)
+                        calculateQueueData(true)
+
+                        if (newReservationList.isEmpty()) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@QueueTrackerPage, "No reservations found", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 }
                 .addOnFailureListener { exception ->
                     Toast.makeText(this, "Error getting reservations: ${exception.message}", Toast.LENGTH_SHORT).show()
                 }
+                .addOnCompleteListener {
+                    setupListeners()
+                }
         }
     }
 
-    private fun calculateQueueData() {
-        // Menghitung jumlah reservation "waiting" untuk setiap capster
-        currentQueue.clear()
-        capsterWaitingCount.clear()
-        totalQueue = 0
-        completeQueue = 0
-        restQueue = 0
-        val filteredReservations = if (keyword.isEmpty()) {
-            reservationList
-        } else {
-            reservationList.filter { it.capsterInfo.capsterName.lowercase(Locale.getDefault()).contains(keyword.lowercase(Locale.getDefault())) }
-        }
+    private fun calculateQueueData(isAllData: Boolean) {
+        CoroutineScope(Dispatchers.Default).launch {
+            // Menghitung jumlah reservation "waiting" untuk setiap capster
+            reservationMutex.withLock {
+                totalQueue = 0
+                completeQueue = 0
+                restQueue = 0
 
-        filteredReservations.forEach { reservation ->
-            when (reservation.queueStatus) {
-                "waiting" -> {
-                    val capsterRef = reservation.capsterInfo.capsterRef
-                    capsterWaitingCount[capsterRef] = capsterWaitingCount.getOrDefault(capsterRef, 0) + 1
-                    restQueue++
-                    totalQueue++
+                val filteredReservations = if (isAllData) {
+                    currentQueue.clear()
+                    capsterWaitingCount.clear()
+                    reservationList
+                } else {
+                    val lowerCaseQuery = keyword.lowercase(Locale.getDefault())
+                    val indexRef = capsterList.firstOrNull {
+                        it.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+                    }?.userRef
+                    if (indexRef != null) {
+                        currentQueue.remove(indexRef)
+                        capsterWaitingCount.remove(indexRef)
+                    }
+                    reservationList.filter { it.capsterInfo.capsterName.lowercase(Locale.getDefault()).contains(lowerCaseQuery) }
                 }
-                "completed" -> {
-                    completeQueue++
-                    totalQueue++
+
+                filteredReservations.forEach { reservation ->
+                    when (reservation.queueStatus) {
+                        "waiting" -> {
+                            val capsterRef = reservation.capsterInfo.capsterRef
+                            capsterWaitingCount[capsterRef] = capsterWaitingCount.getOrDefault(capsterRef, 0) + 1
+                            restQueue++
+                            totalQueue++
+                        }
+                        "completed" -> {
+                            completeQueue++
+                            totalQueue++
+                        }
+                        "cancelled", "skipped" -> totalQueue++
+                        "process" -> {
+                            currentQueue[reservation.capsterInfo.capsterRef] = reservation.queueNumber
+                            totalQueue++
+                        }
+                        // "pending", "expired" -> {}
+                    }
                 }
-                "cancelled" -> { totalQueue++ }
-                "skipped" -> { totalQueue++ }
-                "pending",
-                "expired" -> {}
-                "process" -> {
-                    currentQueue[reservation.capsterInfo.capsterName] = reservation.queueNumber
-                    totalQueue++
+
+                capsterListMutex.withLock {
+                    capsterList.forEach { capster ->
+                        capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
+                    }
+                }
+
+//            if (isFirstLoad || isChangeDate) {
+                if (isFirstLoad) {
+                    displayQueueData(true)
+                    filterCapster("", false)
+                    isFirstLoad = false
+//                isChangeDate = false
+                } else {
+                    displayQueueData(false)
+                    filterCapster(keyword, isShimmerVisible)
                 }
             }
-        }
-
-        // Memperbarui restOfQueue pada setiap capster dalam capsterList
-        capsterList.forEach { capster ->
-            capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
         }
     }
 
@@ -509,9 +600,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
         // Listener untuk memperbarui teks saat animasi fade out selesai
         fadeOutSet.addListener(object : Animator.AnimatorListener {
-            override fun onAnimationStart(p0: Animator) {
-                TODO("Not yet implemented")
-            }
+            override fun onAnimationStart(p0: Animator) {}
 
             override fun onAnimationEnd(p0: Animator) {
                 // Memperbarui teks TextView setelah animasi fade out selesai
@@ -524,13 +613,9 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 fadeInSet.start()
             }
 
-            override fun onAnimationCancel(p0: Animator) {
-                TODO("Not yet implemented")
-            }
+            override fun onAnimationCancel(p0: Animator) {}
 
-            override fun onAnimationRepeat(p0: Animator) {
-                TODO("Not yet implemented")
-            }
+            override fun onAnimationRepeat(p0: Animator) {}
         })
 
         // Memulai animasi fade out
@@ -547,15 +632,15 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     showExitsDialog()
                 }
                 R.id.fabRandomCapster -> {
-                    if (outletSelected.openStatus) {
-                        capsterSelected = Employee()
-                        navigatePage(this@QueueTrackerPage, BarberBookingPage::class.java, fabRandomCapster)
-                    } else {
-                        Toast.makeText(this@QueueTrackerPage, "Outlet barbershop masih Tutup!!!", Toast.LENGTH_SHORT).show()
+                    if (!isShimmerVisible) {
+                        showRandomDialog()
                     }
                 }
                 R.id.cvDateLabel -> {
                     showDatePickerDialog(timeSelected)
+                }
+                R.id.fabQueueBoard -> {
+                    Toast.makeText(this@QueueTrackerPage, "Queue board feature is under development...", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -567,8 +652,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             val outletDocRef = db.document("${outlet.rootRef}/outlets/${outlet.uid}")
 
             db.runTransaction { transaction ->
-                val snapshot = transaction.get(outletDocRef)
-                val currentActiveDevices = snapshot.getLong("active_devices") ?: 0
+                val currentActiveDevices = outletSelected.activeDevices
                 val newActiveDevices = currentActiveDevices + change
                 transaction.update(outletDocRef, "active_devices", newActiveDevices)
             }.addOnSuccessListener {
@@ -589,7 +673,8 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             intent.apply {
                 putExtra(OUTLET_DATA_KEY, outletSelected)
                 putExtra(CAPSTER_DATA_KEY, capsterSelected)
-                putExtra(TIME_DATA_KEY, timeSelected)
+                putExtra(TIME_SECONDS_KEY, timeSelected.seconds)
+                putExtra(TIME_NANOS_KEY, timeSelected.nanoseconds)
             }
             startActivity(intent)
         } else return
@@ -600,6 +685,21 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
+
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.getStringExtra(ComplateOrderPage.CAPSTER_NAME_KEY)?.let {
+            binding.realLayout.autoCompleteTextView.setText(it, false)
+
+            if ((capsterNames.contains(it) || it.isEmpty()) && it != keyword) {
+                keyword = it
+                capsterAdapter.setShimmer(true)
+                isShimmerVisible = true
+                calculateQueueData(keyword.isEmpty())
+            }
+        }
     }
 
     @Deprecated("Deprecated in Java")
@@ -616,10 +716,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         super.onDestroy()
 
         // Kurangi 1 dari active_devices
-        updateActiveDevices(-1)
-        capsterListener.remove()
-        outletListener.remove()
-        reservationListener.remove()
+        if (::outletSelected.isInitialized) updateActiveDevices(-1)
+        if (::capsterListener.isInitialized) capsterListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
+        if (::reservationListener.isInitialized) reservationListener.remove()
     }
 
     private fun showExitsDialog() {
@@ -628,10 +728,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         dialogFragment.show(supportFragmentManager, "ExitQueueTrackerFragment")
     }
 
-    companion object {
-        const val OUTLET_DATA_KEY = "outlet_data_key"
-        const val CAPSTER_DATA_KEY = "capster_data_key"
-        const val TIME_DATA_KEY = "time_data_key"
+    private fun showRandomDialog() {
+        val dialogFragment = RandomCapsterFragment.newInstance()
+        dialogFragment.setStyle(DialogFragment.STYLE_NORMAL, R.style.MyTransparentFragmentStyle)
+        dialogFragment.show(supportFragmentManager, "RandomCapsterFragment")
     }
 
     override fun onItemClickListener(employee: Employee, rootView: View) {
@@ -657,7 +757,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
         startOfDay = Timestamp(calendar.time)
 
-        calendar.add(Calendar.DAY_OF_YEAR, 1)
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
         startOfNextDay = Timestamp(calendar.time)
         todayDate = GetDateUtils.formatTimestampToDate(timestamp) // Assuming format is "YY MMMM YYYY"
 
@@ -669,15 +769,24 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             val year = dateParts[2] // YYYY
 
             // Set the TextView values
-            binding.tvDateLabel.text = day
+            binding.tvDateValue.text = day
             binding.tvMonthValue.text = month
             binding.tvYearValue.text = year
         }
     }
 
+    private fun isSameDay(date1: Date, date2: Date): Boolean {
+        val cal1 = Calendar.getInstance().apply { time = date1 }
+        val cal2 = Calendar.getInstance().apply { time = date2 }
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
 
     private fun showDatePickerDialog(timestamp: Timestamp) {
-        val datePicker = MaterialDatePicker.Builder.datePicker()
+        val datePicker =
+            MaterialDatePicker.Builder.datePicker()
             .setTitleText("Select date")
             .setSelection(timestamp.toDate().time)
             .build()
@@ -685,19 +794,30 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         datePicker.addOnPositiveButtonClickListener { selection ->
             val date = Date(selection)
 
-            // Update the date filter value
-            setDateFilterValue(Timestamp(date))
+            if (!isSameDay(date, timeSelected.toDate())) {
+                // Update the date filter value
+                setDateFilterValue(Timestamp(date))
+//                isChangeDate = true
+//                showShimmer(shimmerBoard = true, shimmerList = false)
 
-            // Remove the old reservation listener and add a new one
-            reservationListener.remove()
+                // Remove the old reservation listener and add a new one
+                reservationListener.remove()
 
-            // Reload reservation data with the new date filter
-            getAllReservationData(false)
-            listenToReservationData()
+                // Reload reservation data with the new date filter
+                getAllReservationData()
+                listenToReservationData()
+            }
+
         }
 
         datePicker.show(supportFragmentManager, "DATE_PICKER")
     }
 
+    companion object {
+        const val OUTLET_DATA_KEY = "outlet_data_key"
+        const val CAPSTER_DATA_KEY = "capster_data_key"
+        const val TIME_SECONDS_KEY = "time_seconds_key"
+        const val TIME_NANOS_KEY = "time_nanos_key"
+    }
 
 }

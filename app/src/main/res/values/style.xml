@@ -33,6 +33,10 @@
         <item name="materialThemeOverlay">@style/ThemeOverlay.App.Switch</item>
     </style>
 
+    <style name="Widget.App.RadioButton" parent="Widget.MaterialComponents.CompoundButton.RadioButton">
+        <item name="buttonTint">@color/checkbox_color</item>
+    </style>
+
     <style name="ThemeOverlay.App.Switch" parent="">
         <item name="colorPrimary">@color/dark_blue</item>
         <item name="colorSurfaceVariant">?attr/colorSurfaceContainerHighest</item>
@@ -53,6 +57,21 @@
 
     <style name="ThemeOverlay.App.ExtendedFloatingActionButton" parent="">
         <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.Medium</item>
+    </style>
+
+    <style name="MonthPickerDialogStyle">
+        <item name="monthBgColor">@color/white</item>
+        <item name="monthBgSelectedColor">@color/pink_calendar</item>
+        <item name="monthFontColorSelected">@color/white</item>
+        <item name="monthFontColorNormal">@color/black</item>
+        <item name="monthFontColorDisabled">@color/disable_grey_background</item>
+
+        <item name="headerBgColor">@color/pink_calendar</item>
+        <item name="headerFontColorSelected">@color/white</item>
+        <item name="headerFontColorNormal">@color/disable_grey_background</item>
+        <item name="headerTitleColor">@color/white</item>
+
+        <item name="dialogActionButtonColor">@color/pink_calendar</item>
     </style>
 
 </resources>

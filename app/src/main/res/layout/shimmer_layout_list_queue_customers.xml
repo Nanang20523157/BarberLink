@@ -36,7 +36,7 @@
                 android:textColor="@color/black_font_color" />
 
             <com.facebook.shimmer.ShimmerFrameLayout
-                android:id="@+id/shimmerLlGander"
+                android:id="@+id/shimmerLlGender"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 app:shimmer_auto_start="true"
@@ -52,7 +52,7 @@
                 android:layout_marginEnd="6dp">
 
                 <LinearLayout
-                    android:id="@+id/llGander"
+                    android:id="@+id/llGender"
                     android:layout_width="32.5dp"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
@@ -65,10 +65,10 @@
                         android:id="@+id/ivGender"
                         android:layout_width="12.5dp"
                         android:layout_height="12.5dp"
-                        android:contentDescription="@string/icon_gander_ilustration" />
+                        android:contentDescription="@string/icon_gender_ilustration" />
 
                     <TextView
-                        android:id="@+id/tvGander"
+                        android:id="@+id/tvGender"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/arial_bold"

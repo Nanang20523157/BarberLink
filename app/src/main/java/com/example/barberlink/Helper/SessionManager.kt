@@ -15,6 +15,7 @@ class SessionManager(context: Context) {
         private const val KEY_DATA_ADMIN_REF = "data_admin_ref"
         private const val KEY_DATA_CAPSTER_REF = "data_capster_ref"
         private const val KEY_DATA_TELLER_REF = "data_teller_ref"
+        private const val KEY_OUTLET_SELECTED_REF = "outlet_selected_ref"
     }
 
     fun saveSession(
@@ -23,7 +24,8 @@ class SessionManager(context: Context) {
         sessionCapster: Boolean = false,
         dataAdminRef: String? = null,
         dataCapsterRef: String? = null,
-        dataTellerRef: String? = null
+        dataTellerRef: String? = null,
+        outletSelectedRef: String? = null // New parameter
     ) {
         val editor = prefs.edit()
         editor.putBoolean(KEY_SESSION_ADMIN, sessionAdmin)
@@ -32,6 +34,7 @@ class SessionManager(context: Context) {
         editor.putString(KEY_DATA_ADMIN_REF, dataAdminRef)
         editor.putString(KEY_DATA_CAPSTER_REF, dataCapsterRef)
         editor.putString(KEY_DATA_TELLER_REF, dataTellerRef)
+        editor.putString(KEY_OUTLET_SELECTED_REF, outletSelectedRef) // Save the outlet selected ref
         editor.apply()
     }
 
@@ -113,7 +116,18 @@ class SessionManager(context: Context) {
         val editor = prefs.edit()
         editor.remove(KEY_SESSION_CAPSTER)
         editor.remove(KEY_DATA_CAPSTER_REF)
+        editor.remove(KEY_OUTLET_SELECTED_REF)
         editor.apply()
+    }
+
+    fun setOutletSelectedRef(outletSelectedRef: String?) {
+        val editor = prefs.edit()
+        editor.putString(KEY_OUTLET_SELECTED_REF, outletSelectedRef)
+        editor.apply()
+    }
+
+    fun getOutletSelectedRef(): String? {
+        return prefs.getString(KEY_OUTLET_SELECTED_REF, null)
     }
 
     fun clearAllSessions() {
@@ -121,5 +135,6 @@ class SessionManager(context: Context) {
         editor.clear()
         editor.apply()
     }
+
 }
 

@@ -181,7 +181,7 @@
             android:textAlignment="gravity"
             android:textStyle="bold"
             android:textColor="@color/magenta"
-            android:layout_marginTop="35dp"
+            android:layout_marginTop="40dp"
             android:layout_below="@id/cvSetting3"
             android:layout_centerHorizontal="true"
             android:textSize="15sp"

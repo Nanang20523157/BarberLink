@@ -5,7 +5,6 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 
-
 @Parcelize
 data class ProductSales(
     @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
@@ -13,9 +12,9 @@ data class ProductSales(
     @get:PropertyName("buyer_info") @set:PropertyName("buyer_info") var buyerInfo: BuyerInfo = BuyerInfo(),
     @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo? = null,
     @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo> = listOf(),
+    @get:PropertyName("order_status") @set:PropertyName("order_status") var orderStatus: String = "",
     @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
     @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
-    @get:PropertyName("order_status") @set:PropertyName("order_status") var orderStatus: String = "",
     @get:PropertyName("payment_detail") @set:PropertyName("payment_detail") var paymentDetail: PaymentSales = PaymentSales(),
     @get:PropertyName("resi") @set:PropertyName("resi") var resi: String = "",
     @get:PropertyName("timestamp_created") @set:PropertyName("timestamp_created") var timestampCreated: Timestamp = Timestamp.now(),
@@ -24,14 +23,9 @@ data class ProductSales(
 
 @Parcelize
 data class BuyerInfo(
-    @get:PropertyName("customer_name") @set:PropertyName("customer_name")
-    var customerName: String = "",
-
-    @get:PropertyName("customer_phone") @set:PropertyName("customer_phone")
-    var customerPhone: String = "",
-
-    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref")
-    var customerRef: String = ""
+    @get:PropertyName("customer_name") @set:PropertyName("customer_name") var customerName: String = "",
+    @get:PropertyName("customer_phone") @set:PropertyName("customer_phone") var customerPhone: String = "",
+    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = ""
 ) : Parcelable
 
 @Parcelize

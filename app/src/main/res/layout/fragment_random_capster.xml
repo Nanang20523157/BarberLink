@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="20dp"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    android:layout_gravity="center">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="@color/white"
+        android:layout_gravity="center"
+        app:cardCornerRadius="35dp"
+        app:cardElevation="4dp"
+        android:layout_marginHorizontal="4dp">
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="45dp">
+
+            <ImageView
+                android:layout_width="78dp"
+                android:layout_height="78dp"
+                android:layout_marginTop="45dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_random_capster"
+                android:contentDescription="@string/image_random_capster_icon_ilustration" />
+
+            <TextView
+                android:id="@+id/tvRandomCapster"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/random_capster_fitur"
+                android:layout_marginTop="20dp"
+                android:gravity="center"
+                android:textAppearance="@style/TextAppearance.AppCompat.Large"
+                android:fontFamily="@font/arial_bold"
+                android:textSize="19.5sp"
+                android:layout_gravity="center_horizontal" />
+
+            <TextView
+                android:id="@+id/tvMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/random_capster_template"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/arial_medium"
+                android:textSize="12sp"
+                android:layout_gravity="center_horizontal" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="30dp"
+                android:layout_marginBottom="60dp"
+                android:gravity="center_horizontal">
+
+                <Button
+                    android:id="@+id/btnYes"
+                    android:layout_width="match_parent"
+                    android:layout_height="43dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="35dp"
+                    android:textColor="@color/white"
+                    android:text="@string/next_text_btn"
+                    android:textSize="12sp"
+                    android:backgroundTint="@color/green_btn" />
+
+                <Button
+                    android:id="@+id/btnNo"
+                    android:layout_width="match_parent"
+                    android:layout_height="43dp"
+                    android:layout_weight="1"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/cancel_text_btn"
+                    android:layout_marginHorizontal="50dp"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:backgroundTint="@color/magenta" />
+            </LinearLayout>
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</RelativeLayout>

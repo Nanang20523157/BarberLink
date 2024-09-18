@@ -1,11 +1,17 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResult
 import com.example.barberlink.R
+import com.example.barberlink.databinding.FragmentPaymentMethodBinding
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 // TODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -17,10 +23,16 @@ private const val ARG_PARAM2 = "param2"
  * Use the [PaymentMethodFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
-class PaymentMethodFragment : Fragment() {
+class PaymentMethodFragment : BottomSheetDialogFragment() {
+    private var _binding: FragmentPaymentMethodBinding? = null
+    // This property is only valid between onCreateView and
+    // onDestroyView.
+    private val binding get() = _binding!!
     // TODO: Rename and change types of parameters
     private var param1: String? = null
     private var param2: String? = null
+    private var selectedPaymentMethod: String? = null
+    private lateinit var context: Context
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +40,8 @@ class PaymentMethodFragment : Fragment() {
             param1 = it.getString(ARG_PARAM1)
             param2 = it.getString(ARG_PARAM2)
         }
+
+        context = requireContext()
     }
 
     override fun onCreateView(
@@ -35,7 +49,38 @@ class PaymentMethodFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_payment_method, container, false)
+        _binding = FragmentPaymentMethodBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        binding.rbCash.isChecked = true
+
+        binding.ivBack.setOnClickListener {
+            dismiss() // Close the dialog when ivBack is clicked
+        }
+
+        binding.btnSelectPayment.setOnClickListener {
+            val selectedRadioButtonId = binding.radioGroup.checkedRadioButtonId
+            selectedPaymentMethod = when (selectedRadioButtonId) {
+                R.id.rbCash -> "CASH"
+                R.id.rbQris -> "QRIS"
+                else -> null
+            }
+
+            selectedPaymentMethod?.let {
+                setFragmentResult("user_payment_method", bundleOf("payment_method" to selectedPaymentMethod))
+                dismiss()
+            } ?: run {
+                Toast.makeText(context, "Anda belum memilih metode pembayaran!!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     companion object {
@@ -49,7 +94,7 @@ class PaymentMethodFragment : Fragment() {
          */
         // TODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(param1: String, param2: String) =
+        fun newInstance(param1: String? = null, param2: String? = null) =
             PaymentMethodFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_PARAM1, param1)

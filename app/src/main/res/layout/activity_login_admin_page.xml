@@ -56,11 +56,13 @@
                     android:id="@+id/signInEmailLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/email_hint"
                     android:layout_marginHorizontal="40dp"
+                    app:hintEnabled="true"
+                    android:hint="@string/email_hint"
                     app:boxBackgroundColor="#00FFFFFF"
                     app:placeholderText="example@example.com"
                     app:placeholderTextColor="#b0b0b0"
+                    app:hintTextColor="@color/black"
                     app:errorEnabled="true"
                     app:boxStrokeErrorColor="@color/red"
                     app:errorIconDrawable="@drawable/ic_error"
@@ -71,8 +73,7 @@
                     app:boxCornerRadiusBottomStart="10dp"
                     app:boxCornerRadiusTopEnd="10dp"
                     app:boxCornerRadiusTopStart="10dp"
-                    app:boxStrokeColor="@color/green_lime_wf"
-                    app:hintTextColor="@color/black">
+                    app:boxStrokeColor="@color/green_lime_wf">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/signInEmail"
@@ -272,7 +273,7 @@
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="5dp"
             android:backgroundTint="@color/light_grey_horizons_background"
-            app:cardElevation="30dp"
+            app:cardElevation="20dp"
             android:visibility="gone"
             android:layout_marginTop="18dp"
             android:layout_centerHorizontal="true"

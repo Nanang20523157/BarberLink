@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -15,6 +16,7 @@ import android.util.Patterns
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
@@ -39,12 +41,13 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginAdminPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_KEY)?.let {
+        intent.getParcelableExtra(SignUpSuccess.ADMIN_KEY, UserAdminData::class.java)?.let {
             userAdminData = it
             binding.signInEmail.setText(userAdminData.email)
             binding.signInPassword.setText(userAdminData.password)
@@ -175,7 +178,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                 binding.progressBar.visibility = View.GONE
                 Toast.makeText(
                     this,
-                    "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
+                    "Koneksi internet tidak stabil. Harap periksa koneksi Anda dan coba lagi.",
                     Toast.LENGTH_SHORT
                 ).show()
             }

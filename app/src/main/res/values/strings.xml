@@ -66,7 +66,7 @@
     <string name="status_waiting_queue">Sedang Menunggu</string>
     <string name="user_profile_placeholder_desc">User profile picture</string>
     <string name="five_star_rating">5.0</string>
-    <string name="icon_gander_ilustration">Icon gander ilustration</string>
+    <string name="icon_gender_ilustration">Icon gender ilustration</string>
     <string name="icon_completed_queue_desc">Icon completed queue ilustration</string>
     <string name="icon_waiting_queue_ilustration">Icon waiting queue ilustration</string>
     <string name="icon_cancel_queue_ilustration">Icon canceled queue ilustration</string>
@@ -174,7 +174,7 @@
     <string name="instagram_icon_app_desc">Instagram icon app</string>
     <string name="twitter_icon_app_desc">Twitter icon app</string>
     <string name="facebook_icon_app_desc">Facebook icon app</string>
-    <string name="toolbar_queue_tracker">Q-Tracker</string>
+    <string name="toolbar_queue_tracker">Pilih Capster</string>
     <string name="label_total_queue">Total Antrian</string>
     <string name="label_complete_queue">Antrian Selesai</string>
     <string name="lebel_rest_of_queue">Sisa Antrian</string>
@@ -250,8 +250,11 @@
     <string name="camera_text">Camera</string>
     <string name="toolbar_select_your_image">Select Your Image</string>
     <string name="barbershop_name_exists">Nama barbershop Anda sudah dipergunakan!</string>
-    <string name="hello_template">Hay %1$s, sepertinya Anda menggunakan alamat email dari aplikasi Barberlink App Anda, apakah Anda yakin ingin menggunakan kembali alamat email, profile, dan password lama Anda?</string>
-    <string name="doit_template">Antrian selanjutnya adalan antrian <b>nomor %1$d</b>, dengan nama pelanggan <b>%1$s</b>. Apakah anda yakin ingin menyelesaikan pekerjaan ini? atau mungkin anda dapat beristirahat sejenak.</string>
+    <string name="hello_template_admin">Hay %1$s, sepertinya Anda menggunakan alamat email dari aplikasi Barberlink App Anda, apakah Anda yakin ingin melakukan sinkronisasi data pada alamat email, profile, dan password lama Anda?</string>
+    <string name="hello_template_customer">Hay %1$s, sepertinya Anda terdeteksi sebagai salah satu pengguna aplikasi Barberlink Admin kami, kami berupaya untuk melakukan sinkronisasi data pada nama pengguna, nomor telepon, dan profile Anda?</string>
+    <string name="doit_template">Antrian selanjutnya adalan antrian <b>nomor %1$s</b>, dengan nama pelanggan <b>%1$s</b>. Apakah anda yakin ingin menyelesaikan pekerjaan ini? atau mungkin anda dapat beristirahat sejenak.</string>
+    <string name="warning_queue_template">Pastikan anda melayani pelanggan sesuai dengan urutannya, saat ini Anda berada di nomor antrian ke-<b>%1$s</b>, dimana seharusnya anda melayani terlebih dahulu pelanggan dengan nomor antrian ke-<b>%1$s</b>.</string>
+    <string name="warning_schedule_template">Permintaan anda untuk melayani pelanggan dengan nomor antrian ke-<b>%1$s</b> tidak dapat ditindaklanjuti, Hal ini dikarenakan Anda memiliki janji temu dengan pelanggan lain dalam kurun waktu beberapa menit ke depan.</string>
     <string name="sinkronisasi_akun">Sinkronisasi Akun</string>
     <string name="password_required">Password tidak boleh kosong!</string>
     <string name="confirm_password_required">Confirm Password dibutuhkan!</string>
@@ -276,7 +279,6 @@
     <string name="email_not_found">Tidak ada pengguna dengan email ini.</string>
     <string name="more_item_count">+%1$d</string>
     <string name="hint_outlet_name">Nama Outlet</string>
-    <string name="template_telp">Telp. %1$s</string>
     <string name="rp_200_000">Rp 200.000</string>
     <string name="rp_150_000">Rp 150.000</string>
     <string name="rp_100_000">Rp 100.000</string>
@@ -313,8 +315,8 @@
     <string name="female">perempuan</string>
     <string name="dashboard">Dashboard</string>
     <string name="switch_text">Alihkan</string>
-    <string name="do_it_text">Kerjakan</string>
-    <string name="_08">%1$s.</string>
+    <string name="do_it_text">Do It</string>
+    <string name="_08">%1$s</string>
     <string name="display_text">Tampilkan</string>
     <string name="toolbar_list_order_fragment">List Order</string>
     <string name="non_package_text">Non-Paket</string>
@@ -322,15 +324,15 @@
     <string name="all_text">Semua</string>
     <string name="work_this_queue">Kerjakan Antrian Ini</string>
     <string name="exit_text_template">Apakah Anda yakin ingin keluar dari <font color="#000000"><b>halaman queue tracker</b></font> ini, jika iya maka sesi login Anda akan dihapus dan Anda harus memasukkan <font color="#000000"><b>kode akses outlet</b></font> Anda lagi jika ingin masuk kembali?</string>
-    <string name="hey_dear">\" Hay, Dear <font color="#ffffff">%1$s</font> \"</string>
+    <string name="hey_dear"><![CDATA[\" Hay, Dear <font color="#ffffff">%1$s</font> \"]]></string>
     <string name="hey_dear_example">\" Hay, Dear Owner! \"</string>
     <string name="tilde">~</string>
     <string name="prolog">Kami adalah motor penggerak perubahan. Bersama, kita akan mencapai hal-hal yang luar biasa…</string>
     <string name="profit_barber">Profit Barber</string>
-    <string name="rp_3_900_000">Rp. 3.900.000</string>
+    <string name="rp_3_900_000">Rp 3.900.000</string>
     <string name="daily">Harian</string>
     <string name="plus_rp_3_900_000">+Rp. 3.900.000</string>
-    <string name="difference_amount_template">+%1$d</string>
+    <string name="difference_amount_template">+%1$s</string>
     <string name="financial_report">Catatan Keuangan</string>
     <string name="daily_capital_amount">Besaran Modal</string>
     <string name="income_label">Pemasukkan</string>
@@ -338,7 +340,7 @@
     <string name="different_label">Selisih:</string>
     <string name="_1200">1200</string>
     <string name="income_from_service">Pendapatan\nDari Jasa</string>
-    <string name="rp_13_900_000">Rp. 13.900.000</string>
+    <string name="rp_13_900_000">Rp 13.900.000</string>
     <string name="sales_information">Informasi Penjualan</string>
     <string name="has_been_cancelled">Telah Dibatalkan</string>
     <string name="order_complate_label">Pesanan Selesai</string>
@@ -350,5 +352,42 @@
     <string name="income_order_label">Pesanan Masuk</string>
     <string name="return_label_order">Pesanan Kembali</string>
     <string name="share_profit_label">Share Profit:</string>
-    <string name="share_profit_template">-%1$d</string>
+    <string name="negatif_nominal_template">-%1$s</string>
+    <string name="all">All</string>
+    <string name="phone_number_cannot_be_empty">Nomor telepon tidak boleh kosong</string>
+    <string name="phone_number_is_too_long">Nomor telepon terlalu panjang</string>
+    <string name="phone_number_is_too_short">Nomor telepon terlalu pendek</string>
+    <string name="fullname_cannot_be_empty">Nama lengkap tidak boleh kosong</string>
+    <string name="phone_number_is_registered">Nomor telepon yang anda masukkan sudah terdaftar</string>
+    <string name="Is_this_you">Apakah ini Anda?</string>
+    <string name="owner_barber">Owner %1$s</string>
+    <string name="employee_barber">Pegawai %1$s</string>
+    <string name="btn_sinkron">Sinkronkan</string>
+    <string name="btn_add">Tambahkan</string>
+    <string name="item_counting_selected">%1$d Item telah ditambahkan</string>
+    <string name="explore_me">Explore Me</string>
+    <string name="fab_to_queue_board">Floating button to queue board customer</string>
+    <string name="phone_template">Telp. %1$s</string>
+    <string name="member_text">Member</string>
+    <string name="non_member_text">Non-Member</string>
+    <string name="claim_amount_promo">Claim: %1$d</string>
+    <string name="triple_dash">---</string>
+    <string name="unknown">terprivasi</string>
+    <string name="exist_customer">Anda sudah terdaftar sebagai customer.</string>
+    <string name="enter_text">MASUK</string>
+    <string name="holiday_text">LIBUR</string>
+    <string name="ppn_label">Pajak Pertambahan Nilai:</string>
+    <string name="random_capster">Random Capster</string>
+    <string name="cancel_text_btn">Batalkan</string>
+    <string name="next_text_btn">Lanjutkan</string>
+    <string name="image_random_capster_icon_ilustration">Image random capster icon ilustration</string>
+    <string name="random_capster_fitur">Random Capster Fitur</string>
+    <string name="random_capster_template"><font color="#000000"><b>Harga layanan</b></font> dan <font color="#000000"><b>bundling</b></font> pada fitur ini ialah <font color="#000000"><b>harga pokok</b></font> yang belum termasuk dengan <font color="#000000"><b>fee capster</b></font> sehingga <font color="#000000"><b>harga total</b></font> bisa jadi dapat berubah tergantung pada <font color="#000000"><b>capster mana yang melayani Anda.</b></font></string>
+    <string name="_62">"+62 "</string>
+    <string name="btn_take_number">Ambil Antrian</string>
+    <string name="user_customer_information">User Customer</string>
+    <string name="dotted_line_text">............................................... \n ...................... \n........</string>
+    <string name="lorem_ipsum">Lorem ipsum dolor bgiugi sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</string>
+    <string name="ups_text">Ups… Sepertinya Ada Masalah!!</string>
+    <string name="edit_order">Edit Pesanan</string>
 </resources>

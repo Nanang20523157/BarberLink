@@ -9,6 +9,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -20,6 +21,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupWindow
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
@@ -59,24 +61,26 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepTwoBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        intent.getParcelableExtra<UserAdminData>(SignUpStepOne.ADMIN_KEY).let {
-            if (it != null) {
-                userAdminData = it
-                uid = it.uid
-                userAdminData.email.let { email ->
-                    this.existingEmail = email
-                    binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
-                    if (email != "") isBarberEmailValid = validateBarbershopEmail()
-                }
-                userAdminData.imageCompanyProfile.let { imageUrl ->
-                    if (imageUrl.isNotEmpty()) {
-                        binding.ivProfile.visibility = View.VISIBLE
-                        binding.ivEmptyProfile.visibility = View.GONE
+        intent.getParcelableExtra(SignUpStepOne.ADMIN_KEY, UserAdminData::class.java)?.let {
+            userAdminData = it
+            uid = it.uid
+            userAdminData.email.let { email ->
+                this.existingEmail = email
+                binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
+                if (email != "") isBarberEmailValid = validateBarbershopEmail()
+            }
+            userAdminData.imageCompanyProfile.let { imageUrl ->
+                if (imageUrl.isNotEmpty()) {
+                    binding.ivProfile.visibility = View.VISIBLE
+                    binding.ivEmptyProfile.visibility = View.GONE
+                    if (!isDestroyed && !isFinishing) {
+                        // Lakukan transaksi fragment
                         Glide.with(this)
                             .load(userAdminData.imageCompanyProfile)
                             .placeholder(
@@ -87,10 +91,8 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 }
             }
         }
-        intent.getParcelableExtra<UserRolesData>(SignUpStepOne.ROLES_KEY).let {
-            if (it != null) {
-                userRolesData = it
-            }
+        intent.getParcelableExtra(SignUpStepOne.ROLES_KEY, UserRolesData::class.java)?.let {
+            userRolesData = it
         }
 
         supportFragmentManager.setFragmentResultListener("image_picker_request", this) { _, bundle ->
@@ -178,21 +180,22 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         // Set informasi lokasi pada elemen UI
         // Get the formatted string
         val fullname = userAdminData.ownerName
-        val formattedString = getString(R.string.hello_template, fullname)
+        val formattedString = getString(R.string.hello_template_admin, fullname)
         windowBinding.tvWindowDetail.text = formattedString
+        windowBinding.btnAccept.text = getString(R.string.create_account)
 
         // Buat pop-up window dengan tampilan yang di-inflate
         val popupView = windowBinding.root
         val popupWindow = PopupWindow(
             popupView,
+            ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT,
-            true
+            true,
         )
 
         // Atur animasi dan tata letak
         popupWindow.animationStyle = R.style.PopupAnimation
-        popupWindow.showAtLocation(binding.root, Gravity.BOTTOM, 0, 70)
+        popupWindow.showAtLocation(binding.root, Gravity.BOTTOM, 0, 0)
 
         // Menangani klik pada tombol "Get Directions"
         windowBinding.btnAccept.setOnClickListener {
@@ -293,17 +296,22 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         // Get all documents in the "outlets" sub-collection
         outletsCollection.get()
             .addOnSuccessListener { querySnapshot ->
-                val batch = db.batch()
-                // Delete each document in the "outlets" sub-collection
-                for (document in querySnapshot.documents) {
-                    batch.delete(document.reference)
-                }
-                // Commit the batch
-                batch.commit().addOnSuccessListener {
-                    // Add the new outlet after deleting old ones
+                if (querySnapshot.isEmpty) {
+                    // No documents found, add new outlet directly
                     addOutletDataBarbershop()
-                }.addOnFailureListener { exception ->
-                    handleFailure("Error committing batch delete: ${exception.message}", "BATCH_DELETE")
+                } else {
+                    val batch = db.batch()
+                    // Delete each document in the "outlets" sub-collection
+                    for (document in querySnapshot.documents) {
+                        batch.delete(document.reference)
+                    }
+                    // Commit the batch
+                    batch.commit().addOnSuccessListener {
+                        // Add the new outlet after deleting old ones
+                        addOutletDataBarbershop()
+                    }.addOnFailureListener { exception ->
+                        handleFailure("Error committing batch delete: ${exception.message}", "BATCH_DELETE")
+                    }
                 }
             }
             .addOnFailureListener { exception ->
@@ -390,7 +398,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                             }
                         }
                     } else {
-                        handleFailure("Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.", "UPDATE_ROLES")
+                        handleFailure("Koneksi internet tidak stabil. Harap periksa koneksi Anda dan coba lagi.", "UPDATE_ROLES")
                     }
                 }.execute() // Pastikan untuk mengeksekusi AsyncTask
             }
@@ -511,7 +519,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setHeightOfWrapperInputLayout(view: TextInputLayout, invalid: Boolean) {
-        val heightInDp = 43
+        val heightInDp = 45
         val heightInPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP, heightInDp.toFloat(), resources.displayMetrics).toInt()
         val params = view.layoutParams
@@ -531,7 +539,9 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 wrapperBarbershopName.error = null
                 val barbershopName = binding.etBarbershopName.text.toString().trim()
                 userAdminData.barbershopName = barbershopName
-                userAdminData.ownerName = "Owner $barbershopName"
+                if (userAdminData.ownerName.isEmpty()) {
+                    userAdminData.ownerName = "Owner $barbershopName"
+                }
                 userAdminData.barbershopIdentifier = barbershopName.replace("\\s".toRegex(), "").lowercase()
                 if (retryStep.isNotEmpty() && retryStep != "UPLOAD_IMAGE" && retryStep != "SAVE_DATA") {
                     if (userAdminCopy.barbershopIdentifier != userAdminData.barbershopIdentifier) {

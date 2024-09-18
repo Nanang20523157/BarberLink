@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
     app:cardCornerRadius="15dp"
-    app:cardElevation="0dp"
+    app:cardElevation="0.5dp"
     android:backgroundTint="@color/light_grey_horizons_background"
     android:layout_marginVertical="5dp">
 
@@ -36,13 +36,14 @@
 
         <TextView
             android:id="@+id/tvCustomerName"
-            android:layout_width="wrap_content"
+            android:layout_width="125dp"
             android:layout_height="wrap_content"
             tools:text="Rico Anggit Aditya"
             android:textColor="@color/black_font_color"
-            android:ellipsize="end"
+            android:ellipsize="marquee"
             android:fontFamily="@font/arial_bold"
-            android:maxLines="1"
+            android:singleLine="true"
+            android:marqueeRepeatLimit="marquee_forever"
             android:textSize="13sp"
             android:textAppearance="@style/TextAppearance.AppCompat.Medium"
             android:textStyle="bold"
@@ -60,7 +61,7 @@
             android:fontFamily="@font/arial_medium"
             android:textSize="12sp"
             android:layout_marginTop="2.5dp"
-            android:layout_marginStart="2dp"
+            android:layout_marginStart="0.5dp"
             android:textColor="@color/black_font_color"
             android:textAppearance="@style/TextAppearance.AppCompat.Small"
             app:layout_constraintStart_toStartOf="@id/tvCustomerName"

@@ -2,11 +2,13 @@ package com.example.barberlink.UserInterface.Admin
 
 import Outlet
 import UserAdminData
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListOutletAdapter
@@ -14,6 +16,10 @@ import com.example.barberlink.R
 import com.example.barberlink.databinding.ActivityManageOutletPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked {
     private lateinit var binding: ActivityManageOutletPageBinding
@@ -24,16 +30,17 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
     private val extendedStateMap = mutableMapOf<String, Boolean>()
     private lateinit var outletListener: ListenerRegistration
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityManageOutletPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        intent.getParcelableArrayListExtra<Outlet>(BerandaAdminPage.OUTLET_DATA_KEY).let { list ->
-            list?.let { outletsList = it }
+        intent.getParcelableArrayListExtra(BerandaAdminPage.OUTLET_DATA_KEY, Outlet::class.java)?.let {
+            outletsList = it
         }
 
-        intent.getParcelableExtra<UserAdminData>(BerandaAdminPage.ADMIN_DATA_KEY)?.let {
+        intent.getParcelableExtra(BerandaAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
             barbershopId = it.uid
             listenToOutletsData()
         }
@@ -52,34 +59,36 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
                     Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
+                documents?.let { snapshot ->
+                    // Jalankan pengolahan data di background thread
+                    CoroutineScope(Dispatchers.Default).launch {
+                        val newOutletsList = snapshot.mapNotNull { document ->
+                            document.toObject(Outlet::class.java).apply {
+                                // Cek apakah UID outlet ada di collapseStateMap
+                                isCollapseCard = extendedStateMap[uid] ?: true
+                            }
+                        }
 
-                if (documents != null) {
-                    // Temp list untuk menampung data baru
-                    val newOutletsList = mutableListOf<Outlet>()
+                        // Update collapseStateMap dengan data baru
+                        extendedStateMap.clear()
+                        newOutletsList.forEach { outlet ->
+                            extendedStateMap[outlet.uid] = outlet.isCollapseCard
+                        }
 
-                    for (document in documents) {
-                        val outlet = document.toObject(Outlet::class.java)
-                        // Cek apakah UID outlet ada di collapseStateMap
-                        val isCollapseCard = extendedStateMap[outlet.uid] ?: true
-                        outlet.isCollapseCard = isCollapseCard
-                        newOutletsList.add(outlet)
+                        // Update outletsList dengan data baru
+                        withContext(Dispatchers.Main) {
+                            outletsList.clear()
+                            outletsList.addAll(newOutletsList)
+
+                            // Notify adapter or update UI
+                            outletAdapter.submitList(outletsList)
+                            outletAdapter.notifyDataSetChanged()
+                        }
                     }
-
-                    // Update collapseStateMap dengan data baru
-                    // collapseStateMap.clear()
-                    // for (outlet in newOutletsList) {
-                    //    collapseStateMap[outlet.uid] = outlet.isCollapseCard
-                    // }
-
-                    // Update outletsList dengan data baru
-                    outletsList.clear()
-                    outletsList.addAll(newOutletsList)
-
-                    // Notify adapter or update UI
-                    outletAdapter.submitList(outletsList) // atau metode lain untuk memperbarui UI
                 }
             }
     }
+
 
     private fun init() {
         outletAdapter = ItemListOutletAdapter(this@ManageOutletPage)
@@ -114,7 +123,7 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
     override fun onDestroy() {
         super.onDestroy()
         // Hapus listener untuk menghindari memory leak
-        outletListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
     }
 
 }

@@ -4,305 +4,610 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="4dp"
     android:layout_marginVertical="3dp"
+    android:layout_marginHorizontal="4dp"
     app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
     android:backgroundTint="@color/light_grey_horizons_background">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="25dp"
+        android:clipToPadding="false">
 
-        <com.google.android.material.card.MaterialCardView
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/ivPhotoProfile"
+            android:layout_width="55dp"
+            android:layout_height="55dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="13dp"
+            android:layout_marginEnd="16dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="@string/user_profile_placeholder_desc"
+            android:src="@drawable/placeholder_user_profile"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/tvCapsterName"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tvCapsterName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="20dp"
-            android:layout_weight="1"
-            android:backgroundTint="@color/light_grey_horizons_background">
+            tools:text="Nanang Kurniawan"
+            android:textColor="@color/black_font_color"
+            android:ellipsize="end"
+            android:fontFamily="@font/arial_bold"
+            android:maxLines="1"
+            android:visibility="visible"
+            android:textSize="15.5sp"
+            android:layout_marginTop="-1dp"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            android:textStyle="bold"
+            android:layout_marginEnd="10dp"
+            app:layout_constraintTop_toTopOf="@id/llGender"
+            app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
+            app:layout_constraintEnd_toStartOf="@id/llGender" />
 
-            <androidx.constraintlayout.widget.ConstraintLayout
+        <TextView
+            android:id="@+id/tvUsername"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/username_template"
+            android:visibility="visible"
+            android:fontFamily="@font/arial_medium"
+            android:textSize="9.5sp"
+            android:layout_marginTop="-2dp"
+            android:layout_marginStart="0.5dp"
+            android:textColor="@color/platinum_grey_background"
+            app:layout_constraintStart_toStartOf="@id/tvCapsterName"
+            app:layout_constraintTop_toBottomOf="@id/tvCapsterName"/>
+
+        <LinearLayout
+            android:id="@+id/llRating"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="7dp"
+            android:visibility="visible"
+            app:layout_constraintStart_toStartOf="@id/tvCapsterName"
+            app:layout_constraintTop_toBottomOf="@id/tvUsername">
+
+            <ImageView
+                android:id="@+id/ivStarOne"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/full_star"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarTwo"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/full_star"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarThree"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/full_star"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarFour"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginEnd="4dp"
+                android:src="@drawable/full_star"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <ImageView
+                android:id="@+id/ivStarFive"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginEnd="6dp"
+                android:src="@drawable/full_star"
+                android:contentDescription="@string/star_image_desc"/>
+
+            <TextView
+                android:id="@+id/tvRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/five_star_rating"
+                android:textSize="11sp"
+                android:layout_marginTop="-1.8dp"
+                android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvReviewsAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/number_of_reviews_placeholder"
+            android:fontFamily="@font/arial_medium"
+            android:textSize="10.5sp"
+            android:visibility="visible"
+            android:layout_marginTop="2.5dp"
+            android:layout_marginStart="2dp"
+            android:textColor="@color/black_font_color"
+            android:textAppearance="@style/TextAppearance.AppCompat.Small"
+            app:layout_constraintStart_toStartOf="@id/tvCapsterName"
+            app:layout_constraintTop_toBottomOf="@id/llRating"/>
+
+        <LinearLayout
+            android:id="@+id/llGender"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="2dp"
+            android:visibility="visible"
+            android:gravity="center"
+            android:background="@drawable/gender_unknown_background"
+            android:paddingHorizontal="4dp"
+            android:layout_marginEnd="17dp"
+            android:layout_marginTop="-1dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <ImageView
+                android:id="@+id/ivGender"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
+                android:src="@drawable/ic_unknown"
+                android:contentDescription="@string/icon_gender_ilustration" />
+
+            <TextView
+                android:id="@+id/tvGender"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="@string/unknown"
+                android:fontFamily="@font/arial_bold"
+                android:textColor="@color/dark_black_gradation"
+                android:textSize="11.5sp"
+                android:layout_marginStart="3.5dp"
+                android:layout_marginEnd="3dp"
+                android:gravity="center"
+                android:layout_gravity="center_vertical"/>
+
+        </LinearLayout>
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:id="@+id/llRestQueueFromCapster"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginEnd="17dp"
+            android:background="@drawable/role_background_employee"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/llGender"
+            app:layout_constraintVertical_bias="1">
+
+            <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="10dp"
-                android:paddingVertical="25dp"
-                android:clipToPadding="false">
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="-5dp"
+                android:fontFamily="@font/arial_medium"
+                android:text="Sisa Antrian:"
+                android:textColor="@color/black_font_color"
+                android:textSize="13sp" />
 
-                <de.hdodenhof.circleimageview.CircleImageView
-                    android:id="@+id/ivPhotoProfile"
-                    android:layout_width="55dp"
-                    android:layout_height="55dp"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="13dp"
-                    android:layout_marginEnd="16dp"
-                    android:scaleType="centerCrop"
-                    android:contentDescription="@string/user_profile_placeholder_desc"
-                    android:src="@drawable/placeholder_user_profile"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toStartOf="@id/tvCapsterName"
-                    app:layout_constraintHorizontal_bias="0.0"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <TextView
-                    android:id="@+id/tvCapsterName"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    tools:text="Nanang Kurniawan Hermawan"
-                    android:textColor="@color/black_font_color"
-                    android:ellipsize="end"
-                    android:fontFamily="@font/arial_bold"
-                    android:layout_marginTop="-2.7dp"
-                    android:maxLines="1"
-                    android:textSize="15.5sp"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-                    android:textStyle="bold"
-                    android:layout_marginEnd="10dp"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
-                    app:layout_constraintEnd_toStartOf="@id/llGander" />
-
-                <TextView
-                    android:id="@+id/tvUsername"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/username_template"
-                    android:fontFamily="@font/arial_medium"
-                    android:textSize="9.5sp"
-                    android:layout_marginTop="-2dp"
-                    android:textColor="@color/platinum_grey_background"
-                    app:layout_constraintStart_toStartOf="@id/tvCapsterName"
-                    app:layout_constraintTop_toBottomOf="@id/tvCapsterName"/>
-
-                <LinearLayout
-                    android:id="@+id/llRating"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="7dp"
-                    app:layout_constraintStart_toStartOf="@id/tvUsername"
-                    app:layout_constraintTop_toBottomOf="@id/tvUsername">
-
-                    <ImageView
-                        android:id="@+id/ivStarOne"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:layout_marginEnd="4dp"
-                        android:src="@drawable/full_star"
-                        android:contentDescription="@string/star_image_desc"/>
-
-                    <ImageView
-                        android:id="@+id/ivStarTwo"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:layout_marginEnd="4dp"
-                        android:src="@drawable/full_star"
-                        android:contentDescription="@string/star_image_desc"/>
-
-                    <ImageView
-                        android:id="@+id/ivStarThree"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:layout_marginEnd="4dp"
-                        android:src="@drawable/full_star"
-                        android:contentDescription="@string/star_image_desc"/>
-
-                    <ImageView
-                        android:id="@+id/ivStarFour"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:layout_marginEnd="4dp"
-                        android:src="@drawable/full_star"
-                        android:contentDescription="@string/star_image_desc"/>
-
-                    <ImageView
-                        android:id="@+id/ivStarFive"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:layout_marginEnd="6dp"
-                        android:src="@drawable/full_star"
-                        android:contentDescription="@string/star_image_desc"/>
-
-                    <TextView
-                        android:id="@+id/tvRating"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/five_star_rating"
-                        android:textSize="11sp"
-                        android:layout_marginTop="-1.8dp"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
-
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tvReviewsAmount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/number_of_reviews_placeholder"
-                    android:fontFamily="@font/arial_medium"
-                    android:textSize="10.5sp"
-                    android:layout_marginTop="2.5dp"
-                    android:layout_marginStart="2dp"
-                    android:textColor="@color/black_font_color"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Small"
-                    app:layout_constraintStart_toStartOf="@id/tvCapsterName"
-                    app:layout_constraintTop_toBottomOf="@id/llRating"/>
-
-                <LinearLayout
-                    android:id="@+id/llGander"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:paddingVertical="6dp"
-                    android:gravity="center"
-                    android:background="@drawable/gander_masculine_background"
-                    android:paddingHorizontal="3dp"
-                    android:layout_marginEnd="17dp"
-                    android:layout_marginTop="-3dp"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent">
-
-                    <ImageView
-                        android:id="@+id/ivGender"
-                        android:layout_width="15dp"
-                        android:layout_height="15dp"
-                        android:src="@drawable/ic_male"
-                        android:contentDescription="@string/icon_gander_ilustration" />
-
-                    <!--                    <TextView-->
-                    <!--                        android:id="@+id/tvGander"-->
-                    <!--                        android:layout_width="wrap_content"-->
-                    <!--                        android:layout_height="wrap_content"-->
-                    <!--                        tools:text="laki-laki"-->
-                    <!--                        android:fontFamily="@font/arial_bold"-->
-                    <!--                        android:textColor="@color/black_font_color"-->
-                    <!--                        android:textSize="10sp"-->
-                    <!--                        android:layout_marginStart="2dp"-->
-                    <!--                        android:layout_marginEnd="3dp"-->
-                    <!--                        android:gravity="center"-->
-                    <!--                        android:layout_gravity="center_vertical"/>-->
-
-                </LinearLayout>
-
-                <!--                <TextView-->
-                <!--                    android:id="@+id/tvCurrentQueueFromCapster"-->
-                <!--                    android:layout_width="45dp"-->
-                <!--                    android:layout_height="30dp"-->
-                <!--                    android:layout_gravity="bottom"-->
-                <!--                    android:layout_marginEnd="5dp"-->
-                <!--                    android:background="@drawable/role_background_employee"-->
-                <!--                    android:textStyle="bold"-->
-                <!--                    android:gravity="center"-->
-                <!--                    android:textColor="@color/green_lime_wf"-->
-                <!--                    android:textSize="15sp"-->
-                <!--                    app:layout_constraintBottom_toBottomOf="parent"-->
-                <!--                    app:layout_constraintEnd_toStartOf="@id/tvSlash"-->
-                <!--                    app:layout_constraintTop_toTopOf="@id/llGander"-->
-                <!--                    app:layout_constraintVertical_bias="0.96"-->
-                <!--                    tools:text="3" />-->
-
-                <!--                <TextView-->
-                <!--                    android:id="@+id/tvSlash"-->
-                <!--                    android:layout_width="wrap_content"-->
-                <!--                    android:layout_height="30dp"-->
-                <!--                    android:layout_gravity="bottom"-->
-                <!--                    android:layout_marginEnd="5dp"-->
-                <!--                    android:textStyle="bold"-->
-                <!--                    android:gravity="center"-->
-                <!--                    android:textColor="@color/black_font_color"-->
-                <!--                    android:textSize="15sp"-->
-                <!--                    app:layout_constraintBottom_toBottomOf="parent"-->
-                <!--                    app:layout_constraintEnd_toStartOf="@id/tvRestOfQueue"-->
-                <!--                    app:layout_constraintTop_toTopOf="@id/llGander"-->
-                <!--                    app:layout_constraintVertical_bias="0.96"-->
-                <!--                    tools:text="/" />-->
-
-                <TextView
-                    android:id="@+id/tvRestOfQueue"
-                    android:layout_width="45dp"
-                    android:layout_height="30dp"
-                    android:layout_gravity="bottom"
-                    android:layout_marginEnd="17dp"
-                    android:background="@drawable/role_background_employee"
-                    android:textStyle="bold"
-                    android:gravity="center"
-                    android:textColor="@color/magenta"
-                    android:textSize="15sp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="@id/llGander"
-                    app:layout_constraintVertical_bias="1"
-                    tools:text="7" />
-
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <RelativeLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:paddingStart="8dp"
-            android:paddingEnd="12dp">
-
-            <LinearLayout
-                android:id="@+id/llBook"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center">
-
-                <ImageView
-                    android:id="@+id/ivBook"
-                    android:layout_width="25dp"
-                    android:layout_height="25dp"
-                    android:src="@drawable/ic_book"
-                    android:layout_marginStart="12dp"
-                    android:layout_marginEnd="4dp"
-                    android:contentDescription="@string/booking_icon_desc" />
-
-                <TextView
-                    android:id="@+id/tvSpecializationCost"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    tools:text="5K"
-                    android:textSize="17sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/black_font_color"
-                    android:layout_marginTop="-0.6dp"
-                    android:layout_marginEnd="12dp" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/llStatusBooking"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
+            <TextView
+                android:id="@+id/tvRestQueueFromCapster"
+                android:layout_width="45dp"
+                android:layout_height="30dp"
+                android:layout_gravity="bottom"
+                android:textStyle="bold"
                 android:gravity="center"
-                android:layout_centerHorizontal="true"
-                android:layout_below="@id/llBook"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/background_disable_btn_book"
-                android:paddingVertical="8dp">
+                android:visibility="visible"
+                android:textColor="@color/magenta"
+                android:textSize="15sp"
+                android:layout_marginEnd="1dp"
+                tools:text="07" />
+
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <!--        <LinearLayout-->
+        <!--            android:id="@+id/llBook"-->
+        <!--            android:layout_width="wrap_content"-->
+        <!--            android:layout_height="wrap_content"-->
+        <!--            android:orientation="horizontal"-->
+        <!--            android:gravity="center"-->
+        <!--            android:visibility="gone"-->
+        <!--            app:layout_constraintBottom_toBottomOf="parent"-->
+        <!--            app:layout_constraintEnd_toEndOf="parent"-->
+        <!--            app:layout_constraintTop_toTopOf="@id/llGender"-->
+        <!--            app:layout_constraintVertical_bias="0.9">-->
+
+        <!--            <ImageView-->
+        <!--                android:id="@+id/ivBook"-->
+        <!--                android:layout_width="25dp"-->
+        <!--                android:layout_height="25dp"-->
+        <!--                android:src="@drawable/ic_book"-->
+        <!--                android:layout_marginEnd="2dp"-->
+        <!--                android:contentDescription="@string/booking_icon_desc" />-->
+
+        <!--            <TextView-->
+        <!--                android:id="@+id/tvSpecializationCost"-->
+        <!--                android:layout_width="wrap_content"-->
+        <!--                android:layout_height="wrap_content"-->
+        <!--                tools:text="5K"-->
+        <!--                android:textSize="17sp"-->
+        <!--                android:textStyle="bold"-->
+        <!--                android:layout_marginTop="-0.6dp"-->
+        <!--                android:textColor="@color/black_font_color"-->
+        <!--                android:layout_marginEnd="17dp" />-->
+
+        <!--        </LinearLayout>-->
+
+        <LinearLayout
+            android:id="@+id/llRandomInfo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            app:layout_constraintHorizontal_bias="0.4"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:gravity="center"
+            app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/tvQuestionMark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/question_mark"
+                android:layout_marginTop="-8dp"
+                android:textColor="@color/grey_font"
+                android:textSize="30sp"
+                android:textStyle="bold"
+                android:visibility="visible" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/tvRandomCapster"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="10dp"
+                android:layout_marginHorizontal="30dp"
+                app:cardElevation="0dp"
+                android:backgroundTint="@color/black_font_color">
 
                 <TextView
-                    android:id="@+id/tvBooking"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/booking_text"
-                    android:textSize="11.5sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="35dp"
+                    android:text="@string/anyone_available"
+                    android:textSize="12sp"
+                    android:textColor="@color/green_lime_wf"
                     android:textStyle="bold"
-                    android:layout_marginTop="-0.6dp"
-                    android:layout_marginStart="12dp"
-                    android:layout_marginEnd="10dp"
-                    android:textColor="@color/charcoal_grey_background" />
+                    android:gravity="center"
+                    android:layout_marginTop="-2dp"/>
 
-            </LinearLayout>
-        </RelativeLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-    </LinearLayout>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
+<!--<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"-->
+<!--    xmlns:app="http://schemas.android.com/apk/res-auto"-->
+<!--    xmlns:tools="http://schemas.android.com/tools"-->
+<!--    android:layout_width="match_parent"-->
+<!--    android:layout_height="wrap_content"-->
+<!--    android:layout_marginHorizontal="4dp"-->
+<!--    android:layout_marginVertical="3dp"-->
+<!--    app:cardCornerRadius="20dp"-->
+<!--    app:cardElevation="0dp"-->
+<!--    android:backgroundTint="@color/light_grey_horizons_background">-->
+
+<!--    <LinearLayout-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:orientation="horizontal">-->
+
+<!--        <com.google.android.material.card.MaterialCardView-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            app:cardCornerRadius="20dp"-->
+<!--            android:layout_weight="1"-->
+<!--            android:backgroundTint="@color/light_grey_horizons_background">-->
+
+<!--            <androidx.constraintlayout.widget.ConstraintLayout-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:paddingHorizontal="10dp"-->
+<!--                android:paddingVertical="25dp"-->
+<!--                android:clipToPadding="false">-->
+
+<!--                <de.hdodenhof.circleimageview.CircleImageView-->
+<!--                    android:id="@+id/ivPhotoProfile"-->
+<!--                    android:layout_width="55dp"-->
+<!--                    android:layout_height="55dp"-->
+<!--                    android:layout_gravity="center_vertical"-->
+<!--                    android:layout_marginStart="10dp"-->
+<!--                    android:layout_marginEnd="14dp"-->
+<!--                    android:scaleType="centerCrop"-->
+<!--                    android:contentDescription="@string/user_profile_placeholder_desc"-->
+<!--                    android:src="@drawable/placeholder_user_profile"-->
+<!--                    app:layout_constraintBottom_toBottomOf="parent"-->
+<!--                    app:layout_constraintEnd_toStartOf="@id/tvCapsterName"-->
+<!--                    app:layout_constraintHorizontal_bias="0.0"-->
+<!--                    app:layout_constraintStart_toStartOf="parent"-->
+<!--                    app:layout_constraintTop_toTopOf="parent" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvCapsterName"-->
+<!--                    android:layout_width="0dp"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    tools:text="Nanang Kurniawan Hermawan"-->
+<!--                    android:textColor="@color/black_font_color"-->
+<!--                    android:ellipsize="marquee"-->
+<!--                    android:fontFamily="@font/arial_bold"-->
+<!--                    android:layout_marginTop="-2.7dp"-->
+<!--                    android:singleLine="true"-->
+<!--                    android:marqueeRepeatLimit="marquee_forever"-->
+<!--                    android:textSize="15.5sp"-->
+<!--                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"-->
+<!--                    android:textStyle="bold"-->
+<!--                    android:layout_marginEnd="10dp"-->
+<!--                    app:layout_constraintTop_toTopOf="parent"-->
+<!--                    app:layout_constraintStart_toEndOf="@id/ivPhotoProfile"-->
+<!--                    app:layout_constraintEnd_toStartOf="@id/llGender" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvUsername"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="@string/username_template"-->
+<!--                    android:fontFamily="@font/arial_medium"-->
+<!--                    android:textSize="9.5sp"-->
+<!--                    android:layout_marginTop="-2dp"-->
+<!--                    android:textColor="@color/platinum_grey_background"-->
+<!--                    app:layout_constraintStart_toStartOf="@id/tvCapsterName"-->
+<!--                    app:layout_constraintTop_toBottomOf="@id/tvCapsterName"/>-->
+
+<!--                <LinearLayout-->
+<!--                    android:id="@+id/llRating"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:orientation="horizontal"-->
+<!--                    android:layout_marginTop="7dp"-->
+<!--                    app:layout_constraintStart_toStartOf="@id/tvUsername"-->
+<!--                    app:layout_constraintTop_toBottomOf="@id/tvUsername">-->
+
+<!--                    <ImageView-->
+<!--                        android:id="@+id/ivStarOne"-->
+<!--                        android:layout_width="12dp"-->
+<!--                        android:layout_height="12dp"-->
+<!--                        android:layout_marginEnd="4dp"-->
+<!--                        android:src="@drawable/full_star"-->
+<!--                        android:contentDescription="@string/star_image_desc"/>-->
+
+<!--                    <ImageView-->
+<!--                        android:id="@+id/ivStarTwo"-->
+<!--                        android:layout_width="12dp"-->
+<!--                        android:layout_height="12dp"-->
+<!--                        android:layout_marginEnd="4dp"-->
+<!--                        android:src="@drawable/full_star"-->
+<!--                        android:contentDescription="@string/star_image_desc"/>-->
+
+<!--                    <ImageView-->
+<!--                        android:id="@+id/ivStarThree"-->
+<!--                        android:layout_width="12dp"-->
+<!--                        android:layout_height="12dp"-->
+<!--                        android:layout_marginEnd="4dp"-->
+<!--                        android:src="@drawable/full_star"-->
+<!--                        android:contentDescription="@string/star_image_desc"/>-->
+
+<!--                    <ImageView-->
+<!--                        android:id="@+id/ivStarFour"-->
+<!--                        android:layout_width="12dp"-->
+<!--                        android:layout_height="12dp"-->
+<!--                        android:layout_marginEnd="4dp"-->
+<!--                        android:src="@drawable/full_star"-->
+<!--                        android:contentDescription="@string/star_image_desc"/>-->
+
+<!--                    <ImageView-->
+<!--                        android:id="@+id/ivStarFive"-->
+<!--                        android:layout_width="12dp"-->
+<!--                        android:layout_height="12dp"-->
+<!--                        android:layout_marginEnd="6dp"-->
+<!--                        android:src="@drawable/full_star"-->
+<!--                        android:contentDescription="@string/star_image_desc"/>-->
+
+<!--                    <TextView-->
+<!--                        android:id="@+id/tvRating"-->
+<!--                        android:layout_width="wrap_content"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:text="@string/five_star_rating"-->
+<!--                        android:textSize="11sp"-->
+<!--                        android:layout_marginTop="-1.8dp"-->
+<!--                        android:textAppearance="@style/TextAppearance.AppCompat.Small"/>-->
+
+<!--                </LinearLayout>-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvReviewsAmount"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="@string/number_of_reviews_placeholder"-->
+<!--                    android:fontFamily="@font/arial_medium"-->
+<!--                    android:textSize="10.5sp"-->
+<!--                    android:layout_marginTop="2.5dp"-->
+<!--                    android:layout_marginStart="2dp"-->
+<!--                    android:textColor="@color/black_font_color"-->
+<!--                    android:textAppearance="@style/TextAppearance.AppCompat.Small"-->
+<!--                    app:layout_constraintStart_toStartOf="@id/tvCapsterName"-->
+<!--                    app:layout_constraintTop_toBottomOf="@id/llRating"/>-->
+
+<!--                <LinearLayout-->
+<!--                    android:id="@+id/llGender"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:orientation="horizontal"-->
+<!--                    android:paddingVertical="6dp"-->
+<!--                    android:gravity="center"-->
+<!--                    android:background="@drawable/gender_unknown_background2"-->
+<!--                    android:paddingHorizontal="3dp"-->
+<!--                    android:layout_marginEnd="12dp"-->
+<!--                    android:layout_marginTop="-3dp"-->
+<!--                    app:layout_constraintEnd_toEndOf="parent"-->
+<!--                    app:layout_constraintTop_toTopOf="parent">-->
+
+<!--                    <ImageView-->
+<!--                        android:id="@+id/ivGender"-->
+<!--                        android:layout_width="15dp"-->
+<!--                        android:layout_height="15dp"-->
+<!--                        android:padding="1dp"-->
+<!--                        android:src="@drawable/ic_questions"-->
+<!--                        android:contentDescription="@string/icon_gender_ilustration" />-->
+
+<!--                    &lt;!&ndash;                    <TextView&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:id="@+id/tvGender"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:layout_width="wrap_content"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:layout_height="wrap_content"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        tools:text="laki-laki"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:fontFamily="@font/arial_bold"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:textColor="@color/black_font_color"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:textSize="10sp"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:layout_marginStart="2dp"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:layout_marginEnd="3dp"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:gravity="center"&ndash;&gt;-->
+<!--                    &lt;!&ndash;                        android:layout_gravity="center_vertical"/>&ndash;&gt;-->
+
+<!--                </LinearLayout>-->
+
+<!--                &lt;!&ndash;                <TextView&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:id="@+id/tvCurrentQueueFromCapster"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_width="45dp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_height="30dp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_gravity="bottom"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_marginEnd="5dp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:background="@drawable/role_background_employee"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:textStyle="bold"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:gravity="center"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:textColor="@color/green_lime_wf"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:textSize="15sp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintBottom_toBottomOf="parent"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintEnd_toStartOf="@id/tvSlash"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintTop_toTopOf="@id/llGender"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintVertical_bias="0.96"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    tools:text="3" />&ndash;&gt;-->
+
+<!--                &lt;!&ndash;                <TextView&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:id="@+id/tvSlash"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_width="wrap_content"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_height="30dp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_gravity="bottom"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:layout_marginEnd="5dp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:textStyle="bold"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:gravity="center"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:textColor="@color/black_font_color"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    android:textSize="15sp"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintBottom_toBottomOf="parent"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintEnd_toStartOf="@id/tvRestOfQueue"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintTop_toTopOf="@id/llGender"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    app:layout_constraintVertical_bias="0.96"&ndash;&gt;-->
+<!--                &lt;!&ndash;                    tools:text="/" />&ndash;&gt;-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvRestOfQueue"-->
+<!--                    android:layout_width="45dp"-->
+<!--                    android:layout_height="30dp"-->
+<!--                    android:layout_gravity="bottom"-->
+<!--                    android:layout_marginEnd="12dp"-->
+<!--                    android:background="@drawable/role_background_employee"-->
+<!--                    android:textStyle="bold"-->
+<!--                    android:gravity="center"-->
+<!--                    android:textColor="@color/magenta"-->
+<!--                    android:textSize="15sp"-->
+<!--                    app:layout_constraintBottom_toBottomOf="parent"-->
+<!--                    app:layout_constraintEnd_toEndOf="parent"-->
+<!--                    app:layout_constraintTop_toTopOf="@id/llGender"-->
+<!--                    app:layout_constraintVertical_bias="1"-->
+<!--                    tools:text="7" />-->
+
+<!--            </androidx.constraintlayout.widget.ConstraintLayout>-->
+
+<!--        </com.google.android.material.card.MaterialCardView>-->
+
+<!--        <RelativeLayout-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="match_parent"-->
+<!--            android:gravity="center"-->
+<!--            android:paddingStart="8dp"-->
+<!--            android:paddingEnd="12dp">-->
+
+<!--            <LinearLayout-->
+<!--                android:id="@+id/llBook"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:gravity="center">-->
+
+<!--                <ImageView-->
+<!--                    android:id="@+id/ivBook"-->
+<!--                    android:layout_width="25dp"-->
+<!--                    android:layout_height="25dp"-->
+<!--                    android:src="@drawable/ic_book"-->
+<!--                    android:layout_marginStart="12dp"-->
+<!--                    android:layout_marginEnd="4dp"-->
+<!--                    android:contentDescription="@string/booking_icon_desc" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvSpecializationCost"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    tools:text="5K"-->
+<!--                    android:textSize="17sp"-->
+<!--                    android:textStyle="bold"-->
+<!--                    android:textColor="@color/black_font_color"-->
+<!--                    android:layout_marginTop="-0.6dp"-->
+<!--                    android:layout_marginEnd="12dp" />-->
+
+<!--            </LinearLayout>-->
+
+<!--            <LinearLayout-->
+<!--                android:id="@+id/llStatusBooking"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:orientation="horizontal"-->
+<!--                android:gravity="center"-->
+<!--                android:layout_centerHorizontal="true"-->
+<!--                android:layout_below="@id/llBook"-->
+<!--                android:layout_marginTop="10dp"-->
+<!--                android:background="@drawable/background_disable_btn_book"-->
+<!--                android:paddingVertical="8dp">-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/tvBooking"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="@string/booking_text"-->
+<!--                    android:textSize="11.5sp"-->
+<!--                    android:textStyle="bold"-->
+<!--                    android:layout_marginTop="-0.6dp"-->
+<!--                    android:layout_marginStart="12dp"-->
+<!--                    android:layout_marginEnd="10dp"-->
+<!--                    android:textColor="@color/charcoal_grey_background" />-->
+
+<!--            </LinearLayout>-->
+<!--        </RelativeLayout>-->
+
+<!--    </LinearLayout>-->
+
+<!--</com.google.android.material.card.MaterialCardView>-->

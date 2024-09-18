@@ -10,6 +10,8 @@ data class UserRolesData(
     @get:PropertyName("admin_ref") @set:PropertyName("admin_ref") var adminRef: String = "",
     @get:PropertyName("customer_provider") @set:PropertyName("customer_provider") var customerProvider: String = "",
     @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = "",
+    @get:PropertyName("employee_provider") @set:PropertyName("employee_provider") var employeeProvider: String = "",
+    @get:PropertyName("employee_ref") @set:PropertyName("employee_ref") var employeeRef: String = "",
     @get:PropertyName("role") @set:PropertyName("role") var role: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
 ) : Parcelable

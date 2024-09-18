@@ -12,7 +12,7 @@ import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListServiceProvideAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutServiceProvideBinding
 
-class ItemListServiceAdapter : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
+class ItemListServiceProviceAdapter : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null

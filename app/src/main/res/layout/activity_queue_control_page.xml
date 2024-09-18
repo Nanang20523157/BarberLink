@@ -56,7 +56,7 @@
                     android:layout_marginStart="4dp"
                     app:cardCornerRadius="8dp"
                     app:cardElevation="0dp"
-                    android:backgroundTint="@color/light_grey_horizons_background"
+                    android:backgroundTint="@color/charcoal_grey_background"
                     app:layout_constraintHorizontal_chainStyle="spread_inside"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
@@ -67,6 +67,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/tgl_label"
+                        android:textColor="@color/green_lime_wf"
                         android:textSize="14.5sp"
                         android:textStyle="bold"
                         android:paddingVertical="10dp"
@@ -87,15 +88,54 @@
                     app:layout_constraintStart_toEndOf="@id/cvDateLabel"
                     app:layout_constraintEnd_toStartOf="@id/cvMonthValue">
 
-                    <TextView
-                        android:id="@+id/tvDateValue"
+                    <FrameLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        tools:text="05"
-                        android:textSize="14.5sp"
-                        android:textStyle="bold"
-                        android:paddingVertical="10dp"
-                        android:paddingHorizontal="25dp"/>
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:id="@+id/tvDateValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            tools:text="05"
+                            android:textSize="14.5sp"
+                            android:textStyle="bold"
+                            android:paddingVertical="10dp"
+                            android:paddingHorizontal="25dp"
+                            android:visibility="visible"/>
+
+                        <com.facebook.shimmer.ShimmerFrameLayout
+                            android:id="@+id/shimmerDate"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            app:shimmer_auto_start="true"
+                            app:shimmer_base_alpha="0.7"
+                            android:visibility="gone"
+                            android:layout_gravity="center"
+                            app:shimmer_direction="left_to_right"
+                            app:shimmer_duration="500"
+                            app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                            app:shimmer_repeat_delay="500"
+                            app:shimmer_shape="linear"
+                            app:shimmer_tilt="0">
+
+                            <TextView
+                                android:id="@+id/tvShimmerDateValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/shimmer_corner_lima_dp_300"
+                                android:layout_gravity="center"
+                                android:text="05"
+                                android:textColor="@color/grey_300"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="4dp"
+                                android:paddingHorizontal="19dp"
+                                android:layout_marginVertical="6dp"
+                                android:layout_marginHorizontal="6dp"/>
+
+                        </com.facebook.shimmer.ShimmerFrameLayout>
+
+                    </FrameLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -112,15 +152,54 @@
                     app:layout_constraintStart_toEndOf="@id/cvDateValue"
                     app:layout_constraintEnd_toStartOf="@id/cvYearValue">
 
-                    <TextView
-                        android:id="@+id/tvMonthValue"
+                    <FrameLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        tools:text="Mei"
-                        android:textSize="14.5sp"
-                        android:textStyle="bold"
-                        android:paddingVertical="10dp"
-                        android:paddingHorizontal="25dp"/>
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:id="@+id/tvMonthValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            tools:text="Mei"
+                            android:textSize="14.5sp"
+                            android:textStyle="bold"
+                            android:paddingVertical="10dp"
+                            android:paddingHorizontal="25dp"
+                            android:visibility="visible"/>
+
+                        <com.facebook.shimmer.ShimmerFrameLayout
+                            android:id="@+id/shimmerMonth"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            app:shimmer_auto_start="true"
+                            app:shimmer_base_alpha="0.7"
+                            android:layout_gravity="center"
+                            android:visibility="gone"
+                            app:shimmer_direction="left_to_right"
+                            app:shimmer_duration="500"
+                            app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                            app:shimmer_repeat_delay="500"
+                            app:shimmer_shape="linear"
+                            app:shimmer_tilt="0">
+
+                            <TextView
+                                android:id="@+id/tvShimmerMonthValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/shimmer_corner_lima_dp_300"
+                                android:layout_gravity="center"
+                                android:text="Mei"
+                                android:textColor="@color/grey_300"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="4dp"
+                                android:paddingHorizontal="19dp"
+                                android:layout_marginVertical="6dp"
+                                android:layout_marginHorizontal="6dp"/>
+
+                        </com.facebook.shimmer.ShimmerFrameLayout>
+
+                    </FrameLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -138,15 +217,54 @@
                     app:layout_constraintStart_toEndOf="@id/cvMonthValue"
                     app:layout_constraintEnd_toEndOf="parent">
 
-                    <TextView
-                        android:id="@+id/tvYearValue"
+                    <FrameLayout
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        tools:text="2020"
-                        android:textSize="14.5sp"
-                        android:textStyle="bold"
-                        android:paddingVertical="10dp"
-                        android:paddingHorizontal="25dp"/>
+                        android:layout_height="wrap_content">
+
+                        <TextView
+                            android:id="@+id/tvYearValue"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            tools:text="2020"
+                            android:textSize="14.5sp"
+                            android:textStyle="bold"
+                            android:paddingVertical="10dp"
+                            android:paddingHorizontal="25dp"
+                            android:visibility="visible"/>
+
+                        <com.facebook.shimmer.ShimmerFrameLayout
+                            android:id="@+id/shimmerYear"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            app:shimmer_auto_start="true"
+                            app:shimmer_base_alpha="0.7"
+                            android:layout_gravity="center"
+                            android:visibility="gone"
+                            app:shimmer_direction="left_to_right"
+                            app:shimmer_duration="500"
+                            app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                            app:shimmer_repeat_delay="500"
+                            app:shimmer_shape="linear"
+                            app:shimmer_tilt="0">
+
+                            <TextView
+                                android:id="@+id/tvShimmerYearValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/shimmer_corner_lima_dp_300"
+                                android:layout_gravity="center"
+                                android:text="2020"
+                                android:textColor="@color/grey_300"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="4dp"
+                                android:paddingHorizontal="19dp"
+                                android:layout_marginVertical="6dp"
+                                android:layout_marginHorizontal="6dp"/>
+
+                        </com.facebook.shimmer.ShimmerFrameLayout>
+
+                    </FrameLayout>
 
                 </com.google.android.material.card.MaterialCardView>
 
@@ -179,14 +297,14 @@
                 android:textStyle="bold"
                 android:textColor="@color/black_font_color"
                 android:layout_below="@id/containerInjectLayoutTop"
-                android:layout_marginStart="9dp"
-                android:layout_marginTop="7dp"/>
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="9dp"/>
 
             <LinearLayout
                 android:id="@+id/seeAllQueue"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="18dp"
+                android:layout_marginEnd="12dp"
                 android:gravity="center_vertical"
                 android:layout_alignTop="@id/tvLabelListQueue"
                 android:layout_alignBottom="@id/tvLabelListQueue"
@@ -210,7 +328,7 @@
             </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvListQueueNumber"
+                android:id="@+id/rvListQueue"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/tvLabelListQueue"
@@ -219,32 +337,142 @@
                 tools:listitem="@layout/item_list_number_queue_adapter"
                 android:orientation="horizontal"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                android:paddingHorizontal="16.5dp"
                 android:layout_marginTop="2dp"
-                android:layout_marginStart="-16dp"
-                android:layout_marginEnd="-16dp"
+                android:layout_marginEnd="7dp"
+                android:clipToPadding="false"
                 android:clipChildren="false"
-                android:clipToPadding="false" />
+                android:paddingHorizontal="4dp"/>
+
+            <RelativeLayout
+                android:id="@+id/rvBundlings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="7dp"
+                android:layout_below="@id/rvListQueue">
+
+                <TextView
+                    android:id="@+id/tvLabelPaketBundling"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_list_paket_bundling"
+                    android:layout_marginStart="10dp"
+                    android:layout_marginTop="6dp"
+                    android:visibility="visible"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black_font_color"
+                    android:layout_gravity="center"/>
+
+                <LinearLayout
+                    android:id="@+id/seeAllPaketBundling"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignTop="@+id/tvLabelPaketBundling"
+                    android:layout_alignBottom="@+id/tvLabelPaketBundling"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginEnd="5dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="1.5dp"
+                        android:layout_marginEnd="2dp"
+                        android:fontFamily="@font/arial_regular"
+                        android:text="@string/see_more"
+                        android:textColor="@color/black_font_color"
+                        android:textSize="11.5sp" />
+
+                    <ImageView
+                        android:layout_width="14dp"
+                        android:layout_height="14dp"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginTop="2.5dp"
+                        android:src="@drawable/ic_see_all" />
+
+                </LinearLayout>
+
+                <!-- RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvListPaketBundling"
+                    android:layout_width="match_parent"
+                    android:layout_height="155dp"
+                    android:layout_below="@id/tvLabelPaketBundling"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_list_package_booking_adapter"
+                    android:orientation="horizontal"
+                    android:visibility="visible"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:paddingHorizontal="2dp"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    android:nestedScrollingEnabled="true"/>
+
+            </RelativeLayout>
 
             <TextView
-                android:id="@+id/tvLabelOrderCustomer"
+                android:id="@+id/tvLabelListService"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/label_details_order_without_colon"
-                android:layout_marginStart="9dp"
-                android:layout_marginTop="5dp"
-                android:layout_below="@id/rvListQueueNumber"
+                android:text="@string/label_list_service"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="0dp"
+                android:layout_below="@id/rvBundlings"
                 android:textSize="17sp"
                 android:textStyle="bold"
                 android:textColor="@color/black_font_color"
                 android:layout_gravity="center"/>
 
+            <!--            <TextView-->
+            <!--                android:id="@+id/tvNumberOfItems"-->
+            <!--                android:layout_width="wrap_content"-->
+            <!--                android:layout_height="wrap_content"-->
+            <!--                android:text="@string/number_of_total_items_template"-->
+            <!--                android:textSize="11sp"-->
+            <!--                android:layout_marginTop="9dp"-->
+            <!--                android:layout_marginBottom="10dp"-->
+            <!--                android:layout_marginStart="25dp"-->
+            <!--                android:layout_marginEnd="18dp"-->
+            <!--                android:fontFamily="@font/arial_medium"-->
+            <!--                android:textColor="@color/black_font_color"-->
+            <!--                android:layout_below="@id/rvBundlings"-->
+            <!--                android:layout_alignParentEnd="true"/>-->
+
+            <LinearLayout
+                android:id="@+id/seeAllListService"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="12dp"
+                android:layout_alignParentEnd="true"
+                android:layout_alignTop="@id/tvLabelListService"
+                android:layout_alignBottom="@id/tvLabelListService">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="2dp"
+                    android:layout_marginTop="2.5dp"
+                    android:layout_gravity="center_vertical"
+                    android:fontFamily="@font/arial_regular"
+                    android:text="@string/see_more"
+                    android:textColor="@color/black_font_color"
+                    android:textSize="11.5sp" />
+
+                <ImageView
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginTop="3.5dp"
+                    android:src="@drawable/ic_see_all" />
+
+            </LinearLayout>
+
             <!-- RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvListOrderItems"
+                android:id="@+id/rvListServices"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_below="@id/tvLabelOrderCustomer"
+                android:layout_below="@id/tvLabelListService"
                 android:layout_toStartOf="@id/containerInjectLayoutMid"
                 android:layout_alignBottom="@+id/containerInjectLayoutMid"
                 tools:itemCount="3"
@@ -278,41 +506,25 @@
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvNumberOfItems"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/number_of_total_items_template"
-                android:textSize="11sp"
-                android:layout_marginTop="15dp"
-                android:layout_marginBottom="10dp"
-                android:layout_marginStart="25dp"
-                android:layout_marginEnd="18dp"
-                android:fontFamily="@font/arial_medium"
-                android:textColor="@color/black_font_color"
-                android:layout_below="@id/rvListQueueNumber"
-                android:layout_alignParentEnd="true"/>
-
             <FrameLayout
                 android:id="@+id/containerInjectLayoutMid"
                 android:layout_width="155dp"
                 android:layout_height="162dp"
-                android:layout_below="@id/tvNumberOfItems"
+                android:layout_below="@id/seeAllListService"
                 android:clipToPadding="false"
                 android:clipChildren="false"
+                android:layout_marginTop="9dp"
                 android:layout_marginStart="2dp"
-                android:layout_marginEnd="7dp"
+                android:layout_marginEnd="2dp"
                 android:layout_alignParentEnd="true">
 
                 <include
                     android:id="@+id/shimmerLayoutCapster"
-                    layout="@layout/shimmer_layout_queue_control_capster"
-                    android:visibility="visible"/>
+                    layout="@layout/shimmer_layout_queue_control_capster" />
 
                 <include
                     android:id="@+id/realLayoutCapster"
-                    layout="@layout/real_layout_queue_control_capster"
-                    android:visibility="visible"/>
+                    layout="@layout/real_layout_queue_control_capster" />
 
             </FrameLayout>
 
@@ -320,7 +532,7 @@
                 android:id="@+id/containerBtnAction"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="13dp"
                 android:paddingHorizontal="4dp"
                 android:orientation="horizontal"
                 android:clipToPadding="false"
@@ -328,9 +540,9 @@
                 android:layout_below="@id/containerInjectLayoutMid">
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="195dp"
+                    android:layout_width="208dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="7dp"
+                    android:layout_marginStart="4dp"
                     app:cardCornerRadius="10dp"
                     app:cardElevation="0dp"
                     android:visibility="visible"
@@ -343,8 +555,8 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.card.MaterialCardView
-                            android:id="@+id/btnDisplayALl"
-                            android:layout_width="130dp"
+                            android:id="@+id/btnEdit"
+                            android:layout_width="142dp"
                             android:layout_height="match_parent"
                             app:cardCornerRadius="7dp"
                             app:cardElevation="0.5dp"
@@ -355,33 +567,34 @@
                             android:backgroundTint="@color/silver_grey">
 
                             <ImageView
-                                android:id="@+id/ivDisplayALl"
+                                android:id="@+id/ivEdit"
                                 android:layout_width="28dp"
                                 android:layout_height="28dp"
                                 android:visibility="visible"
+                                android:padding="2dp"
                                 android:layout_marginEnd="5dp"
-                                android:layout_marginStart="9dp"
-                                android:src="@drawable/ic_display_all"
+                                android:layout_marginStart="8dp"
+                                android:src="@drawable/ic_edit"
                                 android:layout_gravity="center_vertical" />
 
                             <TextView
-                                android:id="@+id/tvDisplayAll"
+                                android:id="@+id/tvEdit"
                                 android:layout_width="match_parent"
                                 android:layout_height="27dp"
-                                android:text="@string/display_text"
+                                android:text="@string/edit_order"
                                 android:gravity="center"
-                                android:textSize="10sp"
+                                android:textSize="11sp"
                                 android:textColor="@color/black"
-                                android:background="@drawable/background_btn_control"
+                                android:background="@drawable/background_btn_execution"
                                 android:textStyle="bold"
-                                android:layout_marginStart="41dp"
+                                android:layout_marginStart="40dp"
                                 android:layout_marginEnd="10dp"
                                 android:layout_gravity="center_vertical" />
 
                         </com.google.android.material.card.MaterialCardView>
 
                         <com.google.android.material.card.MaterialCardView
-                            android:id="@+id/btnEditOrder"
+                            android:id="@+id/btnChatCustomer"
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="match_parent"
@@ -393,13 +606,13 @@
                             android:backgroundTint="@color/silver_grey">
 
                             <ImageView
-                                android:id="@+id/ivEditOrder"
+                                android:id="@+id/ivChatCustomer"
                                 android:layout_width="30dp"
                                 android:layout_height="30dp"
                                 android:layout_margin="4dp"
-                                android:padding="3.5dp"
+                                android:padding="3dp"
                                 android:visibility="visible"
-                                android:src="@drawable/ic_pen"
+                                android:src="@drawable/ic_chat"
                                 android:layout_gravity="center_vertical" />
 
                         </com.google.android.material.card.MaterialCardView>
@@ -409,10 +622,10 @@
                 </com.google.android.material.card.MaterialCardView>
 
                 <com.google.android.material.card.MaterialCardView
-                    android:layout_width="150dp"
+                    android:layout_width="140dp"
                     android:layout_height="match_parent"
                     app:cardCornerRadius="10dp"
-                    android:layout_marginStart="13dp"
+                    android:layout_marginStart="17dp"
                     app:cardElevation="0dp"
                     android:visibility="visible"
                     android:backgroundTint="@color/light_grey_horizons_background">
@@ -425,7 +638,7 @@
 
                         <com.google.android.material.card.MaterialCardView
                             android:id="@+id/btnSwitchCapster"
-                            android:layout_width="49dp"
+                            android:layout_width="40dp"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
                             app:cardCornerRadius="7dp"
@@ -443,7 +656,7 @@
                                 android:visibility="visible"
                                 android:padding="1dp"
                                 android:layout_marginEnd="5dp"
-                                android:layout_marginStart="7dp"
+                                android:layout_marginStart="8dp"
                                 android:src="@drawable/ic_switch"
                                 android:layout_gravity="center_vertical" />
 
@@ -453,9 +666,9 @@
                                 android:layout_height="26dp"
                                 android:text="@string/switch_text"
                                 android:gravity="center"
-                                android:textSize="10sp"
+                                android:textSize="11sp"
                                 android:textColor="@color/black"
-                                android:background="@drawable/background_btn_control"
+                                android:background="@drawable/background_btn_execution"
                                 android:textStyle="bold"
                                 android:layout_marginStart="41dp"
                                 android:layout_marginEnd="10dp"

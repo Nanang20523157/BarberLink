@@ -103,7 +103,7 @@ class ItemListOutletAdapter(
                 tvTagLine.text = root.context.getString(R.string.tag_line_barber_template, outlet.taglineOrDesc)
                 tvRating.text = outlet.outletRating.toString()
                 tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
-                tvPhoneNumber.text = root.context.getString(R.string.template_telp, outlet.outletPhoneNumber)
+                tvPhoneNumber.text = root.context.getString(R.string.phone_template, outlet.outletPhoneNumber)
                 if (outlet.activeDevices > 0) {
                     tvStatusActive.text = root.context.getString(R.string.code_access_state_active_value)
                     tvStatusActive.setTextColor(root.context.getColor(R.color.green_btn))

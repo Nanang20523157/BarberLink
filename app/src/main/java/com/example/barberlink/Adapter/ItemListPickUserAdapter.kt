@@ -1,6 +1,7 @@
 package com.example.barberlink.Adapter
 
 import Employee
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.appcompat.content.res.AppCompatResources
@@ -86,11 +87,13 @@ class ItemListPickUserAdapter(
 
             with(binding) {
                 tvEmployeeName.text = employee.fullname
-                tvUsername.text = root.context.getString(R.string.username_template, employee.username)
+                val username = employee.username.ifEmpty { "---" }
+                tvUsername.text = root.context.getString(R.string.username_template, username)
                 tvRating.text = employee.employeeRating.toString()
                 tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
 
-                setUserGander(employee.gender)
+                Log.d("Gender", "Gender: ${employee.gender}")
+                setUserGender(employee.gender)
                 setUserRole(employee.role)
 
                 if (employee.photoProfile.isNotEmpty()) {
@@ -100,6 +103,9 @@ class ItemListPickUserAdapter(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .into(ivPhotoProfile)
+                } else {
+                    // Jika photoProfile kosong atau null, atur gambar default
+                    ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
                 }
 
                 root.setOnClickListener {
@@ -109,65 +115,92 @@ class ItemListPickUserAdapter(
 
         }
 
-        private fun setUserGander(gander: String) {
+        private fun setUserGender(gender: String) {
             with(binding) {
-                if (gander === "Laki-laki") {
-                    // Mengatur margin negatif dan positif dalam kode program
-                    val layoutParams = tvGander.layoutParams as ViewGroup.MarginLayoutParams
+                val density = root.resources.displayMetrics.density
+                val tvGenderLayoutParams = tvGender.layoutParams as ViewGroup.MarginLayoutParams
+                val ivGenderLayoutParams = ivGender.layoutParams as ViewGroup.MarginLayoutParams
 
-                    // Mengatur margin top dan bottom
-                    layoutParams.setMargins(
-                        (2 * root.resources.displayMetrics.density).toInt(),
-                        (0* root.resources.displayMetrics.density).toInt(),
-                        (3 * root.resources.displayMetrics.density).toInt(),
-                        (0 * root.resources.displayMetrics.density).toInt()
-                    )
-                    tvGander.layoutParams = layoutParams
-                    tvGander.text = root.context.getString(R.string.male)
-                    llGander.background = AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.gander_masculine_background
-                    )
-                    ivGender.setImageDrawable(AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.ic_male
-                    ))
-                } else if (gander === "Perempuan") {
-                    // Mengatur margin negatif dan positif dalam kode program
-                    val layoutParams = tvGander.layoutParams as ViewGroup.MarginLayoutParams
-
-                    // Mengatur margin top dan bottom
-                    layoutParams.setMargins(
-                        (2 * root.resources.displayMetrics.density).toInt(),
-                        (-0.5 * root.resources.displayMetrics.density).toInt(),
-                        (3 * root.resources.displayMetrics.density).toInt(),
-                        (0.1 * root.resources.displayMetrics.density).toInt()
-                    )
-                    tvGander.layoutParams = layoutParams
-                    tvGander.text = root.context.getString(R.string.female)
-                    llGander.background = AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.gander_feminime_background
-                    )
-                    ivGender.setImageDrawable(AppCompatResources.getDrawable(
-                        root.context,
-                        R.drawable.ic_female
-                    ))
+                when (gender) {
+                    "Laki-laki" -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (2 * density).toInt(),
+                            (0 * density).toInt(),
+                            (3 * density).toInt(),
+                            (0 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.male)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.black_font_color))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_masculine_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_male)
+                        )
+                        // Mengatur margin start ivGender menjadi 0
+                        ivGenderLayoutParams.marginStart = 0
+                    }
+                    "Perempuan" -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (2 * density).toInt(),
+                            (-0.5 * density).toInt(),
+                            (3 * density).toInt(),
+                            (0.1 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.female)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.black_font_color))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_feminime_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_female)
+                        )
+                        // Mengatur margin start menjadi 0
+                        ivGenderLayoutParams.marginStart = 0
+                    }
+                    else -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (3.5 * density).toInt(),
+                            (-0.5 * density).toInt(),
+                            (3 * density).toInt(),
+                            (0.1 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.unknown)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.dark_black_gradation))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_unknown_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_unknown)
+                        )
+                        // Mengatur margin start menjadi 1
+                        ivGenderLayoutParams.marginStart = (1 * density).toInt()
+                    }
                 }
+
+                // Memastikan layoutParams diupdate setelah diatur
+                tvGender.layoutParams = tvGenderLayoutParams
+                ivGender.layoutParams = ivGenderLayoutParams
             }
         }
 
         private fun setUserRole(role: String) {
             with(binding) {
                 tvRole.text = role
-                if (role === "Capster") {
+                if (role == "Capster") {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
-                } else if (role === "Kasir") {
+                } else if (role == "Kasir") {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
-                } else if (role === "Keamanan") {
+                } else if (role == "Keamanan") {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
-                } else if (role === "Administrator") {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.red_role))
+                } else if (role == "Administrator") {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
                 }
             }
 

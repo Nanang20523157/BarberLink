@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        app:cardElevation="2dp"
+        app:cardElevation="0.5dp"
         app:cardCornerRadius="20dp"
         app:cardBackgroundColor="@color/light_grey_horizons_background">
 
@@ -34,7 +34,7 @@
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="175dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="110.5dp"
                     android:orientation="vertical"
                     android:padding="20dp"
                     android:layout_gravity="center">
@@ -86,7 +86,7 @@
                     <LinearLayout
                         android:id="@+id/llOutletDetails"
                         android:layout_width="0dp"
-                        android:layout_height="wrap_content"
+                        android:layout_height="0dp"
                         android:layout_marginStart="10dp"
                         android:layout_marginEnd="5dp"
                         android:layout_weight="1"
@@ -94,7 +94,8 @@
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintHorizontal_bias="0.0"
                         app:layout_constraintStart_toEndOf="@id/ivIconService"
-                        app:layout_constraintTop_toTopOf="@id/ivIconService">
+                        app:layout_constraintTop_toTopOf="@id/ivIconService"
+                        app:layout_constraintBottom_toBottomOf="parent">
 
                         <TextView
                             android:id="@+id/tvServiceName"
@@ -111,10 +112,9 @@
                         <TextView
                             android:id="@+id/tvServiceDescription"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_marginStart="1.5dp"
                             android:ellipsize="end"
-                            android:maxLines="3"
                             tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor"
                             android:textColor="@color/black"
                             android:textSize="10.5sp"
@@ -160,6 +160,7 @@
                         android:textStyle="bold" />
 
                     <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/btnCardCounter"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         app:cardElevation="0dp"
@@ -204,7 +205,7 @@
                                 android:id="@+id/quantityTextView"
                                 android:layout_width="0dp"
                                 android:layout_height="match_parent"
-                                tools:text="200"
+                                tools:text="200x"
                                 android:textColor="@color/magenta"
                                 android:paddingStart="1dp"
                                 android:paddingEnd="0dp"
@@ -252,6 +253,47 @@
                         android:backgroundTint="@android:color/transparent"
                         app:strokeColor="@color/charcoal_grey_background"
                         app:strokeWidth="1.5dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/btnDefault"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:cardElevation="0dp"
+                        android:gravity="center"
+                        android:visibility="gone"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
+                        app:strokeColor="@color/black_font_color"
+                        android:layout_gravity="center_vertical"
+                        app:cardCornerRadius="40dp">
+
+                        <LinearLayout
+                            android:layout_width="75dp"
+                            android:layout_height="25dp"
+                            android:orientation="horizontal"
+                            android:gravity="center"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            android:layout_gravity="center_vertical"
+                            android:background="@drawable/background_bottom_root_counter">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:text="Terpilih"
+                                android:textColor="@color/magenta"
+                                android:paddingStart="1dp"
+                                android:paddingEnd="0dp"
+                                android:textSize="10sp"
+                                android:layout_gravity="center_vertical"
+                                android:layout_weight="1"
+                                android:textStyle="bold"
+                                android:background="@color/black_font_color"
+                                android:gravity="center" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
 
                 </FrameLayout>
 
