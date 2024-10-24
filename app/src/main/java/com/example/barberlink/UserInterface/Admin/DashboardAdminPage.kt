@@ -88,7 +88,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
     private var numberOfProcessQueue: Int = 0
     private var numberOfSkippedQueue: Int = 0
     private var numberOfCompletedOrders: Int = 0
-    private var numberOfOrdersCancelled: Int = 0
+    private var numberOfOrdersCanceled: Int = 0
     private var numberOfIncomingOrders: Int = 0
     private var numberOfOrdersReturn: Int = 0
     private var numberOfOrdersPacked: Int = 0
@@ -229,7 +229,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         }
     }
 
-    fun updateCardCornerRadius(calendarCardView: CardView, isDaily: Boolean) {
+    private fun updateCardCornerRadius(calendarCardView: CardView, isDaily: Boolean) {
         // Tentukan corner radius berdasarkan nilai isDaily
         val cornerRadiusInDp = if (isDaily) 18f else 14f
 
@@ -408,7 +408,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         numberOfOrdersReturn = 0
         numberOfOrdersPacked = 0
         numberOfOrdersShipped = 0
-        numberOfOrdersCancelled = 0
+        numberOfOrdersCanceled = 0
         numberOfIncomingOrders = 0
         amountProductRevenue = 0
         shareProfitProduct = 0
@@ -450,8 +450,12 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                 }
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull {
-                                doc -> doc.toObject(Outlet::class.java)
+                        val outlets = it.mapNotNull { doc ->
+                            // Get the outlet object from the document
+                            val outlet = doc.toObject(Outlet::class.java)
+                            // Assign the document reference path to outletReference
+                            outlet.outletReference = doc.reference.path
+                            outlet // Return the modified outlet
                         }
                         outletsList.clear()
                         outletsList.addAll(outlets)
@@ -617,7 +621,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                 "returned" -> numberOfOrdersReturn++
                 "packaging" -> numberOfOrdersPacked++
                 "shipping" -> numberOfOrdersShipped++
-                "cancelled" -> numberOfOrdersCancelled++
+                "canceled" -> numberOfOrdersCanceled++
                 "incoming" -> numberOfIncomingOrders++
             }
             if (sale.paymentDetail.paymentStatus && sale.orderStatus == "completed") {
@@ -831,7 +835,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             realLayoutReport.tvCancelQueueValue.text = numberOfCanceledQueue.toString()
 
             realLayoutReport.successOrderCounting.text = numberOfCompletedOrders.toString()
-            realLayoutReport.cancelOrderCounting.text = numberOfOrdersCancelled.toString()
+            realLayoutReport.cancelOrderCounting.text = numberOfOrdersCanceled.toString()
             realLayoutReport.incomingOrderCounting.text = numberOfIncomingOrders.toString()
             realLayoutReport.returnOrderCounting.text = numberOfOrdersReturn.toString()
             realLayoutReport.packagingOrderCounting.text = numberOfOrdersPacked.toString()

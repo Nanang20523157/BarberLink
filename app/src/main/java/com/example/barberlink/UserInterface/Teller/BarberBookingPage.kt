@@ -13,7 +13,6 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
@@ -21,6 +20,7 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
@@ -28,9 +28,11 @@ import com.example.barberlink.Adapter.ItemListCustomerAdapter
 import com.example.barberlink.Adapter.ItemListPackageBookingAdapter
 import com.example.barberlink.Adapter.ItemListServiceBookingAdapter
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.Helper.Injection
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
 import com.example.barberlink.UserInterface.Teller.Fragment.AddNewCustomerFragment
-import com.example.barberlink.UserInterface.Teller.ViewModel.BookingPageViewModel
+import com.example.barberlink.UserInterface.Teller.ViewModel.SharedViewModel
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.PhoneUtils
@@ -54,26 +56,32 @@ import java.util.Locale
 
 class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCustomerAdapter.OnItemClicked, ItemListPackageBookingAdapter.OnItemClicked, ItemListServiceBookingAdapter.OnItemClicked {
     private lateinit var binding: ActivityBarberBookingPageBinding
-    private val bookingPageViewModel: BookingPageViewModel by viewModels()
+    private lateinit var bookingPageViewModel: SharedViewModel
+    private lateinit var viewModelFactory: ViewModelFactory
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: AddNewCustomerFragment
     private lateinit var outletSelected: Outlet
     private lateinit var capsterSelected: Employee
     private lateinit var timeSelected: Timestamp
     private lateinit var customerData: UserCustomerData
+    private lateinit var customerGuestAccount: UserCustomerData
     private var keyword: String = ""
     private var isNavigating = false
+    private var isFirstLoad = true
     private var currentView: View? = null
     private var todayDate: String = ""
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val servicesList = mutableListOf<Service>()
-    private val bundlingPackagesList = mutableListOf<BundlingPackage>()
-    private val filteredCustomerList = mutableListOf<UserCustomerData>()
+    // private val servicesList = mutableListOf<Service>()
+    // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
+    // private val filteredCustomerList = mutableListOf<UserCustomerData>()
     private var customerList = mutableListOf<UserCustomerData>()
     private lateinit var serviceAdapter: ItemListServiceBookingAdapter
-    private lateinit var customerAdapter: ItemListCustomerAdapter
     private lateinit var bundlingAdapter: ItemListPackageBookingAdapter
+    private lateinit var customerAdapter: ItemListCustomerAdapter
     private lateinit var outletListener: ListenerRegistration
+    private lateinit var serviceListener: ListenerRegistration
+    private lateinit var bundlingListener: ListenerRegistration
+    private lateinit var customerListener: ListenerRegistration
     private var shouldClearBackStack = true
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -83,6 +91,10 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         setContentView(binding.root)
         fragmentManager = supportFragmentManager
 
+        // Inisialisasi ViewModel menggunakan custom ViewModelFactory
+        viewModelFactory = Injection.provideViewModelFactory()
+        bookingPageViewModel = ViewModelProvider(this, viewModelFactory)[SharedViewModel::class.java]
+
         // Receive the intent data
         outletSelected = intent.getParcelableExtra(QueueTrackerPage.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
         capsterSelected = intent.getParcelableExtra(QueueTrackerPage.CAPSTER_DATA_KEY, Employee::class.java) ?: Employee()
@@ -90,9 +102,16 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         val timeSelectedNanos = intent.getIntExtra(QueueTrackerPage.TIME_NANOS_KEY, 0)
         setDateFilterValue(Timestamp(timeSelectedSeconds, timeSelectedNanos))
 
+        customerGuestAccount = UserCustomerData(
+            fullname = "Akun Pengunjung",
+            phone = outletSelected.outletPhoneNumber,
+            lastReserve = Timestamp.now(),
+            guestAccount = true
+        )
+        customerData = customerGuestAccount
         init()
         getAllData()
-        listenToOutletData()
+        setupListener()
 
         supportFragmentManager.setFragmentResultListener("customer_result_data", this) { _, bundle ->
             val customerData = bundle.getParcelable<UserCustomerData>("customer_data")
@@ -122,6 +141,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
         bookingPageViewModel.itemSelectedCounting.observe(this) {
             setDataToBottomPopUp(it)
+            Log.d("LifeAct", "observer: $it")
             displayBottomPopUp(it)
         }
 
@@ -185,10 +205,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private fun init() {
         with(binding) {
             serviceAdapter = ItemListServiceBookingAdapter(this@BarberBookingPage, false)
+            serviceAdapter.setCapsterRef(capsterSelected.userRef)
             rvListServices.layoutManager = GridLayoutManager(this@BarberBookingPage, 2, GridLayoutManager.VERTICAL, false)
             rvListServices.adapter = serviceAdapter
 
             bundlingAdapter = ItemListPackageBookingAdapter(this@BarberBookingPage, false)
+            bundlingAdapter.setCapsterRef(capsterSelected.userRef)
             rvListPaketBundling.layoutManager = LinearLayoutManager(this@BarberBookingPage, LinearLayoutManager.HORIZONTAL, false)
             rvListPaketBundling.adapter = bundlingAdapter
 
@@ -233,21 +255,16 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (result.size == 1) {
                 result[0].dataSelected = true
                 customerData = result[0]
+            } else {
+                // Jika customerData terinisialisasi, atur dataSelected = true pada customerData
+                if (::customerData.isInitialized) result.find { it.uid == customerData.uid }?.dataSelected = true
             }
 
-            // Jika query kosong dan customerData terinisialisasi, atur dataSelected = true pada customerData
-            if (lowerCaseQuery.isEmpty() && ::customerData.isInitialized) {
-                customerList.find { it.uid == customerData.uid }?.dataSelected = true
-            }
-
-            filteredCustomerList.apply {
-                clear()
-                addAll(result)
-            }
+            customerSelectedListener(customerData)
 
             withContext(Dispatchers.Main) {
-                customerAdapter.submitList(filteredCustomerList)
-                binding.tvEmptyCustomer.visibility = if (filteredCustomerList.isEmpty()) View.VISIBLE else View.GONE
+                customerAdapter.submitList(result)
+                binding.tvEmptyCustomer.visibility = if (result.isEmpty()) View.VISIBLE else View.GONE
                 if (withShimmer) customerAdapter.setShimmer(false)
                 else customerAdapter.notifyDataSetChanged()
             }
@@ -255,8 +272,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     private fun setDataToBottomPopUp(itemCount: Int) {
-        val totalPrice = servicesList.sumOf { it.serviceQuantity * it.priceToDisplay } +
-                bundlingPackagesList.sumOf { it.bundlingQuantity * it.priceToDisplay }
+        val totalPrice = (bookingPageViewModel.servicesList.value?.sumOf { it.serviceQuantity * it.priceToDisplay } ?: 0) +
+                (bookingPageViewModel.bundlingPackagesList.value?.sumOf { it.bundlingQuantity * it.priceToDisplay } ?: 0)
 
         with(binding) {
             tvTotalPrice.text = NumberUtils.numberToCurrency(totalPrice.toDouble())
@@ -264,10 +281,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
     }
 
-
     private fun displayAllData() {
-        serviceAdapter.submitList(servicesList)
-        bundlingAdapter.submitList(bundlingPackagesList)
+//        serviceAdapter.submitList(bookingPageViewModel.servicesList.value ?: mutableListOf())
+//        bundlingAdapter.submitList(bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf())
 
         val reviewCount = 2134
         with(binding) {
@@ -295,12 +311,27 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             setUserGender(capsterSelected.gender)
             realLayout.tvRestQueueFromCapster.text = NumberUtils.convertToFormattedString(capsterSelected.restOfQueue)
 
+            val  bundlingPackagesList = bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()
             tvLabelPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
             rvListPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
             seeAllPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
         }
 
+        bookingPageViewModel.bundlingPackagesList.observe(this) {
+            bundlingAdapter.submitList(it)
+            bundlingAdapter.notifyDataSetChanged()
+
+            binding.tvLabelPaketBundling.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
+            binding.rvListPaketBundling.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
+        }
+
+        bookingPageViewModel.servicesList.observe(this) {
+            serviceAdapter.submitList(it)
+            serviceAdapter.notifyDataSetChanged()
+        }
+
         showShimmer(false)
+        isFirstLoad = false
     }
 
     private fun setUserGender(gender: String) {
@@ -315,7 +346,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     tvGenderLayoutParams.setMargins(
                         (2 * density).toInt(),
                         (0 * density).toInt(),
-                        (3 * density).toInt(),
+                        (4 * density).toInt(),
                         (0 * density).toInt()
                     )
                     realLayout.tvGender.text = getString(R.string.male)
@@ -329,13 +360,17 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     )
                     // Mengatur margin start ivGender menjadi 0
                     ivGenderLayoutParams.marginStart = 0
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0.5 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayout.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                 }
                 "Perempuan" -> {
                     // Mengatur margin untuk tvGender
                     tvGenderLayoutParams.setMargins(
                         (2 * density).toInt(),
-                        (-0.5 * density).toInt(),
-                        (3 * density).toInt(),
+                        (-0.1 * density).toInt(),
+                        (4 * density).toInt(),
                         (0.1 * density).toInt()
                     )
                     realLayout.tvGender.text = getString(R.string.female)
@@ -349,16 +384,20 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     )
                     // Mengatur margin start ivGender menjadi 0
                     ivGenderLayoutParams.marginStart = 0
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0.5 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayout.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                 }
-                else -> {
+                "Rahasiakan" -> {
                     // Mengatur margin untuk tvGender
                     tvGenderLayoutParams.setMargins(
                         (3.5 * density).toInt(),
-                        (-0.5 * density).toInt(),
-                        (3 * density).toInt(),
-                        (0.1 * density).toInt()
+                        (0.1 * density).toInt(),
+                        (4 * density).toInt(),
+                        (0 * density).toInt()
                     )
-                    realLayout.tvGender.text = getString(R.string.unknown)
+                    realLayout.tvGender.text = getString(R.string.long_text_unknown)
                     realLayout.tvGender.setTextColor(ContextCompat.getColor(this@BarberBookingPage, R.color.dark_black_gradation))
                     realLayout.llGender.background = AppCompatResources.getDrawable(
                         this@BarberBookingPage,
@@ -369,6 +408,34 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     )
                     // Mengatur margin start ivGender menjadi 1
                     ivGenderLayoutParams.marginStart = (1 * density).toInt()
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayout.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
+                }
+                else -> {
+                    // Mengatur margin untuk tvGender
+                    tvGenderLayoutParams.setMargins(
+                        (3.5 * density).toInt(),
+                        (-0.5 * density).toInt(),
+                        (4 * density).toInt(),
+                        (0.1 * density).toInt()
+                    )
+                    realLayout.tvGender.text = getString(R.string.empty_user_gender)
+                    realLayout.tvGender.setTextColor(ContextCompat.getColor(this@BarberBookingPage, R.color.dark_black_gradation))
+                    realLayout.llGender.background = AppCompatResources.getDrawable(
+                        this@BarberBookingPage,
+                        R.drawable.gender_unknown_background
+                    )
+                    realLayout.ivGender.setImageDrawable(
+                        AppCompatResources.getDrawable(this@BarberBookingPage, R.drawable.ic_unknown)
+                    )
+                    // Mengatur margin start ivGender menjadi 1
+                    ivGenderLayoutParams.marginStart = (1 * density).toInt()
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayout.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                 }
             }
 
@@ -386,12 +453,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     private fun displayBottomPopUp(itemCount: Int) {
-        if (itemCount > 0) {
+        if (itemCount > 0 && binding.bottomSheetLayout.visibility == View.GONE) {
             // Display the bottom pop-up
             binding.bottomSheetLayout.visibility = View.VISIBLE
             // Update margin to 205dp
             updateFrameLayoutMargin(dpToPx(205)) // Convert 205dp to pixels
-        } else {
+        } else if (itemCount == 0) {
             // Hide the bottom pop-up
             binding.bottomSheetLayout.visibility = View.GONE
             // Update margin to 0dp
@@ -431,6 +498,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         binding.shimmerLayout.root.visibility = if (show) View.VISIBLE else View.GONE
     }
 
+    private fun setupListener() {
+        listenToOutletData()
+        listenToServicesData()
+        listenToBundlingPackagesData()
+    }
+
     // Listener untuk dokumen outletSelected
     private fun listenToOutletData() {
         outletListener = db.document(outletSelected.rootRef)
@@ -447,7 +520,10 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         // Simpan salinan data lama
                         val oldOutlet = outletSelected
                         Log.d("TriggerLL", "A ${oldOutlet.listCustomers}")
-                        val updatedOutlet = it.toObject(Outlet::class.java)
+                        val updatedOutlet = it.toObject(Outlet::class.java)?.apply {
+                            // Assign the document reference path to outletReference
+                            outletReference = it.reference.path
+                        }
                         if (updatedOutlet != null) {
                             // Update outletSelected dengan data baru
                             Log.d("TriggerLL", "=================")
@@ -467,13 +543,123 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                 updateBundlingList(updatedOutlet.listBundling)
                             }
 
-
                             outletSelected = updatedOutlet
                         }
 
                     }
                 }
             }
+    }
+
+    private fun listenToBundlingPackagesData() {
+        bundlingListener = db.collection("${outletSelected.rootRef}/bundling_packages")
+            .addSnapshotListener { snapshot, exception ->
+                if (exception != null) {
+                    Toast.makeText(this, "Error listening to bundling packages data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    return@addSnapshotListener
+                }
+
+                snapshot?.let {
+                    CoroutineScope(Dispatchers.Default).launch {
+                        if (!isFirstLoad) {
+                            val oldBundlingList = (bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()).toList()
+
+                            // Mengubah hasil snapshot menjadi daftar BundlingPackage dan memfilter berdasarkan listBundling
+                            val bundlingPackages = it.toObjects(BundlingPackage::class.java)
+                                .filter { bundling -> outletSelected.listBundling.contains(bundling.uid) } // Ganti it.u dengan bundling.uid
+
+                            Log.d("LifeAct", "listener bundling: ${bundlingPackages.size}")
+                            withContext(Dispatchers.Main) {
+                                bookingPageViewModel.replaceBundlingPackagesList(bundlingPackages.toMutableList(), capsterSelected, oldBundlingList)
+                            }
+
+                            // withContext(Dispatchers.Main) {
+                                // Update daftar bundling dan UI
+                                // val bundlingPackagesList = bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()
+                                // bundlingAdapter.submitList(bundlingPackagesList)
+                                // bundlingAdapter.notifyDataSetChanged()
+
+                                // Menyesuaikan visibilitas label dan RecyclerView
+                                // binding.tvLabelPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
+                                // binding.rvListPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
+                            // }
+                        }
+                    }
+                }
+            }
+    }
+
+    private fun listenToServicesData() {
+        serviceListener = db.collection("${outletSelected.rootRef}/services")
+            .addSnapshotListener { snapshot, exception ->
+                if (exception != null) {
+                    Toast.makeText(this, "Error listening to services data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    return@addSnapshotListener
+                }
+
+                snapshot?.let {
+                    CoroutineScope(Dispatchers.Default).launch {
+                        if (!isFirstLoad) {
+                            val oldServiceList = (bookingPageViewModel.servicesList.value ?: mutableListOf()).toList()
+
+                            // Mengubah hasil snapshot menjadi daftar Service dan memfilter berdasarkan listServices
+                            val services = it.toObjects(Service::class.java)
+                                .filter { service -> outletSelected.listServices.contains(service.uid) } // Ganti it.u dengan service.uid
+
+                            Log.d("LifeAct", "listener services: ${services.size}")
+                            withContext(Dispatchers.Main) {
+                                bookingPageViewModel.replaceServicesList(services.toMutableList(), capsterSelected, oldServiceList)
+                            }
+                            
+                            // withContext(Dispatchers.Main) {
+                                // Update daftar layanan dan UI
+                                // val servicesList = bookingPageViewModel.servicesList.value ?: mutableListOf()
+                                // serviceAdapter.submitList(servicesList)
+                                // serviceAdapter.notifyDataSetChanged()
+                            // }
+                        }
+                    }
+                }
+            }
+    }
+
+    private fun customerSelectedListener(customer: UserCustomerData) {
+        // Jika listener sudah diinisialisasi, hapus untuk mencegah listener duplikat
+        if (::customerListener.isInitialized) {
+            customerListener.remove()
+        }
+
+        // Periksa apakah customer tidak sama dengan customerGuestAccount dan UID tidak kosong
+        if (customer != customerGuestAccount && customer.uid.isNotEmpty()) {
+            // Inisialisasi customerListener dengan snapshot Firestore
+            customerListener = db.collection("customers")
+                .document(customer.uid)
+                .addSnapshotListener { snapshot, exception ->
+                    if (exception != null) {
+                        // Tampilkan pesan Toast jika ada error saat mendengarkan data customer
+                        Toast.makeText(this@BarberBookingPage, "Error listening to customer data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                        return@addSnapshotListener
+                    }
+
+                    snapshot?.let {
+                        CoroutineScope(Dispatchers.Default).launch {
+                            // Cek apakah dokumen customer ada
+                            if (snapshot.exists()) {
+                                val updatedCustomer = snapshot.toObject(UserCustomerData::class.java)?.apply {
+                                    // Set the userRef with the document path
+                                    userRef = snapshot.reference.path
+                                }
+                                updatedCustomer?.let {
+                                    Log.d("CustomerListener", "Customer data updated: ${it.fullname}")
+                                    // Lakukan sesuatu dengan data customer yang diperbarui di sini
+
+                                    customerData = it
+                                }
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     private fun <T> areListsEqual(list1: List<T>?, list2: List<T>?): Boolean {
@@ -517,11 +703,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
                 // Memperbarui customerList dengan sortedCustomerList
                 customerList.clear()
+                customerList.add(customerGuestAccount)
                 customerList.addAll(sortedCustomerList)
-                customerList.forEach {
-                    Log.d("CustomerInOutlet", "${it.uid} =========")
-                    Log.d("CustomerInOutlet", "CustomerInOutlet: ${it.fullname} - ${it.photoProfile}")
-                }
+//                customerList.forEach {
+//                    Log.d("CustomerInOutlet", "${it.uid} =========")
+//                    Log.d("CustomerInOutlet", "CustomerInOutlet: ${it.fullname} - ${it.photoProfile}")
+//                }
 
                 // Memanggil filterCustomer untuk memperbarui tampilan berdasarkan keyword
                 filterCustomer(keyword, false)
@@ -536,53 +723,33 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     // Fungsi untuk memperbarui daftar bundling
     private fun updateBundlingList(bundlings: List<String>) {
         CoroutineScope(Dispatchers.Default).launch {
-            val oldBundlingList = bundlingPackagesList.toList()
+            val oldBundlingList = (bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()).toList()
 
             try {
                 // Menggunakan getCollectionDataDeferred untuk mengambil data bundling secara asynchronous
-                getCollectionDataDeferred("${outletSelected.rootRef}/bundling_packages", bundlingPackagesList, "No bundling packages found", BundlingPackage::class.java, bundlings, false).await()
+                getCollectionDataDeferred(
+                    "${outletSelected.rootRef}/bundling_packages",
+                    null, // listToUpdate null karena ingin update di ViewModel
+                    "No bundling packages found",
+                    BundlingPackage::class.java,
+                    bundlings,
+                    true
+                ) { bundling ->
+                    Log.d("LifeAct", "update bundling: ${bundling.size}")
+                    bookingPageViewModel.replaceBundlingPackagesList(bundling.toMutableList(), capsterSelected, oldBundlingList)
+                }.await() // Lambda untuk update ViewModel
+                // getCollectionDataDeferred("${outletSelected.rootRef}/bundling_packages", bundlingPackagesList, "No bundling packages found", BundlingPackage::class.java, bundlings, false).await()
 
-                // Mengurutkan bundlingPackagesList
-                bundlingPackagesList.apply {
-                    forEach { bundling ->
-                        // Mempertahankan nilai bundlingQuantity dari daftar sebelumnya
-                        val existingBundling = oldBundlingList.find { it.uid == bundling.uid }
-                        if (existingBundling != null) {
-                            bundling.bundlingQuantity = existingBundling.bundlingQuantity
-                        }
-
-                        // Set serviceBundlingList
-                        val serviceBundlingList = servicesList.filter { service ->
-                            bundling.listItems.contains(service.uid)
-                        }
-                        bundling.listItemDetails = serviceBundlingList
-
-                        // Perhitungan results_share_format dan applyToGeneral pada bundling
-                        bundling.priceToDisplay = if (bundling.resultsShareFormat == "fee") {
-                            val resultsShareAmount: Int = if (bundling.applyToGeneral) {
-                                (bundling.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                            } else {
-                                (bundling.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                            }
-                            bundling.packagePrice + resultsShareAmount
-                        } else {
-                            bundling.packagePrice
-                        }
-                    }
-
-                    // Urutkan bundlingPackagesList: yang autoSelected atau defaultItem di indeks awal
-                    sortByDescending { it.autoSelected || it.defaultItem }
-                }
-
-                withContext(Dispatchers.Main) {
+                // withContext(Dispatchers.Main) {
                     // Update daftar bundling dan UI
-                    bundlingAdapter.submitList(bundlingPackagesList)
-                    bundlingAdapter.notifyDataSetChanged()
+                    // val bundlingPackagesList = bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()
+                    // bundlingAdapter.submitList(bundlingPackagesList)
+                    // bundlingAdapter.notifyDataSetChanged()
 
                     // Menyesuaikan visibilitas label dan RecyclerView
-                    binding.tvLabelPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
-                    binding.rvListPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
-                }
+                    // binding.tvLabelPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
+                    // binding.rvListPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.GONE else View.VISIBLE
+                // }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@BarberBookingPage, "Error updating bundling: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -594,41 +761,29 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     // Fungsi untuk memperbarui daftar layanan
     private fun updateServiceList(services: List<String>) {
         CoroutineScope(Dispatchers.Default).launch {
-            val oldServiceList = servicesList.toList()
+            val oldServiceList = (bookingPageViewModel.servicesList.value ?: mutableListOf()).toList()
 
             try {
                 // Menggunakan fungsi getCollectionDataDeferred
-                getCollectionDataDeferred("${outletSelected.rootRef}/services", servicesList, "No services found", Service::class.java, services, false).await()
+                getCollectionDataDeferred(
+                    "${outletSelected.rootRef}/services",
+                    null, // listToUpdate null karena ingin update di ViewModel
+                    "No services found",
+                    Service::class.java,
+                    services,
+                    true
+                ) { services ->
+                    Log.d("LifeAct", "update services: ${services.size}")
+                    bookingPageViewModel.replaceServicesList(services.toMutableList(), capsterSelected, oldServiceList)
+                }.await() // Lambda untuk update ViewModel
+                // getCollectionDataDeferred("${outletSelected.rootRef}/services", servicesList, "No services found", Service::class.java, services, false).await()
 
-                servicesList.apply {
-                    forEach { service ->
-                        val existingService = oldServiceList.find { it.uid == service.uid }
-                        if (existingService != null) {
-                            service.serviceQuantity = existingService.serviceQuantity
-                        }
-
-                        // Perhitungan results_share_format dan applyToGeneral pada service
-                        service.priceToDisplay = if (service.resultsShareFormat == "fee") {
-                            val resultsShareAmount: Int = if (service.applyToGeneral) {
-                                (service.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                            } else {
-                                (service.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                            }
-                            service.servicePrice + resultsShareAmount
-                        } else {
-                            service.servicePrice
-                        }
-                    }
-
-                    // Urutkan servicesList: yang autoSelected atau defaultItem di indeks awal
-                    sortByDescending { it.autoSelected || it.defaultItem }
-                }
-
-                withContext(Dispatchers.Main) {
-                    // Update daftar layanan dan UI
-                    serviceAdapter.submitList(servicesList)
-                    serviceAdapter.notifyDataSetChanged()
-                }
+                 // withContext(Dispatchers.Main) {
+                     // Update daftar layanan dan UI
+                     // val servicesList = bookingPageViewModel.servicesList.value ?: mutableListOf()
+                     // serviceAdapter.submitList(servicesList)
+                     // serviceAdapter.notifyDataSetChanged()
+                 // }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@BarberBookingPage, "Error updating services: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -641,19 +796,37 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     // Fungsi untuk mendapatkan data dari koleksi dengan Deferred
     private fun <T> getCollectionDataDeferred(
         collectionPath: String,
-        listToUpdate: MutableList<T>,
+        listToUpdate: MutableList<T>?,
         emptyMessage: String,
         dataClass: Class<T>,
         filterIds: List<String>,
-        showError: Boolean
+        showError: Boolean,
+        updateViewModel: ((List<T>) -> Unit)? = null // Fungsi opsional untuk mengupdate ViewModel
     ): Deferred<List<T>> = GlobalScope.async(Dispatchers.IO) {
         val querySnapshot = db.collection(collectionPath).get().await()
         val items = querySnapshot.mapNotNull { doc ->
-            doc.toObject(dataClass).takeIf { filterIds.contains(doc.id) }
+            val item = doc.toObject(dataClass).takeIf { filterIds.contains(doc.id) }
+
+            // Jika dataClass adalah UserCustomerData, set userRef
+            if (item is UserCustomerData) {
+                item.apply {
+                    userRef = doc.reference.path
+                }
+            }
+
+            item
         }
+
         withContext(Dispatchers.Main) {
-            listToUpdate.clear()
-            listToUpdate.addAll(items)
+            if (listToUpdate != null) {
+                // Jika listToUpdate tidak null, update list di Activity
+                listToUpdate.clear()
+                listToUpdate.addAll(items)
+            } else if (updateViewModel != null) {
+                // Jika listToUpdate null dan ada fungsi update ViewModel, update ViewModel
+                updateViewModel(items)
+            }
+
             if (items.isEmpty() && showError) {
                 Toast.makeText(this@BarberBookingPage, emptyMessage, Toast.LENGTH_SHORT).show()
             }
@@ -668,8 +841,32 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         Log.d("CustomerInOutlet", "CustomerInOutlet: $customerFilterIds")
 
         CoroutineScope(Dispatchers.Default).launch {
-            val serviceDeferred = getCollectionDataDeferred("${outletSelected.rootRef}/services", servicesList, "No services found", Service::class.java, serviceFilterIds, true)
-            val bundlingDeferred = getCollectionDataDeferred("${outletSelected.rootRef}/bundling_packages", bundlingPackagesList, "No bundling packages found", BundlingPackage::class.java, bundlingFilterIds, true)
+            val serviceDeferred = getCollectionDataDeferred(
+                "${outletSelected.rootRef}/services",
+                null, // listToUpdate null karena ingin update di ViewModel
+                "No services found",
+                Service::class.java,
+                serviceFilterIds,
+                true
+            ) { services ->
+                Log.d("LifeAct", "getAllData services: ${services.size}")
+                bookingPageViewModel.replaceServicesList(services.toMutableList(), capsterSelected, null)
+            } // Lambda untuk update ViewModel
+
+            val bundlingDeferred = getCollectionDataDeferred(
+                "${outletSelected.rootRef}/bundling_packages",
+                null, // listToUpdate null karena ingin update di ViewModel
+                "No bundling packages found",
+                BundlingPackage::class.java,
+                bundlingFilterIds,
+                true
+            ) { bundling ->
+                Log.d("LifeAct", "getAllData bundling: ${bundling.size}")
+                bookingPageViewModel.replaceBundlingPackagesList(bundling.toMutableList(), capsterSelected, null)
+            } // Lambda untuk update ViewModel
+
+            // val serviceDeferred = getCollectionDataDeferred("${outletSelected.rootRef}/services", servicesList, "No services found", Service::class.java, serviceFilterIds, true)
+            // val bundlingDeferred = getCollectionDataDeferred("${outletSelected.rootRef}/bundling_packages", bundlingPackagesList, "No bundling packages found", BundlingPackage::class.java, bundlingFilterIds, true)
             val customerDeferred = customerFilterIds?.let {
                 getCollectionDataDeferred("customers", customerList, "No customer found", UserCustomerData::class.java, it, true)
             }
@@ -690,68 +887,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     }
                 }?.sortedByDescending { it.lastReserve }
 
-                // Mengurutkan bundlingPackagesList
-                bundlingPackagesList.apply {
-                    forEach { bundling ->
-                        if (bundling.autoSelected || bundling.defaultItem) {
-                            bundling.bundlingQuantity = 1
-                            withContext(Dispatchers.Main) {
-                                bookingPageViewModel.addItemSelectedCounting(bundling.packageName, "package")
-                            }
-                        }
-
-                        // Set serviceBundlingList
-                        val serviceBundlingList = servicesList.filter { service ->
-                            bundling.listItems.contains(service.uid)
-                        }
-                        bundling.listItemDetails = serviceBundlingList
-
-                        // Perhitungan results_share_format dan applyToGeneral pada bundling
-                        bundling.priceToDisplay = if (bundling.resultsShareFormat == "fee") {
-                            val resultsShareAmount: Int = if (bundling.applyToGeneral) {
-                                (bundling.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                            } else {
-                                (bundling.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                            }
-                            bundling.packagePrice + resultsShareAmount
-                        } else {
-                            bundling.packagePrice
-                        }
-                    }
-
-                    // Urutkan bundlingPackagesList: yang autoSelected atau defaultItem di indeks awal
-                    sortByDescending { it.autoSelected || it.defaultItem }
-                }
-
-                // Mengurutkan servicesList
-                servicesList.apply {
-                    forEach { service ->
-                        if (service.autoSelected || service.defaultItem) {
-                            service.serviceQuantity = 1
-                            withContext(Dispatchers.Main) {
-                                bookingPageViewModel.addItemSelectedCounting(service.serviceName, "service")
-                            }
-                        }
-
-                        // Perhitungan results_share_format dan applyToGeneral pada service
-                        service.priceToDisplay = if (service.resultsShareFormat == "fee") {
-                            val resultsShareAmount: Int = if (service.applyToGeneral) {
-                                (service.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                            } else {
-                                (service.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                            }
-                            service.servicePrice + resultsShareAmount
-                        } else {
-                            service.servicePrice
-                        }
-                    }
-
-                    // Urutkan servicesList: yang autoSelected atau defaultItem di indeks awal
-                    sortByDescending { it.autoSelected || it.defaultItem }
-                }
-
                 withContext(Dispatchers.Main) {
                     customerList.clear()
+                    customerList.add(customerGuestAccount)
                     sortedCustomerList?.let {
                         customerList.addAll(it)
                     }
@@ -762,14 +900,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    displayAllData()
                     filterCustomer("", false)
+                    displayAllData()
                     Toast.makeText(this@BarberBookingPage, "Error getting all data: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
-
 
     override fun onClick(v: View?) {
         with(binding) {
@@ -785,53 +922,15 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 }
                 R.id.btnResetServiceSelected -> {
                     bookingPageViewModel.resetAllServices()
-
-                    // Ubah serviceQuantity menjadi 0 hanya untuk itemDefault == false
-                    servicesList.forEach { service ->
-                        if (!service.defaultItem) {
-                            service.serviceQuantity = 0
-                        } else {
-                            // Jika itemDefault == true, masukkan kembali ke ViewModel
-                            bookingPageViewModel.addItemSelectedCounting(service.serviceName, "service")
-                        }
-                    }
-
-                    // Update adapter dengan layanan yang sudah diubah
-                    serviceAdapter.submitList(servicesList)
-                    serviceAdapter.notifyDataSetChanged()
                 }
                 R.id.btnDeleteAll -> {
                     bookingPageViewModel.resetAllItem()
-
-                    // Ubah serviceQuantity jadi 0 hanya untuk itemDefault == false
-                    servicesList.forEach { service ->
-                        if (!service.defaultItem) {
-                            service.serviceQuantity = 0
-                        } else {
-                            // Jika itemDefault == true, masukkan kembali ke ViewModel
-                            bookingPageViewModel.addItemSelectedCounting(service.serviceName, "service")
-                        }
-                    }
-
-                    // Ubah bundlingQuantity jadi 0 hanya untuk itemDefault == false
-                    bundlingPackagesList.forEach { bundling ->
-                        if (!bundling.defaultItem) {
-                            bundling.bundlingQuantity = 0
-                        } else {
-                            // Jika itemDefault == true, masukkan kembali ke ViewModel
-                            bookingPageViewModel.addItemSelectedCounting(bundling.packageName, "package")
-                        }
-                    }
-
-                    // Update adapter dengan daftar yang sudah diubah
-                    serviceAdapter.submitList(servicesList)
-                    bundlingAdapter.submitList(bundlingPackagesList)
-                    serviceAdapter.notifyDataSetChanged()
-                    bundlingAdapter.notifyDataSetChanged()
                 }
 
                 R.id.btnContinue -> {
                     // Sebelum menggunakan customerData
+                    Log.d("ViewModel", bookingPageViewModel.itemSelectedCounting.value.toString())
+                    Log.d("ViewModel", bookingPageViewModel.toString())
                     if (::customerData.isInitialized) {
                         navigatePage(this@BarberBookingPage, ReviewOrderPage::class.java, btnContinue)
                     } else {
@@ -843,6 +942,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 R.id.ivAddNewCustomer -> {
                     showAddNewCustomerDialog()
                 }
+                else -> {}
+                    // Do nothing
             }
         }
     }
@@ -859,8 +960,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 putExtra(TIME_SECONDS_KEY, timeSelected.seconds)
                 putExtra(TIME_NANOS_KEY, timeSelected.nanoseconds)
                 putExtra(CUSTOMER_DATA_KEY, customerData)
-                putParcelableArrayListExtra(SERVICE_DATA_KEY, ArrayList(servicesList))
-                putParcelableArrayListExtra(BUNDLING_DATA_KEY, ArrayList(bundlingPackagesList))
+                // putParcelableArrayListExtra(SERVICE_DATA_KEY, ArrayList(servicesList))
+                // putParcelableArrayListExtra(BUNDLING_DATA_KEY, ArrayList(bundlingPackagesList))
             }
             startActivity(intent)
         } else return
@@ -946,6 +1047,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         super.onDestroy()
 
         if (::outletListener.isInitialized) outletListener.remove()
+        if (::serviceListener.isInitialized) serviceListener.remove()
+        if (::bundlingListener.isInitialized) bundlingListener.remove()
     }
 
     companion object {
@@ -954,41 +1057,47 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         const val TIME_SECONDS_KEY = "time_seconds_key"
         const val TIME_NANOS_KEY = "time_nanos_key"
         const val CUSTOMER_DATA_KEY = "customer_data_key"
-        const val SERVICE_DATA_KEY = "service_data_key"
-        const val BUNDLING_DATA_KEY = "bundling_data_key"
+        // const val SERVICE_DATA_KEY = "service_data_key"
+        // const val BUNDLING_DATA_KEY = "bundling_data_key"
     }
 
     override fun onItemClickListener(customer: UserCustomerData , list: List<UserCustomerData>) {
         customerData = customer
 
-        customerList.clear()
-        customerList.addAll(list)
+        // customerList.clear()
+        // customerList.addAll(list)
+        filterCustomer(keyword, false)
     }
 
     override fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean) {
-        bundlingPackagesList[index].apply {
-            bundlingQuantity = bundlingPackage.bundlingQuantity
-        }
+        // Akses dan perbarui data di ViewModel
+        bookingPageViewModel.updateBundlingQuantity(index, bundlingPackage.bundlingQuantity)
 
+        // Logika pengelolaan item yang dipilih
         if (!addCount) {
-            bookingPageViewModel.removeItemSelectedByName(bundlingPackage.packageName, bundlingPackage.bundlingQuantity == 0)
+            bookingPageViewModel.removeItemSelectedByName(
+                bundlingPackage.packageName,
+                bundlingPackage.bundlingQuantity == 0
+            )
         } else if (bundlingPackage.bundlingQuantity >= 1) {
             bookingPageViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package")
         }
-        Log.d("TriggerItem", "BundlingPackage: ${bundlingPackagesList[index]}")
     }
 
-    override fun onItemClickListener(service: Service, index: Int, addCount: Boolean) {
-        servicesList[index].apply {
-            serviceQuantity = service.serviceQuantity
-        }
 
+    override fun onItemClickListener(service: Service, index: Int, addCount: Boolean) {
+        // Akses dan perbarui data di ViewModel
+        bookingPageViewModel.updateServicesQuantity(index, service.serviceQuantity)
+
+        // Logika pengelolaan item yang dipilih
         if (!addCount) {
-            bookingPageViewModel.removeItemSelectedByName(service.serviceName, service.serviceQuantity == 0)
+            bookingPageViewModel.removeItemSelectedByName(
+                service.serviceName,
+                service.serviceQuantity == 0
+            )
         } else if (service.serviceQuantity >= 1) {
             bookingPageViewModel.addItemSelectedCounting(service.serviceName, "service")
         }
-        Log.d("TriggerItem", "Service: ${servicesList[index]}")
     }
 
 

@@ -49,10 +49,10 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private lateinit var userEmployeeData: Employee
-    private lateinit var outletSelected: Outlet
+//    private lateinit var outletSelected: Outlet
     private var sessionCapster: Boolean = false
     private var dataCapsterRef: String = ""
-    private var outletCapsterRef: String = ""
+//    private var outletCapsterRef: String = ""
     private var isNavigating = false
     private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
@@ -71,6 +71,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private var numberOfProcessQueue: Int = 0
     private var numberOfSkippedQueue: Int = 0
     private var isShimmerVisible: Boolean = false
+    private lateinit var startOfDay: Timestamp
+    private lateinit var startOfNextDay: Timestamp
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var reservationListener: ListenerRegistration
     private lateinit var salesListener: ListenerRegistration
@@ -92,11 +94,10 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         fragmentManager = supportFragmentManager
         sessionCapster = sessionManager.getSessionCapster()
         dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
-        outletCapsterRef = sessionManager.getOutletSelectedRef() ?: ""
-        Log.d("OutletSelected", "$outletCapsterRef")
+//        outletCapsterRef = sessionManager.getOutletSelectedRef() ?: ""
+//        Log.d("OutletSelected", "$outletCapsterRef")
         Log.d("CapterReference", "$dataCapsterRef")
-        binding.fabInputCapital.isClickable = false
-        binding.fabListQueue.isClickable = false
+
         binding.realLayout.tvValueKomisiJasa.isSelected = true
         binding.realLayout.tvValueKomisiProduk.isSelected = true
 
@@ -117,9 +118,10 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
         // Check if the intent has the key ACTION_GET_DATA
         if (intent.hasExtra(SelectUserRolePage.ACTION_GET_DATA) && sessionCapster) {
-            getSpecificOutletData()
+//            getSpecificOutletData()
+            getCapsterData()
         } else {
-            outletSelected = intent.getParcelableExtra(PinInputFragment.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
+//            outletSelected = intent.getParcelableExtra(PinInputFragment.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
             userEmployeeData = intent.getParcelableExtra(PinInputFragment.USER_DATA_KEY, Employee::class.java) ?: Employee()
             if (userEmployeeData.uid.isNotEmpty()) {
                 getAllData()
@@ -145,7 +147,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setupListeners() {
-        listenSpecificOutletData()
+//        listenSpecificOutletData()
         listenToUserCapsterData()
         listenToOutletsData()
         listenToReservationsData()
@@ -155,6 +157,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private fun showShimmer(show: Boolean) {
         isShimmerVisible = show
         // Implementasi untuk menampilkan efek shimmer
+        binding.fabInputCapital.isClickable = !show
+        binding.fabListQueue.isClickable = !show
         binding.shimmerLayout.root.visibility = if (show) View.VISIBLE else View.GONE
         binding.realLayout.root.visibility = if (show) View.GONE else View.VISIBLE
     }
@@ -180,35 +184,35 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         numberOfProcessQueue = 0
     }
 
-    private fun listenSpecificOutletData() {
-        locationListener = db.document(outletCapsterRef).addSnapshotListener { documentSnapshot, exception ->
-            if (exception != null) {
-                Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
-                return@addSnapshotListener
-            }
-
-            documentSnapshot?.let { document ->
-                if (document.exists()) {
-                    val outletData = document.toObject(Outlet::class.java)
-                    outletData?.let {
-                        outletSelected = it
-                    }
-                }
-            }
-        }
-    }
+//    private fun listenSpecificOutletData() {
+//        locationListener = db.document(outletCapsterRef).addSnapshotListener { documentSnapshot, exception ->
+//            if (exception != null) {
+//                Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
+//                return@addSnapshotListener
+//            }
+//
+//            documentSnapshot?.let { document ->
+//                if (document.exists()) {
+//                    val outletData = document.toObject(Outlet::class.java)
+//                    outletData?.let {
+//                        outletSelected = it
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     private fun listenToUserCapsterData() {
-        employeeListener = db.document(dataCapsterRef).addSnapshotListener { documentSnapshot, exception ->
+        employeeListener = db.document(dataCapsterRef).addSnapshotListener { documents, exception ->
             exception?.let {
                 Toast.makeText(this, "Error listening to employee data: ${it.message}", Toast.LENGTH_SHORT).show()
                 return@addSnapshotListener
             }
 
-            documentSnapshot?.takeIf { it.exists() }?.toObject(Employee::class.java)?.let { employeeData ->
+            documents?.takeIf { it.exists() }?.toObject(Employee::class.java)?.let { employeeData ->
                 userEmployeeData = employeeData.apply {
-                    userRef = documentSnapshot.reference.path
-                    outletRef = outletCapsterRef
+                    userRef = documents.reference.path
+                    outletRef = ""
                 }
 
                 binding.apply {
@@ -232,8 +236,12 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                 }
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull {
-                                doc -> doc.toObject(Outlet::class.java)
+                        val outlets = it.mapNotNull { doc ->
+                            // Get the outlet object from the document
+                            val outlet = doc.toObject(Outlet::class.java)
+                            // Assign the document reference path to outletReference
+                            outlet.outletReference = doc.reference.path
+                            outlet // Return the modified outlet
                         }
                         outletsList.clear()
                         outletsList.addAll(outlets)
@@ -374,21 +382,21 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    private fun getSpecificOutletData() {
-        db.document(outletCapsterRef).get().addOnSuccessListener { documentSnapshot ->
-            if (documentSnapshot.exists()) {
-                val outletData = documentSnapshot.toObject(Outlet::class.java)
-                outletData?.let {
-                    outletSelected = it
-                    getCapsterData()
-                }
-            } else {
-                Toast.makeText(this, "Outlet document does not exist", Toast.LENGTH_SHORT).show()
-            }
-        }.addOnFailureListener { exception ->
-            Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
+//    private fun getSpecificOutletData() {
+//        db.document(outletCapsterRef).get().addOnSuccessListener { documentSnapshot ->
+//            if (documentSnapshot.exists()) {
+//                val outletData = documentSnapshot.toObject(Outlet::class.java)
+//                outletData?.let {
+//                    outletSelected = it
+//                    getCapsterData()
+//                }
+//            } else {
+//                Toast.makeText(this, "Outlet document does not exist", Toast.LENGTH_SHORT).show()
+//            }
+//        }.addOnFailureListener { exception ->
+//            Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
+//        }
+//    }
 
     private fun getCapsterData() {
         db.document(dataCapsterRef).get()
@@ -397,7 +405,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                     val employeeData = documentSnapshot.toObject(Employee::class.java) ?: Employee()
                     userEmployeeData = employeeData.apply {
                         userRef = documentSnapshot.reference.path
-                        outletRef = outletCapsterRef
+                        outletRef = ""
                     }
                     // Lakukan sesuatu dengan data employee
                     if (userEmployeeData.uid.isNotEmpty()) {
@@ -473,8 +481,12 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                         async {
                             outletResult?.let { result ->
                                 result.documents.forEach { document ->
-                                    document.toObject(Outlet::class.java)
-                                        ?.let { outletsList.add(it) }
+                                    document.toObject(Outlet::class.java)?.let { outlet ->
+                                        // Assign the document reference path to outletReference
+                                        outlet.outletReference = document.reference.path
+                                        // Add the outlet to outletsList
+                                        outletsList.add(outlet)
+                                    }
                                 }
                             }
                         }
@@ -491,16 +503,12 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                             }, 300)
                         }
                         binding.swipeRefreshLayout.isRefreshing = false
-                        binding.fabInputCapital.isClickable = true
-                        binding.fabListQueue.isClickable = true
                     }
                 }
             }
             .addOnFailureListener { e ->
                 displayEmployeeData()
                 binding.swipeRefreshLayout.isRefreshing = false
-                binding.fabInputCapital.isClickable = true
-                binding.fabListQueue.isClickable = true
                 Toast.makeText(this@HomePageCapster, "Error getting data: ${e.message}", Toast.LENGTH_SHORT).show()
             }
             .addOnCompleteListener {
@@ -594,8 +602,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         with(binding) {
             when (v?.id) {
                 R.id.fabListQueue -> {
-//                    navigatePage(this@HomePageCapster, QueueControlPage::class.java, true, fabListQueue)
-                    Toast.makeText(this@HomePageCapster, "Queue control feature is under development...", Toast.LENGTH_SHORT).show()
+                    navigatePage(this@HomePageCapster, QueueControlPage::class.java, true, fabListQueue)
+//                    Toast.makeText(this@HomePageCapster, "Queue control feature is under development...", Toast.LENGTH_SHORT).show()
                 }
                 R.id.btnCopyCode -> {
                     CopyUtils.copyUidToClipboard(this@HomePageCapster, userEmployeeData.uid)
@@ -631,18 +639,39 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private fun navigatePage(context: Context, destination: Class<*>, isSendData: Boolean, view: View) {
         view.isClickable = false
         currentView = view
+        setFilteringForToday()
         if (!isNavigating) {
             isNavigating = true
             val intent = Intent(context, destination)
             if (isSendData) {
-                intent.putExtra(OUTLET_SELECTED_KEY, outletSelected)
-                intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(reservationList))
+                // Filter reservationList untuk satu hari sebelum dikirim
+                val todayReservations = reservationList.filter { reservation ->
+                    reservation.timestampToBooking?.let { timestamp ->
+                        timestamp in startOfDay..startOfNextDay
+                    } ?: false // Jika null, jangan masukkan ke dalam hasil filter
+                }
+
+//                intent.putExtra(OUTLET_SELECTED_KEY, outletSelected)
+                intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(outletsList))
+                intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(todayReservations))
                 intent.putExtra(CAPSTER_DATA_KEY, userEmployeeData)
             } else {
                 intent.putExtra(ORIGIN_INTENT_KEY, "HomePageCapster")
             }
             startActivity(intent)
         } else return
+    }
+
+    private fun setFilteringForToday() {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        startOfDay = Timestamp(calendar.time)
+
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        startOfNextDay = Timestamp(calendar.time)
     }
 
     override fun onResume() {
@@ -695,6 +724,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         const val CAPSTER_DATA_KEY = "user_data_key"
         const val RESERVATIONS_KEY = "reservations_key"
         const val OUTLET_SELECTED_KEY = "outlet_selected_key"
+        const val OUTLET_LIST_KEY = "outlet_list_key"
         const val ORIGIN_INTENT_KEY = "origin_intent_key"
     }
 

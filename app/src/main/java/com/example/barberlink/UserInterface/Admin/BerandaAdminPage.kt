@@ -68,8 +68,8 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var bundlingAdapter: ItemListPackageBundlingAdapter
     private lateinit var productAdapter: ItemListProductAdapter
     private lateinit var serviceListener: ListenerRegistration
-    private lateinit var employeeListener: ListenerRegistration
     private lateinit var bundlingListener: ListenerRegistration
+    private lateinit var employeeListener: ListenerRegistration
     private lateinit var productListener: ListenerRegistration
     private lateinit var outletListener: ListenerRegistration
     private lateinit var barbershopListener: ListenerRegistration
@@ -92,6 +92,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         binding = ActivityBerandaAdminPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        init()
         setAndDisplayBanner()
         fragmentManager = supportFragmentManager
         val adminData = intent.getParcelableExtra(SignUpSuccess.ADMIN_KEY, UserAdminData::class.java) ?:
@@ -99,9 +100,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
         val adminRef = sessionManager.getDataAdminRef()
         userId = adminRef?.substringAfter("barbershops/") ?: ""
-        binding.fabInputCapital.isClickable = false
-        binding.fabDashboardAdmin.isClickable = false
-        binding.fabManageCodeAccess.isClickable = false
+
         if (adminData != null) {
             userAdminData = adminData
             // loadImageWithGlide(userAdminData.imageCompanyProfile)
@@ -115,8 +114,6 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                 Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
             }
         }
-
-        init()
 
         binding.apply {
             ivSettings.setOnClickListener(this@BerandaAdminPage)
@@ -181,6 +178,9 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
     private fun showShimmer(show: Boolean) {
         isShimmerVisible = show
+        binding.fabInputCapital.isClickable = !show
+        binding.fabDashboardAdmin.isClickable = !show
+        binding.fabManageCodeAccess.isClickable = !show
         serviceAdapter.setShimmer(show)
         employeeAdapter.setShimmer(show)
         bundlingAdapter.setShimmer(show)
@@ -224,8 +224,12 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull {
-                                doc -> doc.toObject(Outlet::class.java)
+                        val outlets = it.mapNotNull { doc ->
+                            // Get the outlet object from the document
+                            val outlet = doc.toObject(Outlet::class.java)
+                            // Assign the document reference path to outletReference
+                            outlet.outletReference = doc.reference.path
+                            outlet // Return the modified outlet
                         }
                         outletsList.clear()
                         outletsList.addAll(outlets)
@@ -242,7 +246,8 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         dataClass: Class<T>,
         isCollectionGroup: Boolean = false, // Parameter tambahan untuk menentukan koleksi group
         queryField: String? = null, // Parameter tambahan untuk field query
-        queryValue: Any? = null // Parameter tambahan untuk nilai query
+        queryValue: Any? = null, // Parameter tambahan untuk nilai query
+        postProcess: (() -> Unit)? = null // Tambahan lambda untuk post-processing setelah data diperbarui
     ): ListenerRegistration {
         val collectionRef = if (isCollectionGroup) {
             val groupRef = db.collectionGroup(collectionPath)
@@ -270,6 +275,8 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                     listToUpdate.clear()
                     listToUpdate.addAll(dataList)
 
+                    postProcess?.invoke() // Jalankan post-processing jika ada
+
                     withContext(Dispatchers.Main) {
                         emptyView.visibility = if (listToUpdate.isEmpty()) View.VISIBLE else View.GONE
                         adapter.submitList(listToUpdate)
@@ -289,7 +296,22 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun listenToBundlingPackagesData() {
-        bundlingListener = listenToCollectionData("bundling_packages", bundlingPackagesList, bundlingAdapter, binding.tvEmptyPaketBundling, BundlingPackage::class.java)
+        bundlingListener = listenToCollectionData(
+            collectionPath = "bundling_packages",
+            listToUpdate = bundlingPackagesList,
+            adapter = bundlingAdapter,
+            emptyView = binding.tvEmptyPaketBundling,
+            dataClass = BundlingPackage::class.java,
+            postProcess = {
+                // Hubungkan detail layanan dengan bundling items
+                bundlingPackagesList.forEach { bundling ->
+                    val serviceBundlingList = servicesList.filter { service ->
+                        bundling.listItems.contains(service.uid)
+                    }
+                    bundling.listItemDetails = serviceBundlingList
+                }
+            }
+        )
     }
 
     private fun listenToEmployeesData() {
@@ -358,7 +380,20 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             .addOnSuccessListener { documents ->
                 CoroutineScope(Dispatchers.Default).launch {
                     if (!documents.isEmpty) {
-                        val items = documents.mapNotNull { doc -> doc.toObject(dataClass) }
+                        // Map documents and cast to the appropriate type T
+                        val items = documents.mapNotNull { doc ->
+                            val item = doc.toObject(dataClass)
+
+                            // If the data class is Outlet, assign the reference path
+                            if (dataClass == Outlet::class.java) {
+                                val outlet = item as Outlet
+                                outlet.outletReference = doc.reference.path // Assign document reference path
+                                outlet as T // Cast Outlet to T to match the required collection type
+                            } else {
+                                item as T // Cast other types to T
+                            }
+                        }
+
                         listToUpdate.clear()
                         listToUpdate.addAll(items)
                     } else {
@@ -405,18 +440,12 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                             }, 300)
                         }
                         binding.swipeRefreshLayout.isRefreshing = false
-                        binding.fabInputCapital.isClickable = true
-                        binding.fabDashboardAdmin.isClickable = true
-                        binding.fabManageCodeAccess.isClickable = true
                     }
                 }
             }
             .addOnFailureListener { exception ->
                 displayAllData()
                 binding.swipeRefreshLayout.isRefreshing = false
-                binding.fabInputCapital.isClickable = true
-                binding.fabDashboardAdmin.isClickable = true
-                binding.fabManageCodeAccess.isClickable = true
                 Toast.makeText(this, "Error getting all data: ${exception.message}", Toast.LENGTH_SHORT).show()
             }
     }
@@ -600,6 +629,12 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    private fun clearBackStack() {
+        while (fragmentManager.backStackEntryCount > 0) {
+            fragmentManager.popBackStackImmediate()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
 
@@ -609,12 +644,6 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         if (::productListener.isInitialized) productListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()
         if (::barbershopListener.isInitialized) barbershopListener.remove()
-    }
-
-    private fun clearBackStack() {
-        while (fragmentManager.backStackEntryCount > 0) {
-            fragmentManager.popBackStackImmediate()
-        }
     }
 
     private fun setAndDisplayBanner() {

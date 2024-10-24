@@ -59,6 +59,7 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
                     Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
+
                 documents?.let { snapshot ->
                     // Jalankan pengolahan data di background thread
                     CoroutineScope(Dispatchers.Default).launch {
@@ -66,6 +67,8 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
                             document.toObject(Outlet::class.java).apply {
                                 // Cek apakah UID outlet ada di collapseStateMap
                                 isCollapseCard = extendedStateMap[uid] ?: true
+                                // Assign the document reference path to outletReference
+                                outletReference = document.reference.path
                             }
                         }
 
@@ -88,7 +91,6 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
                 }
             }
     }
-
 
     private fun init() {
         outletAdapter = ItemListOutletAdapter(this@ManageOutletPage)

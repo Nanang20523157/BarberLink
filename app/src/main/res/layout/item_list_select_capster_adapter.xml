@@ -168,7 +168,7 @@
                 android:id="@+id/tvGender"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="@string/unknown"
+                tools:text="@string/long_text_unknown"
                 android:fontFamily="@font/arial_bold"
                 android:textColor="@color/dark_black_gradation"
                 android:textSize="11.5sp"

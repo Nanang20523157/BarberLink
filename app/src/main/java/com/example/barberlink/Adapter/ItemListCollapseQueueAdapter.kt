@@ -3,24 +3,32 @@ package com.example.barberlink.Adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat.getColor
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.R
+import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
 import com.example.barberlink.databinding.ItemListNumberQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListNumberQueueBinding
 
-class ItemListQueueAdapter(
+class ItemListCollapseQueueAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private val shimmerItemCount = 4
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+    private var blockAllUserClickAction: Boolean = false
 
     interface OnItemClicked {
-        fun onItemClickListener(reservation: Reservation, rootView: View)
+        fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
+    }
+
+    fun setBlockStatusUI(value: Boolean) {
+        this.blockAllUserClickAction = value
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -44,7 +52,7 @@ class ItemListQueueAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val reservation = getItem(position)
-            (holder as ItemViewHolder).bind(reservation)
+            (holder as ItemViewHolder).bind(reservation, position)
         }
     }
 
@@ -74,56 +82,98 @@ class ItemListQueueAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(reservation: Reservation, position: Int) {
+            // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
+            val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
+            binding.tvQueueNumberPrefix.text = binding.root.context.getString(R.string.template_number_prefix, formattedNumber)
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListNumberQueueAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(reservation: Reservation) {
+        fun bind(reservation: Reservation, position: Int) {
             with(binding) {
+                binding.tvCurrentQueueNumber.isSelected = true
+                // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
+                val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
+                binding.tvQueueNumberPrefix.text = root.context.getString(R.string.template_number_prefix, formattedNumber)
+                binding.tvCurrentQueueNumber.text = reservation.queueNumber
 //                tvQueueNumber.text = reservation.queueNumber.toString()
 //                tvCustomerName.text = reservation.customerName
 //                tvServiceName.text = reservation.serviceName
 //                tvServiceTime.text = reservation.serviceTime.toString()
 
-                if (reservation.queueStatus == "completed") {
-                    setStatusCompleted()
-                } else if (reservation.queueStatus == "canceled") {
-                    setStatusCanceled()
-                } else if (reservation.queueStatus == "skipped") {
-                    setStatusSkipped()
+                when (reservation.queueStatus) {
+                    "waiting" -> {
+                        setStatusWaiting()
+                    }
+                    "completed" -> {
+                        setStatusCompleted()
+                    }
+                    "canceled" -> {
+                        setStatusCanceled()
+                    }
+                    "skipped" -> {
+                        setStatusSkipped()
+                    }
+                    "process" -> {
+                        setStatusProcess()
+                    }
                 }
 
                 root.setOnClickListener {
-                    itemClicked.onItemClickListener(reservation, root)
+                    if (!blockAllUserClickAction) {
+                        itemClicked.onItemClickListener(reservation, root, position)
+                    }
                 }
+            }
+        }
+
+        private fun setStatusWaiting() {
+            with(binding) {
+                cvQueueNumber.setBackgroundColor(
+                    getColor(root.context, R.color.silver_grey)
+                )
             }
         }
 
         private fun setStatusCompleted() {
             with(binding) {
-//                statusContainer.setBackgroundColor(
-//                    ContextCompat.getColor(root.context, R.color.green_lime_wf)
-//                )
-//                tvStatus.text = root.context.getString(R.string.status_completed)
+                cvQueueNumber.setBackgroundColor(
+                    getColor(root.context, R.color.green_bg_flaticon)
+                )
             }
         }
 
         private fun setStatusCanceled() {
             with(binding) {
-//                statusContainer.setBackgroundColor(
-//                    ContextCompat.getColor(root.context, R.color.red)
-//                )
-//                tvStatus.text = root.context.getString(R.string.status_canceled)
+                cvQueueNumber.setBackgroundColor(
+                    getColor(root.context, R.color.alpha_pink)
+                )
             }
         }
 
         private fun setStatusSkipped() {
             with(binding) {
-//                statusContainer.setBackgroundColor(
-//                    ContextCompat.getColor(root.context, R.color.orange)
+                cvQueueNumber.setBackgroundColor(
+                    getColor(root.context, R.color.alpha_yellow)
+                )
+            }
+        }
+
+        private fun setStatusProcess() {
+            with(binding) {
+//                cvQueueNumberPrefix.setBackgroundColor(
+//                    getColor(root.context, R.color.light_blue_horizons_background)
 //                )
-//                tvStatus.text = root.context.getString(R.string.status_skipped)
+                cvQueueNumber.setBackgroundColor(
+                    getColor(root.context, R.color.light_blue_horizons_background)
+                )
+//                cvSpaceOnNumber.setBackgroundColor(
+//                    getColor(root.context, R.color.light_blue_horizons_background)
+//                )
             }
         }
     }

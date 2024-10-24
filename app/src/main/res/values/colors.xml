@@ -82,4 +82,11 @@
     <color name="grey_bg_wa">#FFF6F5F3</color>
     <color name="grey_text_wa">#FF6F7376</color>
 
+    <color name="brown">#FF9E2A2B</color>
+    <color name="alpha_pink">#CCFC7293</color>
+    <color name="alpha_yellow">#80F7EE3E</color>
+    <color name="alpha_magenta">#F2DA0063</color>
+
+
+
 </resources>

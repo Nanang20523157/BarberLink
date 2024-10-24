@@ -1,5 +1,6 @@
 
 import android.os.Parcelable
+import com.example.barberlink.DataClass.ListStackData
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
@@ -48,7 +49,7 @@ data class BundlingPackage(
     @get:PropertyName("auto_selected") @set:PropertyName("auto_selected") var autoSelected: Boolean = false,
     @get:PropertyName("default_item") @set:PropertyName("default_item") var defaultItem: Boolean = false,
     @get:PropertyName("list_items") @set:PropertyName("list_items") var listItems: @RawValue List<String> = emptyList(),
-    @get:PropertyName("package_counting") @set:PropertyName("package_counting") var packageCounting: @RawValue Map<String, Int> = emptyMap(),
+    @get:PropertyName("package_counting") @set:PropertyName("package_counting") var packageCounting: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("package_desc") @set:PropertyName("package_desc") var packageDesc: String = "",
     @get:PropertyName("package_discount") @set:PropertyName("package_discount") var packageDiscount: Int = 0,
     @get:PropertyName("package_name") @set:PropertyName("package_name") var packageName: String = "",
@@ -59,8 +60,8 @@ data class BundlingPackage(
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var priceToDisplay: Int = 0,
-    var listItemDetails: @RawValue List<Service> = emptyList(),
-    var bundlingQuantity: Int = 0
+    @get:Exclude @set:Exclude var listItemDetails: @RawValue List<Service>? = null,
+    @get:Exclude @set:Exclude var bundlingQuantity: Int = 0
 ) : Parcelable
 
 
@@ -75,12 +76,11 @@ data class Division(
 // Employee data class
 @Parcelize
 data class Employee(
-    @get:PropertyName("accumulated_lateness") @set:PropertyName("accumulated_lateness") var accumulatedLateness: @RawValue Map<String, Int> = emptyMap(),
+    @get:PropertyName("accumulated_lateness") @set:PropertyName("accumulated_lateness") var accumulatedLateness: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("amount_of_bon") @set:PropertyName("amount_of_bon") var amountOfBon: Int = 0,
-    @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: @RawValue List<Timestamp>? = null,
+    @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: MutableList<ListStackData>? = null,
     @get:PropertyName("availability_status") @set:PropertyName("availability_status") var availabilityStatus: Boolean = true,
-    @get:PropertyName("current_queue") @set:PropertyName("current_queue") var currentQueue: String = "",
-    @get:PropertyName("customer_counting") @set:PropertyName("customer_counting") var customerCounting: @RawValue Map<String, Int> = emptyMap(),
+    @get:PropertyName("customer_counting") @set:PropertyName("customer_counting") var customerCounting: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("email") @set:PropertyName("email") var email: String = "",
     @get:PropertyName("employee_rating") @set:PropertyName("employee_rating") var employeeRating: Double = 5.0,
     @get:PropertyName("fullname") @set:PropertyName("fullname") var fullname: String = "",
@@ -98,9 +98,10 @@ data class Employee(
     @get:PropertyName("salary") @set:PropertyName("salary") var salary: Int = 0,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "----------------",
     @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
-    var userRef: String = "",
-    var outletRef: String = "",
-    var restOfQueue: Int = 0,
+    @get:Exclude @set:Exclude var userRef: String = "",
+    @get:Exclude @set:Exclude var outletRef: String = "",
+    @get:Exclude @set:Exclude var restOfQueue: Int = 0,
+    // @get:Exclude @set:Exclude var outletPlacement : List<Outlet>? = null,
 //    @get:PropertyName("service_commission") @set:PropertyName("service_commission") var serviceCommission: @RawValue Map<String, Int> = emptyMap(),
 //    @get:PropertyName("product_commission") @set:PropertyName("product_commission") var productCommission: @RawValue Map<String, Int> = emptyMap(),
 //    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
@@ -123,6 +124,7 @@ data class LeavePermission(
 @Parcelize
 data class Outlet(
     @get:PropertyName("active_devices") @set:PropertyName("active_devices") var activeDevices: Int = 0,
+    @get:PropertyName("current_queue") @set:PropertyName("current_queue") var currentQueue: @RawValue Map<String, String>? = emptyMap(),
     @get:PropertyName("img_outlet") @set:PropertyName("img_outlet") var imgOutlet: String = "",
     @get:PropertyName("last_updated") @set:PropertyName("last_updated") var lastUpdated: Timestamp = Timestamp.now(),
     @get:PropertyName("list_best_deals") @set:PropertyName("list_best_deals") var listBestDeals: @RawValue List<String> = emptyList(),
@@ -138,8 +140,10 @@ data class Outlet(
     @get:PropertyName("outlet_rating") @set:PropertyName("outlet_rating") var outletRating: Double = 5.0,
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("tagline_or_desc") @set:PropertyName("tagline_or_desc") var taglineOrDesc: String = "",
+    @get:PropertyName("timestamp_modify") @set:PropertyName("timestamp_modify") var timestampModify: Timestamp = Timestamp.now(),
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var isCollapseCard: Boolean = true,
+    @get:Exclude @set:Exclude var outletReference: String = "",
     //    @get:PropertyName("status_active") @set:PropertyName("status_active") var statusActive: Boolean = false,
 //    var dailyCapitalIsEmpty: Boolean = true,
 ) : Parcelable
@@ -173,7 +177,7 @@ data class WriterInfo(
 data class Expenditure(
     @get:PropertyName("created_by") @set:PropertyName("created_by") var createdBy: String = "",
     @get:PropertyName("created_on") @set:PropertyName("created_on") var createdOn: Timestamp = Timestamp.now(),
-    @get:PropertyName("expanditure_list") @set:PropertyName("expanditure_list") var expenditureList: List<ExpenditureItem> = listOf(),
+    @get:PropertyName("expanditure_list") @set:PropertyName("expanditure_list") var expenditureList: List<ExpenditureItem>? = null,
     @get:PropertyName("outlet_uid") @set:PropertyName("outlet_uid") var outletUid: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("total_expenditure") @set:PropertyName("total_expenditure") var totalExpenditure: Int = 0,
@@ -210,7 +214,7 @@ data class Product(
     @get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
     @get:PropertyName("img_product") @set:PropertyName("img_product") var imgProduct: String = "",
     @get:PropertyName("product_category") @set:PropertyName("product_category") var productCategory: String = "",
-    @get:PropertyName("product_counting") @set:PropertyName("product_counting") var productCounting: @RawValue Map<String, Int> = emptyMap(),
+    @get:PropertyName("product_counting") @set:PropertyName("product_counting") var productCounting: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("product_description") @set:PropertyName("product_description") var productDescription: String = "",
     @get:PropertyName("product_name") @set:PropertyName("product_name") var productName: String = "",
     @get:PropertyName("product_price") @set:PropertyName("product_price") var productPrice: Int = 0,
@@ -237,7 +241,7 @@ data class Seller(
 @Parcelize
 data class Role(
     @get:PropertyName("job_desc") @set:PropertyName("job_desc") var jobDesc: String = "",
-    @get:PropertyName("permissions") @set:PropertyName("permissions") var permissions: @RawValue Map<String, Boolean> = emptyMap(),
+    @get:PropertyName("permissions") @set:PropertyName("permissions") var permissions: @RawValue Map<String, Boolean>? = emptyMap(),
     @get:PropertyName("role_name") @set:PropertyName("role_name") var roleName: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
 ) : Parcelable
@@ -264,7 +268,7 @@ data class Service(
     @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("service_category") @set:PropertyName("service_category") var serviceCategory: String = "",
-    @get:PropertyName("service_counting") @set:PropertyName("service_counting") var serviceCounting: @RawValue Map<String, Int> = emptyMap(),
+    @get:PropertyName("service_counting") @set:PropertyName("service_counting") var serviceCounting: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("service_desc") @set:PropertyName("service_desc") var serviceDesc: String = "",
     @get:PropertyName("service_icon") @set:PropertyName("service_icon") var serviceIcon: String = "",
     @get:PropertyName("service_img") @set:PropertyName("service_img") var serviceImg: String = "",

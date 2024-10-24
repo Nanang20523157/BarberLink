@@ -21,35 +21,44 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.view.get
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.barberlink.Adapter.ItemListPackageBookingAdapter
+import com.example.barberlink.Adapter.ItemListPackageOrdersAdapter
 import com.example.barberlink.Adapter.ItemListServiceOrdersAdapter
 import com.example.barberlink.DataClass.CapsterInfo
 import com.example.barberlink.DataClass.CustomerInfo
+import com.example.barberlink.DataClass.ListStackData
 import com.example.barberlink.DataClass.OrderInfo
 import com.example.barberlink.DataClass.PaymentDetail
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.Helper.Injection
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
 import com.example.barberlink.UserInterface.Teller.Fragment.PaymentMethodFragment
+import com.example.barberlink.UserInterface.Teller.ViewModel.SharedViewModel
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivityReviewOrderPageBinding
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
-class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPackageBookingAdapter.OnItemClicked, ItemListServiceOrdersAdapter.OnItemClicked {
+class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPackageOrdersAdapter.OnItemClicked, ItemListServiceOrdersAdapter.OnItemClicked {
     private lateinit var binding: ActivityReviewOrderPageBinding
+    private lateinit var reviewPageViewModel: SharedViewModel
+    private lateinit var viewModelFactory: ViewModelFactory
     private lateinit var outletSelected: Outlet
     private lateinit var capsterSelected: Employee
     private lateinit var timeSelected: Timestamp
@@ -57,6 +66,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var isNavigating = false
     private var currentView: View? = null
+    private var isSchedulingReservation = false
     private var todayDate: String = ""
     private var isCoinSwitchOn: Boolean = false
     private var totalQuantity: Int = 0
@@ -69,11 +79,13 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private var coinsUse: Double = 0.0
     private var totalPriceToPay: Double = 0.0
     private var promoCode: Map<String, Double> = emptyMap()
-    private val servicesList = mutableListOf<Service>()
-    private val bundlingPackagesList = mutableListOf<BundlingPackage>()
+    private var isUpdateStackSuccess: Boolean = true
+    // private val servicesList = mutableListOf<Service>()
+    // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
     private lateinit var serviceAdapter: ItemListServiceOrdersAdapter
-    private lateinit var bundlingAdapter: ItemListPackageBookingAdapter
+    private lateinit var bundlingAdapter: ItemListPackageOrdersAdapter
     private var totalQueueNumber: Int = 0
+    private lateinit var reservationRef: DocumentReference
     private lateinit var calendar: Calendar
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
@@ -86,15 +98,19 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         binding = ActivityReviewOrderPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Inisialisasi ViewModel menggunakan custom ViewModelFactory
+        viewModelFactory = Injection.provideViewModelFactory()
+        reviewPageViewModel = ViewModelProvider(this, viewModelFactory)[SharedViewModel::class.java]
+
         outletSelected = intent.getParcelableExtra(BarberBookingPage.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
         capsterSelected = intent.getParcelableExtra(BarberBookingPage.CAPSTER_DATA_KEY, Employee::class.java) ?: Employee()
         customerData = intent.getParcelableExtra(BarberBookingPage.CUSTOMER_DATA_KEY, UserCustomerData::class.java) ?: UserCustomerData()
-        intent.getParcelableArrayListExtra(BarberBookingPage.SERVICE_DATA_KEY, Service::class.java)?.let {
-            servicesList.addAll(it)
-        }
-        intent.getParcelableArrayListExtra(BarberBookingPage.BUNDLING_DATA_KEY, BundlingPackage::class.java)?.let {
-            bundlingPackagesList.addAll(it)
-        }
+//        intent.getParcelableArrayListExtra(BarberBookingPage.SERVICE_DATA_KEY, Service::class.java)?.let {
+//            servicesList.addAll(it)
+//        }
+//        intent.getParcelableArrayListExtra(BarberBookingPage.BUNDLING_DATA_KEY, BundlingPackage::class.java)?.let {
+//            bundlingPackagesList.addAll(it)
+//        }
         val timeSelectedSeconds = intent.getLongExtra(QueueTrackerPage.TIME_SECONDS_KEY, 0L)
         val timeSelectedNanos = intent.getIntExtra(QueueTrackerPage.TIME_NANOS_KEY, 0)
         calendar = Calendar.getInstance()
@@ -104,6 +120,9 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         displayAllData()
         listenSpecificOutletData()
         listenToReservationData()
+        Log.d("ViewModel", reviewPageViewModel.itemSelectedCounting.value.toString())
+        Log.d("ViewModel", reviewPageViewModel.toString())
+
         supportFragmentManager.setFragmentResultListener("user_payment_method", this) { _, bundle ->
             val result = bundle.getString("payment_method")
             result?.let { paymentMethod ->
@@ -112,6 +131,16 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     binding.tvPaymentMethod.text = it
                 }
             }
+        }
+
+        reviewPageViewModel.itemSelectedCounting.observe(this) {
+            Log.d("OBServerRev", "current itemCount: ${it.toString()}")
+            // After modifying the quantities, recalculate the payment details
+            val filteredServicesList = reviewPageViewModel.servicesList.value?.filter { it.serviceQuantity > 0 } ?: emptyList()
+            val filteredBundlingPackagesList = reviewPageViewModel.bundlingPackagesList.value?.filter { it.bundlingQuantity > 0 } ?: emptyList()
+
+            // Call calculateValues to recalculate payment details
+            calculateValues(filteredServicesList, filteredBundlingPackagesList)
         }
 
         // Set up the switch listener
@@ -135,11 +164,13 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             realLayoutCustomer.tvCustomerName.isSelected = true
             tvKodePromo.isSelected = true
 
-            serviceAdapter = ItemListServiceOrdersAdapter(this@ReviewOrderPage, true)
+            serviceAdapter = ItemListServiceOrdersAdapter(this@ReviewOrderPage, false)
+            serviceAdapter.setCapsterRef(capsterSelected.userRef)
             rvListServices.layoutManager = LinearLayoutManager(this@ReviewOrderPage, LinearLayoutManager.VERTICAL, false)
             rvListServices.adapter = serviceAdapter
 
-            bundlingAdapter = ItemListPackageBookingAdapter(this@ReviewOrderPage, true)
+            bundlingAdapter = ItemListPackageOrdersAdapter(this@ReviewOrderPage, false)
+            bundlingAdapter.setCapsterRef(capsterSelected.userRef)
             rvListPaketBundling.layoutManager = LinearLayoutManager(this@ReviewOrderPage, LinearLayoutManager.HORIZONTAL, false)
             rvListPaketBundling.adapter = bundlingAdapter
 
@@ -191,8 +222,9 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         })
     }
 
-    private fun setupIndicator(){
-        val indikator = arrayOfNulls<ImageView>(serviceAdapter.itemCount)
+    private fun setupIndicator(itemCount: Int? = null) {
+        itemCount?.let { binding.slideindicatorsContainer.removeAllViews() } // Clear previous indicators
+        val indikator = arrayOfNulls<ImageView>(itemCount ?: serviceAdapter.itemCount)
         val marginTopPx = TypedValue.applyDimension(
             TypedValue.COMPLEX_UNIT_DIP,
             0.5f,
@@ -258,9 +290,13 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
                 documentSnapshot?.let { document ->
                     if (document.exists()) {
-                        val outletData = document.toObject(Outlet::class.java)
-                        outletData?.let {
-                            outletSelected = it
+                        if (document.exists()) {
+                            val outletData = document.toObject(Outlet::class.java)
+                            outletData?.let { outlet ->
+                                // Assign the document reference path to outletReference
+                                outlet.outletReference = document.reference.path
+                                outletSelected = outlet
+                            }
                         }
                     }
                 }
@@ -293,8 +329,11 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun displayAllData() {
-        val filteredServicesList = servicesList.filter { it.serviceQuantity > 0 }
-        val filteredBundlingPackagesList = bundlingPackagesList.filter { it.bundlingQuantity > 0 }
+        // Mengambil daftar layanan yang telah difilter dari ViewModel
+        val filteredServicesList = reviewPageViewModel.servicesList.value?.filter { it.serviceQuantity > 0 } ?: emptyList()
+
+        // Mengambil daftar paket bundling yang telah difilter dari ViewModel
+        val filteredBundlingPackagesList = reviewPageViewModel.bundlingPackagesList.value?.filter { it.bundlingQuantity > 0 } ?: emptyList()
 
         serviceAdapter.submitList(filteredServicesList)
         bundlingAdapter.submitList(filteredBundlingPackagesList)
@@ -318,16 +357,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                 realLayoutCustomer.ivCustomerPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
             }
 
-            if (customerData.uid.isNotEmpty()) {
-                realLayoutCustomer.tvCustomerName.text = customerData.fullname
-
-                val username = customerData.username.ifEmpty { "---" }
-                realLayoutCustomer.tvUsername.text = getString(R.string.username_template, username)
-                val formattedPhone = PhoneUtils.formatPhoneNumberWithZero(customerData.phone)
-                realLayoutCustomer.tvCustomerPhone.text = getString(R.string.phone_template, formattedPhone)
-                setUserGender(customerData.gender)
-                setMembershipStatus(customerData.membership)
-            }
+            // Set User Customer Data
+            realLayoutCustomer.tvCustomerName.text = customerData.fullname
+            val username = customerData.username.ifEmpty { "---" }
+            realLayoutCustomer.tvUsername.text = getString(R.string.username_template, username)
+            val formattedPhone = PhoneUtils.formatPhoneNumberWithZero(customerData.phone)
+            realLayoutCustomer.tvCustomerPhone.text = getString(R.string.phone_template, formattedPhone)
+            setUserGender(customerData.gender)
+            setMembershipStatus(customerData.membership)
 
             if (capsterSelected.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
@@ -513,7 +550,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
 
-
     private fun setUserGender(gender: String) {
         with(binding) {
             val density = root.resources.displayMetrics.density
@@ -526,7 +562,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     tvGenderLayoutParams.setMargins(
                         (2 * density).toInt(),
                         (0 * density).toInt(),
-                        (3 * density).toInt(),
+                        (4 * density).toInt(),
                         (0 * density).toInt()
                     )
                     realLayoutCustomer.tvGender.text = getString(R.string.male)
@@ -536,19 +572,20 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                         R.drawable.gender_masculine_background
                     )
                     realLayoutCustomer.ivGender.setImageDrawable(
-                        AppCompatResources.getDrawable(
-                            this@ReviewOrderPage,
-                            R.drawable.ic_male
-                        )
+                        AppCompatResources.getDrawable(this@ReviewOrderPage, R.drawable.ic_male)
                     )
                     ivGenderLayoutParams.marginStart = 0
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0.5 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayoutCustomer.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                 }
                 "Perempuan" -> {
                     // Mengatur margin untuk tvGender
                     tvGenderLayoutParams.setMargins(
                         (2 * density).toInt(),
-                        (-0.5 * density).toInt(),
-                        (3 * density).toInt(),
+                        (-0.1 * density).toInt(),
+                        (4 * density).toInt(),
                         (0.1 * density).toInt()
                     )
                     realLayoutCustomer.tvGender.text = getString(R.string.female)
@@ -558,34 +595,60 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                         R.drawable.gender_feminime_background
                     )
                     realLayoutCustomer.ivGender.setImageDrawable(
-                        AppCompatResources.getDrawable(
-                            this@ReviewOrderPage,
-                            R.drawable.ic_female
-                        )
+                        AppCompatResources.getDrawable(this@ReviewOrderPage, R.drawable.ic_female)
                     )
                     ivGenderLayoutParams.marginStart = 0
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0.5 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayoutCustomer.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                 }
-                else -> {
+                "Rahasiakan" -> {
                     // Mengatur margin untuk tvGender
                     tvGenderLayoutParams.setMargins(
                         (3.5 * density).toInt(),
-                        (-0.5 * density).toInt(),
-                        (3 * density).toInt(),
-                        (0.1 * density).toInt()
+                        (0.1 * density).toInt(),
+                        (4 * density).toInt(),
+                        (0 * density).toInt()
                     )
-                    realLayoutCustomer.tvGender.text = getString(R.string.unknown)
+                    realLayoutCustomer.tvGender.text = getString(R.string.long_text_unknown)
                     realLayoutCustomer.tvGender.setTextColor(ContextCompat.getColor(this@ReviewOrderPage, R.color.dark_black_gradation))
                     realLayoutCustomer.llGender.background = AppCompatResources.getDrawable(
                         this@ReviewOrderPage,
                         R.drawable.gender_unknown_background
                     )
                     realLayoutCustomer.ivGender.setImageDrawable(
-                        AppCompatResources.getDrawable(
-                            this@ReviewOrderPage,
-                            R.drawable.ic_unknown
-                        )
+                        AppCompatResources.getDrawable(this@ReviewOrderPage, R.drawable.ic_unknown)
+                    )
+                    // Mengatur margin start ivGender menjadi 1
+                    ivGenderLayoutParams.marginStart = (1 * density).toInt()
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayoutCustomer.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
+                }
+                else -> {
+                    // Mengatur margin untuk tvGender
+                    tvGenderLayoutParams.setMargins(
+                        (3.5 * density).toInt(),
+                        (-0.5 * density).toInt(),
+                        (4 * density).toInt(),
+                        (0.1 * density).toInt()
+                    )
+                    realLayoutCustomer.tvGender.text = getString(R.string.empty_user_gender)
+                    realLayoutCustomer.tvGender.setTextColor(ContextCompat.getColor(this@ReviewOrderPage, R.color.dark_black_gradation))
+                    realLayoutCustomer.llGender.background = AppCompatResources.getDrawable(
+                        this@ReviewOrderPage,
+                        R.drawable.gender_unknown_background
+                    )
+                    realLayoutCustomer.ivGender.setImageDrawable(
+                        AppCompatResources.getDrawable(this@ReviewOrderPage, R.drawable.ic_unknown)
                     )
                     ivGenderLayoutParams.marginStart = (1 * density).toInt()  // Mengatur margin start menjadi 1
+
+                    // Mengatur padding untuk ivGender menjadi 0.5dp
+                    val paddingInDp = (0 * density).toInt() // Konversi 0.5dp ke pixel
+                    realLayoutCustomer.ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                 }
             }
 
@@ -661,59 +724,98 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     showPaymentMethodDialog()
                 }
                 R.id.btnSendRequest -> {
-                    if (totalPriceToPay != 0.0) {
-                        val capsterInfo = CapsterInfo(
-                            capsterName = capsterSelected.fullname,
-                            capsterRef = capsterSelected.userRef,
-                            shareProfit = shareProfitCapster.toInt()
-                        )
+                    if (totalQuantity != 0) {
+                        binding.progressBar.visibility = View.VISIBLE
+                        Log.d("ReservationData", "Line 721")
+                        if (!isUpdateStackSuccess) {
+                            trigerUpdateStackData()
+                        } else {
+                            val capsterInfo = CapsterInfo(
+                                capsterName = capsterSelected.fullname,
+                                capsterRef = capsterSelected.userRef,
+                                shareProfit = shareProfitCapster.toInt()
+                            )
 
-                        val customerInfo = CustomerInfo(
-                            customerName = customerData.fullname,
-                            customerRef = "customers/${customerData.uid}",
-                            customerPhone = customerData.phone
-                        )
+                            // val customerRef = if (customerData.uid.isNotEmpty()) "customers/${customerData.uid}" else ""
 
-                        val orderInfo = createOrderInfoList()
-                        val paymentDetails = PaymentDetail(
-                            coinsUsed = coinsUse.toInt(),
-                            finalPrice = totalPriceToPay.toInt(),
-                            numberOfItems = totalQuantity,
-                            paymentMethod = paymentMethod,
-                            paymentStatus = false,
-                            promoUsed = sumPromoValues(promoCode).toInt(),
-                            subtotalItems = subTotalPrice
-                        )
+                            val customerInfo = CustomerInfo(
+                                customerName = customerData.fullname,
+                                customerRef = customerData.userRef,
+                                customerPhone = customerData.phone
+                            )
 
-                        val queueNumberText = NumberUtils.convertToFormattedString(totalQueueNumber + 1)
+                            val orderInfo = createOrderInfoList()
+                            val paymentDetails = PaymentDetail(
+                                coinsUsed = coinsUse.toInt(),
+                                finalPrice = totalPriceToPay.toInt(),
+                                numberOfItems = totalQuantity,
+                                paymentMethod = paymentMethod,
+                                paymentStatus = false,
+                                promoUsed = sumPromoValues(promoCode).toInt(),
+                                subtotalItems = subTotalPrice
+                            )
 
-                        userReservationData = Reservation(
-                            barbershopRef = outletSelected.rootRef,
-                            bestDealsRef = emptyList(),
-                            capsterInfo = capsterInfo,
-                            queueNumber = queueNumberText,
-                            customerInfo = customerInfo,
-                            notes = binding.realLayoutCustomer.etNotes.text.toString().trim(),
-                            orderInfo = orderInfo,
-                            orderType = "reserve",
-                            outletLocation = outletSelected.outletName,
-                            paymentDetail = paymentDetails,
-                            queueStatus = "waiting",
-                            timestampCreated = Timestamp.now(),
-                            timestampToBooking = timeSelected
-                        )
+                            val queueNumberText = NumberUtils.convertToFormattedString(totalQueueNumber + 1)
 
-                        if (isSuccessGetReservation) addNewReservationAndNavigate()
-                        else Toast.makeText(this@ReviewOrderPage, "Silakan coba lagi setelah beberapa saat.", Toast.LENGTH_SHORT).show()
+                            userReservationData = Reservation(
+                                barbershopRef = outletSelected.rootRef,
+                                bestDealsRef = emptyList(),
+                                capsterInfo = capsterInfo,
+                                queueNumber = queueNumberText,
+                                customerInfo = customerInfo,
+                                notes = binding.realLayoutCustomer.etNotes.text.toString().trim(),
+                                orderInfo = orderInfo,
+                                orderType = "reserve",
+                                outletLocation = outletSelected.outletName,
+                                paymentDetail = paymentDetails,
+                                queueStatus = "waiting",
+                                timestampCreated = Timestamp.now(),
+                                timestampToBooking = timeSelected
+                            )
+
+                            if (isSuccessGetReservation) addNewReservationAndNavigate()
+                            else {
+                                binding.progressBar.visibility = View.GONE
+                                Toast.makeText(this@ReviewOrderPage, "Silakan coba lagi setelah beberapa saat.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
+    private fun createOrderInfoList(): List<OrderInfo> {
+        val orderInfoList = mutableListOf<OrderInfo>()
+
+        // Proses bundlingPackagesList dari ViewModel
+        reviewPageViewModel.bundlingPackagesList.value?.filter { it.bundlingQuantity > 0 }?.forEach { bundling ->
+            val orderInfo = OrderInfo(
+                orderQuantity = bundling.bundlingQuantity,
+                orderRef = bundling.uid,  // Menggunakan atribut yang sesuai untuk referensi
+                nonPackage = false  // Karena ini adalah bundling, nonPackage diatur menjadi false
+            )
+            orderInfoList.add(orderInfo)
+        }
+
+        // Proses servicesList dari ViewModel
+        reviewPageViewModel.servicesList.value?.filter { it.serviceQuantity > 0 }?.forEach { service ->
+            val orderInfo = OrderInfo(
+                orderQuantity = service.serviceQuantity,
+                orderRef = service.uid,  // Menggunakan atribut yang sesuai untuk referensi
+                nonPackage = true  // Karena ini adalah service, nonPackage diatur menjadi true
+            )
+            orderInfoList.add(orderInfo)
+        }
+
+
+        return orderInfoList
+    }
+
     private fun addNewReservationAndNavigate() {
+        Log.d("ReservationData", "Line 771")
         // Membuat referensi dokumen baru dengan UID yang di-generate terlebih dahulu
-        val reservationRef = db.collection("${outletSelected.rootRef}/outlets/${outletSelected.uid}/reservations").document()
+        reservationRef = db.collection("${outletSelected.rootRef}/outlets/${outletSelected.uid}/reservations").document()
 
         // Simpan UID dokumen yang telah di-generate ke dalam userReservationData
         val reservationUid = reservationRef.id
@@ -724,39 +826,94 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         // Menambahkan data reservasi ke Firestore dengan UID yang sudah di-generate
         reservationRef.set(userReservationData)
             .addOnSuccessListener {
+                Log.d("ReservationData", "New Reservation: $reservationUid")
                 // Jika berhasil, navigasikan ke halaman berikutnya atau lakukan operasi lain
-                updateOutletListCustomerData()
+                trigerUpdateStackData()
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener {
+                binding.progressBar.visibility = View.GONE
                 Toast.makeText(this@ReviewOrderPage, "Permintaan reservasi Anda gagal diproses. Silakan coba lagi nanti.", Toast.LENGTH_SHORT).show()
             }
     }
 
+    private fun trigerUpdateStackData() {
+        // val isRandomCapster = capsterSelected.uid == "----------------"
+        val isGuestAccount = customerData.uid.isEmpty()
+        val data = ListStackData(
+            timestampData = userReservationData.timestampToBooking ?: Timestamp.now(),
+            referenceData = reservationRef.path,
+            capsterName = capsterSelected.fullname,
+            customerName = if (!isGuestAccount) customerData.fullname else "",
+            // randomCapster = isRandomCapster,
+            // guestAccount = customerData.uid.isEmpty()
+        )
 
-    private fun createOrderInfoList(): List<OrderInfo> {
-        val orderInfoList = mutableListOf<OrderInfo>()
+        // Mulai coroutine untuk menjalankan fungsi secara paralel
+        CoroutineScope(Dispatchers.Main).launch {
+            val updateStackResult = async {
+                if (!isSchedulingReservation) {
+                    updateUserStackReservationList(data)
+                } else {
+                    updateUserStackAppointmentList(data)
+                }
+            }
 
-        // Proses bundlingList
-        bundlingPackagesList.filter { it.bundlingQuantity > 0 }.forEach { bundling ->
-            val orderInfo = OrderInfo(
-                orderQuantity = bundling.bundlingQuantity,
-                orderRef = bundling.uid,  // Anda bisa menggunakan atribut yang sesuai untuk referensi
-                nonPackage = false  // Karena ini adalah bundling, nonPackage diatur menjadi false
-            )
-            orderInfoList.add(orderInfo)
+            val updateOutletResult = async {
+                if (customerData.uid.isNotEmpty()) updateOutletListCustomerData()
+            }
+
+            // Menunggu semua operasi selesai
+            try {
+                awaitAll(updateStackResult, updateOutletResult)
+                navigatePage(
+                    this@ReviewOrderPage,
+                    ComplateOrderPage::class.java,
+                    binding.btnSendRequest
+                )
+            } catch (e: Exception) {
+                isUpdateStackSuccess = false
+                binding.progressBar.visibility = View.GONE
+                 Toast.makeText(this@ReviewOrderPage, "Terjadi kesalahan, silahkan coba lagi!!!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun updateUserStackReservationList(data: ListStackData) {
+        // val customerRef = if (data.customerName.isNotEmpty()) "customers/${customerData.uid}" else ""
+        val customerRef = if (data.customerName.isNotEmpty()) customerData.userRef else ""
+
+        if (customerRef.isNotEmpty()) {
+            if (isUpdateStackSuccess) customerData.reservationList = customerData.reservationList?.apply { add(data) } ?: mutableListOf(data)
+            db.document(customerRef).update("reservation_list", customerData.reservationList)
+                .addOnFailureListener { exception ->
+                    Log.d("ReservationData", "Error updating reservation list: ${exception.message}")
+                    // Toast.makeText(this@ReviewOrderPage, "Error updating reservation list: ${exception.message}", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    private fun updateUserStackAppointmentList(data: ListStackData) {
+        val customerRef = if (data.customerName.isNotEmpty()) customerData.userRef else ""
+        val capsterRef = if (data.capsterName.isNotEmpty()) capsterSelected.userRef else ""
+
+
+        if (customerRef.isNotEmpty()) {
+            if (isUpdateStackSuccess) customerData.appointmentList = customerData.appointmentList?.apply { add(data) } ?: mutableListOf(data)
+            db.document(customerRef).update("appointment_list", customerData.appointmentList)
+                .addOnFailureListener { exception ->
+                    Log.d("ReservationData", "Error updating appointment list: ${exception.message}")
+                    // Toast.makeText(this@ReviewOrderPage, "Error updating appointment list: ${exception.message}", Toast.LENGTH_SHORT).show()
+                }
         }
 
-        // Proses serviceList
-        servicesList.filter { it.serviceQuantity > 0 }.forEach { service ->
-            val orderInfo = OrderInfo(
-                orderQuantity = service.serviceQuantity,
-                orderRef = service.uid,  // Anda bisa menggunakan atribut yang sesuai untuk referensi
-                nonPackage = true  // Karena ini adalah service, nonPackage diatur menjadi true
-            )
-            orderInfoList.add(orderInfo)
+        if (capsterRef.isNotEmpty()) {
+            if (isUpdateStackSuccess) capsterSelected.appointmentList = capsterSelected.appointmentList?.apply { add(data) } ?: mutableListOf(data)
+            db.document(capsterRef).update("appointment_list", capsterSelected.appointmentList)
+                .addOnFailureListener { exception ->
+                    Log.d("ReservationData", "Error updating appointment list: ${exception.message}")
+                    // Toast.makeText(this@ReviewOrderPage, "Error updating appointment list: ${exception.message}", Toast.LENGTH_SHORT).show()
+                }
         }
-
-        return orderInfoList
     }
 
     private fun updateOutletListCustomerData() {
@@ -774,9 +931,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
                 // Update field list_customers di Firestore
                 outletRef.update("list_customers", outlet.listCustomers)
-                    .addOnSuccessListener {
-                        navigatePage(this@ReviewOrderPage, ComplateOrderPage::class.java, binding.btnSendRequest)
-                    }
                     .addOnFailureListener { exception ->
                         Toast.makeText(this@ReviewOrderPage, "Error updating last reservation: ${exception.message}", Toast.LENGTH_SHORT).show()
                     }
@@ -790,9 +944,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
                 // Update field list_customers di Firestore
                 outletRef.update("list_customers", outlet.listCustomers)
-                    .addOnSuccessListener {
-                        navigatePage(this@ReviewOrderPage, ComplateOrderPage::class.java, binding.btnSendRequest)
-                    }
                     .addOnFailureListener { exception ->
                         Toast.makeText(this@ReviewOrderPage, "Error updating last reservation: ${exception.message}", Toast.LENGTH_SHORT).show()
                     }
@@ -800,19 +951,20 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
     }
 
-
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         view.isClickable = false
         currentView = view
         if (!isNavigating) {
             isNavigating = true
             val intent = Intent(context, destination)
+            Log.d("ReservationData", "Line 869")
             intent.apply {
                 putExtra(RESERVATION_DATA, userReservationData)
-                putParcelableArrayListExtra(SERVICE_DATA_KEY, ArrayList(servicesList))
-                putParcelableArrayListExtra(BUNDLING_DATA_KEY, ArrayList(bundlingPackagesList))
+//                putParcelableArrayListExtra(SERVICE_DATA_KEY, ArrayList(servicesList))
+//                putParcelableArrayListExtra(BUNDLING_DATA_KEY, ArrayList(bundlingPackagesList))
             }
             startActivity(intent)
+            binding.progressBar.visibility = View.GONE
         } else return
     }
 
@@ -825,20 +977,46 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     companion object {
         const val RESERVATION_DATA = "reservation_data"
-        const val SERVICE_DATA_KEY = "service_data_key"
-        const val BUNDLING_DATA_KEY = "bundling_data_key"
+        // const val SERVICE_DATA_KEY = "service_data_key"
+        // const val BUNDLING_DATA_KEY = "bundling_data_key"
     }
 
-    override fun onItemClickListener(
-        bundlingPackage: BundlingPackage,
-        index: Int,
-        addCount: Boolean
-    ) {
-        Log.d("Todo", "Not yet implemented")
+    override fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean, currentList: List<BundlingPackage>?) {
+        // Akses dan perbarui data di ViewModel
+        reviewPageViewModel.updateBundlingQuantity(index, bundlingPackage.bundlingQuantity)
+
+        // Logika pengelolaan item yang dipilih
+        if (!addCount) {
+            reviewPageViewModel.removeItemSelectedByName(bundlingPackage.packageName, bundlingPackage.bundlingQuantity == 0)
+        } else if (bundlingPackage.bundlingQuantity >= 1) {
+            reviewPageViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package")
+        }
+
+        // Update visibility based on remaining items
+        binding.rlBundlings.visibility = if (currentList?.size == 0) View.GONE else View.VISIBLE
+
     }
 
-    override fun onItemClickListener(service: Service, index: Int) {
-        Log.d("Todo", "Not yet implemented")
+    override fun onItemClickListener(service: Service, index: Int, addCount: Boolean, currentList: List<Service>?) {
+        // Akses dan perbarui data di ViewModel
+        reviewPageViewModel.updateServicesQuantity(index, service.serviceQuantity)
+
+        // Logika pengelolaan item yang dipilih
+        if (!addCount) {
+            reviewPageViewModel.removeItemSelectedByName(service.serviceName, service.serviceQuantity == 0)
+            if (service.serviceQuantity == 0) {
+                // Update indicators
+                setupIndicator(currentList?.size)
+
+                // Set the current indicator to the item before the current index
+                // Ensure index is not less than 0
+                val previousIndex = if (index > 0) index - 1 else 0
+                setIndikatorSaarIni(previousIndex.coerceAtMost(serviceAdapter.itemCount - 1))
+            }
+        } else if (service.serviceQuantity >= 1) {
+            reviewPageViewModel.addItemSelectedCounting(service.serviceName, "service")
+        }
     }
+
 
 }

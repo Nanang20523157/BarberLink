@@ -212,8 +212,9 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             .addOnSuccessListener { customerDocument ->
                 binding.progressBar.visibility = View.GONE
                 if (customerDocument.exists()) {
-                    customerDocument.toObject(UserCustomerData::class.java)?.let {
-                        userCustomerData = it
+                    customerDocument.toObject(UserCustomerData::class.java)?.apply {
+                        userRef = customerDocument.reference.path
+                        userCustomerData = this
                     }
 
                     userAdminData?.apply {

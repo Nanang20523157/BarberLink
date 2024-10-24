@@ -1,7 +1,5 @@
 package com.example.barberlink.UserInterface.Teller
 
-import BundlingPackage
-import Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -9,16 +7,22 @@ import android.os.Bundle
 import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.Helper.Injection
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
+import com.example.barberlink.UserInterface.Teller.ViewModel.SharedViewModel
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityComplateOrderPageBinding
 
 class ComplateOrderPage : AppCompatActivity() {
     private lateinit var binding: ActivityComplateOrderPageBinding
     private lateinit var userReservationData: Reservation
-    private val servicesList = mutableListOf<Service>()
-    private val bundlingPackagesList = mutableListOf<BundlingPackage>()
+    private lateinit var complatePageViewModel: SharedViewModel
+    private lateinit var viewModelFactory: ViewModelFactory
+    // private val servicesList = mutableListOf<Service>()
+    // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
     private var isNavigating = false
     private var currentView: View? = null
 
@@ -28,13 +32,20 @@ class ComplateOrderPage : AppCompatActivity() {
         binding = ActivityComplateOrderPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Inisialisasi ViewModel menggunakan custom ViewModelFactory
+        viewModelFactory = Injection.provideViewModelFactory()
+        complatePageViewModel = ViewModelProvider(
+            this,
+            viewModelFactory
+        )[SharedViewModel::class.java]
+
         userReservationData = intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, Reservation::class.java) ?: Reservation()
-        intent.getParcelableArrayListExtra(ReviewOrderPage.SERVICE_DATA_KEY, Service::class.java)?.let {
-            servicesList.addAll(it)
-        }
-        intent.getParcelableArrayListExtra(ReviewOrderPage.BUNDLING_DATA_KEY, BundlingPackage::class.java)?.let {
-            bundlingPackagesList.addAll(it)
-        }
+//        intent.getParcelableArrayListExtra(ReviewOrderPage.SERVICE_DATA_KEY, Service::class.java)?.let {
+//            servicesList.addAll(it)
+//        }
+//        intent.getParcelableArrayListExtra(ReviewOrderPage.BUNDLING_DATA_KEY, BundlingPackage::class.java)?.let {
+//            bundlingPackagesList.addAll(it)
+//        }
 
         setupView()
         binding.realLayout.btnNavigateToHomePage.setOnClickListener {
@@ -49,17 +60,18 @@ class ComplateOrderPage : AppCompatActivity() {
             realLayout.tvCustomerPhone.text = userReservationData.customerInfo.customerPhone
             realLayout.tvSelectedCapster.text = userReservationData.capsterInfo.capsterName.ifEmpty { "???" }
 
-            val serviceAndBundlingNames = userReservationData.orderInfo.mapNotNull { order ->
+            val serviceAndBundlingNames = userReservationData.orderInfo?.mapNotNull { order ->
                 if (order.nonPackage) {
-                    // Mencari di servicesList
-                    servicesList.find { it.uid == order.orderRef }?.serviceName
+                    // Mencari di servicesList dari ViewModel
+                    complatePageViewModel.servicesList.value?.find { it.uid == order.orderRef }?.serviceName
                 } else {
-                    // Mencari di bundlingPackagesList
-                    bundlingPackagesList.find { it.uid == order.orderRef }?.packageName
+                    // Mencari di bundlingPackagesList dari ViewModel
+                    complatePageViewModel.bundlingPackagesList.value?.find { it.uid == order.orderRef }?.packageName
                 }
-            }.joinToString(separator = ", ")
+            }?.joinToString(separator = ", ")
 
-            realLayout.tvOrderDetails.text = if (serviceAndBundlingNames.isNotEmpty()) "$serviceAndBundlingNames." else "-"
+
+            realLayout.tvOrderDetails.text = if (serviceAndBundlingNames?.isNotEmpty() == true) "$serviceAndBundlingNames." else "-"
             realLayout.tvNotes.text = userReservationData.notes.ifEmpty { "-" }
             realLayout.queueNumber.text = userReservationData.queueNumber
 
@@ -79,13 +91,14 @@ class ComplateOrderPage : AppCompatActivity() {
         if (!isNavigating) {
             isNavigating = true
             val data = userReservationData.capsterInfo.capsterName.ifEmpty { "All" }
-            val intent = Intent(this@ComplateOrderPage, QueueTrackerPage::class.java).apply {
+            val intent = Intent(context, destination).apply {
                 flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                 putExtra(CAPSTER_NAME_KEY, data)
             }
             startActivity(intent)
             overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             finish()
+            complatePageViewModel.clearAllData()
         } else return
     }
 
@@ -100,6 +113,7 @@ class ComplateOrderPage : AppCompatActivity() {
         startActivity(intent)
         overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
         finish()
+        complatePageViewModel.clearAllData()
     }
 
     companion object {

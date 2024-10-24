@@ -80,10 +80,13 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull {
-                                doc -> doc.toObject(Outlet::class.java)
+                        val outlets = it.mapNotNull { doc ->
+                            // Get the outlet object from the document
+                            val outlet = doc.toObject(Outlet::class.java)
+                            // Assign the document reference path to outletReference
+                            outlet.outletReference = doc.reference.path
+                            outlet // Return the modified outlet
                         }
-
                         outletsList.clear()
                         outletsList.addAll(outlets)
                         filterOutlets(keyword, false)
@@ -96,8 +99,12 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         db.collectionGroup("outlets").get()
             .addOnSuccessListener { snapshot ->
                 CoroutineScope(Dispatchers.Default).launch {
-                    val outlets = snapshot.documents.mapNotNull { document ->
-                        document.toObject(Outlet::class.java)
+                    val outlets = snapshot.mapNotNull { doc ->
+                        // Get the outlet object from the document
+                        val outlet = doc.toObject(Outlet::class.java)
+                        // Assign the document reference path to outletReference
+                        outlet.outletReference = doc.reference.path
+                        outlet // Return the modified outlet
                     }
 
                     outletsList.clear()

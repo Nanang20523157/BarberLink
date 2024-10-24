@@ -96,7 +96,9 @@
     <string name="hint_code_access">ABCDE12345</string>
     <string name="text_information_for_code_access">Dengan kode akses kasir, karyawan bisa masuk akun tanpa menggunakan email dan password owner.</string>
     <string name="label_request_confirmation">Konfirmasi Permintaan</string>
-    <string name="question_for_request_confirmation">Apakah Anda benar-benar ingin menandai antrian ini telah selesai?</string>
+    <string name="question_for_request_confirmation">Apakah Anda benar-benar ingin menandai nomor antrian di bawah ini telah selesai?</string>
+    <string name="warning_for_random_confirmation">Apakah Anda benar-benar ingin menindaklanjuti nomor antrian dengan <b>Random Capster</b> di bawah ini?. Jika iya, <b>maka pastikan pelanggan mengetahui perubahan harga yang mungkin terjadi!!!</b></string>
+    <string name="request_confirmation_execution_queue">Apakah Anda benar-benar ingin menindaklanjuti pelanggan dengan nomor antrian di bawah ini?.</string>
     <string name="label_input_payment_amount">Masukkan Nominal Pembayaran:</string>
     <string name="payment_amount_hint">Nominal Pembayaran</string>
     <string name="btn_yes">Ya</string>
@@ -129,6 +131,7 @@
     <string name="last_update_label">terakhir diperbarui:</string>
     <string name="revoke_btn">Revoke</string>
     <string name="question_mark">\?????</string>
+    <string name="empty_member_status">\????</string>
     <string name="toolbar_booking_page">Booking Page</string>
     <string name="tgl_label">Tgl</string>
     <string name="nb_text_phone">*NB: Tambahkan terlebih dahulu jika belum tersedia.</string>
@@ -316,7 +319,7 @@
     <string name="dashboard">Dashboard</string>
     <string name="switch_text">Alihkan</string>
     <string name="do_it_text">Do It</string>
-    <string name="_08">%1$s</string>
+    <string name="template_number_prefix">%1$s.</string>
     <string name="display_text">Tampilkan</string>
     <string name="toolbar_list_order_fragment">List Order</string>
     <string name="non_package_text">Non-Paket</string>
@@ -342,7 +345,7 @@
     <string name="income_from_service">Pendapatan\nDari Jasa</string>
     <string name="rp_13_900_000">Rp 13.900.000</string>
     <string name="sales_information">Informasi Penjualan</string>
-    <string name="has_been_cancelled">Telah Dibatalkan</string>
+    <string name="has_been_canceled">Telah Dibatalkan</string>
     <string name="order_complate_label">Pesanan Selesai</string>
     <string name="canceled_order_label">Pesanan Batal</string>
     <string name="packaging_order_label">Pesanan Dikemas</string>
@@ -372,11 +375,12 @@
     <string name="non_member_text">Non-Member</string>
     <string name="claim_amount_promo">Claim: %1$d</string>
     <string name="triple_dash">---</string>
-    <string name="unknown">terprivasi</string>
+    <string name="long_text_unknown">terprivasi</string>
+    <string name="short_text_unknown">--</string>
     <string name="exist_customer">Anda sudah terdaftar sebagai customer.</string>
     <string name="enter_text">MASUK</string>
     <string name="holiday_text">LIBUR</string>
-    <string name="ppn_label">Pajak Pertambahan Nilai:</string>
+    <string name="ppn_label">PPN Layanan Jasa:</string>
     <string name="random_capster">Random Capster</string>
     <string name="cancel_text_btn">Batalkan</string>
     <string name="next_text_btn">Lanjutkan</string>
@@ -390,4 +394,18 @@
     <string name="lorem_ipsum">Lorem ipsum dolor bgiugi sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</string>
     <string name="ups_text">Ups… Sepertinya Ada Masalah!!</string>
     <string name="edit_order">Edit Pesanan</string>
+    <string name="estimation_price_change"><b>Estimasi Perubahan Harga:</b></string>
+    <string name="subtotal_reservation_bill"><b>Subtotal Tagihan Pelanggan:</b></string>
+    <string name="empty_queue_number">--</string>
+    <string name="empty_payment_status">----------------</string>
+    <string name="empty_user_gender">----------</string>
+    <string name="empty_user_phone">Telp. 0XXX-XXXX-XXXX</string>
+    <string name="empty_payment_amount">Rp ............</string>
+    <string name="empty_user_fullname">XXXXXXXXXXXX</string>
+    <string name="empty_reviews_count">(??? Reviews)</string>
+    <string name="same_prices_list_text">Harga sama untuk semua capster</string>
+    <string name="different_prices_list_text">Harga bervariasi sesuai capster</string>
+    <string name="price_not_including_fee">Harga belum termasuk fee capster</string>
+    <string name="template_queue_number">No. %1$s</string>
+    <string name="no_price_change_text">Tidak Ada</string>
 </resources>

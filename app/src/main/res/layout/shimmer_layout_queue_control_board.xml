@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/llQueueStatistics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:weightSum="3"
+        android:layout_marginTop="5dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Statistics -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvTotalQueue"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            app:cardCornerRadius="17dp"
+            android:layout_weight="1"
+            app:cardElevation="0dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:layout_constraintHorizontal_chainStyle="spread_inside">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_total_queue"
+                    android:textSize="14.5sp"
+                    android:fontFamily="@font/arial_medium"
+                    android:layout_marginTop="22dp"/>
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_TotalQueue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    android:layout_marginTop="1dp"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0">
+
+                    <TextView
+                        android:id="@+id/tvTotalQueue"
+                        android:layout_width="35dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvComplateQueue"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            app:cardCornerRadius="17dp"
+            android:layout_weight="1"
+            app:cardElevation="0dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:layout_constraintHorizontal_chainStyle="spread_inside">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_complete_queue"
+                    android:textSize="14.5sp"
+                    android:fontFamily="@font/arial_medium"
+                    android:layout_marginTop="22dp"/>
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_ComplateQueue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    android:layout_marginTop="1dp"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0">
+
+                    <TextView
+                        android:id="@+id/tvComplateQueue"
+                        android:layout_width="35dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvRestQueue"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            app:cardCornerRadius="17dp"
+            android:layout_weight="1"
+            app:cardElevation="0dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:layout_constraintHorizontal_chainStyle="spread_inside">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/lebel_rest_of_queue"
+                    android:textSize="14.5sp"
+                    android:fontFamily="@font/arial_medium"
+                    android:layout_marginTop="22dp"/>
+
+                <com.facebook.shimmer.ShimmerFrameLayout
+                    android:id="@+id/shimmer_RestQueue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="20dp"
+                    android:layout_marginTop="1dp"
+                    app:shimmer_auto_start="true"
+                    app:shimmer_base_alpha="0.7"
+                    app:shimmer_direction="left_to_right"
+                    app:shimmer_duration="500"
+                    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                    app:shimmer_repeat_delay="500"
+                    app:shimmer_shape="linear"
+                    app:shimmer_tilt="0">
+
+                    <TextView
+                        android:id="@+id/tvRestQueue"
+                        android:layout_width="35dp"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        android:textSize="30sp"
+                        android:textStyle="bold" />
+
+                </com.facebook.shimmer.ShimmerFrameLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</RelativeLayout>

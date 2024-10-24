@@ -11,7 +11,7 @@ data class ProductSales(
     @get:PropertyName("best_deals_ref") @set:PropertyName("best_deals_ref") var bestDealsRef: List<String> = listOf(),
     @get:PropertyName("buyer_info") @set:PropertyName("buyer_info") var buyerInfo: BuyerInfo = BuyerInfo(),
     @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo? = null,
-    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo> = listOf(),
+    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo>? = null,
     @get:PropertyName("order_status") @set:PropertyName("order_status") var orderStatus: String = "",
     @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
     @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",

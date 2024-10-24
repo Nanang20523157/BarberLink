@@ -65,7 +65,7 @@ class AddNewCustomerFragment : DialogFragment() {
     private var outletSelected: Outlet? = null
     private var isSaveData: Boolean = false
     private var userInputName: String = ""
-    private var userInputGander: String = ""
+    private var userInputGender: String = ""
     private var buttonStatus: String = "Add"
     private var isUserManualInput: Boolean = true
 
@@ -126,28 +126,29 @@ class AddNewCustomerFragment : DialogFragment() {
         ).setAction("Undo") {
             isUserManualInput = true
             // Set the fullname
+            Log.d("TriggerUU", "====== UNDO ======")
             when (message) {
                 "Kembalikan nama dan gander dari pengguna" -> {
                     binding.etFullname.setText(addCustomerViewModel.userFullname.value?.getContentIfNotHandled())
                     val userGender = addCustomerViewModel.userGender.value?.getContentIfNotHandled() ?: ""
-                    setUserCustomerGander(userGender)
+                    setUserCustomerGender(userGender)
                 }
                 "Kembalikan nama panjang dari pengguna" -> {
                     binding.etFullname.setText(addCustomerViewModel.userFullname.value?.getContentIfNotHandled())
                 }
                 "Kembalikan nilai gander dari pengguna" -> {
                     val userGender = addCustomerViewModel.userGender.value?.getContentIfNotHandled() ?: ""
-                    setUserCustomerGander(userGender)
+                    setUserCustomerGender(userGender)
                 }
             }
         }.show()
     }
 
-    private fun setUserCustomerGander(gander: String) {
+    private fun setUserCustomerGender(gander: String) {
         // List of gender options
         val genderIndex = listGender.indexOf(gander)
 
-        Log.d("TriggerUU", "gander: $gander, genderIndex: $genderIndex")
+        // Log.d("TriggerUU", "gander: $gander, genderIndex: $genderIndex")
         // Check if the gender is found in the list
         if (genderIndex != -1) {
             setupDropdownOption(genderIndex)
@@ -218,6 +219,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.ivGender.setPadding(horizontalPaddingInDp, 0, horizontalPaddingInDp, 0)
             }
         }
+        Log.d("TriggerUU", "PP ${userCustomerData?.gender}")
     }
 
     // Method untuk setup TextWatcher untuk validasi input
@@ -254,43 +256,44 @@ class AddNewCustomerFragment : DialogFragment() {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    if (buttonStatus == "Sync") {
-                        resetInputForm()
-                    }
-                    if (isUpdatingPhoneText) return // Jika sedang memperbarui teks, hentikan TextWatcher
+                    // Jika sedang memperbarui teks, hentikan TextWatcher
+                    if (isUpdatingPhoneText) return
 
                     // Set flag ke true untuk menandakan pembaruan teks sedang berlangsung
                     isUpdatingPhoneText = true
 
-                    Log.d("PhoneCHeck", s.toString())
-                    if (s.toString().trim() != "+62") {
+                    val currentInput = s.toString().trim()
+                    Log.d("PhoneCHeck", "currentInput: $currentInput")
+
+                    // Jika input bukan format yang benar
+                    if (currentInput != "+62" && currentInput.startsWith("+62 ")) {
                         val phoneNumber = s.toString().substringAfter(" ").trim()
-                        Log.d("PhoneCHeck", "format")
-                        // Hapus semua angka dan teks sebelum spasi
+                        val formattedPhone = PhoneUtils.formatPhoneNumberCodeCountry(phoneNumber)
 
-                        binding.etPhone.setText(
-                            PhoneUtils.formatPhoneNumberCodeCountry(phoneNumber)
-                        )
-                    } else {
-                        Log.d("PhoneCHeck", "replace")
+                        // Cek jika format yang baru berbeda, baru setText
+                        if (formattedPhone != binding.etPhone.text.toString()) {
+                            binding.etPhone.setText(formattedPhone)
+                            // Pastikan kursor di posisi akhir
+                            binding.etPhone.setSelection(formattedPhone.length)
+                        }
+                    } else if (currentInput == "+62") {
+                        // Jika input hanya +62, jangan format ulang
                         etPhone.setText(getString(R.string._62))
+                        binding.etPhone.setSelection(binding.etPhone.text?.length ?: 0)
                     }
-
-                    // Set kursor ke posisi akhir setelah setText untuk memastikan posisi kursor tidak terganggu
-                    binding.etPhone.text?.let { it1 -> binding.etPhone.setSelection(it1.length) }
 
                     // Set flag kembali ke false setelah selesai memperbarui
                     isUpdatingPhoneText = false
                 }
 
                 override fun afterTextChanged(s: Editable?) {
-                    // Ubah format nomor telepon menjadi +62 812-2545-
                     if (!isUpdatingPhoneText) {
-                        // Ubah format nomor telepon menjadi +62 812-2545-
+                        // Ubah format nomor telepon menjadi +62 812-2545- jika valid
                         isPhoneNumberValid = validatePhoneNumber()
                     }
                 }
             })
+
         }
     }
 
@@ -302,6 +305,7 @@ class AddNewCustomerFragment : DialogFragment() {
         } else {
             setValidInput(binding.wrapperFullname, binding.etFullname)
             userCustomerData?.fullname = fullName
+            Log.d("TriggerUU", "PP ${userCustomerData?.fullname}")
             true
         }
     }
@@ -428,6 +432,8 @@ class AddNewCustomerFragment : DialogFragment() {
         val newFullName = userCustomerData?.fullname
         val newGender = userCustomerData?.gender
 
+        Log.d("TriggerUU", "TT $newFullName $newGender")
+
         // Create a map with the fields to be updated
         val updates = mutableMapOf<String, Any>()
         if (!newFullName.isNullOrEmpty()) updates["fullname"] = newFullName
@@ -455,11 +461,12 @@ class AddNewCustomerFragment : DialogFragment() {
                     addNewCustomer()
                 } else {
                     Log.d("TriggerUU", "X2.2X")
-                    customerDocument.toObject(UserCustomerData::class.java)?.let { data ->
-                        userCustomerData = data
-                    }
 
                     if (buttonStatus == "Add") {
+                        customerDocument.toObject(UserCustomerData::class.java)?.apply {
+                            userRef = customerDocument.reference.path
+                            userCustomerData = this
+                        }
                         Log.d("TriggerUU", "X2.2.1X")
                         setupUserCard(false)
                     } else if (buttonStatus == "Sync") {
@@ -561,8 +568,9 @@ class AddNewCustomerFragment : DialogFragment() {
                         }
                         else -> {
                             Log.d("TriggerUU", "X5.3X")
-                            it.toObject(UserCustomerData::class.java)?.let { data ->
-                                userCustomerData = data
+                            it.toObject(UserCustomerData::class.java)?.apply {
+                                userRef = it.reference.path
+                                userCustomerData = this
                             }
                         }
                     }
@@ -588,7 +596,7 @@ class AddNewCustomerFragment : DialogFragment() {
             } else {
                 Log.d("TriggerUU", "X6.2X")
                 userInputName = binding.etFullname.text.toString().trim()
-                userInputGander = binding.genderDropdown.text.toString().trim()
+                userInputGender = binding.genderDropdown.text.toString().trim()
 
                 when (userRolesData?.role) {
                     "admin" -> {
@@ -647,18 +655,18 @@ class AddNewCustomerFragment : DialogFragment() {
 
     private fun displayObtainedData() {
         Log.d("TriggerUU", "X!!X")
-        if (userInputName != userCustomerData?.fullname && userInputGander != userCustomerData?.gender) {
+        if (userInputName != userCustomerData?.fullname && userInputGender != userCustomerData?.gender) {
             Log.d("TriggerUU", "X!A!X")
             isUserManualInput = false
             binding.etFullname.setText(userCustomerData?.fullname)
 
-            val userGander = userCustomerData?.gender ?: ""
-            setUserCustomerGander(userGander)
+            val userGender = userCustomerData?.gender ?: ""
+            setUserCustomerGender(userGender)
 
             // SnackBar
             addCustomerViewModel.showSnackBarToAll(
                 userInputName,
-                userInputGander,
+                userInputGender,
                 "Kembalikan nama dan gander dari pengguna"
             )
         } else if (userInputName != userCustomerData?.fullname) {
@@ -669,18 +677,18 @@ class AddNewCustomerFragment : DialogFragment() {
             // SnackBar
             addCustomerViewModel.showSnackBarToAll(
                 userInputName,
-                userInputGander,
+                userInputGender,
                 "Kembalikan nama panjang dari pengguna"
             )
-        } else if (userInputGander != userCustomerData?.gender) {
+        } else if (userInputGender != userCustomerData?.gender) {
             Log.d("TriggerUU", "X!C!X")
             isUserManualInput = false
-            val userGander = userCustomerData?.gender ?: ""
-            setUserCustomerGander(userGander)
+            val userGender = userCustomerData?.gender ?: ""
+            setUserCustomerGender(userGender)
 
             addCustomerViewModel.showSnackBarToAll(
                 userInputName,
-                userInputGander,
+                userInputGender,
                 "Kembalikan nilai gander dari pengguna"
             )
         }
