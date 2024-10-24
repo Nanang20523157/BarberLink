@@ -164,6 +164,48 @@
                 android:layout_height="wrap_content"
                 android:visibility="visible">
 
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:id="@+id/llFeeCapsterInfo"
+                    android:layout_width="140dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/background_shimmer_fee_capster"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="15dp"
+                    android:layout_marginTop="7dp">
+
+                    <TextView
+                        android:id="@+id/tvFeeCapsterInfo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/same_prices_list_text"
+                        android:textSize="9.5dp"
+                        android:paddingBottom="0.3dp"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:layout_gravity="center_vertical"
+                        android:textColor="@color/grey_300"
+                        android:paddingHorizontal="8dp"
+                        android:marqueeRepeatLimit="marquee_forever"/>
+
+                    <ImageView
+                        android:id="@+id/ivFeeCapsterInfo"
+                        android:layout_width="12.5dp"
+                        android:layout_height="12.5dp"
+                        android:layout_marginEnd="2dp"
+                        android:layout_marginBottom="-0.5dp"
+                        android:padding="0.5dp"
+                        android:layout_gravity="center_vertical"
+                        android:contentDescription="@string/image_info_icon_desc"
+                        android:src="@drawable/ic_info"
+                        app:tint="@color/grey_300" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
                 <!-- Cancel Button -->
                 <FrameLayout
                     android:id="@+id/flButtonOrder"
@@ -171,9 +213,9 @@
                     android:layout_height="wrap_content"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/llFeeCapsterInfo"
                     android:layout_marginStart="15dp"
-                    android:layout_marginTop="5dp"
+                    android:layout_marginTop="2dp"
                     android:layout_marginBottom="10dp">
 
                     <com.google.android.material.button.MaterialButton

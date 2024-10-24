@@ -830,7 +830,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="-3dp"
                         android:fontFamily="@font/arial_regular"
-                        android:text="@string/has_been_cancelled"
+                        android:text="@string/has_been_canceled"
                         android:textColor="@color/black_font_color"
                         android:textSize="15sp" />
 

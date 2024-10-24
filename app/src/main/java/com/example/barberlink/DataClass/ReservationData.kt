@@ -2,6 +2,7 @@ package com.example.barberlink.DataClass
 
 import android.os.Parcelable
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 
@@ -12,7 +13,7 @@ data class Reservation(
     @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo = CapsterInfo(),
     @get:PropertyName("customer_info") @set:PropertyName("customer_info") var customerInfo: CustomerInfo = CustomerInfo(),
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
-    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo> = listOf(),
+    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo>? = null,
     @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
     @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
     @get:PropertyName("payment_detail") @set:PropertyName("payment_detail") var paymentDetail: PaymentDetail = PaymentDetail(),
@@ -35,8 +36,10 @@ data class CapsterInfo(
 data class CustomerInfo(
     @get:PropertyName("customer_name") @set:PropertyName("customer_name") var customerName: String = "",
     @get:PropertyName("customer_phone") @set:PropertyName("customer_phone") var customerPhone: String = "",
-    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = ""
+    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = "",
+    @get:Exclude @set:Exclude var customerDetail: UserCustomerData? = null // Exclude this from Firestore
 ) : Parcelable
+
 
 @Parcelize
 data class OrderInfo(

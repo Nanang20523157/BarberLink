@@ -6,5 +6,5 @@
         android:dashWidth="7dp"
         android:dashGap="5dp"/>
     <corners android:radius="8dp"/>
-    <solid android:color="@color/red"/>
+    <solid android:color="@color/pink_calendar"/>
 </shape>

@@ -76,7 +76,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private val capsterListMutex = Mutex()
     private val reservationMutex = Mutex()
 
-
     private val reservationList = mutableListOf<Reservation>()
     private val capsterList = mutableListOf<Employee>()
     private val filteredList = mutableListOf<Employee>()
@@ -270,8 +269,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             documentSnapshot?.let { document ->
                 if (document.exists()) {
                     val outletData = document.toObject(Outlet::class.java)
-                    outletData?.let {
-                        outletSelected = it
+                    outletData?.let { outlet ->
+                        // Assign the document reference path to outletReference
+                        outlet.outletReference = document.reference.path
+                        outletSelected = outlet
                     }
                 }
             }
@@ -395,7 +396,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         Log.d("DataTellerRef", "Data Teller Ref: $dataTellerRef")
         db.document(dataTellerRef).get().addOnSuccessListener { documentSnapshot ->
             if (documentSnapshot.exists()) {
-                val outletData = documentSnapshot.toObject(Outlet::class.java)
+                val outletData = documentSnapshot.toObject(Outlet::class.java)?.apply {
+                    // Assign the document reference path to outletReference
+                    outletReference = documentSnapshot.reference.path
+                }
                 outletData?.let {
                     outletSelected = it
                     getCapsterData()
@@ -407,6 +411,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
         }
     }
+
 
     private fun getCapsterData() {
         outletSelected.let { outlet ->
@@ -525,7 +530,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             completeQueue++
                             totalQueue++
                         }
-                        "cancelled", "skipped" -> totalQueue++
+                        "canceled", "skipped" -> totalQueue++
                         "process" -> {
                             currentQueue[reservation.capsterInfo.capsterRef] = reservation.queueNumber
                             totalQueue++

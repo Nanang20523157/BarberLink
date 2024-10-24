@@ -244,7 +244,7 @@
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/recyclerPaketBundling"
                         android:layout_width="match_parent"
-                        android:layout_height="155dp"
+                        android:layout_height="168dp"
                         android:visibility="visible"
                         android:paddingHorizontal="30dp"
                         tools:listitem="@layout/item_list_package_bundling_adapter"
@@ -279,7 +279,7 @@
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/paketBundlingContainer"
                     android:layout_marginStart="22dp"
-                    android:layout_marginTop="6dp" />
+                    android:layout_marginTop="5.5dp" />
 
                 <LinearLayout
                     android:id="@+id/seeAllListPegawai"

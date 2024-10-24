@@ -138,7 +138,7 @@ class ItemListCapsterAdapter(
                         tvGenderLayoutParams.setMargins(
                             (2 * density).toInt(),
                             (0 * density).toInt(),
-                            (3 * density).toInt(),
+                            (4 * density).toInt(),
                             (0 * density).toInt()
                         )
                         tvGender.text = root.context.getString(R.string.male)
@@ -152,13 +152,17 @@ class ItemListCapsterAdapter(
                         )
                         // Mengatur margin start ivGender menjadi 0
                         ivGenderLayoutParams.marginStart = 0
+
+                        // Mengatur padding untuk ivGender menjadi 0.5dp
+                        val paddingInDp = (0.5 * density).toInt() // Konversi 0.5dp ke pixel
+                        ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                     }
                     "Perempuan" -> {
                         // Mengatur margin untuk tvGender
                         tvGenderLayoutParams.setMargins(
                             (2 * density).toInt(),
-                            (-0.5 * density).toInt(),
-                            (3 * density).toInt(),
+                            (-0.1 * density).toInt(),
+                            (4 * density).toInt(),
                             (0.1 * density).toInt()
                         )
                         tvGender.text = root.context.getString(R.string.female)
@@ -172,16 +176,44 @@ class ItemListCapsterAdapter(
                         )
                         // Mengatur margin start menjadi 0
                         ivGenderLayoutParams.marginStart = 0
+
+                        // Mengatur padding untuk ivGender menjadi 0.5dp
+                        val paddingInDp = (0.5 * density).toInt() // Konversi 0.5dp ke pixel
+                        ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
+                    }
+                    "Rahasiakan" -> {
+                        // Mengatur margin untuk tvGender
+                        tvGenderLayoutParams.setMargins(
+                            (3.5 * density).toInt(),
+                            (0.1 * density).toInt(),
+                            (4 * density).toInt(),
+                            (0 * density).toInt()
+                        )
+                        tvGender.text = root.context.getString(R.string.long_text_unknown)
+                        tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.dark_black_gradation))
+                        llGender.background = AppCompatResources.getDrawable(
+                            root.context,
+                            R.drawable.gender_unknown_background
+                        )
+                        ivGender.setImageDrawable(
+                            AppCompatResources.getDrawable(root.context, R.drawable.ic_unknown)
+                        )
+                        // Mengatur margin start ivGender menjadi 1
+                        ivGenderLayoutParams.marginStart = (1 * density).toInt()
+
+                        // Mengatur padding untuk ivGender menjadi 0.5dp
+                        val paddingInDp = (0 * density).toInt() // Konversi 0.5dp ke pixel
+                        ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                     }
                     else -> {
                         // Mengatur margin untuk tvGender
                         tvGenderLayoutParams.setMargins(
                             (3.5 * density).toInt(),
                             (-0.5 * density).toInt(),
-                            (3 * density).toInt(),
+                            (4 * density).toInt(),
                             (0.1 * density).toInt()
                         )
-                        tvGender.text = root.context.getString(R.string.unknown)
+                        tvGender.text = root.context.getString(R.string.empty_user_gender)
                         tvGender.setTextColor(ContextCompat.getColor(root.context, R.color.dark_black_gradation))
                         llGender.background = AppCompatResources.getDrawable(
                             root.context,
@@ -192,6 +224,10 @@ class ItemListCapsterAdapter(
                         )
                         // Mengatur margin start menjadi 1
                         ivGenderLayoutParams.marginStart = (1 * density).toInt()
+
+                        // Mengatur padding untuk ivGender menjadi 0.5dp
+                        val paddingInDp = (0 * density).toInt() // Konversi 0.5dp ke pixel
+                        ivGender.setPadding(paddingInDp, paddingInDp, paddingInDp, paddingInDp)
                     }
                 }
 

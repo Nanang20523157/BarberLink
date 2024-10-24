@@ -21,6 +21,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/tvQueueNumberPrefix"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 tools:text="01"
@@ -32,7 +33,7 @@
                 android:layout_marginTop="15dp"
                 android:layout_marginEnd="15dp"
                 android:textStyle="bold"
-                android:background="@drawable/background_number_of_success_queue"
+                android:background="@drawable/background_number_of_waiting_queue"
                 android:textColor="@color/black_font_color" />
 
             <com.facebook.shimmer.ShimmerFrameLayout
@@ -207,27 +208,31 @@
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cvQueueNumber"
-                    android:layout_width="wrap_content"
+                    android:layout_width="81dp"
                     android:layout_height="wrap_content"
                     app:cardCornerRadius="9dp"
                     app:cardElevation="0.5dp"
                     android:layout_marginStart="3dp"
                     android:layout_marginEnd="-5dp"
                     android:layout_marginTop="-0.5dp"
+                    android:paddingHorizontal="10dp"
                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                     app:layout_constraintTop_toTopOf="@id/cvUserProfiling"
                     app:layout_constraintEnd_toEndOf="@id/shimmerTvPaymentAmount">
 
                     <TextView
-                        android:layout_width="81dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/label_queue_number"
                         android:textSize="7sp"
                         android:gravity="center"
+                        android:singleLine="true"
+                        android:background="@drawable/shimmer_corner_empat_dp_300"
                         android:layout_gravity="center_horizontal"
                         android:textStyle="bold"
                         android:layout_marginTop="10dp"
-                        android:textColor="@color/black_font_color"/>
+                        android:layout_marginHorizontal="17dp"
+                        android:textColor="@color/grey_300"/>
 
                     <com.facebook.shimmer.ShimmerFrameLayout
                         android:id="@+id/shimmerTvQueueNumber"
@@ -252,7 +257,7 @@
                             android:layout_height="27dp"
                             tools:text="08"
                             android:textSize="22sp"
-                            android:background="@drawable/shimmer_corner_lima_dp_300"
+                            android:background="@drawable/shimmer_corner_empat_dp_300"
                             android:textAlignment="center"
                             android:layout_marginTop="21dp"
                             android:layout_marginBottom="8dp"

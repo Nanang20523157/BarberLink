@@ -28,7 +28,7 @@
                 android:id="@+id/tvQueueNumberPrefix"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="@string/_08"
+                tools:text="@string/template_number_prefix"
                 android:paddingHorizontal="7dp"
                 android:paddingVertical="3dp"
                 android:textSize="13sp"

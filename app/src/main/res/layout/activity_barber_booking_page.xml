@@ -446,7 +446,7 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvListPaketBundling"
                 android:layout_width="match_parent"
-                android:layout_height="155dp"
+                android:layout_height="168dp"
                 android:layout_below="@id/tvLabelPaketBundling"
                 tools:itemCount="3"
                 tools:listitem="@layout/item_list_package_booking_adapter"

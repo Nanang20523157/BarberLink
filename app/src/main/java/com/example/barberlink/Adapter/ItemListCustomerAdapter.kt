@@ -113,13 +113,13 @@ class ItemListCustomerAdapter(
 
                 root.setOnClickListener {
                     // Set all customers' dataSelected to false
-                    currentList.forEach { it.dataSelected = false }
+                    // currentList.forEach { it.dataSelected = false }
 
                     // Set the clicked customer's dataSelected to true
-                    customer.dataSelected = true
+                    // customer.dataSelected = true
 
                     // Notify the adapter that data has changed
-                    notifyDataSetChanged()
+                    // notifyDataSetChanged()
 
                     // Invoke the item click listener
                     itemClicked.onItemClickListener(customer, currentList)

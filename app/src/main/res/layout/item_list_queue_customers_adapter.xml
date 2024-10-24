@@ -21,10 +21,14 @@
             android:orientation="vertical">
 
             <TextView
-                android:layout_width="wrap_content"
+                android:id="@+id/tvQueueNumberPrefix"
+                android:layout_width="57dp"
                 android:layout_height="wrap_content"
-                tools:text="01"
+                tools:text="010"
                 android:textSize="15sp"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
                 android:textAlignment="center"
                 android:paddingVertical="8dp"
                 android:paddingHorizontal="20dp"
@@ -32,7 +36,7 @@
                 android:layout_marginTop="15dp"
                 android:layout_marginEnd="15dp"
                 android:textStyle="bold"
-                android:background="@drawable/background_number_of_success_queue"
+                android:background="@drawable/background_number_of_skipped_queue"
                 android:textColor="@color/black_font_color" />
 
             <LinearLayout
@@ -41,7 +45,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="start"
-                android:background="@drawable/gender_masculine_background2"
+                android:background="@drawable/gender_unknown_background2"
                 android:paddingVertical="2dp"
                 android:paddingHorizontal="4dp"
                 android:layout_marginStart="16dp"
@@ -52,7 +56,8 @@
                     android:id="@+id/ivGender"
                     android:layout_width="12.5dp"
                     android:layout_height="12.5dp"
-                    android:src="@drawable/ic_male"
+                    android:padding="0.5dp"
+                    android:src="@drawable/ic_questions"
                     android:layout_gravity="center"
                     android:contentDescription="@string/icon_gender_ilustration" />
 
@@ -60,7 +65,7 @@
                     android:id="@+id/tvGender"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:text="L"
+                    tools:text=".."
                     android:fontFamily="@font/arial_bold"
                     android:textColor="@color/black_font_color"
                     android:textSize="11sp"
@@ -163,10 +168,11 @@
                     app:layout_constraintEnd_toEndOf="@id/tvPaymentAmount">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="81dp"
                         android:layout_height="wrap_content"
                         android:text="@string/label_queue_number"
                         android:textSize="7sp"
+                        android:gravity="center"
                         android:layout_gravity="center_horizontal"
                         android:textStyle="bold"
                         android:layout_marginTop="10dp"
@@ -174,10 +180,13 @@
 
                     <TextView
                         android:id="@+id/tvCurrentQueueNumber"
-                        android:layout_width="wrap_content"
+                        android:layout_width="81dp"
                         android:layout_height="wrap_content"
-                        tools:text="08"
+                        tools:text="080"
                         android:textSize="22sp"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
                         android:textAlignment="center"
                         android:layout_marginTop="14dp"
                         android:layout_marginBottom="4.5dp"

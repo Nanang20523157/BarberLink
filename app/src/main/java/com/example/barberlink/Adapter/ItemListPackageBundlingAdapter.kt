@@ -80,6 +80,7 @@ class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView
 
         fun bind(packageBundling: BundlingPackage) {
             with (binding) {
+                tvFeeCapsterInfo.isSelected = true
                 tvPackageTitle.text = packageBundling.packageName
                 tvDescription.text = packageBundling.packageDesc
                 tvRating.text = packageBundling.packageRating.toString()
@@ -89,32 +90,32 @@ class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView
                     Toast.makeText(it.context, "Delete feature is under development...", Toast.LENGTH_SHORT).show()
                 }
                 
-                val serviceCount = packageBundling.listItemDetails.size
+                val serviceCount = packageBundling.listItemDetails?.size ?: 0
                 
                 if (serviceCount >= 1) {
                     Glide.with(root.context)
-                        .load(packageBundling.listItemDetails[0].serviceIcon)
+                        .load(packageBundling.listItemDetails?.get(0)?.serviceIcon)
                         .into(ivImageOne)
                     ivImageOne.visibility = View.VISIBLE
                 } else ivImageOne.visibility = View.INVISIBLE
                 
                 if (serviceCount >= 2) {
                     Glide.with(root.context)
-                        .load(packageBundling.listItemDetails[1].serviceIcon)
+                        .load(packageBundling.listItemDetails?.get(1)?.serviceIcon)
                         .into(ivImageTwo)
                     ivImageTwo.visibility = View.VISIBLE
                 } else ivImageTwo.visibility = View.GONE
 
                 if (serviceCount >= 3) {
                     Glide.with(root.context)
-                        .load(packageBundling.listItemDetails[2].serviceIcon)
+                        .load(packageBundling.listItemDetails?.get(2)?.serviceIcon)
                         .into(ivImageThree)
                     ivImageThree.visibility = View.VISIBLE
                 } else ivImageThree.visibility = View.GONE
 
                 if (serviceCount >= 4) {
                     Glide.with(root.context)
-                        .load(packageBundling.listItemDetails[3].serviceIcon)
+                        .load(packageBundling.listItemDetails?.get(3)?.serviceIcon)
                         .into(ivImageFour)
                     ivImageFour.visibility = View.VISIBLE
                 } else ivImageFour.visibility = View.GONE

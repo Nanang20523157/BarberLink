@@ -188,7 +188,10 @@
                 android:id="@+id/rlBundlings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                android:layout_marginStart="-16dp"
+                android:layout_marginEnd="-16dp"
                 android:layout_below="@id/containerInjectLayoutTop">
 
                 <TextView
@@ -196,8 +199,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/label_list_paket_bundling"
-                    android:layout_marginStart="10dp"
-                    android:layout_marginTop="7dp"
+                    android:layout_marginStart="27.5dp"
+                    android:layout_marginTop="6dp"
                     android:visibility="visible"
                     android:textSize="17sp"
                     android:textStyle="bold"
@@ -211,14 +214,14 @@
                     android:layout_alignTop="@+id/tvLabelPaketBundling"
                     android:layout_alignBottom="@+id/tvLabelPaketBundling"
                     android:layout_alignParentEnd="true"
-                    android:layout_marginEnd="5dp">
+                    android:layout_marginEnd="23dp">
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_vertical"
                         android:layout_marginTop="1.5dp"
-                        android:layout_marginEnd="2dp"
+                        android:layout_marginEnd="1.5dp"
                         android:fontFamily="@font/arial_regular"
                         android:text="@string/see_more"
                         android:textColor="@color/black_font_color"
@@ -237,7 +240,7 @@
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvListPaketBundling"
                     android:layout_width="match_parent"
-                    android:layout_height="155dp"
+                    android:layout_height="168dp"
                     android:layout_below="@id/tvLabelPaketBundling"
                     tools:itemCount="3"
                     tools:listitem="@layout/item_list_package_booking_adapter"
@@ -245,7 +248,7 @@
                     android:visibility="visible"
                     android:clipToPadding="false"
                     android:clipChildren="false"
-                    android:paddingHorizontal="2dp"
+                    android:paddingHorizontal="16dp"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                     android:nestedScrollingEnabled="true"/>
 
@@ -308,20 +311,56 @@
 
             </LinearLayout>
 
-            <!-- RecyclerView -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvListServices"
+            <FrameLayout
+                android:id="@+id/containerListService"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_below="@id/tvLabelListService"
                 android:layout_toStartOf="@id/containerInjectLayoutMid"
                 android:layout_alignBottom="@+id/containerInjectLayoutMid"
-                tools:itemCount="3"
-                android:layout_marginTop="4dp"
-                tools:listitem="@layout/item_list_orders_booking_adapter"
-                android:orientation="vertical"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                android:nestedScrollingEnabled="true"/>
+                android:layout_marginTop="4dp">
+
+                <!-- RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvListServices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_list_orders_booking_adapter"
+                    android:orientation="vertical"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    android:nestedScrollingEnabled="true"
+                    android:visibility="visible"/>
+
+                <LinearLayout
+                    android:id="@+id/llEmptyListService"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:visibility="gone"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/viewDashedLine"
+                        android:layout_width="180dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="-75dp"
+                        android:layout_marginTop="-2dp"
+                        android:background="@drawable/dashed_line_vertical" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:text="@string/no_data"
+                        android:textSize="13sp"
+                        android:gravity="center"
+                        android:layout_marginStart="-85dp"
+                        android:fontFamily="@font/arial_regular"
+                        android:textColor="@color/black_font_color"
+                        android:visibility="visible"/>
+
+                </LinearLayout>
+
+            </FrameLayout>
 
             <LinearLayout
                 android:id="@+id/slideindicatorsContainer"
@@ -333,24 +372,24 @@
                 android:layout_alignTop="@id/containerInjectLayoutMid"
                 android:layout_alignBottom="@id/containerInjectLayoutMid" >
 
-<!--                <ImageView-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:src="@drawable/item_indicator_active"-->
-<!--                    android:layout_marginVertical="0.5dp"/>-->
+                <!--                <ImageView-->
+                <!--                    android:layout_width="wrap_content"-->
+                <!--                    android:layout_height="wrap_content"-->
+                <!--                    android:src="@drawable/item_indicator_active"-->
+                <!--                    android:layout_marginVertical="0.5dp"/>-->
 
-<!--                <ImageView-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:src="@drawable/item_indicator_inactive"-->
-<!--                    android:layout_marginVertical="0.5dp"/>-->
+                <!--                <ImageView-->
+                <!--                    android:layout_width="wrap_content"-->
+                <!--                    android:layout_height="wrap_content"-->
+                <!--                    android:src="@drawable/item_indicator_inactive"-->
+                <!--                    android:layout_marginVertical="0.5dp"/>-->
 
             </LinearLayout>
 
             <FrameLayout
                 android:id="@+id/containerInjectLayoutMid"
                 android:layout_width="155dp"
-                android:layout_height="162dp"
+                android:layout_height="178dp"
                 android:layout_below="@id/seeAllListService"
                 android:clipToPadding="false"
                 android:clipChildren="false"
@@ -376,7 +415,7 @@
                 app:cardCornerRadius="10dp"
                 app:cardElevation="0dp"
                 android:layout_marginTop="17dp"
-                android:layout_below="@id/rvListServices"
+                android:layout_below="@id/containerListService"
                 android:layout_marginHorizontal="4dp"
                 android:backgroundTint="@color/light_grey_horizons_background">
 
@@ -621,5 +660,26 @@
         </com.google.android.material.card.MaterialCardView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="5dp"
+        android:backgroundTint="@color/light_grey_horizons_background"
+        app:cardElevation="7dp"
+        android:visibility="gone"
+        android:layout_marginTop="-30dp"
+        android:layout_gravity="center"
+        app:cardCornerRadius="30dp">
+
+        <ProgressBar
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:layout_margin="5dp"
+            android:elevation="20dp"
+            android:indeterminateTint="@color/sky_blue" />
+
+    </com.google.android.material.card.MaterialCardView>
 
 </FrameLayout>
