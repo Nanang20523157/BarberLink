@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:background="@color/white"
             android:layout_gravity="center"
-            app:cardCornerRadius="35dp"
+            app:cardCornerRadius="37dp"
             android:layout_marginHorizontal="10dp">
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -69,7 +69,7 @@
                     app:endIconMode="dropdown_menu">
 
                     <AutoCompleteTextView
-                        android:id="@+id/autoCompleteTextView"
+                        android:id="@+id/acCapsterName"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:paddingStart="15dp"
@@ -118,10 +118,11 @@
                             android:layout_height="wrap_content"
                             tools:text="Nanang Kurniawan Hermawan"
                             android:textColor="@color/black_font_color"
-                            android:ellipsize="end"
+                            android:ellipsize="marquee"
+                            android:singleLine="true"
+                            android:marqueeRepeatLimit="marquee_forever"
                             android:fontFamily="@font/arial_bold"
                             android:layout_marginTop="-4dp"
-                            android:maxLines="1"
                             android:textSize="15.5sp"
                             android:textAppearance="@style/TextAppearance.AppCompat.Medium"
                             android:textStyle="bold"
@@ -203,7 +204,7 @@
                         </LinearLayout>
 
                         <TextView
-                            android:id="@+id/tvNumberOfReviews"
+                            android:id="@+id/tvReviewsAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/template_number_of_reviews"
@@ -396,24 +397,24 @@
                         android:layout_marginVertical="1.5dp"
                         app:cardBackgroundColor="@color/light_grey_horizons_background"
                         app:cardCornerRadius="10dp"
-                        app:cardElevation="5dp">
+                        app:cardElevation="2dp">
 
                         <TextView
                             android:id="@+id/tvPriceBefore"
                             android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Rp 10.000.000"
-                            android:singleLine="true"
+                            android:layout_height="match_parent"
                             android:ellipsize="marquee"
-                            android:textColor="@color/black_font_color"
-                            android:marqueeRepeatLimit="marquee_forever"
-                            android:textIsSelectable="true"
-                            android:gravity="center"
-                            android:paddingVertical="18dp"
-                            android:textSize="17sp"
                             android:fontFamily="@font/arial_medium"
-                            android:textStyle="bold"
-                            android:textAppearance="@style/TextAppearance.AppCompat.Headline"/>
+                            android:gravity="center"
+                            android:marqueeRepeatLimit="marquee_forever"
+                            android:paddingVertical="18dp"
+                            android:singleLine="true"
+                            android:text="@string/no_price_change_text"
+                            android:textAppearance="@style/TextAppearance.AppCompat.Headline"
+                            android:textColor="@color/magenta"
+                            android:textIsSelectable="true"
+                            android:textSize="17sp"
+                            android:textStyle="bold" />
 
                     </androidx.cardview.widget.CardView>
 
@@ -427,7 +428,7 @@
                         app:cardCornerRadius="50dp"
                         android:layout_marginTop="-1.5dp"
                         app:cardElevation="5dp"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         android:layout_centerInParent="true">
 
                         <ImageView
@@ -445,7 +446,7 @@
                         android:layout_height="wrap_content"
                         android:text="Rp 12.000.000"
                         android:singleLine="true"
-                        android:visibility="visible"
+                        android:visibility="gone"
                         android:ellipsize="marquee"
                         android:marqueeRepeatLimit="marquee_forever"
                         android:textIsSelectable="true"

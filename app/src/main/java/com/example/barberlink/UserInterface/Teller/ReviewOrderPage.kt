@@ -65,6 +65,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private lateinit var customerData: UserCustomerData
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var isNavigating = false
+    private var isFirstLoad: Boolean = true
     private var currentView: View? = null
     private var isSchedulingReservation = false
     private var todayDate: String = ""
@@ -74,7 +75,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private var paymentMethod: String = "CASH"
     private var isSuccessGetReservation: Boolean = false
     private lateinit var userReservationData: Reservation
-    private var firstDisplay: Boolean = true
+    // private var firstDisplay: Boolean = true
     private var shareProfitCapster: Double = 0.0
     private var coinsUse: Double = 0.0
     private var totalPriceToPay: Double = 0.0
@@ -121,7 +122,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         listenSpecificOutletData()
         listenToReservationData()
         Log.d("ViewModel", reviewPageViewModel.itemSelectedCounting.value.toString())
-        Log.d("ViewModel", reviewPageViewModel.toString())
 
         supportFragmentManager.setFragmentResultListener("user_payment_method", this) { _, bundle ->
             val result = bundle.getString("payment_method")
@@ -291,11 +291,13 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                 documentSnapshot?.let { document ->
                     if (document.exists()) {
                         if (document.exists()) {
-                            val outletData = document.toObject(Outlet::class.java)
-                            outletData?.let { outlet ->
-                                // Assign the document reference path to outletReference
-                                outlet.outletReference = document.reference.path
-                                outletSelected = outlet
+                            if (!isFirstLoad) {
+                                val outletData = document.toObject(Outlet::class.java)
+                                outletData?.let { outlet ->
+                                    // Assign the document reference path to outletReference
+                                    outlet.outletReference = document.reference.path
+                                    outletSelected = outlet
+                                }
                             }
                         }
                     }
@@ -316,12 +318,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
                     documents?.let {
                         CoroutineScope(Dispatchers.Default).launch {
-                            val newReservationList = it.documents.mapNotNull { document ->
-                                document.toObject(Reservation::class.java)
-                            }.filter { it.queueStatus !in listOf("pending", "expired") }
+                            // if (!isFirstLoad) {
+                                val newReservationList = it.documents.mapNotNull { document ->
+                                    document.toObject(Reservation::class.java)
+                                }.filter { it.queueStatus !in listOf("pending", "expired") }
 
-                            totalQueueNumber = newReservationList.size
-                            isSuccessGetReservation = true
+                                totalQueueNumber = newReservationList.size
+                                isSuccessGetReservation = true
+                            // }
                         }
                     }
                 }
@@ -464,10 +468,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
 
         showShimmer(false)
-        if (firstDisplay) {
-            setupRecyclerViewWithIndicators()
-            firstDisplay = false
-        }
+        //if (firstDisplay) {
+        //   setupRecyclerViewWithIndicators()
+        //   firstDisplay = false
+        //}
+
+        if (isFirstLoad) setupRecyclerViewWithIndicators()
+        isFirstLoad = false
+
     }
 
     private fun setPromoCodeText(promoMap: Map<String, Double>): String {

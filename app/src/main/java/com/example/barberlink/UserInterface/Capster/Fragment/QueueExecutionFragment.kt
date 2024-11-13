@@ -65,7 +65,6 @@ class QueueExecutionFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         isRandomCapster = (currentReservation?.capsterInfo?.capsterRef ?: "").isEmpty()
         priceBeforeChange = currentReservation?.paymentDetail?.finalPrice ?: 0
         accumulatedItemPrice = bundlingList?.sumOf { it.bundlingQuantity * it.priceToDisplay }?.let {result ->
@@ -106,7 +105,7 @@ class QueueExecutionFragment : DialogFragment() {
         }
 
         binding.btnYes.setOnClickListener {
-            val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), capsterData?.userRef ?: "")
+            val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), capsterData?.uid ?: "All")
 
             if (isRandomCapster) {
                 currentReservation?.apply {
@@ -116,7 +115,6 @@ class QueueExecutionFragment : DialogFragment() {
 
                     paymentDetail.subtotalItems = accumulatedItemPrice
                     paymentDetail.finalPrice = priceAfterChange
-
                 }
             }
 

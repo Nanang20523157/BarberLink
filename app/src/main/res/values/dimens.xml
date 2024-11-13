@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- dimens.xml -->
+<resources>
+    <dimen name="recycler_height_large">310dp</dimen>
+</resources>

@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingVertical="5dp"
+    android:paddingHorizontal="16dp"
     android:clipToPadding="false"
     android:clipChildren="false">
 
@@ -13,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:cardCornerRadius="25dp"
-        app:cardElevation="4dp"
+        app:cardElevation="1.5dp"
         app:cardBackgroundColor="@color/blue_access_code"/>
 
     <LinearLayout
@@ -24,28 +25,28 @@
         android:clipChildren="false"
         android:orientation="vertical">
 
-        <com.facebook.shimmer.ShimmerFrameLayout
-            android:id="@+id/shimmer_view_container3"
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvMainInfoOutlet"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:shimmer_auto_start="true"
-            app:shimmer_base_alpha="0.7"
-            app:shimmer_direction="left_to_right"
-            app:shimmer_duration="500"
-            android:clipToPadding="false"
-            android:clipChildren="false"
-            app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
-            app:shimmer_repeat_delay="500"
-            app:shimmer_shape="linear"
-            app:shimmer_tilt="0">
+            app:cardCornerRadius="20dp"
+            app:cardElevation="0.5dp"
+            android:backgroundTint="@color/light_grey_horizons_background">
 
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cvMainInfoOutlet"
+            <com.facebook.shimmer.ShimmerFrameLayout
+                android:id="@+id/shimmer_view_container3"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="20dp"
-                app:cardElevation="0.5dp"
-                android:backgroundTint="@color/light_grey_horizons_background">
+                app:shimmer_auto_start="true"
+                app:shimmer_base_alpha="0.7"
+                app:shimmer_direction="left_to_right"
+                app:shimmer_duration="500"
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                app:shimmer_repeat_delay="500"
+                app:shimmer_shape="linear"
+                app:shimmer_tilt="0">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     android:layout_width="match_parent"
@@ -248,9 +249,9 @@
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 
-            </com.google.android.material.card.MaterialCardView>
+            </com.facebook.shimmer.ShimmerFrameLayout>
 
-        </com.facebook.shimmer.ShimmerFrameLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"

@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingVertical="4dp"
+    android:paddingHorizontal="16dp"
     android:clipToPadding="false"
     android:clipChildren="false">
 
@@ -14,7 +15,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:cardCornerRadius="20dp"
-        app:cardElevation="0.5dp"
+        app:cardElevation="1.5dp"
         android:backgroundTint="@color/light_grey_horizons_background">
 
         <androidx.constraintlayout.widget.ConstraintLayout

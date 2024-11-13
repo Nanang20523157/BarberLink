@@ -40,10 +40,13 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
@@ -70,6 +73,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
     private var minYear: Int = 0
     private val calendarList2 = ArrayList<CalendarDateModel>()
     private var isNavigating = false
+    private var isFirstLoad = true
     private var currentView: View? = null
     private lateinit var calendar: Calendar
     private lateinit var builder: MonthPickerDialog.Builder
@@ -94,6 +98,12 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
     private var numberOfOrdersPacked: Int = 0
     private var numberOfOrdersShipped: Int = 0
 
+    private val outletsListMutex = Mutex()
+    private val reservationMutex = Mutex()
+    private val salesMutex = Mutex()
+    private val capitalMutex = Mutex()
+    private val expenditureMutex = Mutex()
+
     private val reservationList = mutableListOf<Reservation>()
     private val productSalesList = mutableListOf<ProductSales>()
     private val dailyCapitalList = mutableListOf<DailyCapital>()
@@ -104,13 +114,32 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardAdminPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        showShimmer(true)
 
         init()
+        binding.apply {
+            ivNextMonth.setOnClickListener(this@DashboardAdminPage)
+            ivPrevMonth.setOnClickListener(this@DashboardAdminPage)
+            tvYear.setOnClickListener(this@DashboardAdminPage)
+            switchExpand.setOnClickListener(this@DashboardAdminPage)
+            btnResetDate.setOnClickListener(this@DashboardAdminPage)
+            fabAddNotesReport.setOnClickListener(this@DashboardAdminPage)
+
+            binding.swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
+                showShimmer(true)
+                getAllData()
+            })
+        }
+        showShimmer(true)
 
         intent.getParcelableArrayListExtra(BerandaAdminPage.OUTLET_DATA_KEY, Outlet::class.java)?.let {
-            outletsList = it
-            setupAutoCompleteTextView()
+            CoroutineScope(Dispatchers.Default).launch {
+                outletsListMutex.withLock {
+                    outletsList = it
+                }
+                withContext(Dispatchers.Main) {
+                    setupAutoCompleteTextView()
+                }
+            }
         }
 
         intent.getParcelableExtra(BerandaAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
@@ -124,26 +153,12 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                 binding.realLayoutHeader.userName.text = formattedText
 
                 getAllData()
-                listenToOutletsData()
                 listenToBarbershopData()
+                listenToOutletsData()
             }
             if (userAdminData.imageCompanyProfile.isNotEmpty()) {
                 loadImageWithGlide(userAdminData.imageCompanyProfile)
             }
-        }
-
-        binding.apply {
-            ivNextMonth.setOnClickListener(this@DashboardAdminPage)
-            ivPrevMonth.setOnClickListener(this@DashboardAdminPage)
-            tvYear.setOnClickListener(this@DashboardAdminPage)
-            switchExpand.setOnClickListener(this@DashboardAdminPage)
-            btnResetDate.setOnClickListener(this@DashboardAdminPage)
-            fabAddNotesReport.setOnClickListener(this@DashboardAdminPage)
-
-            binding.swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-                showShimmer(true)
-                getAllData()
-            })
         }
 
     }
@@ -336,33 +351,28 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
     }
 
     private fun setupAutoCompleteTextView() {
-        // Extract outlet names from the list of Outlets
-        val outletNames = outletsList.map { it.outletName }.toMutableList()
-        Log.d("OutletNames", outletNames.toString())
+        CoroutineScope(Dispatchers.Default).launch {
+            val outletNames = outletsListMutex.withLock {
+                outletsList.map { it.outletName }.toMutableList()
+            }
+            outletNames.add(0, "All")
 
-        // Add "All" to the list of outlet names
-        outletNames.add(0, "All")
-        Log.d("OutletNames", outletNames.toString())
-
-        outletNames.let {
-            if (it.isNotEmpty()) {
-                // Create an ArrayAdapter using the outlet names
+            withContext(Dispatchers.Main) {
+                // Buat adapter pada thread utama karena berinteraksi dengan UI
                 val adapter = ArrayAdapter(this@DashboardAdminPage, android.R.layout.simple_dropdown_item_1line, outletNames)
-
-                // Set the adapter to the AutoCompleteTextView
                 binding.acOutletName.setAdapter(adapter)
+
+                binding.acOutletName.setOnItemClickListener { parent, _, position, _ ->
+                    val selectedOutletName = parent.getItemAtPosition(position).toString()
+                    binding.acOutletName.setText(selectedOutletName, false)
+                    outletName = selectedOutletName
+                    showShimmer(true)
+                    calculateDataAsync()
+                }
             }
         }
 
-        binding.acOutletName.setOnItemClickListener { parent, _, position, _ ->
-            val selectedOutletName = parent.getItemAtPosition(position).toString()
-            binding.acOutletName.setText(selectedOutletName, false) // Set the selected item text without dropdown
-            outletName = selectedOutletName
-            showShimmer(true)
-            calculateDataAsync()
-        }
     }
-
 
     private fun loadImageWithGlide(imageUrl: String) {
         if (imageUrl.isNotEmpty()) {
@@ -379,6 +389,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
     }
 
     private fun showShimmer(show: Boolean) {
+        binding.fabAddNotesReport.isClickable = !show
         if (show) {
             binding.shimmerLayoutHeader.root.visibility = View.VISIBLE
             binding.shimmerLayoutReport.root.visibility = View.VISIBLE
@@ -431,9 +442,11 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                     return@addSnapshotListener
                 }
                 document?.takeIf { it.exists() }?.let {
-                    userAdminData = it.toObject(UserAdminData::class.java) ?: UserAdminData()
-                    if (userAdminData.imageCompanyProfile.isNotEmpty()) {
-                        loadImageWithGlide(userAdminData.imageCompanyProfile)
+                    if (!isFirstLoad) {
+                        userAdminData = it.toObject(UserAdminData::class.java) ?: UserAdminData()
+                        if (userAdminData.imageCompanyProfile.isNotEmpty()) {
+                            loadImageWithGlide(userAdminData.imageCompanyProfile)
+                        }
                     }
                 }
             }
@@ -450,15 +463,17 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                 }
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull { doc ->
-                            // Get the outlet object from the document
-                            val outlet = doc.toObject(Outlet::class.java)
-                            // Assign the document reference path to outletReference
-                            outlet.outletReference = doc.reference.path
-                            outlet // Return the modified outlet
+                        if (!isFirstLoad) {
+                            val outlets = it.mapNotNull { doc ->
+                                val outlet = doc.toObject(Outlet::class.java)
+                                outlet.outletReference = doc.reference.path
+                                outlet
+                            }
+                            outletsListMutex.withLock {
+                                outletsList.clear()
+                                outletsList.addAll(outlets)
+                            }
                         }
-                        outletsList.clear()
-                        outletsList.addAll(outlets)
                     }
                 }
             }
@@ -467,17 +482,16 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
     private fun listenToData(
         collectionPath: String,
         refField: String,
-        dateField: String, // Tambahkan field ini untuk menyesuaikan dengan field timestamp yang sesuai
+        dateField: String,
         processFunction: (document: DocumentSnapshot, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) -> Unit,
-        resetFunction: () -> Unit
+        resetFunction: () -> Unit,
+        dataMutex: Mutex
     ): ListenerRegistration {
         val query = if (collectionPath.contains("/")) {
-            // Koleksi biasa
             db.collection(collectionPath)
                 .whereGreaterThanOrEqualTo(dateField, startOfMonth)
                 .whereLessThan(dateField, startOfNextMonth)
         } else {
-            // Koleksi grup
             db.collectionGroup(collectionPath)
                 .where(
                     Filter.and(
@@ -495,18 +509,26 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             }
 
             if (documents != null) {
-                resetFunction()
-                val normalizedOutletName = outletName.trim().replace("\\s".toRegex(), "").lowercase()
-                val selectedDates = calendarList2.filter { it.isSelected }.map { it.data }
-
                 CoroutineScope(Dispatchers.Default).launch {
-                    val jobs = documents.documents.map { document ->
-                        async { processFunction(document, normalizedOutletName, selectedDates, true) }
-                    }
-                    jobs.awaitAll()
-                    withContext(Dispatchers.Main) {
-                        // Notify adapter or update UI
-                        displayAllData()
+                    // Lock the mutex to safely reset shared variables
+                    if (!isFirstLoad) {
+                        dataMutex.withLock {
+                            resetFunction()
+
+                            val normalizedOutletName = outletName.trim().replace("\\s".toRegex(), "").lowercase()
+                            val selectedDates = calendarList2.filter { it.isSelected }.map { it.data }
+
+                            // Process each document concurrently with mutex lock on the shared variables
+                            documents.documents.map { document ->
+                                async {
+                                    processFunction(document, normalizedOutletName, selectedDates, true)
+                                }
+                            }.awaitAll()
+
+                            withContext(Dispatchers.Main) {
+                                displayAllData()
+                            }
+                        }
                     }
                 }
             }
@@ -526,7 +548,8 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             resetFunction = {
                 reservationList.clear()
                 resetReservationVariables()
-            }
+            },
+            dataMutex = reservationMutex
         )
     }
 
@@ -543,7 +566,8 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             resetFunction = {
                 productSalesList.clear()
                 resetSalesVariables()
-            }
+            },
+            dataMutex = salesMutex
         )
     }
 
@@ -560,7 +584,8 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             resetFunction = {
                 dailyCapitalList.clear()
                 resetDailyCapitalVariables()
-            }
+            },
+            dataMutex = capitalMutex
         )
     }
 
@@ -577,7 +602,8 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             resetFunction = {
                 expenditureList.clear()
                 resetExpenditureVariables()
-            }
+            },
+            dataMutex = expenditureMutex
         )
     }
 
@@ -640,6 +666,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         val isDateSelected = selectedDates.any { selectedDate -> isSameDay(dailyCapitalDate, selectedDate) }
         val normalizedUid = dailyCapital.outletUid.trim().replace("\\s".toRegex(), "").lowercase()
 
+        Log.d("calculateDataAsync", "${dailyCapital.uid} = isDateSelected (${(!isDaily || isDateSelected)}) isOutletNameAsPer (${(normalizedOutletName == "all" || normalizedOutletName == normalizedUid)}) ")
         if ((normalizedOutletName == "all" || normalizedOutletName == normalizedUid) &&
             (!isDaily || isDateSelected)) {
             amountOfCapital += dailyCapital.outletCapital
@@ -692,17 +719,26 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                 )
             ).get()
         )
+
         Tasks.whenAllSuccess<QuerySnapshot>(tasks)
             .addOnSuccessListener { results ->
                 CoroutineScope(Dispatchers.Default).launch {
-                    reservationList.clear()
-                    productSalesList.clear()
-                    dailyCapitalList.clear()
-                    expenditureList.clear()
-                    resetReservationVariables()
-                    resetSalesVariables()
-                    resetDailyCapitalVariables()
-                    resetExpenditureVariables()
+                    reservationMutex.withLock {
+                        reservationList.clear()
+                        resetReservationVariables()
+                    }
+                    salesMutex.withLock {
+                        resetSalesVariables()
+                        productSalesList.clear()
+                    }
+                    capitalMutex.withLock {
+                        dailyCapitalList.clear()
+                        resetDailyCapitalVariables()
+                    }
+                    expenditureMutex.withLock {
+                        expenditureList.clear()
+                        resetExpenditureVariables()
+                    }
 
                     val normalizedOutletName = outletName.trim().replace("\\s".toRegex(), "").lowercase()
                     val selectedDates = calendarList2.filter { it.isSelected }.map { it.data }
@@ -715,33 +751,41 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                     val jobs = listOf(
                         async {
                             reservationsResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(Reservation::class.java)
-                                        ?.let { processReservationDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                reservationMutex.withLock {
+                                    result.documents.forEach { document ->
+                                        document.toObject(Reservation::class.java)
+                                            ?.let { processReservationDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                    }
                                 }
                             }
                         },
                         async {
                             salesResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(ProductSales::class.java)
-                                        ?.let { processSalesDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                salesMutex.withLock {
+                                    result.documents.forEach { document ->
+                                        document.toObject(ProductSales::class.java)
+                                            ?.let { processSalesDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                    }
                                 }
                             }
                         },
                         async {
                             dailyCapitalResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(DailyCapital::class.java)
-                                        ?.let { processDailyCapitalDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                capitalMutex.withLock {
+                                    result.documents.forEach { document ->
+                                        document.toObject(DailyCapital::class.java)
+                                            ?.let { processDailyCapitalDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                    }
                                 }
                             }
                         },
                         async {
                             expenditureResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(Expenditure::class.java)
-                                        ?.let { processExpenditureDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                expenditureMutex.withLock {
+                                    result.documents.forEach { document ->
+                                        document.toObject(Expenditure::class.java)
+                                            ?.let { processExpenditureDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                    }
                                 }
                             }
                         }
@@ -779,30 +823,55 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         resetSalesVariables()
         resetDailyCapitalVariables()
         resetExpenditureVariables()
+        // Logging data sebelum memulai coroutine
+//        dailyCapitalList.forEach {
+//            Log.d("calculateDataAsync", "data ${dailyCapitalList.size}: ${it.uid}")
+//        }
 
         CoroutineScope(Dispatchers.Default).launch {
-            val jobs = listOf(
-                reservationList.map { reservation ->
-                    async { processReservationDataAsync(reservation, normalizedOutletName, selectedDates, false) }
-                },
-                productSalesList.map { sale ->
-                    async { processSalesDataAsync(sale, normalizedOutletName, selectedDates, false) }
-                },
-                dailyCapitalList.map { dailyCapital ->
-                    async { processDailyCapitalDataAsync(dailyCapital, normalizedOutletName, selectedDates, false) }
-                },
-                expenditureList.map { expenditure ->
-                    async { processExpenditureDataAsync(expenditure, normalizedOutletName, selectedDates, false) }
-                }
-            ).flatten()
+            val jobs = mutableListOf<Deferred<Unit>>() // Menggunakan daftar untuk menyimpan Deferred
 
-            jobs.awaitAll()
+            jobs.add(async {
+                reservationMutex.withLock {
+                    reservationList.forEach { reservation ->
+                        processReservationDataAsync(reservation, normalizedOutletName, selectedDates, false)
+                    }
+                }
+            })
+
+            jobs.add(async {
+                salesMutex.withLock {
+                    productSalesList.forEach { sale ->
+                        processSalesDataAsync(sale, normalizedOutletName, selectedDates, false)
+                    }
+                }
+            })
+
+            jobs.add(async {
+                capitalMutex.withLock {
+                    dailyCapitalList.forEach { dailyCapital ->
+                        processDailyCapitalDataAsync(dailyCapital, normalizedOutletName, selectedDates, false)
+                    }
+                }
+            })
+
+            jobs.add(async {
+                expenditureMutex.withLock {
+                    expenditureList.forEach { expenditure ->
+                        processExpenditureDataAsync(expenditure, normalizedOutletName, selectedDates, false)
+                    }
+                }
+            })
+
+            // Menunggu semua pekerjaan selesai
+            jobs.awaitAll() // Menunggu semua Deferred selesai
 
             withContext(Dispatchers.Main) {
                 displayAllData()
             }
         }
     }
+
 
     private fun displayAllData() {
         // Display the data in the UI
@@ -843,6 +912,8 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         }
 
         showShimmer(false)
+        isFirstLoad = false
+        Log.d("calculateDataAsync", "====================================")
     }
 
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {

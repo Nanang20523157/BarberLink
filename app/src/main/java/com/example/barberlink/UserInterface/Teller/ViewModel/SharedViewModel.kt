@@ -5,6 +5,7 @@ import Employee
 import Service
 import android.util.Log
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
@@ -19,30 +20,54 @@ class SharedViewModel : ViewModel() {
     val itemNameSelected: LiveData<List<Pair<String, String>>> = _itemNameSelected
 
     // Tambahan untuk bundlingPackagesList
-    private val _bundlingPackagesList = MutableLiveData<MutableList<BundlingPackage>>().apply { value = mutableListOf() }
-    val bundlingPackagesList: LiveData<MutableList<BundlingPackage>> = _bundlingPackagesList
+    private val _bundlingPackagesList = MutableLiveData<List<BundlingPackage>>().apply { value = listOf() }
+    val bundlingPackagesList: LiveData<List<BundlingPackage>> = _bundlingPackagesList
 
     // Tambahan untuk servicesList
-    private val _servicesList = MutableLiveData<MutableList<Service>>().apply { value = mutableListOf() }
-    val servicesList: LiveData<MutableList<Service>> = _servicesList
+    private val _servicesList = MutableLiveData<List<Service>>().apply { value = listOf() }
+    val servicesList: LiveData<List<Service>> = _servicesList
+
+    private val _isDataChanged = MediatorLiveData<Boolean>().apply {
+        value = false
+        addSource(_bundlingPackagesList) {
+            Log.d("TestAct", "isDataChanged 33: true by bundling")
+            value = true
+            val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
+                    (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
+            _itemSelectedCounting.value = currentCount
+        }
+        addSource(_servicesList) {
+            Log.d("TestAct", "isDataChanged 37: true by service")
+            value = true
+            val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
+                    (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
+            _itemSelectedCounting.value = currentCount
+        }
+    }
+    val isDataChanged: LiveData<Boolean> = _isDataChanged
+
+    private val _isSetItemBundling = MutableLiveData<Boolean>().apply { value = false }
+    val isSetItemBundling: LiveData<Boolean> = _isSetItemBundling
 
     // Fungsi untuk menambah item yang dipilih
-    // Fungsi untuk menambah item yang dipilih
-    fun addItemSelectedCounting(name: String, category: String) {
-        val newCount = (_itemSelectedCounting.value ?: 0) + 1
+    fun addItemSelectedCounting(name: String, category: String) = synchronized(this) {
+        // val newCount = (_itemSelectedCounting.value ?: 0) + 1
+        val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
+                (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
         val currentList = _itemNameSelected.value?.toMutableList() ?: mutableListOf()
-
         if (currentList.none { it.first == name }) {
             currentList.add(0, name to category)
         }
 
         // Memperbarui LiveData di main thread
-        _itemSelectedCounting.value = newCount
+        // _itemSelectedCounting.value = newCount
         _itemNameSelected.value = currentList
+        _itemSelectedCounting.value = currentCount
+        Log.d("TestAct", "addItemSelectedCounting 52: $currentCount || $category")
     }
 
     // Fungsi untuk menghapus item berdasarkan nama
-    fun removeItemSelectedByName(name: String, removeName: Boolean) {
+    fun removeItemSelectedByName(name: String, removeName: Boolean) = synchronized(this) {
         val currentList = _itemNameSelected.value?.toMutableList()
         if (!currentList.isNullOrEmpty() && removeName) {
             val itemToRemove = currentList.find { it.first == name }
@@ -52,98 +77,77 @@ class SharedViewModel : ViewModel() {
             }
         }
 
-        val currentCount = _itemSelectedCounting.value ?: 0
-        if (currentCount > 0) {
-            _itemSelectedCounting.value = currentCount - 1
-        }
+        val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
+                (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
+        // var currentCount = _itemSelectedCounting.value ?: 0
+        // if (currentCount > 0) {
+        //    currentCount--
+        //    _itemSelectedCounting.value = currentCount
+        // }
+        _itemSelectedCounting.value = currentCount
+        Log.d("TestAct", "removeItemSelectedByName 70: $currentCount || $name || $removeName")
     }
 
     // Fungsi untuk mereset semua item yang dipilih
-    fun resetAllItem() {
-        _itemSelectedCounting.value = 0
+    fun resetAllItem() = synchronized(this) {
+        // _itemSelectedCounting.value = 0
         _itemNameSelected.value = emptyList()
 
-        val updatedServicesList = _servicesList.value?.map { service ->
-            if (!service.defaultItem) {
-                service.serviceQuantity = 0
-            } else {
-                addItemSelectedCounting(service.serviceName, "service")
+        _servicesList.value?.forEach { service ->
+            service.apply {
+                serviceQuantity = if (defaultItem) 1 else 0
+                if (defaultItem) addItemSelectedCounting(serviceName, "service")
             }
-            service
         }
+        _servicesList.value = _servicesList.value
 
-        _servicesList.value = updatedServicesList?.toMutableList() ?: mutableListOf()
-
-        val updatedBundlingPackagesList = _bundlingPackagesList.value?.map { bundling ->
-            if (!bundling.defaultItem) {
-                bundling.bundlingQuantity = 0
-            } else {
-                addItemSelectedCounting(bundling.packageName, "package")
+        _bundlingPackagesList.value?.forEach { bundling ->
+            bundling.apply {
+                bundlingQuantity = if (defaultItem) 1 else 0
+                if (defaultItem) addItemSelectedCounting(packageName, "package")
             }
-            bundling
         }
-
-        _bundlingPackagesList.value = updatedBundlingPackagesList?.toMutableList() ?: mutableListOf()
+        _bundlingPackagesList.value = _bundlingPackagesList.value
+        Log.d("LifeAct", "observer 95: resetAllItem")
     }
 
     // Fungsi untuk mereset semua layanan (kategori "service")
-    fun resetAllServices() {
+    fun resetAllServices() = synchronized(this) {
         val currentList = _itemNameSelected.value?.toMutableList() ?: mutableListOf()
         currentList.removeAll { it.second == "service" }
-        // val initialSize = currentList.size
-
-        // val itemCount = ((_itemSelectedCounting.value ?: 0) - (initialSize - currentList.size))
-        // Log.d("LifeAct", "itemCount: $itemCount")
-        // _itemSelectedCounting.value = itemCount
         _itemNameSelected.value = currentList
 
-        var itemCount = 0
-        _bundlingPackagesList.value?.forEach { bundling ->
-            itemCount += bundling.bundlingQuantity
-        }
-        _itemSelectedCounting.value = itemCount
+        // val itemCount = _bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0
+        // _itemSelectedCounting.value = itemCount
 
-        val updatedServicesList = _servicesList.value?.map { service ->
-            if (!service.defaultItem) {
-                service.serviceQuantity = 0
-            } else {
-                addItemSelectedCounting(service.serviceName, "service")
+        _servicesList.value?.forEach { service ->
+            service.apply {
+                serviceQuantity = if (defaultItem) 1 else 0
+                if (defaultItem) addItemSelectedCounting(serviceName, "service")
             }
-            service
         }
 
-        _servicesList.value = updatedServicesList?.toMutableList() ?: mutableListOf()
+        _servicesList.value = _servicesList.value
+        Log.d("LifeAct", "observer 114: resetAllServices")
     }
 
-    fun replaceBundlingPackagesList(newPackages: MutableList<BundlingPackage>, capsterSelected: Employee, existingList: List<BundlingPackage>?) {
-        val namePackage = newPackages.map { it.packageName }
-        Log.d("LifeAct", "list packages1: $namePackage")
-
-        if (existingList.isNullOrEmpty()) {
-            setUpAndSortedBundling(newPackages, capsterSelected)
-        } else {
-            sortBundlingWithExistingList(newPackages, capsterSelected, existingList)
-        }
-    }
-
-    // Fungsi untuk memperbarui daftar services
-    fun replaceServicesList(newServices: MutableList<Service>, capsterSelected: Employee, existingList: List<Service>?) {
-        val nameService = newServices.map { it.serviceName }
-        Log.d("LifeAct", "list services1: $nameService")
-
-        if (existingList.isNullOrEmpty()) {
-            setUpAndSortedServices(newServices, capsterSelected)
-        } else {
-            sortServicesWithExistingList(newServices, capsterSelected, existingList)
-        }
-    }
-
-    private fun setUpAndSortedBundling(currentBundlingList: MutableList<BundlingPackage>, capsterSelected: Employee) {
+    fun setUpAndSortedBundling(
+        currentBundlingList: MutableList<BundlingPackage>,
+        capsterSelected: Employee,
+        oldBundlingList: List<BundlingPackage>?
+    ) = synchronized(this) {
         currentBundlingList.apply {
             forEach { bundling ->
-                if (bundling.autoSelected || bundling.defaultItem) {
-                    bundling.bundlingQuantity = 1
-                    addItemSelectedCounting(bundling.packageName, "package")
+                if (oldBundlingList.isNullOrEmpty()) {
+                    if (bundling.autoSelected || bundling.defaultItem) {
+                        bundling.bundlingQuantity = 1
+                        addItemSelectedCounting(bundling.packageName, "package")
+                    }
+                } else {
+                    val existingBundling = oldBundlingList.find { it.uid == bundling.uid }
+                    if (existingBundling != null) {
+                        bundling.bundlingQuantity = existingBundling.bundlingQuantity
+                    }
                 }
 
                 // Set serviceBundlingList
@@ -151,164 +155,152 @@ class SharedViewModel : ViewModel() {
                     bundling.listItems.contains(service.uid)
                 } ?: emptyList() // Jika null, gunakan list kosong
                 bundling.listItemDetails = serviceBundlingList
+                Log.d("ItemsAll", "itemCount: ${serviceBundlingList.size} || ${bundling.packageName}")
 
                 // Perhitungan results_share_format dan applyToGeneral pada bundling
-                bundling.priceToDisplay = if (bundling.resultsShareFormat == "fee") {
-                    val resultsShareAmount: Int = if (bundling.applyToGeneral) {
-                        (bundling.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                    } else {
-                        (bundling.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                    }
-                    bundling.packagePrice + resultsShareAmount
-                } else {
-                    bundling.packagePrice
-                }
+                bundling.priceToDisplay = calculatePriceToDisplay(
+                    bundling.packagePrice,
+                    bundling.resultsShareFormat,
+                    bundling.resultsShareAmount,
+                    bundling.applyToGeneral,
+                    capsterSelected.uid
+                )
             }
 
             // Urutkan bundlingPackagesList: yang autoSelected atau defaultItem di indeks awal
             sortByDescending { it.autoSelected || it.defaultItem }
         }
-
-        val namePackage = currentBundlingList.map { it.packageName }
-        Log.d("LifeAct", "list packages2: $namePackage")
 
         // Update _bundlingPackagesList dengan list yang sudah diubah
         _bundlingPackagesList.value = currentBundlingList
+        Log.d("LifeAct", "observer 158: setUpAndSortedBundling")
     }
 
-    private fun setUpAndSortedServices(currentServicesList: MutableList<Service>, capsterSelected: Employee) {
-        currentServicesList.apply {
-            forEach { service ->
-                if (service.autoSelected || service.defaultItem) {
-                    service.serviceQuantity = 1
-                    addItemSelectedCounting(service.serviceName, "service")
-                }
-
-                // Perhitungan results_share_format dan applyToGeneral pada service
-                service.priceToDisplay = if (service.resultsShareFormat == "fee") {
-                    val resultsShareAmount: Int = if (service.applyToGeneral) {
-                        (service.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                    } else {
-                        (service.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                    }
-                    service.servicePrice + resultsShareAmount
-                } else {
-                    service.servicePrice
-                }
-            }
-
-            // Urutkan servicesList: yang autoSelected atau defaultItem di indeks awal
-            sortByDescending { it.autoSelected || it.defaultItem }
-        }
-
-        val nameService = currentServicesList.map { it.serviceName }
-        Log.d("LifeAct", "list services2: $nameService")
-
-        // Update _servicesList dengan list yang sudah diubah
-        _servicesList.value = currentServicesList
-    }
-
-    // Fungsi untuk memperbarui bundling quantity
-    fun updateBundlingQuantity(index: Int, newQuantity: Int) {
-        val updatedList = _bundlingPackagesList.value?.toMutableList()?.apply {
-            this[index] = this[index].copy(bundlingQuantity = newQuantity)
-        }
-        // Memperbarui LiveData di main thread
-        _bundlingPackagesList.value = updatedList
-    }
-
-    // Fungsi untuk memperbarui service quantity
-    fun updateServicesQuantity(index: Int, newQuantity: Int) {
-        val updatedList = _servicesList.value?.toMutableList()?.apply {
-            this[index] = this[index].copy(serviceQuantity = newQuantity)
-        }
-        // Memperbarui LiveData di main thread
-        _servicesList.value = updatedList
-    }
-
-    private fun sortBundlingWithExistingList(currentBundlingList: MutableList<BundlingPackage>, capsterSelected: Employee, oldBundlingList: List<BundlingPackage>) {
-        currentBundlingList.apply {
-            // Update setiap bundling berdasarkan oldBundlingList
-            forEach { bundling ->
-                // Mempertahankan nilai bundlingQuantity dari daftar sebelumnya
-                val existingBundling = oldBundlingList.find { it.uid == bundling.uid }
-                if (existingBundling != null) {
-                    bundling.bundlingQuantity = existingBundling.bundlingQuantity
-                }
-
-                // Set serviceBundlingList dari servicesList di ViewModel
+    fun setServiceBundlingList() = synchronized(this) {
+        val listBundling = _bundlingPackagesList.value ?: emptyList()
+        Log.d("TestAct", "setServiceBundlingList 183 set: ${listBundling.isNotEmpty()}")
+        if (listBundling.isNotEmpty()) {
+            listBundling.onEach { bundling ->
                 val serviceBundlingList = _servicesList.value?.filter { service ->
                     bundling.listItems.contains(service.uid)
                 } ?: emptyList() // Jika null, gunakan list kosong
-
-                // Update listItemDetails dari bundling
                 bundling.listItemDetails = serviceBundlingList
-
-                // Perhitungan results_share_format dan applyToGeneral pada bundling
-                bundling.priceToDisplay = if (bundling.resultsShareFormat == "fee") {
-                    val resultsShareAmount: Int = if (bundling.applyToGeneral) {
-                        (bundling.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                    } else {
-                        (bundling.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                    }
-                    bundling.packagePrice + resultsShareAmount
-                } else {
-                    bundling.packagePrice
-                }
+                Log.d("ItemsAll", "itemCount: ${serviceBundlingList.size} || ${bundling.packageName}")
             }
 
-            // Urutkan bundlingPackagesList: yang autoSelected atau defaultItem di indeks awal
-            sortByDescending { it.autoSelected || it.defaultItem }
+            _bundlingPackagesList.value = listBundling
         }
 
-        // Setelah update, post hasilnya ke LiveData
-        _bundlingPackagesList.value = currentBundlingList
+        _isSetItemBundling.value = false
     }
 
-    private fun sortServicesWithExistingList(currentServicesList: MutableList<Service>, capsterSelected: Employee, oldServiceList: List<Service>) {
+    fun setUpAndSortedServices(
+        currentServicesList: MutableList<Service>,
+        capsterSelected: Employee,
+        oldServiceList: List<Service>?
+    ) = synchronized(this) {
         currentServicesList.apply {
-            // Update setiap service berdasarkan oldServiceList
             forEach { service ->
-                val existingService = oldServiceList.find { it.uid == service.uid }
-                if (existingService != null) {
-                    service.serviceQuantity = existingService.serviceQuantity
+                if (oldServiceList.isNullOrEmpty()) {
+                    if (service.autoSelected || service.defaultItem) {
+                        service.serviceQuantity = 1
+                        addItemSelectedCounting(service.serviceName, "service")
+                    }
+                } else {
+                    val existingService = oldServiceList.find { it.uid == service.uid }
+                    if (existingService != null) {
+                        service.serviceQuantity = existingService.serviceQuantity
+                    }
                 }
 
                 // Perhitungan results_share_format dan applyToGeneral pada service
-                service.priceToDisplay = if (service.resultsShareFormat == "fee") {
-                    val resultsShareAmount: Int = if (service.applyToGeneral) {
-                        (service.resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
-                    } else {
-                        (service.resultsShareAmount?.get(capsterSelected.uid) as? Number)?.toInt() ?: 0
-                    }
-                    service.servicePrice + resultsShareAmount
-                } else {
-                    service.servicePrice
-                }
+                service.priceToDisplay = calculatePriceToDisplay(
+                    service.servicePrice,
+                    service.resultsShareFormat,
+                    service.resultsShareAmount,
+                    service.applyToGeneral,
+                    capsterSelected.uid
+                )
             }
 
             // Urutkan servicesList: yang autoSelected atau defaultItem di indeks awal
             sortByDescending { it.autoSelected || it.defaultItem }
         }
 
-        // Setelah update, post hasilnya ke LiveData
+        // Update _servicesList dengan list yang sudah diubah
         _servicesList.value = currentServicesList
+        _isSetItemBundling.value = true
+        Log.d("LifeAct", "observer 196: setUpAndSortedServices")
     }
 
-    fun clearAllData() {
-        // Reset _itemSelectedCounting ke 0
-        _itemSelectedCounting.value = 0
+    private fun calculatePriceToDisplay(
+        basePrice: Int,
+        resultsShareFormat: String,
+        resultsShareAmount: Map<String, Any>?,
+        applyToGeneral: Boolean,
+        capsterUid: String
+    ): Int = synchronized(this) {
+        if (resultsShareFormat == "fee") {
+            val shareAmount = if (applyToGeneral) {
+                (resultsShareAmount?.get("All") as? Number)?.toInt() ?: 0
+            } else {
+                (resultsShareAmount?.get(capsterUid) as? Number)?.toInt() ?: 0
+            }
+            return basePrice + shareAmount
+        }
+        return basePrice
+    }
 
-        // Reset _itemNameSelected ke list kosong
+
+    // Fungsi untuk memperbarui bundling quantity
+    fun updateBundlingQuantity(index: Int, newQuantity: Int) = synchronized(this) {
+        // sebenarnya tidak perlu memperbarui data pada viewModel karena perubahan sudah otomatis tercermin dari adapter
+        // bahkan ketika snapshot listener tidak perlu submitList lagi cukup perbarui data pada viewModel saja (hanya perlu sekali submitList)
+        // dan data pada viewModel dengan adapter akan saling terhubung
+        Log.d("TestAct", "updateServicesQuantity 217: old = ${_bundlingPackagesList.value?.get(index)?.bundlingQuantity} || new = $newQuantity")
+//        val updatedList = _bundlingPackagesList.value?.toMutableList()?.apply {
+//            this[index] = this[index].copy(bundlingQuantity = newQuantity)
+//        }
+        // Memperbarui LiveData di main thread
+//        _bundlingPackagesList.value = updatedList
+        _isDataChanged.value = true
+    }
+
+    fun updateServicesQuantity(index: Int, newQuantity: Int) = synchronized(this) {
+        // sebenarnya tidak perlu memperbarui data pada viewModel karena perubahan sudah otomatis tercermin dari adapter
+        // bahkan ketika snapshot listener tidak perlu submitList lagi cukup perbarui data pada viewModel saja (hanya perlu sekali submitList)
+        // dan data pada viewModel dengan adapter akan saling terhubung
+        Log.d("TestAct", "updateServicesQuantity 227: old = ${_servicesList.value?.get(index)?.serviceQuantity} || new = $newQuantity")
+//        val updatedList = _servicesList.value?.toMutableList()?.apply {
+//            this[index] = this[index].copy(serviceQuantity = newQuantity)
+//        }
+        // Memperbarui LiveData di main thread
+//        _servicesList.value = updatedList
+        _isDataChanged.value = true
+    }
+
+    fun clearAllData() = synchronized(this) {
+        _isDataChanged.removeSource(_bundlingPackagesList)
+        _isDataChanged.removeSource(_servicesList)
+
+        // _itemSelectedCounting.value = 0
         _itemNameSelected.value = emptyList()
-
-        // Reset _bundlingPackagesList ke list kosong
         _bundlingPackagesList.value = mutableListOf()
-
-        // Reset _servicesList ke list kosong
         _servicesList.value = mutableListOf()
-    }
 
+        _isDataChanged.value = false
+
+        _isDataChanged.addSource(_bundlingPackagesList) {
+            _isDataChanged.value = true
+            Log.d("TestAct", "isDataChanged 33: true by bundling")
+        }
+        _isDataChanged.addSource(_servicesList) {
+            _isDataChanged.value  = true
+            Log.d("TestAct", "isDataChanged 37: true by service")
+        }
+
+        Log.d("LifeAct", "observer 257: clearAllData")
+    }
 
 }
 

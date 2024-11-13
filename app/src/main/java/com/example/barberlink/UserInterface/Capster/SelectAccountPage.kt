@@ -23,21 +23,25 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemClicked, PinInputFragment.OnClearBackStackListener {
     private lateinit var binding: ActivitySelectAccountPageBinding
     private val employeeList = mutableListOf<Employee>()
-    private val filteredList = mutableListOf<Employee>()
+    // private val filteredList = mutableListOf<Employee>()
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: PinInputFragment
     private lateinit var outletSelected: Outlet
     private lateinit var employeeAdapter: ItemListPickUserAdapter
     private lateinit var employeeListener: ListenerRegistration
+    private var isFirstLoad = true
     private var keyword: String = ""
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var shouldClearBackStack = true
+    private val employeeMutex = Mutex()
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +51,12 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
         fragmentManager = supportFragmentManager
         intent.getParcelableArrayListExtra(FormAccessCodeFragment.EMPLOYEE_DATA_KEY, Employee::class.java)?.let {
-            employeeList.addAll(it)
+            CoroutineScope(Dispatchers.Default).launch {
+                employeeMutex.withLock {
+                    employeeList.clear()
+                    employeeList.addAll(it)
+                }
+            }
         }
         intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, Outlet::class.java)?.let {
             outletSelected = it
@@ -64,6 +73,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             employeeAdapter.setShimmer(true)
             Handler(Looper.getMainLooper()).postDelayed({
                 filterEmployee("", true)
+                isFirstLoad = false
             }, 500)
 
             searchid.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -96,19 +106,23 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
                     documents?.let { snapshot ->
                         CoroutineScope(Dispatchers.Default).launch {
-                            val newEmployeesList = snapshot.documents.mapNotNull { document ->
-                                document.toObject(Employee::class.java)?.apply {
-                                    userRef = document.reference.path
-                                    outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                                }?.takeIf { it.uid in employeeUidList }
-                            }
+                            if (!isFirstLoad) {
+                                val newEmployeesList = snapshot.documents.mapNotNull { document ->
+                                    document.toObject(Employee::class.java)?.apply {
+                                        userRef = document.reference.path
+                                        outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                    }?.takeIf { it.uid in employeeUidList }
+                                }
 
-                            employeeList.apply {
-                                clear()
-                                addAll(newEmployeesList)
-                            }
+                                employeeMutex.withLock {
+                                    employeeList.apply {
+                                        clear()
+                                        addAll(newEmployeesList)
+                                    }
+                                }
 
-                            filterEmployee(keyword, false)
+                                filterEmployee(keyword, false)
+                            }
                         }
                     }
                 }
@@ -118,30 +132,27 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     private fun filterEmployee(query: String, withShimmer: Boolean) {
         CoroutineScope(Dispatchers.Default).launch {
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
-            val result = if (lowerCaseQuery.isEmpty()) {
-                employeeList.toList()
-            } else {
-                employeeList.filter { employee ->
-                    employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
-                            employee.username.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
-                            employee.role.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+            val result = employeeMutex.withLock {
+                if (lowerCaseQuery.isEmpty()) {
+                    employeeList.toList()
+                } else {
+                    employeeList.filter { employee ->
+                        employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
+                                employee.username.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
+                                employee.role.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+                    }
+
                 }
             }
 
-            filteredList.apply {
-                clear()
-                addAll(result)
-            }
-
             withContext(Dispatchers.Main) {
-                employeeAdapter.submitList(filteredList)
-                binding.tvEmptyEmployee.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
+                employeeAdapter.submitList(result)
+                binding.tvEmptyEmployee.visibility = if (result.isEmpty()) View.VISIBLE else View.GONE
                 if (withShimmer) employeeAdapter.setShimmer(false)
                 else employeeAdapter.notifyDataSetChanged()
             }
         }
     }
-
 
     override fun onItemClickListener(employee: Employee) {
         shouldClearBackStack = false

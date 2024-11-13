@@ -155,7 +155,7 @@
                         android:src="@drawable/fill_point" />
 
                     <TextView
-                        android:id="@+id/tvPoints"
+                        android:id="@+id/tvPoint"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="2dp"
@@ -165,7 +165,6 @@
                         android:textColor="@color/white_text_color" />
 
                     <TextView
-                        android:id="@+id/tvPoint"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="1dp"

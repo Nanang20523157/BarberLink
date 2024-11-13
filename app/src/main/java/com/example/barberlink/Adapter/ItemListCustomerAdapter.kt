@@ -12,7 +12,7 @@ import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.R
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ItemListCustomerAdapterBinding
-import com.example.barberlink.databinding.ShimmerLayoutCustomerCardBinding
+import com.example.barberlink.databinding.ShimmerLayoutListCustomerCardBinding
 
 class ItemListCustomerAdapter(
     private val itemClicked: OnItemClicked
@@ -36,7 +36,7 @@ class ItemListCustomerAdapter(
             recyclerView = parent as RecyclerView
         }
         return if (viewType == VIEW_TYPE_SHIMMER) {
-            val shimmerBinding = ShimmerLayoutCustomerCardBinding.inflate(inflater, parent, false)
+            val shimmerBinding = ShimmerLayoutListCustomerCardBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
         } else {
             val binding = ItemListCustomerAdapterBinding.inflate(inflater, parent, false)
@@ -78,7 +78,7 @@ class ItemListCustomerAdapter(
         }
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutCustomerCardBinding) :
+    inner class ShimmerViewHolder(private val binding: ShimmerLayoutListCustomerCardBinding) :
         RecyclerView.ViewHolder(binding.root)
 
     inner class ItemViewHolder(private val binding: ItemListCustomerAdapterBinding) :

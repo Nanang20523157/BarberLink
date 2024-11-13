@@ -118,7 +118,7 @@
             android:text="@string/number_of_reviews_placeholder"
             android:fontFamily="@font/arial_medium"
             android:textSize="10sp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="11dp"
             android:textColor="@color/black_font_color"
             android:textAppearance="@style/TextAppearance.AppCompat.Small" />
 

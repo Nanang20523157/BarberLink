@@ -77,7 +77,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
         reservations?.let {
             CoroutineScope(Dispatchers.Main).launch {
                 // Hitung mundur 800 ms
-                delay(800)
+                delay(500)
 
                 // Submit data ke adapter setelah delay
                 queueAdapter.submitList(it)

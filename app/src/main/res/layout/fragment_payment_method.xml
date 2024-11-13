@@ -68,7 +68,7 @@
             android:id="@+id/ivQRISPayment"
             android:layout_width="45dp"
             android:layout_height="45dp"
-            android:layout_marginTop="8dp"
+            android:layout_marginTop="15dp"
             android:layout_marginStart="25dp"
             android:padding="4dp"
             app:srcCompat="@drawable/scan"
@@ -171,7 +171,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:layout_marginTop="4.5dp"
+                android:layout_marginTop="11.5dp"
                 android:scaleY="0.85"
                 style="@style/Widget.App.RadioButton"
                 android:scaleX="0.85" />

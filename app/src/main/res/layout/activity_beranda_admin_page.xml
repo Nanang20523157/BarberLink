@@ -170,6 +170,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="102.5dp"
                         android:visibility="visible"
+                        tools:itemCount="4"
                         android:paddingHorizontal="30dp"
                         tools:listitem="@layout/item_list_service_provide_adapter"
                         android:orientation="horizontal"
@@ -177,18 +178,37 @@
                         android:clipChildren="false"
                         android:clipToPadding="false" />
 
-                    <TextView
+                    <LinearLayout
                         android:id="@+id/tvEmptyLayanan"
                         android:layout_width="match_parent"
-                        android:layout_height="102.5dp"
-                        android:text="@string/no_data"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingBottom="20dp"
-                        android:fontFamily="@font/arial_regular"
-                        android:textColor="@color/black_font_color"
-                        android:layout_marginTop="10dp"
-                        android:visibility="gone"/>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:layout_gravity="center_vertical">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="102.5dp"
+                            android:text="@string/no_data"
+                            android:layout_weight="1"
+                            android:textSize="13sp"
+                            android:gravity="center"
+                            android:paddingBottom="5dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:textColor="@color/black_font_color"
+                            android:layout_marginStart="40dp"/>
+
+                        <ImageView
+                            android:id="@+id/ivAddNewService"
+                            android:layout_width="60dp"
+                            android:layout_height="60dp"
+                            android:src="@drawable/ic_plus"
+                            android:padding="15dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="40dp"
+                            android:background="@drawable/background_btn_control"/>
+
+                    </LinearLayout>
 
                 </FrameLayout>
 
@@ -246,6 +266,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="168dp"
                         android:visibility="visible"
+                        tools:itemCount="4"
                         android:paddingHorizontal="30dp"
                         tools:listitem="@layout/item_list_package_bundling_adapter"
                         android:orientation="horizontal"
@@ -253,18 +274,39 @@
                         android:clipChildren="false"
                         android:clipToPadding="false" />
 
-                    <TextView
+                    <LinearLayout
                         android:id="@+id/tvEmptyPaketBundling"
                         android:layout_width="match_parent"
-                        android:layout_height="155dp"
-                        android:text="@string/no_data"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingBottom="20dp"
-                        android:fontFamily="@font/arial_regular"
-                        android:textColor="@color/black_font_color"
-                        android:layout_marginTop="10dp"
-                        android:visibility="gone"/>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:layout_gravity="center_vertical">
+
+                        <!-- TextView untuk menampilkan teks jika data bundling kosong -->
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="155dp"
+                            android:text="@string/no_data"
+                            android:layout_weight="1"
+                            android:textSize="13sp"
+                            android:gravity="center"
+                            android:paddingBottom="5dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:textColor="@color/black_font_color"
+                            android:layout_marginStart="40dp" />
+
+                        <!-- Ikon tambah untuk menambahkan paket bundling -->
+                        <ImageView
+                            android:id="@+id/ivAddNewPaketBundling"
+                            android:layout_width="60dp"
+                            android:layout_height="60dp"
+                            android:src="@drawable/ic_plus"
+                            android:padding="15dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="40dp"
+                            android:background="@drawable/background_btn_control" />
+
+                    </LinearLayout>
 
                 </FrameLayout>
 
@@ -322,6 +364,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="182dp"
                         android:visibility="visible"
+                        tools:itemCount="4"
                         android:paddingHorizontal="30dp"
                         tools:listitem="@layout/item_list_employee_adapter"
                         android:orientation="horizontal"
@@ -329,18 +372,39 @@
                         android:clipChildren="false"
                         android:clipToPadding="false" />
 
-                    <TextView
+                    <LinearLayout
                         android:id="@+id/tvEmptyPegawai"
                         android:layout_width="match_parent"
-                        android:layout_height="177dp"
-                        android:text="@string/no_data"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingBottom="20dp"
-                        android:fontFamily="@font/arial_regular"
-                        android:textColor="@color/black_font_color"
-                        android:layout_marginTop="10dp"
-                        android:visibility="gone"/>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:layout_gravity="center_vertical">
+
+                        <!-- TextView untuk menampilkan teks jika data pegawai kosong -->
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="177dp"
+                            android:text="@string/no_data"
+                            android:layout_weight="1"
+                            android:textSize="13sp"
+                            android:gravity="center"
+                            android:paddingBottom="5dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:textColor="@color/black_font_color"
+                            android:layout_marginStart="40dp" />
+
+                        <!-- Ikon tambah untuk menambahkan pegawai -->
+                        <ImageView
+                            android:id="@+id/ivAddNewPegawai"
+                            android:layout_width="60dp"
+                            android:layout_height="60dp"
+                            android:src="@drawable/ic_plus"
+                            android:padding="15dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="40dp"
+                            android:background="@drawable/background_btn_control" />
+
+                    </LinearLayout>
 
                 </FrameLayout>
 
@@ -398,6 +462,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="207dp"
                         android:visibility="visible"
+                        tools:itemCount="4"
                         android:orientation="horizontal"
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         android:paddingHorizontal="30dp"
@@ -405,18 +470,39 @@
                         android:clipToPadding="false"
                         tools:listitem="@layout/item_list_product_adapter" />
 
-                    <TextView
+                    <LinearLayout
                         android:id="@+id/tvEmptyProduk"
                         android:layout_width="match_parent"
-                        android:layout_height="207dp"
-                        android:text="@string/no_data"
-                        android:textSize="13sp"
-                        android:gravity="center"
-                        android:paddingBottom="20dp"
-                        android:fontFamily="@font/arial_regular"
-                        android:textColor="@color/black_font_color"
-                        android:layout_marginTop="10dp"
-                        android:visibility="gone"/>
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:layout_gravity="center_vertical">
+
+                        <!-- TextView untuk menampilkan teks jika data produk kosong -->
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="207dp"
+                            android:text="@string/no_data"
+                            android:layout_weight="1"
+                            android:textSize="13sp"
+                            android:gravity="center"
+                            android:paddingBottom="5dp"
+                            android:fontFamily="@font/arial_regular"
+                            android:textColor="@color/black_font_color"
+                            android:layout_marginStart="40dp" />
+
+                        <!-- Ikon tambah untuk menambahkan produk -->
+                        <ImageView
+                            android:id="@+id/ivAddNewProduk"
+                            android:layout_width="60dp"
+                            android:layout_height="60dp"
+                            android:src="@drawable/ic_plus"
+                            android:padding="15dp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_marginEnd="40dp"
+                            android:background="@drawable/background_btn_control" />
+
+                    </LinearLayout>
 
                 </FrameLayout>
 
@@ -436,6 +522,7 @@
         android:src="@drawable/ic_capital2"
         android:scaleType="fitXY"
         android:padding="0dp"
+        android:clickable="false"
         app:tint="@android:color/black"
         style="@style/Widget.App.FloatingActionButton"
         app:fabCustomSize="50dp"
@@ -450,6 +537,7 @@
         android:layout_marginEnd="25dp"
         android:layout_marginBottom="25dp"
         android:src="@drawable/ic_shop"
+        android:clickable="false"
         android:scaleType="fitXY"
         android:padding="0dp"
         app:fabCustomSize="56dp"
@@ -467,6 +555,7 @@
         android:scaleType="fitXY"
         app:tint="@android:color/black"
         android:textStyle="bold"
+        android:clickable="false"
         android:padding="0dp"
         app:fabCustomSize="56dp"
         app:maxImageSize="30dp"
