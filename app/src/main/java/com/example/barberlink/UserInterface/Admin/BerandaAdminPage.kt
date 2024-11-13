@@ -19,6 +19,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.marginBottom
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
@@ -40,15 +41,17 @@ import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.SignUpSuccess
 import com.example.barberlink.databinding.ActivityBerandaAdminPageBinding
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.gms.tasks.Tasks
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 
@@ -57,12 +60,12 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var userAdminData: UserAdminData
     private var userId: String = ""
     private var isNavigating = false
+    private var isFirstLoad = true
     private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
     private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val auth by lazy { FirebaseAuth.getInstance() }
     private lateinit var serviceAdapter: ItemListServiceProviceAdapter
     private lateinit var employeeAdapter: ItemListEmployeeAdapter
     private lateinit var bundlingAdapter: ItemListPackageBundlingAdapter
@@ -76,6 +79,12 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     private var isShimmerVisible: Boolean = false
     private var isCapitalInputShown = false
     private var shouldClearBackStack = true
+    // Mutex objects for each list to control access
+    private val outletsListMutex = Mutex()
+    private val servicesListMutex = Mutex()
+    private val bundlingListMutex = Mutex()
+    private val employeesListMutex = Mutex()
+    private val productsListMutex = Mutex()
 //    private var currentMonth = GetDateUtils.getCurrentMonthYear(Timestamp.now())
 //    private var todayDate = GetDateUtils.formatTimestampToDate(Timestamp.now())
 
@@ -93,33 +102,16 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         setContentView(binding.root)
 
         init()
-        setAndDisplayBanner()
-        fragmentManager = supportFragmentManager
-        val adminData = intent.getParcelableExtra(SignUpSuccess.ADMIN_KEY, UserAdminData::class.java) ?:
-        intent.getParcelableExtra(LoginAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)
-
-        val adminRef = sessionManager.getDataAdminRef()
-        userId = adminRef?.substringAfter("barbershops/") ?: ""
-
-        if (adminData != null) {
-            userAdminData = adminData
-            // loadImageWithGlide(userAdminData.imageCompanyProfile)
-            getAllData()
-        } else {
-            if (userId.isNotEmpty()) {
-                userAdminData = UserAdminData()
-                getBarbershopDataFromDatabase()
-                getAllData()
-            } else {
-                Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
-            }
-        }
-
         binding.apply {
             ivSettings.setOnClickListener(this@BerandaAdminPage)
             fabManageCodeAccess.setOnClickListener(this@BerandaAdminPage)
             fabInputCapital.setOnClickListener(this@BerandaAdminPage)
             fabDashboardAdmin.setOnClickListener(this@BerandaAdminPage)
+
+            // Atur warna SwipeRefreshLayout agar sesuai dengan ProgressBar
+            swipeRefreshLayout.setColorSchemeColors(
+                ContextCompat.getColor(this@BerandaAdminPage, R.color.sky_blue)
+            )
 
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
                 refreshPageEffect()
@@ -139,6 +131,29 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                     // Pengguna menggulir ke atas
                     showFab(fabDashboardAdmin)
                 }
+            }
+        }
+        showShimmer(true)
+
+        setAndDisplayBanner()
+        fragmentManager = supportFragmentManager
+        val adminData = intent.getParcelableExtra(SignUpSuccess.ADMIN_KEY, UserAdminData::class.java) ?:
+        intent.getParcelableExtra(LoginAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)
+
+        val adminRef = sessionManager.getDataAdminRef()
+        userId = adminRef?.substringAfter("barbershops/") ?: ""
+
+        if (adminData != null) {
+            userAdminData = adminData
+            // loadImageWithGlide(userAdminData.imageCompanyProfile)
+            getAllData()
+        } else {
+            if (userId.isNotEmpty()) {
+                userAdminData = UserAdminData()
+                getBarbershopDataFromDatabase()
+                getAllData()
+            } else {
+                Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -171,8 +186,6 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             productAdapter = ItemListProductAdapter()
             recyclerProduk.layoutManager = LinearLayoutManager(this@BerandaAdminPage, LinearLayoutManager.HORIZONTAL, false)
             recyclerProduk.adapter = productAdapter
-
-            showShimmer(true)
         }
     }
 
@@ -206,12 +219,13 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                     return@addSnapshotListener
                 }
                 document?.takeIf { it.exists() }?.let {
-                    userAdminData = it.toObject(UserAdminData::class.java) ?: UserAdminData()
+                    if (!isFirstLoad) userAdminData = it.toObject(UserAdminData::class.java) ?: UserAdminData()
                     // loadImageWithGlide(userAdminData.imageCompanyProfile)
                 }
             }
     }
 
+    // Example of adding mutex to listenToOutletsData
     private fun listenToOutletsData() {
         outletListener = db.collection("barbershops")
             .document(userId)
@@ -224,15 +238,17 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull { doc ->
-                            // Get the outlet object from the document
-                            val outlet = doc.toObject(Outlet::class.java)
-                            // Assign the document reference path to outletReference
-                            outlet.outletReference = doc.reference.path
-                            outlet // Return the modified outlet
+                        if (!isFirstLoad) {
+                            val outlets = it.mapNotNull { doc ->
+                                val outlet = doc.toObject(Outlet::class.java)
+                                outlet.outletReference = doc.reference.path
+                                outlet
+                            }
+                            outletsListMutex.withLock {
+                                outletsList.clear()
+                                outletsList.addAll(outlets)
+                            }
                         }
-                        outletsList.clear()
-                        outletsList.addAll(outlets)
                     }
                 }
             }
@@ -269,18 +285,32 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             }
             documents?.let {
                 CoroutineScope(Dispatchers.Default).launch {
-                    val dataList = it.mapNotNull { document ->
-                        document.toObject(dataClass)
-                    }
-                    listToUpdate.clear()
-                    listToUpdate.addAll(dataList)
+                    if (!isFirstLoad) {
+                        val dataList = it.mapNotNull { document ->
+                            document.toObject(dataClass)
+                        }
+                        // Use the corresponding mutex for each list
+                        val mutex = when (listToUpdate) {
+                            servicesList -> servicesListMutex
+                            bundlingPackagesList -> bundlingListMutex
+                            employeesList -> employeesListMutex
+                            productsList -> productsListMutex
+                            else -> Mutex()
+                        }
 
-                    postProcess?.invoke() // Jalankan post-processing jika ada
+                        mutex.withLock {
+                            listToUpdate.clear()
+                            listToUpdate.addAll(dataList)
+                            Log.d("ListenData", "Data 298 count ${dataList.size}")
 
-                    withContext(Dispatchers.Main) {
-                        emptyView.visibility = if (listToUpdate.isEmpty()) View.VISIBLE else View.GONE
-                        adapter.submitList(listToUpdate)
-                        adapter.notifyDataSetChanged()
+                            postProcess?.invoke() // Jalankan post-processing jika ada
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            emptyView.visibility = if (listToUpdate.isEmpty()) View.VISIBLE else View.GONE
+                            adapter.submitList(listToUpdate)
+                            adapter.notifyDataSetChanged()
+                        }
                     }
                 }
             }
@@ -303,12 +333,16 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             emptyView = binding.tvEmptyPaketBundling,
             dataClass = BundlingPackage::class.java,
             postProcess = {
-                // Hubungkan detail layanan dengan bundling items
-                bundlingPackagesList.forEach { bundling ->
-                    val serviceBundlingList = servicesList.filter { service ->
-                        bundling.listItems.contains(service.uid)
+                // Synchronize the access to both lists
+                CoroutineScope(Dispatchers.Default).launch {
+                    servicesListMutex.withLock {
+                        bundlingPackagesList.forEach { bundling ->
+                            val serviceBundlingList = servicesList.filter { service ->
+                                bundling.listItems.contains(service.uid)
+                            }
+                            bundling.listItemDetails = serviceBundlingList
+                        }
                     }
-                    bundling.listItemDetails = serviceBundlingList
                 }
             }
         )
@@ -357,15 +391,17 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         collectionPath: String,
         listToUpdate: MutableList<T>,
         emptyMessage: String,
-        dataClass: Class<T>, // Parameter tipe data
-        isCollectionGroup: Boolean = false, // Parameter tambahan untuk menentukan koleksi group
-        queryField: String? = null, // Parameter tambahan untuk field query
-        queryValue: Any? = null // Parameter tambahan untuk nilai query
+        dataClass: Class<T>,
+        isCollectionGroup: Boolean = false,
+        queryField: String? = null,
+        queryValue: Any? = null
     ): Task<QuerySnapshot> {
+        val taskCompletionSource = TaskCompletionSource<QuerySnapshot>() // TaskCompletionSource untuk mengendalikan Task
+
         val collectionRef = if (isCollectionGroup) {
             val groupRef = db.collectionGroup(collectionPath)
             if (queryField != null && queryValue != null) {
-                groupRef.whereEqualTo(queryField, queryValue) // Tambahkan query khusus
+                groupRef.whereEqualTo(queryField, queryValue)
             } else {
                 groupRef
             }
@@ -375,37 +411,51 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                 .collection(collectionPath)
         }
 
-        return collectionRef
-            .get()
+        collectionRef.get()
             .addOnSuccessListener { documents ->
                 CoroutineScope(Dispatchers.Default).launch {
                     if (!documents.isEmpty) {
-                        // Map documents and cast to the appropriate type T
                         val items = documents.mapNotNull { doc ->
                             val item = doc.toObject(dataClass)
-
-                            // If the data class is Outlet, assign the reference path
                             if (dataClass == Outlet::class.java) {
                                 val outlet = item as Outlet
-                                outlet.outletReference = doc.reference.path // Assign document reference path
-                                outlet as T // Cast Outlet to T to match the required collection type
+                                outlet.outletReference = doc.reference.path
+                                outlet as T
                             } else {
-                                item as T // Cast other types to T
+                                item as T
                             }
                         }
 
-                        listToUpdate.clear()
-                        listToUpdate.addAll(items)
+                        val mutex = when (listToUpdate) {
+                            outletsList -> outletsListMutex
+                            servicesList -> servicesListMutex
+                            bundlingPackagesList -> bundlingListMutex
+                            employeesList -> employeesListMutex
+                            productsList -> productsListMutex
+                            else -> Mutex()
+                        }
+
+                        mutex.withLock {
+                            listToUpdate.clear()
+                            listToUpdate.addAll(items)
+
+                            Log.d("ListenData", "Data 438 count ${items.size}")
+                        }
                     } else {
                         withContext(Dispatchers.Main) {
                             Toast.makeText(this@BerandaAdminPage, emptyMessage, Toast.LENGTH_SHORT).show()
                         }
                     }
+
+                    taskCompletionSource.setResult(documents) // Menandai Task sebagai selesai ketika semua operasi sukses
                 }
             }
             .addOnFailureListener { exception ->
+                taskCompletionSource.setException(exception) // Menandai Task sebagai gagal jika terjadi error
                 Toast.makeText(this, "Error getting $collectionPath data: ${exception.message}", Toast.LENGTH_SHORT).show()
             }
+
+        return taskCompletionSource.task // Kembalikan Task yang akan selesai hanya ketika pengambilan data selesai
     }
 
     private fun getAllData() {
@@ -425,12 +475,18 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             )
         )
 
-        Tasks.whenAllSuccess<QuerySnapshot>(tasks)
+        Tasks.whenAllComplete(tasks)
             .addOnSuccessListener {
                 CoroutineScope(Dispatchers.Default).launch {
-                    bundlingPackagesList.forEach { bundling ->
-                        val serviceBundlingList = servicesList.filter { bundling.listItems.contains(it.uid) }
-                        bundling.listItemDetails = serviceBundlingList
+                    bundlingListMutex.withLock {
+                        servicesListMutex.withLock {
+                            bundlingPackagesList.forEach { bundling ->
+                                val serviceBundlingList = servicesList.filter {
+                                    bundling.listItems.contains(it.uid)
+                                }
+                                bundling.listItemDetails = serviceBundlingList
+                            }
+                        }
                     }
                     withContext(Dispatchers.Main) {
                         displayAllData()
@@ -451,12 +507,14 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun displayAllData() {
+        Log.d("ListenData", "Data 503 count ${servicesList.size}")
         serviceAdapter.submitList(servicesList)
         employeeAdapter.submitList(employeesList)
         bundlingAdapter.submitList(bundlingPackagesList)
         productAdapter.submitList(productsList)
 
         with (binding) {
+            Log.d("ListenData", "Data 510 count ${servicesList.size}")
             tvEmptyLayanan.visibility = if (servicesList.isEmpty()) View.VISIBLE else View.GONE
             tvEmptyPegawai.visibility = if (employeesList.isEmpty()) View.VISIBLE else View.GONE
             tvEmptyPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.VISIBLE else View.GONE
@@ -464,6 +522,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         }
 
         showShimmer(false)
+        isFirstLoad = false
     }
 
 //    private fun getDailyCapitalForTodayUsingCollectionGroup() {
@@ -590,6 +649,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             Log.d("NavigateDashboard", "Send data to $destination")
             if (isSendData) {
                 intent.putParcelableArrayListExtra(OUTLET_DATA_KEY, ArrayList(outletsList))
+                intent.putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(employeesList))
                 intent.putExtra(ADMIN_DATA_KEY, userAdminData)
             } else {
                 intent.putExtra(ORIGIN_INTENT_KEY, "BerandaAdminPage")
@@ -671,6 +731,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     companion object{
         const val ADMIN_DATA_KEY = "admin_data_key"
         const val OUTLET_DATA_KEY = "outlet_data_key"
+        const val EMPLOYEE_DATA_KEY = "employee_data_key"
         const val ORIGIN_INTENT_KEY = "origin_intent_key"
     }
 

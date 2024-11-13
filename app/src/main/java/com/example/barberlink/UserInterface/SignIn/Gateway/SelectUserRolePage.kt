@@ -12,7 +12,6 @@ import com.example.barberlink.UserInterface.Admin.BerandaAdminPage
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
-import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
 import com.example.barberlink.databinding.ActivitySelectUserRolePageBinding
 
@@ -35,7 +34,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
             btnAdminOwner.setOnClickListener(this@SelectUserRolePage)
             btnPegawai.setOnClickListener(this@SelectUserRolePage)
             btnKasirTeller.setOnClickListener(this@SelectUserRolePage)
-            btnSignUp.setOnClickListener(this@SelectUserRolePage)
+            // btnSignUp.setOnClickListener(this@SelectUserRolePage)
         }
     }
 
@@ -49,10 +48,10 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
                     // Navigate to Admin Login Page
                     onBackPressed()
                 }
-                R.id.btnSignUp -> {
-                    // Navigate to Capster Login Page
-                    navigatePage(this@SelectUserRolePage, SignUpStepOne::class.java, btnSignUp)
-                }
+//                R.id.btnSignUp -> {
+//                    // Navigate to Capster Login Page
+//                    navigatePage(this@SelectUserRolePage, SignUpStepOne::class.java, btnSignUp)
+//                }
                 R.id.btnAdminOwner -> {
                     Log.d("SelectUserRolePage", "Admin Session: $adminSession <> ${sessionManager.getDataAdminRef()}")
                     if (adminSession) navigatePage(this@SelectUserRolePage, BerandaAdminPage::class.java, btnAdminOwner)

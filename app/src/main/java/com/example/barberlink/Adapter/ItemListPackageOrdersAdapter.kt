@@ -55,7 +55,7 @@ class ItemListPackageOrdersAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val packageBundling = getItem(position)
-            (holder as ItemViewHolder).bind(packageBundling, position)
+            (holder as ItemViewHolder).bind(packageBundling)
         }
     }
 
@@ -91,7 +91,7 @@ class ItemListPackageOrdersAdapter(
     inner class ItemViewHolder(private val binding: ItemListPackageBookingAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(packageBundling: BundlingPackage, position: Int) {
+        fun bind(packageBundling: BundlingPackage) {
             with (binding) {
                 tvFeeCapsterInfo.isSelected = true
                 tvPackageTitle.text = packageBundling.packageName
@@ -111,15 +111,15 @@ class ItemListPackageOrdersAdapter(
 
                 btnSelectOrder.setOnClickListener {
                     packageBundling.bundlingQuantity = 1
-                    notifyItemChanged(position)
-                    itemClicked.onItemClickListener(packageBundling, position, addCount = true, null)
+                    notifyItemChanged(adapterPosition)
+                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true, null)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
                     packageBundling.bundlingQuantity++
-                    notifyItemChanged(position)
-                    itemClicked.onItemClickListener(packageBundling, position, addCount = true, null)
+                    notifyItemChanged(adapterPosition)
+                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true, null)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
@@ -127,14 +127,14 @@ class ItemListPackageOrdersAdapter(
                     val myData = currentList.toMutableList()
                     if (packageBundling.bundlingQuantity == 1) {
                         packageBundling.bundlingQuantity = 0
-                        myData.removeAt(position)
+                        myData.removeAt(adapterPosition)
                         submitList(myData)
-                        notifyItemRangeChanged(position, myData.size)
+                        notifyItemRangeChanged(adapterPosition, myData.size)
                     } else if (packageBundling.bundlingQuantity > 1) {
                         packageBundling.bundlingQuantity--
-                        notifyItemChanged(position)
+                        notifyItemChanged(adapterPosition)
                     }
-                    itemClicked.onItemClickListener(packageBundling, position, addCount = false, myData)
+                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = false, myData)
                 }
 
                 if (disableCounting) {

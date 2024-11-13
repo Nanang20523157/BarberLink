@@ -18,6 +18,8 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListCapsterAdapter
 import com.example.barberlink.DataClass.Reservation
@@ -26,6 +28,7 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.ExitQueueTrackerFragment
+import com.example.barberlink.UserInterface.Teller.Fragment.ListQueueBoardFragment
 import com.example.barberlink.UserInterface.Teller.Fragment.RandomCapsterFragment
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
@@ -48,6 +51,8 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private lateinit var binding: ActivityQueueTrackerPageBinding
     private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private lateinit var fragmentManager: FragmentManager
+    private lateinit var dialogFragment: DialogFragment
     private var sessionTeller: Boolean = false
     private var dataTellerRef: String = ""
     private lateinit var outletSelected: Outlet
@@ -59,6 +64,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private var todayDate: String = ""
     private var isNavigating = false
     private var currentView: View? = null
+    private var shouldClearBackStack: Boolean = true
     private lateinit var textWatcher: TextWatcher
     private lateinit var calendar: Calendar
     private lateinit var startOfDay: Timestamp
@@ -78,7 +84,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
     private val reservationList = mutableListOf<Reservation>()
     private val capsterList = mutableListOf<Employee>()
-    private val filteredList = mutableListOf<Employee>()
+    // private val filteredList = mutableListOf<Employee>()
     private var capsterNames = mutableListOf<String>()
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -86,47 +92,52 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         super.onCreate(savedInstanceState)
         binding = ActivityQueueTrackerPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        fragmentManager = supportFragmentManager
         sessionTeller = sessionManager.getSessionTeller()
         dataTellerRef = sessionManager.getDataTellerRef() ?: ""
+
         init()
-        showShimmer(shimmerBoard = true, shimmerList = true)
-
-        // Check if the intent has the key ACTION_GET_DATA
-        if (intent.hasExtra(SelectUserRolePage.ACTION_GET_DATA) && sessionTeller) {
-            getSpecificOutletData()
-        } else {
-            outletSelected = intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
-            intent.getParcelableArrayListExtra(FormAccessCodeFragment.CAPSTER_DATA_KEY, Employee::class.java)?.let { list ->
-                capsterList.clear()
-                capsterNames.clear()
-                list.let {
-                    capsterList.addAll(it)
-                    capsterNames = capsterList.filter { capster ->
-                        capster.availabilityStatus // Mengambil hanya yang statusnya true
-                    }.map { capster ->
-                        capster.fullname
-                    }.toMutableList()
-                    setupAutoCompleteTextView()
-                }
-
-            }
-            intent.getParcelableArrayListExtra<Reservation>(FormAccessCodeFragment.RESERVE_DATA_KEY)?.let { list ->
-                reservationList.clear()
-                list.let {
-                    reservationList.addAll(it)
-                    calculateQueueData(true)
-                }
-            }
-
-            if (outletSelected.uid.isNotEmpty()) setupListeners()
-        }
-
         binding.apply {
             ivBack.setOnClickListener(this@QueueTrackerPage)
             ivExits.setOnClickListener(this@QueueTrackerPage)
             fabRandomCapster.setOnClickListener(this@QueueTrackerPage)
             cvDateLabel.setOnClickListener(this@QueueTrackerPage)
             fabQueueBoard.setOnClickListener(this@QueueTrackerPage)
+        }
+        showShimmer(shimmerBoard = true, shimmerList = true)
+
+        // Check if the intent has the key ACTION_GET_DATA
+        if (intent.hasExtra(SelectUserRolePage.ACTION_GET_DATA) && sessionTeller) {
+            getSpecificOutletData()
+        } else {
+            CoroutineScope(Dispatchers.Default).launch {
+                outletSelected = intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
+                intent.getParcelableArrayListExtra(FormAccessCodeFragment.CAPSTER_DATA_KEY, Employee::class.java)?.let { list ->
+                    capsterListMutex.withLock {
+                        capsterList.clear()
+                        capsterNames.clear()
+                        capsterList.addAll(list)
+                        capsterNames = capsterList.filter { capster -> capster.availabilityStatus }
+                            .map { capster -> capster.fullname }
+                            .toMutableList()
+                    }
+                    // Pastikan setupAutoCompleteTextView dipanggil di thread utama jika berinteraksi dengan UI
+                    withContext(Dispatchers.Main) {
+                        setupAutoCompleteTextView()
+                    }
+                }
+
+                intent.getParcelableArrayListExtra<Reservation>(FormAccessCodeFragment.RESERVE_DATA_KEY)?.let { list ->
+                    reservationMutex.withLock {
+                        reservationList.clear()
+                        reservationList.addAll(list)
+                    }
+                    calculateQueueData(true)
+                }
+
+                if (outletSelected.uid.isNotEmpty()) setupListeners()
+            }
+
         }
 
         // Listener untuk menerima hasil dari fragment
@@ -192,6 +203,9 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private fun showShimmer(shimmerBoard: Boolean, shimmerList: Boolean) {
         isShimmerVisible = shimmerList
         capsterAdapter.setShimmer(shimmerList)
+        var show = (shimmerBoard || shimmerList)
+        binding.fabQueueBoard.isClickable = !show
+        binding.fabRandomCapster.isClickable = !show
         binding.shimmerLayout.root.visibility = if (shimmerBoard) View.VISIBLE else View.GONE
         binding.realLayout.root.visibility = if (shimmerBoard) View.GONE else View.VISIBLE
     }
@@ -233,7 +247,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 if (withShimmer) {
                     tvCurrentQueue.text = currentQueueData
                     tvRestQueue.text = convertToFormattedString(restQueue)
-                    tvComplateQueue.text = convertToFormattedString(completeQueue)
+                    tvCompleteQueue.text = convertToFormattedString(completeQueue)
                     tvTotalQueue.text = convertToFormattedString(totalQueue)
 
                     showShimmer(shimmerBoard = false, shimmerList = false)
@@ -268,11 +282,13 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
             documentSnapshot?.let { document ->
                 if (document.exists()) {
-                    val outletData = document.toObject(Outlet::class.java)
-                    outletData?.let { outlet ->
-                        // Assign the document reference path to outletReference
-                        outlet.outletReference = document.reference.path
-                        outletSelected = outlet
+                    if (!isFirstLoad) {
+                        val outletData = document.toObject(Outlet::class.java)
+                        outletData?.let { outlet ->
+                            // Assign the document reference path to outletReference
+                            outlet.outletReference = document.reference.path
+                            outletSelected = outlet
+                        }
                     }
                 }
             }
@@ -299,32 +315,34 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
                     documents?.let {
                         CoroutineScope(Dispatchers.Default).launch {
-                            val (newCapsterList, newCapsterNames) = it.documents.mapNotNull { document ->
-                                document.toObject(Employee::class.java)?.apply {
-                                    userRef = document.reference.path
-                                    outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                                }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter availabilityStatus == true
-                                    ?.let { employee ->
-                                        employee to employee.fullname
+                            if (!isFirstLoad) {
+                                val (newCapsterList, newCapsterNames) = it.documents.mapNotNull { document ->
+                                    document.toObject(Employee::class.java)?.apply {
+                                        userRef = document.reference.path
+                                        outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                    }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter availabilityStatus == true
+                                        ?.let { employee ->
+                                            employee to employee.fullname
+                                        }
+                                }.unzip()
+
+                                // Use mutex lock for thread-safe modifications
+                                capsterListMutex.withLock {
+                                    capsterList.clear()
+                                    capsterNames.clear()
+                                    capsterList.addAll(newCapsterList)
+                                    capsterNames.addAll(newCapsterNames)
+
+                                    capsterList.forEach { capster ->
+                                        capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
                                     }
-                            }.unzip()
+                                }
+                                filterCapster(keyword, false)
 
-                            capsterList.apply {
-                                clear()
-                                addAll(newCapsterList)
-                            }
-                            capsterNames.apply {
-                                clear()
-                                addAll(newCapsterNames)
-                            }
-                            capsterList.forEach { capster ->
-                                capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
-                            }
-                            filterCapster(keyword, false)
-
-                            withContext(Dispatchers.Main) {
-                                if (capsterList.isNotEmpty()) {
-                                    setupAutoCompleteTextView()
+                                withContext(Dispatchers.Main) {
+                                    if (capsterList.isNotEmpty()) {
+                                        setupAutoCompleteTextView()
+                                    }
                                 }
                             }
                         }
@@ -347,13 +365,17 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
                     documents?.let {
                         CoroutineScope(Dispatchers.Default).launch {
-                            val newReservationList = it.documents.mapNotNull { document ->
-                                document.toObject(Reservation::class.java)
-                            }.filter { it.queueStatus !in listOf("pending", "expired") }
+                           if (!isFirstLoad) {
+                               val newReservationList = it.documents.mapNotNull { document ->
+                                   document.toObject(Reservation::class.java)
+                               }.filter { it.queueStatus !in listOf("pending", "expired") }
 
-                            reservationList.clear()
-                            reservationList.addAll(newReservationList)
-                            calculateQueueData(true)
+                               reservationMutex.withLock {
+                                   reservationList.clear()
+                                   reservationList.addAll(newReservationList)
+                               }
+                               calculateQueueData(true)
+                           }
                         }
                     }
                 }
@@ -363,25 +385,28 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private fun filterCapster(query: String, withShimmer: Boolean) {
         CoroutineScope(Dispatchers.Default).launch {
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
-            val filteredResult = if (lowerCaseQuery.isEmpty()) {
-                // Hanya filter capster yang availabilityStatus-nya true
-                capsterList.filter { employee -> employee.availabilityStatus }
-            } else {
-                // Filter berdasarkan fullname dan availabilityStatus
-                capsterList.filter { employee ->
-                    employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) &&
-                            employee.availabilityStatus
+            // Use mutex lock for thread-safe reading of capsterList
+            val filteredResult = capsterListMutex.withLock {
+                if (lowerCaseQuery.isEmpty()) {
+                    // Only filter capsters with availabilityStatus true
+                    capsterList.filter { employee -> employee.availabilityStatus }
+                } else {
+                    // Filter based on fullname and availabilityStatus
+                    capsterList.filter { employee ->
+                        employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) &&
+                                employee.availabilityStatus
+                    }
                 }
             }
 
-            filteredList.apply {
-                clear()
-                addAll(filteredResult)
-            }
+//            filteredList.apply {
+//                clear()
+//                addAll(filteredResult)
+//            }
 
             withContext(Dispatchers.Main) {
-                capsterAdapter.submitList(filteredList)
-                binding.tvEmptyCapster.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
+                capsterAdapter.submitList(filteredResult)
+                binding.tvEmptyCapster.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
                 if (withShimmer) {
                     capsterAdapter.setShimmer(false)
                     isShimmerVisible = false
@@ -474,8 +499,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             document.toObject(Reservation::class.java)
                         }.filter { it.queueStatus !in listOf("pending", "expired") }
 
-                        reservationList.clear()
-                        reservationList.addAll(newReservationList)
+                        reservationMutex.withLock {
+                            reservationList.clear()
+                            reservationList.addAll(newReservationList)
+                        }
                         calculateQueueData(true)
 
                         if (newReservationList.isEmpty()) {
@@ -562,7 +589,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private fun animateTextViewsUpdate(newTextCurrent: String, newTextRest: String, newTextComplete: String, newTextTotal: String) {
         val tvCurrentQueue = binding.realLayout.tvCurrentQueue
         val tvRestQueue = binding.realLayout.tvRestQueue
-        val tvCompleteQueue = binding.realLayout.tvComplateQueue
+        val tvCompleteQueue = binding.realLayout.tvCompleteQueue
         val tvTotalQueue = binding.realLayout.tvTotalQueue
 
         // Membuat animator untuk mengubah opacity dari 1 ke 0
@@ -645,7 +672,8 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     showDatePickerDialog(timeSelected)
                 }
                 R.id.fabQueueBoard -> {
-                    Toast.makeText(this@QueueTrackerPage, "Queue board feature is under development...", Toast.LENGTH_SHORT).show()
+                    if (outletSelected.listEmployees.isNotEmpty()) showQueueBoardDialog()
+                    else Toast.makeText(this@QueueTrackerPage, "Outlet belum memiliki data capster...", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -707,26 +735,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        super.onBackPressed()
-        val intent = Intent(this, SelectUserRolePage::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-        startActivity(intent)
-        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-        finish()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-        // Kurangi 1 dari active_devices
-        if (::outletSelected.isInitialized) updateActiveDevices(-1)
-        if (::capsterListener.isInitialized) capsterListener.remove()
-        if (::outletListener.isInitialized) outletListener.remove()
-        if (::reservationListener.isInitialized) reservationListener.remove()
-    }
-
     private fun showExitsDialog() {
         val dialogFragment = ExitQueueTrackerFragment.newInstance(outletSelected)
         dialogFragment.setStyle(DialogFragment.STYLE_NORMAL, R.style.MyTransparentFragmentStyle)
@@ -737,6 +745,64 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         val dialogFragment = RandomCapsterFragment.newInstance()
         dialogFragment.setStyle(DialogFragment.STYLE_NORMAL, R.style.MyTransparentFragmentStyle)
         dialogFragment.show(supportFragmentManager, "RandomCapsterFragment")
+    }
+
+    private fun showQueueBoardDialog() {
+        shouldClearBackStack = false
+        dialogFragment = ListQueueBoardFragment.newInstance(capsterList as ArrayList<Employee>, outletSelected)
+        // The device is smaller, so show the fragment fullscreen.
+        val transaction = fragmentManager.beginTransaction()
+        // For a polished look, specify a transition animation.
+        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        // To make it fullscreen, use the 'content' root view as the container
+        // for the fragment, which is always the root view for the activity.
+        if (!isDestroyed && !isFinishing) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "ListQueueBoardFragment")
+                .addToBackStack("ListQueueBoardFragment")
+                .commit()
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (fragmentManager.backStackEntryCount > 0) {
+            shouldClearBackStack = true
+            dialogFragment.dismiss()
+            fragmentManager.popBackStack()
+        } else {
+            super.onBackPressed()
+            val intent = Intent(this, SelectUserRolePage::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+            startActivity(intent)
+            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+            finish()
+        }
+
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
+    }
+
+    private fun clearBackStack() {
+        while (fragmentManager.backStackEntryCount > 0) {
+            fragmentManager.popBackStackImmediate()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // Kurangi 1 dari active_devices
+        if (::outletSelected.isInitialized) updateActiveDevices(-1)
+        if (::capsterListener.isInitialized) capsterListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
+        if (::reservationListener.isInitialized) reservationListener.remove()
     }
 
     override fun onItemClickListener(employee: Employee, rootView: View) {

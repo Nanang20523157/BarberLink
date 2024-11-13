@@ -18,6 +18,8 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Locale
 
@@ -25,14 +27,16 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private lateinit var binding: ActivitySelectOutletDestinationBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val outletsList = mutableListOf<Outlet>()
-    private val filteredList = mutableListOf<Outlet>()
+    // private val filteredList = mutableListOf<Outlet>()
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: FormAccessCodeFragment
     private lateinit var outletAdapter: ItemListDestinationAdapter
     private lateinit var outletListener: ListenerRegistration
+    private var isFirstLoad = true
     private var keyword: String = ""
     private var loginType: String = ""
     private var shouldClearBackStack = true
+    private val outletsMutex = Mutex()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,20 +84,28 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull { doc ->
-                            // Get the outlet object from the document
-                            val outlet = doc.toObject(Outlet::class.java)
-                            // Assign the document reference path to outletReference
-                            outlet.outletReference = doc.reference.path
-                            outlet // Return the modified outlet
+                        if (!isFirstLoad) {
+                            val outlets = it.mapNotNull { doc ->
+                                // Get the outlet object from the document
+                                val outlet = doc.toObject(Outlet::class.java)
+                                // Assign the document reference path to outletReference
+                                outlet.outletReference = doc.reference.path
+                                outlet // Return the modified outlet
+                            }
+
+                            // Use mutex to ensure thread safety when modifying outletsList
+                            outletsMutex.withLock {
+                                outletsList.clear()
+                                outletsList.addAll(outlets)
+                            }
+
+                            filterOutlets(keyword, false)
                         }
-                        outletsList.clear()
-                        outletsList.addAll(outlets)
-                        filterOutlets(keyword, false)
                     }
                 }
             }
     }
+
 
     private fun getAllOutletsData() {
         db.collectionGroup("outlets").get()
@@ -107,9 +119,14 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                         outlet // Return the modified outlet
                     }
 
-                    outletsList.clear()
-                    outletsList.addAll(outlets)
+                    // Use mutex to ensure thread safety when modifying outletsList
+                    outletsMutex.withLock {
+                        outletsList.clear()
+                        outletsList.addAll(outlets)
+                    }
+
                     filterOutlets("", true)  // Update UI with the data
+                    isFirstLoad = false
                 }
             }
             .addOnFailureListener { exception ->
@@ -117,26 +134,26 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             }
     }
 
+
     private fun filterOutlets(query: String, withShimmer: Boolean) {
         CoroutineScope(Dispatchers.Default).launch {
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
-            val filteredResult = if (lowerCaseQuery.isEmpty()) {
-                outletsList
-            } else {
-                outletsList.filter { outlet ->
-                    outlet.outletName.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+
+            // Use mutex to ensure thread safety when accessing outletsList
+            val filteredResult = outletsMutex.withLock {
+                if (lowerCaseQuery.isEmpty()) {
+                    outletsList
+                } else {
+                    outletsList.filter { outlet ->
+                        outlet.outletName.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+                    }
                 }
             }
 
-            filteredList.apply {
-                clear()
-                addAll(filteredResult)
-            }
             withContext(Dispatchers.Main) {
-                outletAdapter.submitList(filteredList)
+                outletAdapter.submitList(filteredResult)
 
-
-                binding.tvEmptyOutlet.visibility = if (filteredList.isEmpty()) View.VISIBLE else View.GONE
+                binding.tvEmptyOutlet.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
                 if (withShimmer) outletAdapter.setShimmer(false)
                 else outletAdapter.notifyDataSetChanged()
             }

@@ -1,6 +1,7 @@
 package com.example.barberlink.Adapter
 
 import Service
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -54,7 +55,7 @@ class ItemListServiceOrdersAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val service = getItem(position)
-            (holder as ItemViewHolder).bind(service, position)
+            (holder as ItemViewHolder).bind(service)
         }
     }
 
@@ -90,7 +91,7 @@ class ItemListServiceOrdersAdapter(
     inner class ItemViewHolder(private val binding: ItemListOrdersBookingAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(service: Service, position: Int) {
+        fun bind(service: Service) {
             with (binding) {
                 tvFeeCapsterInfo.isSelected = true
                 price.isSelected = true
@@ -118,15 +119,15 @@ class ItemListServiceOrdersAdapter(
 
                 btnSelectOrder.setOnClickListener {
                     service.serviceQuantity = 1
-                    notifyItemChanged(position)
-                    itemClicked.onItemClickListener(service, position, addCount = true, null)
+                    notifyItemChanged(adapterPosition)
+                    itemClicked.onItemClickListener(service, adapterPosition, addCount = true, null)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
                     service.serviceQuantity++
-                    notifyItemChanged(position)
-                    itemClicked.onItemClickListener(service, position, addCount = true, null)
+                    notifyItemChanged(adapterPosition)
+                    itemClicked.onItemClickListener(service, adapterPosition, addCount = true, null)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
@@ -134,14 +135,15 @@ class ItemListServiceOrdersAdapter(
                     val myData = currentList.toMutableList()
                     if (service.serviceQuantity == 1) {
                         service.serviceQuantity = 0
-                        myData.removeAt(position)
+                        Log.d("RemoveItem", "Remove item at position $adapterPosition")
+                        myData.removeAt(adapterPosition)
                         submitList(myData)
-                        notifyItemRangeChanged(position, myData.size)
+                        notifyItemRangeChanged(adapterPosition, myData.size)
                     } else if (service.serviceQuantity > 1) {
                         service.serviceQuantity--
-                        notifyItemChanged(position)
+                        notifyItemChanged(adapterPosition)
                     }
-                    itemClicked.onItemClickListener(service, position, addCount = false, myData)
+                    itemClicked.onItemClickListener(service, adapterPosition, addCount = false, myData)
                 }
 
                 if (disableCounting || service.defaultItem) {

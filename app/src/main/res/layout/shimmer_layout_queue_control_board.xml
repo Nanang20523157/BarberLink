@@ -113,7 +113,7 @@
                     app:shimmer_tilt="0">
 
                     <TextView
-                        android:id="@+id/tvComplateQueue"
+                        android:id="@+id/tv_complete_queue"
                         android:layout_width="35dp"
                         android:layout_height="wrap_content"
                         android:background="@drawable/shimmer_corner_lima_dp_300"

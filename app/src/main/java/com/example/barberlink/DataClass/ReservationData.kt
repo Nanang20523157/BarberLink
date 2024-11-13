@@ -22,7 +22,8 @@ data class Reservation(
     @get:PropertyName("timestamp_completed") @set:PropertyName("timestamp_completed") var timestampCompleted: Timestamp? = null,
     @get:PropertyName("timestamp_created") @set:PropertyName("timestamp_created") var timestampCreated: Timestamp = Timestamp.now(),
     @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_booking") var timestampToBooking: Timestamp? = null,
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
+    @get:PropertyName("is_requeue") @set:PropertyName("is_requeue") var isRequeue: Boolean = false,
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
 ) : Parcelable
 
 @Parcelize

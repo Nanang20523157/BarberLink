@@ -6,6 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:paddingVertical="4dp"
+    android:paddingHorizontal="16dp"
     android:clipToPadding="false"
     android:clipChildren="false">
 
@@ -13,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:cardCornerRadius="25dp"
-        app:cardElevation="4dp"
+        app:cardElevation="1.5dp"
         app:cardBackgroundColor="@color/blue_access_code"/>
 
     <LinearLayout
@@ -30,7 +31,7 @@
             android:layout_height="wrap_content"
             app:cardCornerRadius="20dp"
             app:cardElevation="0.5dp"
-            android:backgroundTint="@color/silver_grey">
+            android:backgroundTint="@color/light_grey_horizons_background">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -245,7 +246,7 @@
             android:id="@+id/clCodeAccess"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:visibility="visible">
+            android:visibility="gone">
 
             <!-- Kode Kasir Section -->
             <TextView

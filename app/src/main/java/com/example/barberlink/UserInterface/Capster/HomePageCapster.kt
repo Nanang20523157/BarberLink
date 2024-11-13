@@ -41,6 +41,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
@@ -54,6 +57,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private var dataCapsterRef: String = ""
 //    private var outletCapsterRef: String = ""
     private var isNavigating = false
+    private var isFirstLoad = true
     private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
@@ -77,9 +81,12 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private lateinit var reservationListener: ListenerRegistration
     private lateinit var salesListener: ListenerRegistration
     private lateinit var outletListener: ListenerRegistration
-    private lateinit var locationListener: ListenerRegistration
+    // private lateinit var locationListener: ListenerRegistration
     private val pointDummy = 9999
     private val daysMonth = GetDateUtils.getDaysInCurrentMonth()
+    private val reservationListMutex = Mutex()
+    private val productSalesListMutex = Mutex()
+    private val outletsListMutex = Mutex()
 
     private val reservationList = mutableListOf<Reservation>()
     private val productSalesList = mutableListOf<ProductSales>()
@@ -114,6 +121,26 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         calendar.add(Calendar.MONTH, 1)
         startOfNextMonth = Timestamp(calendar.time)
         currentMonth = GetDateUtils.getCurrentMonthYear(Timestamp.now())
+        binding.apply {
+            fabListQueue.setOnClickListener(this@HomePageCapster)
+            realLayout.btnCopyCode.setOnClickListener(this@HomePageCapster)
+            realLayout.tvUid.setOnClickListener(this@HomePageCapster)
+            realLayout.btnBonPegawai.setOnClickListener(this@HomePageCapster)
+            realLayout.cvPerijinan.setOnClickListener(this@HomePageCapster)
+            realLayout.cvPresensi.setOnClickListener(this@HomePageCapster)
+            realLayout.ivSettings.setOnClickListener(this@HomePageCapster)
+            fabInputCapital.setOnClickListener(this@HomePageCapster)
+
+            // Atur warna SwipeRefreshLayout agar sesuai dengan ProgressBar
+            swipeRefreshLayout.setColorSchemeColors(
+                ContextCompat.getColor(this@HomePageCapster, R.color.sky_blue)
+            )
+
+            swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
+                showShimmer(true)
+                getAllData()
+            })
+        }
         showShimmer(true)
 
         // Check if the intent has the key ACTION_GET_DATA
@@ -126,22 +153,6 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             if (userEmployeeData.uid.isNotEmpty()) {
                 getAllData()
             }
-        }
-
-        binding.apply {
-            fabListQueue.setOnClickListener(this@HomePageCapster)
-            realLayout.btnCopyCode.setOnClickListener(this@HomePageCapster)
-            realLayout.tvUid.setOnClickListener(this@HomePageCapster)
-            realLayout.btnBonPegawai.setOnClickListener(this@HomePageCapster)
-            realLayout.cvPerijinan.setOnClickListener(this@HomePageCapster)
-            realLayout.cvPresensi.setOnClickListener(this@HomePageCapster)
-            realLayout.ivSettings.setOnClickListener(this@HomePageCapster)
-            fabInputCapital.setOnClickListener(this@HomePageCapster)
-
-            swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-                showShimmer(true)
-                getAllData()
-            })
         }
 
     }
@@ -157,15 +168,16 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private fun showShimmer(show: Boolean) {
         isShimmerVisible = show
         // Implementasi untuk menampilkan efek shimmer
-        binding.fabInputCapital.isClickable = !show
         binding.fabListQueue.isClickable = !show
+        binding.fabInputCapital.isClickable = !show
+        Log.d("ClickAble", "clickable: ${binding.fabListQueue.isClickable}")
         binding.shimmerLayout.root.visibility = if (show) View.VISIBLE else View.GONE
         binding.realLayout.root.visibility = if (show) View.GONE else View.VISIBLE
     }
 
-    private fun resetVariabel() {
-        reservationList.clear()
-        productSalesList.clear()
+    private fun resetVariabel() = runBlocking {
+        reservationListMutex.withLock { reservationList.clear() }
+        productSalesListMutex.withLock { productSalesList.clear() }
         amountServiceRevenue = 0
         amountProductRevenue = 0
         numberOfCompletedQueue = 0
@@ -174,6 +186,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         numberOfSkippedQueue = 0
         numberOfProcessQueue = 0
     }
+
 
     private fun resetReservationMetrics() {
         amountServiceRevenue = 0
@@ -210,17 +223,19 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             }
 
             documents?.takeIf { it.exists() }?.toObject(Employee::class.java)?.let { employeeData ->
-                userEmployeeData = employeeData.apply {
-                    userRef = documents.reference.path
-                    outletRef = ""
-                }
+                if (!isFirstLoad) {
+                    userEmployeeData = employeeData.apply {
+                        userRef = documents.reference.path
+                        outletRef = ""
+                    }
 
-                binding.apply {
-                    loadImageWithGlide(userEmployeeData.photoProfile)
-                    realLayout.tvName.text = userEmployeeData.fullname
-                    realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userEmployeeData.amountOfBon.toDouble())
-                    realLayout.tvPoint.text = pointDummy.toString()
-                    if (isHidden) hideUid(userEmployeeData.uid) else showUid(userEmployeeData.uid)
+                    binding.apply {
+                        loadImageWithGlide(userEmployeeData.photoProfile)
+                        realLayout.tvName.text = userEmployeeData.fullname
+                        realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userEmployeeData.amountOfBon.toDouble())
+                        realLayout.tvPoint.text = pointDummy.toString()
+                        if (isHidden) hideUid(userEmployeeData.uid) else showUid(userEmployeeData.uid)
+                    }
                 }
             }
         }
@@ -236,15 +251,17 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                 }
                 documents?.let {
                     CoroutineScope(Dispatchers.Default).launch {
-                        val outlets = it.mapNotNull { doc ->
-                            // Get the outlet object from the document
-                            val outlet = doc.toObject(Outlet::class.java)
-                            // Assign the document reference path to outletReference
-                            outlet.outletReference = doc.reference.path
-                            outlet // Return the modified outlet
+                        if (!isFirstLoad) {
+                            val outlets = it.mapNotNull { doc ->
+                                val outlet = doc.toObject(Outlet::class.java)
+                                outlet.outletReference = doc.reference.path
+                                outlet
+                            }
+                            outletsListMutex.withLock {
+                                outletsList.clear()
+                                outletsList.addAll(outlets)
+                            }
                         }
-                        outletsList.clear()
-                        outletsList.addAll(outlets)
                     }
                 }
             }
@@ -293,19 +310,23 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             dateField = "timestamp_to_booking"
         ) { documents ->
             CoroutineScope(Dispatchers.Default).launch {
-                reservationList.clear()
-                resetReservationMetrics()
+                if (!isFirstLoad) {
+                    reservationListMutex.withLock {
+                        reservationList.clear()
+                        resetReservationMetrics()
 
-                val jobs = documents.map { document ->
-                    async {
-                        val reservation = document.toObject(Reservation::class.java)
-                        processReservation(reservation)
+                        val jobs = documents.map { document ->
+                            async {
+                                val reservation = document.toObject(Reservation::class.java)
+                                processReservation(reservation)
+                            }
+                        }
+                        jobs.awaitAll()
+
+                        withContext(Dispatchers.Main) {
+                            updateReservationUI()
+                        }
                     }
-                }
-                jobs.awaitAll()
-
-                withContext(Dispatchers.Main) {
-                    updateReservationUI()
                 }
             }
         }
@@ -317,25 +338,29 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             dateField = "timestamp_created"
         ) { documents ->
             CoroutineScope(Dispatchers.Default).launch {
-                productSalesList.clear()
-                amountProductRevenue = 0
+                if (!isFirstLoad) {
+                    productSalesListMutex.withLock {
+                        productSalesList.clear()
+                        amountProductRevenue = 0
 
-                val jobs = documents.map { document ->
-                    async {
-                        val sale = document.toObject(ProductSales::class.java)
-                        processSale(sale)
+                        val jobs = documents.map { document ->
+                            async {
+                                val sale = document.toObject(ProductSales::class.java)
+                                processSale(sale)
+                            }
+                        }
+                        jobs.awaitAll()
+
+                        withContext(Dispatchers.Main) {
+                            updateSalesUI()
+                        }
                     }
-                }
-                jobs.awaitAll()
-
-                withContext(Dispatchers.Main) {
-                    updateSalesUI()
                 }
             }
         }
     }
 
-    private fun processReservation(reservation: Reservation) {
+    private fun processReservation(reservation: Reservation) = runBlocking {
         when (reservation.queueStatus) {
             "completed" -> numberOfCompletedQueue++
             "waiting" -> numberOfWaitingQueue++
@@ -346,14 +371,18 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         if (reservation.paymentDetail.paymentStatus && reservation.queueStatus == "completed") {
             amountServiceRevenue += reservation.capsterInfo.shareProfit
         }
-        if (reservation.queueStatus !in listOf("pending", "expired")) reservationList.add(reservation)
+        if (reservation.queueStatus !in listOf("pending", "expired")) {
+            reservationList.add(reservation)
+        }
     }
 
-    private fun processSale(sale: ProductSales) {
+    private fun processSale(sale: ProductSales) = runBlocking {
         if (sale.paymentDetail.paymentStatus && sale.orderStatus == "completed") {
             sale.capsterInfo?.shareProfit?.let { amountProductRevenue += it }
         }
-        if (sale.orderStatus !in listOf("pending", "expired")) productSalesList.add(sale)
+        if (sale.orderStatus !in listOf("pending", "expired")) {
+            productSalesList.add(sale)
+        }
     }
 
     private fun updateReservationUI() {
@@ -464,28 +493,33 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                     val jobs = listOf(
                         async {
                             reservationsResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(Reservation::class.java)
-                                        ?.let { processReservation(it) }
+                                reservationListMutex.withLock {
+                                    result.documents.forEach { document ->
+                                        document.toObject(Reservation::class.java)
+                                            ?.let { processReservation(it) }
+                                    }
                                 }
                             }
                         },
                         async {
                             salesResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(ProductSales::class.java)
-                                        ?.let { processSale(it) }
+                                productSalesListMutex.withLock {
+                                    result.documents.forEach { document ->
+                                        document.toObject(ProductSales::class.java)
+                                            ?.let { processSale(it) }
+                                    }
                                 }
                             }
                         },
                         async {
                             outletResult?.let { result ->
-                                result.documents.forEach { document ->
-                                    document.toObject(Outlet::class.java)?.let { outlet ->
-                                        // Assign the document reference path to outletReference
-                                        outlet.outletReference = document.reference.path
-                                        // Add the outlet to outletsList
-                                        outletsList.add(outlet)
+                                outletsListMutex.withLock {
+                                    outletsList.clear()
+                                    result.documents.forEach { document ->
+                                        document.toObject(Outlet::class.java)?.let { outlet ->
+                                            outlet.outletReference = document.reference.path
+                                            outletsList.add(outlet)
+                                        }
                                     }
                                 }
                             }
@@ -542,6 +576,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         }
 
         showShimmer(false)
+        isFirstLoad = false
     }
 
     private fun showCapitalInputDialog(outletList: ArrayList<Outlet>) {
@@ -602,6 +637,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         with(binding) {
             when (v?.id) {
                 R.id.fabListQueue -> {
+                    Log.d("ClickAble", "clickable: ${fabListQueue.isClickable}")
                     navigatePage(this@HomePageCapster, QueueControlPage::class.java, true, fabListQueue)
 //                    Toast.makeText(this@HomePageCapster, "Queue control feature is under development...", Toast.LENGTH_SHORT).show()
                 }
@@ -639,22 +675,31 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private fun navigatePage(context: Context, destination: Class<*>, isSendData: Boolean, view: View) {
         view.isClickable = false
         currentView = view
-        setFilteringForToday()
+        // setFilteringForToday()
         if (!isNavigating) {
             isNavigating = true
             val intent = Intent(context, destination)
             if (isSendData) {
-                // Filter reservationList untuk satu hari sebelum dikirim
-                val todayReservations = reservationList.filter { reservation ->
-                    reservation.timestampToBooking?.let { timestamp ->
-                        timestamp in startOfDay..startOfNextDay
-                    } ?: false // Jika null, jangan masukkan ke dalam hasil filter
-                }
-
-//                intent.putExtra(OUTLET_SELECTED_KEY, outletSelected)
-                intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(outletsList))
-                intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(todayReservations))
+                intent.putParcelableArrayListExtra(OUTLET_LIST_KEY, ArrayList(outletsList))
                 intent.putExtra(CAPSTER_DATA_KEY, userEmployeeData)
+//                CoroutineScope(Dispatchers.Default).launch {
+//                    val todayReservations: List<Reservation>
+//
+//                    // Filter reservationList for one-day reservations within a mutex lock
+//                    reservationListMutex.withLock {
+//                        todayReservations = reservationList.filter { reservation ->
+//                            reservation.timestampToBooking?.let { timestamp ->
+//                                timestamp in startOfDay..startOfNextDay
+//                            } ?: false
+//                        }
+//                    }
+//
+//                    withContext(Dispatchers.Main) {
+//                        // intent.putExtra(OUTLET_SELECTED_KEY, outletSelected)
+//                        // Log.d("TagError", "outlet intent: $outletsList")
+//                        // intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(todayReservations))
+//                    }
+//                }
             } else {
                 intent.putExtra(ORIGIN_INTENT_KEY, "HomePageCapster")
             }
@@ -717,7 +762,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         if (::outletListener.isInitialized) outletListener.remove()
         if (::reservationListener.isInitialized) reservationListener.remove()
         if (::salesListener.isInitialized) salesListener.remove()
-        if (::locationListener.isInitialized) locationListener.remove()
+        // if (::locationListener.isInitialized) locationListener.remove()
     }
 
     companion object {

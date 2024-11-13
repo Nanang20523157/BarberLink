@@ -104,4 +104,6 @@ dependencies {
     // YearPickerOnly
     implementation("com.github.demogorgorn:MonthAndYearPicker:1.0.11")
 
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
+
 }

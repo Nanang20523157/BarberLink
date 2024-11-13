@@ -1,6 +1,7 @@
 package com.example.barberlink.Adapter
 
 import Outlet
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,13 +25,18 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 
 class ItemListOutletAdapter(
-    private val itemClicked: OnItemClicked
+    private val itemClicked: OnItemClicked,
+    private val listener: OnQueueResetListener
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
     private var isShimmer = true
     private val shimmerItemCount = 2
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+
+    interface OnQueueResetListener {
+        fun onQueueResetRequested(outlet: Outlet, index: Int)
+    }
 
     interface OnItemClicked {
         fun onItemClickListener(outlet: Outlet)
@@ -90,7 +96,7 @@ class ItemListOutletAdapter(
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutManageOutletCardBinding) :
         RecyclerView.ViewHolder(binding.root)
 
-    inner class ItemViewHolder(private val binding: ItemListManageOutletAdapterBinding) :
+    inner class ItemViewHolder(val binding: ItemListManageOutletAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(outlet: Outlet) {
@@ -126,10 +132,32 @@ class ItemListOutletAdapter(
                 }
 
                 switch2.setOnCheckedChangeListener { _, isChecked ->
+                    // Jika kondisi di atas tidak terpenuhi, lanjutkan ke fungsi berikutnya
                     setStatusOutlet(isChecked, binding)
+                    var skip = false
+
+                    if (!isChecked) {
+                        // Konversi setiap nilai ke Int dengan aman dan tambahkan
+                        val sumOfCurrentQueue = outlet.currentQueue?.values
+                            ?.mapNotNull { it.toIntOrNull() }
+                            ?.sum() ?: 0
+
+                        if (sumOfCurrentQueue > 0) {
+                            // Panggil listener dengan parameter outlet
+                            listener.onQueueResetRequested(outlet, adapterPosition)
+
+                            // Hentikan eksekusi lebih lanjut
+                            skip = true
+                        }
+                    }
+
                     // save data
-                    updateOutletStatus(outlet, isChecked)
+                    if (!skip) {
+                        Log.d("UpdateOutletStatus", "Update 156 True")
+                        updateOutletStatus(outlet, isChecked, binding)
+                    }
                 }
+
 
                 btnCopyCode.setOnClickListener {
                     // Generate or revoke code access
@@ -185,7 +213,7 @@ class ItemListOutletAdapter(
                     binding.tvAksesCode.text = result
                     setButtonAccessCode(result, Timestamp.now(), binding)
                     // saveData
-                    updateOutletAccessCode(outlet, result)
+                    updateOutletAccessCode(outlet, result, binding)
 
                     if (code == root.context.getString(R.string.default_empty_code_access)) {
                         // Generate code
@@ -200,32 +228,57 @@ class ItemListOutletAdapter(
             }
         }
 
-        private fun updateOutletStatus(outlet: Outlet, isOpen: Boolean) {
-            val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
-            outletRef.update(mapOf(
-                "open_status" to isOpen,
-            ))
-                .addOnSuccessListener {
-                    Toast.makeText(binding.root.context, "Outlet status updated", Toast.LENGTH_SHORT).show()
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(binding.root.context, "Failed to update status: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-        }
+    }
 
-        private fun updateOutletAccessCode(outlet: Outlet, newCode: String) {
-            val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
-            outletRef.update(mapOf(
-                "outlet_access_code" to newCode,
-                "last_updated" to Timestamp.now()
-            ))
-                .addOnSuccessListener {
-                    Toast.makeText(binding.root.context, "Outlet access code updated", Toast.LENGTH_SHORT).show()
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(binding.root.context, "Failed to update access code: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+    fun restoreSwitchStatus(index: Int) {
+        val outlet = getItem(index)
+        val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
+        if (binding != null) {
+            setStatusOutlet(outlet.openStatus, binding)
         }
+    }
+
+    fun triggerUpdateStatus(index: Int) {
+        val outlet = getItem(index)
+        val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
+        if (binding != null) {
+            updateOutletStatus(outlet, !outlet.openStatus, binding)
+        }
+    }
+
+    private fun updateOutletStatus(outlet: Outlet, isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {
+        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
+
+        // Create a new map with the same keys as currentQueue, but all values set to "00"
+        val updatedCurrentQueue = if (isOpen) outlet.currentQueue ?: emptyMap()
+        else outlet.currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
+
+        // Update the outlet status and current queue in Firestore
+        outletRef.update(mapOf(
+            "open_status" to isOpen,
+            "current_queue" to updatedCurrentQueue // Update currentQueue to all "00"
+        ))
+            .addOnSuccessListener {
+                if (isOpen != outlet.openStatus) Toast.makeText(binding.root.context, "Outlet status updated", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(binding.root.context, "Failed to update status: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+
+    private fun updateOutletAccessCode(outlet: Outlet, newCode: String, binding: ItemListManageOutletAdapterBinding) {
+        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
+        outletRef.update(mapOf(
+            "outlet_access_code" to newCode,
+            "last_updated" to Timestamp.now()
+        ))
+            .addOnSuccessListener {
+                Toast.makeText(binding.root.context, "Outlet access code updated", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(binding.root.context, "Failed to update access code: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun setStatusOutlet(isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {

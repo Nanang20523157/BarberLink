@@ -1,5 +1,6 @@
 package com.example.barberlink.Adapter
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -52,7 +53,10 @@ class ItemListCollapseQueueAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val reservation = getItem(position)
-            (holder as ItemViewHolder).bind(reservation, position)
+            (holder as ItemViewHolder).bind(reservation)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Reservation()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -83,21 +87,22 @@ class ItemListCollapseQueueAdapter(
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(reservation: Reservation, position: Int) {
+        fun bind(reservation: Reservation) {
             // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
-            val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
+            val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
             binding.tvQueueNumberPrefix.text = binding.root.context.getString(R.string.template_number_prefix, formattedNumber)
+            Log.d("CheckPrefix", "bind: ${binding.tvQueueNumberPrefix.text}")
         }
     }
 
     inner class ItemViewHolder(private val binding: ItemListNumberQueueAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(reservation: Reservation, position: Int) {
+        fun bind(reservation: Reservation) {
             with(binding) {
                 binding.tvCurrentQueueNumber.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
-                val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
+                val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
                 binding.tvQueueNumberPrefix.text = root.context.getString(R.string.template_number_prefix, formattedNumber)
                 binding.tvCurrentQueueNumber.text = reservation.queueNumber
 //                tvQueueNumber.text = reservation.queueNumber.toString()
@@ -125,7 +130,7 @@ class ItemListCollapseQueueAdapter(
 
                 root.setOnClickListener {
                     if (!blockAllUserClickAction) {
-                        itemClicked.onItemClickListener(reservation, root, position)
+                        itemClicked.onItemClickListener(reservation, root, adapterPosition)
                     }
                 }
             }

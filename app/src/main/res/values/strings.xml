@@ -32,7 +32,7 @@
     <string name="icon_back_button_desc">Icon back button</string>
     <string name="toolbar_select_role_page">Pilih Roles</string>
     <string name="welcome_in_select_role">Selamat Datang!</string>
-    <string name="instructions_guide">Untuk melanjutkan, pilih masuk sebagai:</string>
+    <string name="instructions_guide">\'Untuk melanjutkan, pilih masuk sebagai:</string>
     <string name="image_owner_ilustration_desc">image owner ilustration</string>
     <string name="btn_select_owner_admin">Owner/Admin</string>
     <string name="or">atau</string>
@@ -408,4 +408,11 @@
     <string name="price_not_including_fee">Harga belum termasuk fee capster</string>
     <string name="template_queue_number">No. %1$s</string>
     <string name="no_price_change_text">Tidak Ada</string>
+    <string name="label_reset_queue_board">Reset Queue Board</string>
+    <string name="content_message_reset_current_queue">Atur ulang seluruh daftar antrian saat ini kembali ke-00 (nol).</string>
+    <string name="label_list_queue_board">List Queue Board</string>
+    <string name="content_message_queue_board">Daftar nomor antrian saat ini yang sedang di layani oleh semua capster.</string>
+    <string name="powered_by_barberlink_inc">Powered by BarberLink.Inc <font color="#FF8FD14F">©2024</font></string>
+    <string name="label_requeue">Antrikan Ulang</string>
+    <string name="request_complated">Permintaan Selesai</string>
 </resources>
