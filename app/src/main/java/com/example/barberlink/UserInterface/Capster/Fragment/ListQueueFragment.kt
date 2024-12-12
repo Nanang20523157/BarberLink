@@ -1,15 +1,20 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
 import android.content.Context
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListExpandQueueAdapter
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.R
 import com.example.barberlink.databinding.FragmentListQueueBinding
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,15 +38,18 @@ class ListQueueFragment : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
     // TODO: Rename and change types of parameters
     private var reservations: List<Reservation>? = null
+    private var currentIndex: Int? = null
     private var param2: String? = null
     private lateinit var context: Context
     private lateinit var queueAdapter: ItemListExpandQueueAdapter
+    private lateinit var behavior: BottomSheetBehavior<View>
+    private lateinit var shape: GradientDrawable
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
             reservations = it.getParcelableArrayList(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+            currentIndex = it.getInt(ARG_PARAM2)
         }
 
         context = requireContext()
@@ -58,7 +66,6 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         queueAdapter = ItemListExpandQueueAdapter(object : ItemListExpandQueueAdapter.OnItemClicked {
             override fun onItemClickListener(reservation: Reservation, rootView: View, position: Int) {
                 // Handle onItemClickListener
@@ -73,21 +80,77 @@ class ListQueueFragment : BottomSheetDialogFragment() {
             dismiss() // Close the dialog when ivBack is clicked
         }
 
+        // Initialize BottomSheetBehavior
+        dialog?.setOnShowListener { dialog ->
+            val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            shape = GradientDrawable().apply {
+                setColor(ContextCompat.getColor(requireContext(), R.color.white)) // Set background color
+            }
+
+            // Ambil max radius dalam dp dan konversi ke px
+            val maxRadius = resources.getDimension(R.dimen.start_corner_radius) // Dalam px
+
+            // Update corner radius untuk pertama kali
+            updateCornerRadius(maxRadius)
+
+            // Set background
+            bottomSheet?.background = shape
+            bottomSheet?.let {
+                behavior = BottomSheetBehavior.from(it)
+                // Setup corner adjustments based on slide offset
+                setupBottomSheetCorners(it)
+            }
+        }
+
+
         // Menggunakan coroutine untuk menunda eksekusi submitList
         reservations?.let {
             CoroutineScope(Dispatchers.Main).launch {
                 // Hitung mundur 800 ms
                 delay(500)
-
                 // Submit data ke adapter setelah delay
                 queueAdapter.submitList(it)
-
                 // Matikan shimmer setelah data di-submit
+                queueAdapter.setlastScrollPosition(currentIndex ?: 0)
                 queueAdapter.setShimmer(false)
+
             }
         }
     }
 
+    private fun setupBottomSheetCorners(bottomSheet: View) {
+        // Get screen height
+        val maxRadius = resources.getDimension(R.dimen.start_corner_radius) // e.g., 24dp
+
+        // Listen for BottomSheet position changes
+        behavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
+            override fun onStateChanged(bottomSheet: View, newState: Int) {
+                // Optional: Handle state changes if needed
+            }
+
+            override fun onSlide(bottomSheet: View, slideOffset: Float) {
+                // Calculate new corner radius based on slide offset
+                val newRadius = calculateCornerRadius(1 - slideOffset, maxRadius)
+                updateCornerRadius(newRadius)
+            }
+        })
+    }
+
+    private fun updateCornerRadius(cornerRadius: Float) {
+        // Set corner radii untuk top-left dan top-right saja
+        shape.cornerRadii = floatArrayOf(
+            cornerRadius, cornerRadius, // Top-left
+            cornerRadius, cornerRadius, // Top-right
+            0f, 0f,                     // Bottom-right
+            0f, 0f                      // Bottom-left
+        )
+    }
+
+    private fun calculateCornerRadius(slideOffset: Float, maxRadius: Float): Float {
+        // Batasi corner radius agar tidak lebih besar dari maxRadius (28dp)
+        val calculatedRadius = slideOffset * maxRadius
+        return calculatedRadius.coerceAtMost(maxRadius) // Menggunakan Math.min untuk membatasi nilai
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()
@@ -105,11 +168,11 @@ class ListQueueFragment : BottomSheetDialogFragment() {
          */
         // TODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(listReservation: ArrayList<Reservation>, param2: String? = null) =
+        fun newInstance(listReservation: ArrayList<Reservation>, currentIndex: Int) =
             ListQueueFragment().apply {
                 arguments = Bundle().apply {
                     putParcelableArrayList(ARG_PARAM1, listReservation)
-                    putString(ARG_PARAM2, param2)
+                    putInt(ARG_PARAM2, currentIndex)
                 }
             }
     }

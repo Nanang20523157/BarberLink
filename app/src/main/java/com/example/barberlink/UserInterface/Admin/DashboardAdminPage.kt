@@ -1,10 +1,7 @@
 package com.example.barberlink.UserInterface.Admin
 
-import DailyCapital
-import Expenditure
-import Outlet
-import UserAdminData
 import android.content.Context
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.text.Spanned
@@ -24,9 +21,14 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
 import com.demogorgorn.monthpicker.MonthPickerDialog
 import com.example.barberlink.Adapter.ItemDateCalendarAdapter
+import com.example.barberlink.DataClass.DailyCapital
+import com.example.barberlink.DataClass.Expenditure
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Helper.CalendarDateModel
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.R
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
@@ -111,6 +113,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardAdminPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -131,10 +134,13 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
         }
         showShimmer(true)
 
-        intent.getParcelableArrayListExtra(BerandaAdminPage.OUTLET_DATA_KEY, Outlet::class.java)?.let {
+        // Mengambil argumen dari Safe Args
+        val args = DashboardAdminPageArgs.fromBundle(intent.extras ?: Bundle())
+
+        args.outletList.let {
             CoroutineScope(Dispatchers.Default).launch {
                 outletsListMutex.withLock {
-                    outletsList = it
+                    outletsList = it.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
                 }
                 withContext(Dispatchers.Main) {
                     setupAutoCompleteTextView()
@@ -142,7 +148,7 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             }
         }
 
-        intent.getParcelableExtra(BerandaAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+        args.userAdminData?.let {
             userAdminData = it
             if (userAdminData.uid.isNotEmpty()) {
                 binding.acOutletName.setText(getString(R.string.all), false)
@@ -443,7 +449,9 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                 }
                 document?.takeIf { it.exists() }?.let {
                     if (!isFirstLoad) {
-                        userAdminData = it.toObject(UserAdminData::class.java) ?: UserAdminData()
+                        userAdminData = it.toObject(UserAdminData::class.java).apply {
+                            this?.userRef = it.reference.path
+                        } ?: UserAdminData()
                         if (userAdminData.imageCompanyProfile.isNotEmpty()) {
                             loadImageWithGlide(userAdminData.imageCompanyProfile)
                         }
@@ -542,7 +550,9 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
             refField = "barbershop_ref",
             dateField = "timestamp_to_booking",
             processFunction = { document, normalizedOutletName, selectedDates, addList ->
-                val reservation = document.toObject(Reservation::class.java)
+                val reservation = document.toObject(Reservation::class.java)?.apply {
+                    reserveRef = document.reference.path
+                }
                 reservation?.let { processReservationDataAsync(it, normalizedOutletName, selectedDates, addList) }
             },
             resetFunction = {
@@ -753,8 +763,9 @@ class DashboardAdminPage : AppCompatActivity(), View.OnClickListener, ItemDateCa
                             reservationsResult?.let { result ->
                                 reservationMutex.withLock {
                                     result.documents.forEach { document ->
-                                        document.toObject(Reservation::class.java)
-                                            ?.let { processReservationDataAsync(it, normalizedOutletName, selectedDates, true) }
+                                        document.toObject(Reservation::class.java)?.apply {
+                                            reserveRef = document.reference.path
+                                        }?.let { processReservationDataAsync(it, normalizedOutletName, selectedDates, true) }
                                     }
                                 }
                             }

@@ -1,7 +1,5 @@
 package com.example.barberlink.UserInterface.SignUp
 
-import Outlet
-import UserAdminData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
@@ -20,7 +18,11 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.Service
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ActivitySignUpStepThreeBinding
@@ -28,6 +30,12 @@ import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
@@ -49,6 +57,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepThreeBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -94,7 +103,8 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                         "RETRIEVE_UID" -> getUserUidFromAuth(userAdminData.email, userAdminData.password)
                         "UPLOAD_IMAGE" -> addNewUserAdminToDatabase()
                         "SAVE_DATA" -> saveNewDataAdminToFirestore()
-                        "ADD_OUTLET" -> addOutletDataBarebrshop()
+                        "BATCH_DELETE" -> clearOutletsAndAddNew()
+                        "ADD_SUPPORT_DATA" -> runAddOutletAndService()
                         "UPDATE_ROLES" -> updateOrAddUserRoles()
                     }
                 } else {
@@ -152,12 +162,13 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         // Cek apakah koneksi internet benar-benar dapat mengakses server
         InternetCheck { internet ->
             if (internet) {
+                Toast.makeText(this, "Prepare the necessary data...", Toast.LENGTH_SHORT).show()
                 auth.createUserWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
                         if (task.isSuccessful) {
                             val user = auth.currentUser
                             //val user = task.result?.user
-                            userAdminCopy = userAdminData
+                            userAdminCopy = userAdminData.copy()
                             if (user != null) {
                                 userAdminData.uid = user.uid
                                 addNewUserAdminToDatabase()
@@ -194,7 +205,8 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         // Cek apakah koneksi internet benar-benar dapat mengakses server
         InternetCheck { internet ->
             if (internet) {
-                if (userAdminCopy == userAdminData) {
+                Toast.makeText(this, "Prepare the Necessary Data...", Toast.LENGTH_SHORT).show()
+                if ((userAdminCopy.email == userAdminData.email) && (userAdminCopy.password == userAdminData.password)) {
                     // Login ulang untuk mendapatkan token pengguna
                     auth.signInWithEmailAndPassword(email, password)
                         .addOnCompleteListener { signInTask ->
@@ -220,7 +232,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                                 // Update the password
                                 user.updatePassword(password).addOnCompleteListener { updateTask ->
                                     if (updateTask.isSuccessful) {
-                                        userAdminCopy = userAdminData
+                                        userAdminCopy = userAdminData.copy()
                                         addNewUserAdminToDatabase()
                                     } else {
                                         handleFailure("Failed to update account: ${updateTask.exception?.message}", "RETRIEVE_UID")
@@ -240,7 +252,8 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
     private fun addNewUserAdminToDatabase() {
         imageUri?.let {
-            Toast.makeText(this, "Uploading Image...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Creating your Account...", Toast.LENGTH_SHORT).show()
+//            Toast.makeText(this, "Uploading Image...", Toast.LENGTH_SHORT).show()
             val storageRef = storage.reference.child("profiles/${userAdminData.uid}")
             storageRef.putFile(it)
                 .addOnSuccessListener {
@@ -257,38 +270,114 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun saveNewDataAdminToFirestore() {
-        Toast.makeText(this, "Creating your Account...", Toast.LENGTH_SHORT).show()
+//        Toast.makeText(this, "Create your Account...", Toast.LENGTH_SHORT).show()
+//        Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
         db.collection("barbershops")
             .document(userAdminData.uid)
             .set(userAdminData)
             .addOnSuccessListener {
-                addOutletDataBarebrshop()
+                clearOutletsAndAddNew()
             }.addOnFailureListener { exception ->
                 handleFailure("Error adding document: ${exception.message}", "SAVE_DATA")
             }
     }
 
-    private fun addOutletDataBarebrshop() {
-        // Add one outlet to the sub-collection "outlets"
-        val uidOutlet = "${userAdminData.barbershopIdentifier}01"
+    private fun clearOutletsAndAddNew() {
+        val outletsCollection = db.collection("barbershops")
+            .document(userAdminData.uid)
+            .collection("outlets")
+
+        // Get all documents in the "outlets" sub-collection
+        outletsCollection.get()
+            .addOnSuccessListener { querySnapshot ->
+//                Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
+//                Toast.makeText(this@SignUpStepThree, "Data Synchronization...", Toast.LENGTH_SHORT).show()
+                if (querySnapshot.isEmpty) {
+                    // No documents found, add new outlet and default service directly
+                    runAddOutletAndService()
+                } else {
+                    val batch = db.batch()
+                    // Delete each document in the "outlets" sub-collection
+                    for (document in querySnapshot.documents) {
+                        batch.delete(document.reference)
+                    }
+                    // Commit the batch
+                    batch.commit().addOnSuccessListener {
+                        // Add the new outlet and default service after deleting old ones
+                        runAddOutletAndService()
+                    }.addOnFailureListener { exception ->
+                        handleFailure("Error committing batch delete: ${exception.message}", "BATCH_DELETE")
+                    }
+                }
+            }
+            .addOnFailureListener { exception ->
+                handleFailure("Error clearing outlets: ${exception.message}", "BATCH_DELETE")
+            }
+    }
+
+    private fun runAddOutletAndService() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val addOutletJob = async { addOutletDataBarbershopAsync() }
+            val addServiceJob = async { addDefaultItemServiceAsync() }
+
+            try {
+                // Wait for both tasks to complete
+                addOutletJob.await()
+                addServiceJob.await()
+
+                // Run updateUserRolesAndProfile if both are successful
+                updateOrAddUserRoles()
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    handleFailure("Error running tasks: ${e.message}", "ADD_SUPPORT_DATA")
+                }
+            }
+        }
+    }
+
+    private suspend fun addOutletDataBarbershopAsync() {
+        val uidOutlet = userAdminData.barbershopIdentifier + "01"
         val outletData = Outlet(
             uid = uidOutlet,
-            outletName = "${userAdminData.barbershopName} 01",
+            outletName = userAdminData.barbershopName + " 01",
             outletPhoneNumber = userAdminData.phone,
-            rootRef = "barbershops/${userAdminData.uid}"
+            rootRef = "barbershops/${userAdminData.uid}",
+            listServices = mutableListOf("BSoBVRz4H5wkAeppmTJw")
         )
         db.collection("barbershops")
             .document(userAdminData.uid)
             .collection("outlets")
             .document(uidOutlet)
             .set(outletData)
-            .addOnSuccessListener {
-                // Update userRolesData in collection
-                Toast.makeText(this, "Data Synchronization...", Toast.LENGTH_SHORT).show()
-                updateOrAddUserRoles()
-            }.addOnFailureListener { exception ->
-                handleFailure("Error adding outlet: ${exception.message}", "ADD_OUTLET")
-            }
+            .await() // Convert to coroutine-friendly await
+    }
+
+    private suspend fun addDefaultItemServiceAsync() {
+        val defaultService = Service(
+            applyToGeneral = true,
+            autoSelected = true,
+            categoryDetail = "VOeNhb893iaDpKdaICOD",
+            defaultItem = true,
+            freeOfCharge = true,
+            resultsShareAmount = mapOf("all" to 0),
+            rootRef = "barbershops/${userAdminData.uid}",
+            serviceCategory = "Conversation",
+            serviceCounting = mapOf("JAN24" to 0),
+            serviceDesc = "Hair Care and Consultation adalah layanan komprehensif yang menghadirkan Tim ahli kami untuk memberikan edukasi mengenai perawatan rambut yang sesuai dengan kebutuhan spesifik Anda, mulai dari pembersihan, perawatan kulit kepala, hingga pemilihan produk perawatan yang tepat. Selain itu, kami juga menawarkan konsultasi mendalam untuk membantu Anda memahami kondisi rambut Anda dan memberikan rekomendasi terbaik untuk perawatan lanjutan.",
+            serviceIcon = "https://firebasestorage.googleapis.com/v0/b/barberlink-bfb66.appspot.com/o/services%2Ficons%2FBSoBVRz4H5wkAeppmTJw.png?alt=media&token=3c3f9c48-5368-4507-bc65-1da71b0d1ab3",
+            serviceImg = "https://firebasestorage.googleapis.com/v0/b/barberlink-bfb66.appspot.com/o/services%2Fimages%2FBSoBVRz4H5wkAeppmTJw.png?alt=media&token=958c06d4-14f5-42f8-a912-410ede1aa6e7",
+            serviceName = "Hair Care and Consultation",
+            servicePrice = 0,
+            serviceRating = 4.5,
+            uid = "BSoBVRz4H5wkAeppmTJw",
+        )
+
+        db.collection("barbershops")
+            .document(userAdminData.uid)
+            .collection("services")
+            .document(defaultService.uid)
+            .set(defaultService)
+            .await() // Convert to coroutine-friendly await
     }
 
     private fun updateOrAddUserRoles() {
@@ -297,8 +386,11 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             adminRef = "barbershops/${userAdminData.uid}"
             role = when (role) {
                 "" -> "admin"
-                "customer" -> "hybrid"
-                else -> role
+                "employee" -> "pairAE"
+                "pairEC(-)" -> "hybrid(-)"
+                "pairEC(+)" -> "hybrid(+)"
+                "customer" -> "pairAC(+)"
+                else -> "pairAC(-)"
             }
             uid = userAdminData.phone
         }
@@ -307,15 +399,29 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             .document(userAdminData.phone)
             .set(userRolesData)
             .addOnSuccessListener {
+//                Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
+
                 if (auth.currentUser != null) {
-                    binding.progressBar.visibility = View.GONE
                     val user = auth.currentUser
-                    Toast.makeText(this, "Account Created Successfully...", Toast.LENGTH_SHORT).show()
-                    user?.let {
-                        sessionManager.setSessionAdmin(true)
-                        sessionManager.setDataAdminRef("barbershops/${it.uid}")
-                        navigatePage(this, SignUpSuccess::class.java, binding.btnCreateAccount)
-                    }
+                    // Update account_verification to true
+                    db.collection("barbershops")
+                        .document(userAdminData.uid)
+                        .update("account_verification", true)
+                        .addOnSuccessListener {
+                            binding.progressBar.visibility = View.GONE
+                            Toast.makeText(this@SignUpStepThree, "Account Created Successfully...", Toast.LENGTH_SHORT).show()
+                            user?.let {
+                                sessionManager.setSessionAdmin(true)
+                                sessionManager.setDataAdminRef("barbershops/${it.uid}")
+                                navigatePage(this@SignUpStepThree, SignUpSuccess::class.java, binding.btnCreateAccount)
+                            }
+                        }
+                        .addOnFailureListener { exception ->
+                            handleFailure(
+                                "Error updating account_verification: ${exception.message}",
+                                "UPDATE_ROLES"
+                            )
+                        }
                 } else {
                     if (!isConnectedToInternet()) {
                         handleFailure("Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.", "UPDATE_ROLES")
@@ -330,15 +436,26 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                                 userAdminData.password
                             ).addOnCompleteListener { task ->
                                 if (task.isSuccessful) {
-                                    binding.progressBar.visibility = View.GONE
-                                    // Navigate to SuccessPage
                                     val user = auth.currentUser
-                                    Toast.makeText(this, "Account Created Successfully...", Toast.LENGTH_SHORT).show()
-                                    user?.let {
-                                        sessionManager.setSessionAdmin(true)
-                                        sessionManager.setDataAdminRef("barbershops/${it.uid}")
-                                        navigatePage(this, SignUpSuccess::class.java, binding.btnCreateAccount)
-                                    }
+                                    // Update account_verification to true
+                                    db.collection("barbershops")
+                                        .document(userAdminData.uid)
+                                        .update("account_verification", true)
+                                        .addOnSuccessListener {
+                                            binding.progressBar.visibility = View.GONE
+                                            Toast.makeText(this@SignUpStepThree, "Account Created Successfully...", Toast.LENGTH_SHORT).show()
+                                            user?.let {
+                                                sessionManager.setSessionAdmin(true)
+                                                sessionManager.setDataAdminRef("barbershops/${it.uid}")
+                                                navigatePage(this@SignUpStepThree, SignUpSuccess::class.java, binding.btnCreateAccount)
+                                            }
+                                        }
+                                        .addOnFailureListener { exception ->
+                                            handleFailure(
+                                                "Error updating account_verification: ${exception.message}",
+                                                "UPDATE_ROLES"
+                                            )
+                                        }
                                 } else {
                                     handleFailure("Login failed: ${task.exception?.message}", "UPDATE_ROLES")
                                 }
@@ -348,7 +465,8 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                         }
                     }.execute() // Pastikan untuk mengeksekusi AsyncTask
                 }
-            }.addOnFailureListener { exception ->
+            }
+            .addOnFailureListener { exception ->
                 handleFailure("Error updating user roles: ${exception.message}", "UPDATE_ROLES")
             }
     }
@@ -367,6 +485,11 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             isNavigating = true
             isProcessError = false
             val intent = Intent(context, destination)
+            if (destination == SignUpSuccess::class.java) {
+                intent.apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+            }
             intent.putExtra(ADMIN_KEY, userAdminData)
             startActivity(intent)
         } else return

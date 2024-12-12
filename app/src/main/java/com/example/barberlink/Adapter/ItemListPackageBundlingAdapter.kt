@@ -1,6 +1,6 @@
 package com.example.barberlink.Adapter
 
-import BundlingPackage
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListPackageBundlingAdapterBinding
@@ -56,20 +57,35 @@ class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
+            var step = "one"
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+                step = "two"
+            }
+            Log.v("RecyclerView", "bundling step: $step")
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
+
+            // Validasi posisi target
+            if (positionToScroll in 0 until itemCount) {
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                // Log untuk debugging
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutPackageBundlingBinding) :

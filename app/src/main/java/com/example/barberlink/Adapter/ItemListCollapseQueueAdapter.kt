@@ -24,6 +24,10 @@ class ItemListCollapseQueueAdapter(
     private var lastScrollPosition = 0
     private var blockAllUserClickAction: Boolean = false
 
+    fun setlastScrollPosition(position: Int) {
+        this.lastScrollPosition = position
+    }
+
     interface OnItemClicked {
         fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
     }
@@ -69,20 +73,38 @@ class ItemListCollapseQueueAdapter(
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
+            // Save the current scroll position before switching to shimmer
+            var step = "one"
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+                step = "two"
+            }
+            lastScrollPosition++
+            Log.v("RecyclerView", "product step: $step")
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
+
+            // Validasi posisi target
+            if (positionToScroll in 0 until itemCount) {
+                Log.d("TagScroll", "adapter: $lastScrollPosition")
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                // Log untuk debugging
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
@@ -128,7 +150,7 @@ class ItemListCollapseQueueAdapter(
                     }
                 }
 
-                root.setOnClickListener {
+                cvQueueNumber.setOnClickListener {
                     if (!blockAllUserClickAction) {
                         itemClicked.onItemClickListener(reservation, root, adapterPosition)
                     }
@@ -138,7 +160,7 @@ class ItemListCollapseQueueAdapter(
 
         private fun setStatusWaiting() {
             with(binding) {
-                cvQueueNumber.setBackgroundColor(
+                cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.silver_grey)
                 )
             }
@@ -146,7 +168,7 @@ class ItemListCollapseQueueAdapter(
 
         private fun setStatusCompleted() {
             with(binding) {
-                cvQueueNumber.setBackgroundColor(
+                cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.green_bg_flaticon)
                 )
             }
@@ -154,7 +176,7 @@ class ItemListCollapseQueueAdapter(
 
         private fun setStatusCanceled() {
             with(binding) {
-                cvQueueNumber.setBackgroundColor(
+                cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.alpha_pink)
                 )
             }
@@ -162,7 +184,7 @@ class ItemListCollapseQueueAdapter(
 
         private fun setStatusSkipped() {
             with(binding) {
-                cvQueueNumber.setBackgroundColor(
+                cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.alpha_yellow)
                 )
             }
@@ -173,7 +195,7 @@ class ItemListCollapseQueueAdapter(
 //                cvQueueNumberPrefix.setBackgroundColor(
 //                    getColor(root.context, R.color.light_blue_horizons_background)
 //                )
-                cvQueueNumber.setBackgroundColor(
+                cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.light_blue_horizons_background)
                 )
 //                cvSpaceOnNumber.setBackgroundColor(

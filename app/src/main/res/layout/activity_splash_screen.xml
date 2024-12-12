@@ -10,7 +10,6 @@
         android:id="@+id/backgroundSplash"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fitsSystemWindows="true"
         android:scaleType="fitXY"
         android:alpha="0"
         android:src="@drawable/background_splash"

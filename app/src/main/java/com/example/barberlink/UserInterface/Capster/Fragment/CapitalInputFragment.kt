@@ -1,10 +1,5 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
-import DailyCapital
-import Employee
-import Outlet
-import UserAdminData
-import WriterInfo
 import android.content.Context
 import android.os.Bundle
 import android.os.Handler
@@ -24,9 +19,14 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.DailyCapital
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.WriterInfo
+import com.example.barberlink.Helper.Event
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.CapitalFragmentViewModel
-import com.example.barberlink.Utils.Event
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.databinding.FragmentCapitalInputBinding
 import com.google.android.material.datepicker.MaterialDatePicker
@@ -57,8 +57,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private val capitalFragmentViewModel: CapitalFragmentViewModel by viewModels()
     private var isOutletNameValid = false
     private var isCapitalAmountValid = false
-    private var outletName: String = ""
     private var dailyCapital: String = ""
+    private var outletName: String = ""
     private var previousText: String = ""
     private var capitalListener: ListenerRegistration? = null
     private lateinit var timeStampFilter: Timestamp
@@ -71,6 +71,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private lateinit var context: Context
     private var uidDailyCapital: String = ""
     // private var previousCapitalAmount: Long = 0
+    private var isNavigating = false
     private var currentView: View? = null
 
     private var selectedCardView: CardView? = null
@@ -243,7 +244,13 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 R.id.cd100000 -> { selectCardView(cd100000, tv100000, 100000) }
                 R.id.cd150000 -> { selectCardView(cd150000, tv150000, 150000) }
                 R.id.cd200000 -> { selectCardView(cd200000, tv200000, 200000) }
-                R.id.cvDateFilterLabel -> { showDatePickerDialog(timeStampFilter) }
+                R.id.cvDateFilterLabel -> {
+                    v.isClickable = false
+                    currentView = v
+                    if (!isNavigating) {
+                        showDatePickerDialog(timeStampFilter)
+                    } else return
+                }
             }
         }
     }
@@ -748,6 +755,13 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 }
             }
 
+        }
+
+        // Tambahkan listener untuk event dismiss
+        datePicker.addOnDismissListener {
+            // Fungsi yang akan dijalankan saat dialog di-dismiss
+            isNavigating = false
+            currentView?.isClickable = true
         }
 
         datePicker.show(parentFragmentManager, "DATE_PICKER")

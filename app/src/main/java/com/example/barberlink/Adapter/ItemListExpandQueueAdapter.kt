@@ -1,5 +1,6 @@
 package com.example.barberlink.Adapter
 
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,9 +23,13 @@ class ItemListExpandQueueAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
     private var isShimmer = true
-    private val shimmerItemCount = 4
+    private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
+    fun setlastScrollPosition(position: Int) {
+        this.lastScrollPosition = position
+    }
 
     interface OnItemClicked {
         fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
@@ -64,20 +69,33 @@ class ItemListExpandQueueAdapter(
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
+            // Save the current scroll position before switching to shimmer
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+            }
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
+
+            // Validasi posisi target
+            if (positionToScroll in 0 until itemCount) {
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                // Log untuk debugging
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListQueueCustomersBinding) :
@@ -85,7 +103,7 @@ class ItemListExpandQueueAdapter(
         fun bind(reservation: Reservation, position: Int) {
             // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
             val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
-            binding.tvQueueNumberPrefix.text = binding.root.context.getString(R.string.template_number_prefix, formattedNumber)
+            binding.tvQueueNumberPrefix.text = formattedNumber
         }
     }
 
@@ -98,7 +116,7 @@ class ItemListExpandQueueAdapter(
                 tvCustomerName.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
                 val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
-                tvQueueNumberPrefix.text = root.context.getString(R.string.template_number_prefix, formattedNumber)
+                tvQueueNumberPrefix.text = formattedNumber
                 tvCurrentQueueNumber.text = reservation.queueNumber
                 tvCustomerName.text = reservation.customerInfo.customerName
                 tvCustomerPhone.text = root.context.getString(R.string.phone_template, PhoneUtils.formatPhoneNumberWithZero(reservation.customerInfo.customerPhone))
@@ -120,7 +138,7 @@ class ItemListExpandQueueAdapter(
                         // Jika photoProfile kosong atau null, atur gambar default
                         ivCustomerPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
                     }
-                }
+                } ?: setMembershipStatus(false)
 
                 when (reservation.queueStatus) {
                     "waiting" -> {

@@ -1,12 +1,7 @@
 package com.example.barberlink.UserInterface.Teller
 
-import BundlingPackage
-import Customer
-import Employee
-import Outlet
-import Service
-import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -27,13 +22,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.Adapter.ItemListPackageOrdersAdapter
 import com.example.barberlink.Adapter.ItemListServiceOrdersAdapter
+import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.CapsterInfo
+import com.example.barberlink.DataClass.Customer
 import com.example.barberlink.DataClass.CustomerInfo
+import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.ListStackData
 import com.example.barberlink.DataClass.OrderInfo
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.PaymentDetail
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.Injection
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
@@ -43,6 +44,7 @@ import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivityReviewOrderPageBinding
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
@@ -95,6 +97,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
         binding = ActivityReviewOrderPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -320,7 +323,9 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                         CoroutineScope(Dispatchers.Default).launch {
                             // if (!isFirstLoad) {
                                 val newReservationList = it.documents.mapNotNull { document ->
-                                    document.toObject(Reservation::class.java)
+                                    document.toObject(Reservation::class.java)?.apply {
+                                        reserveRef = document.reference.path
+                                    }
                                 }.filter { it.queueStatus !in listOf("pending", "expired") }
 
                                 totalQueueNumber = newReservationList.size
@@ -709,6 +714,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     private fun showPaymentMethodDialog() {
         val dialogFragment = PaymentMethodFragment.newInstance()
+        dialogFragment.setStyle(BottomSheetDialogFragment.STYLE_NORMAL, R.style.ThemeOverlay_App_BottomSheetDialog)
         dialogFragment.show(supportFragmentManager, "PaymentMethodFragment")
     }
 
@@ -732,59 +738,66 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     showPaymentMethodDialog()
                 }
                 R.id.btnSendRequest -> {
-                    if (totalQuantity != 0) {
-                        binding.progressBar.visibility = View.VISIBLE
-                        Log.d("ReservationData", "Line 721")
-                        if (!isUpdateStackSuccess) {
-                            trigerUpdateStackData()
-                        } else {
-                            val capsterInfo = CapsterInfo(
-                                capsterName = capsterSelected.fullname,
-                                capsterRef = capsterSelected.userRef,
-                                shareProfit = shareProfitCapster.toInt()
-                            )
+                    v.isClickable = false
+                    currentView = v
+                    if (!isNavigating) {
+                        isNavigating = true
+                        if (totalQuantity != 0) {
+                            binding.progressBar.visibility = View.VISIBLE
+                            Log.d("ReservationData", "Line 721")
+                            if (!isUpdateStackSuccess) {
+                                trigerUpdateStackData()
+                            } else {
+                                val capsterInfo = CapsterInfo(
+                                    capsterName = capsterSelected.fullname,
+                                    capsterRef = capsterSelected.userRef,
+                                    shareProfit = shareProfitCapster.toInt()
+                                )
 
-                            // val customerRef = if (customerData.uid.isNotEmpty()) "customers/${customerData.uid}" else ""
+                                // val customerRef = if (customerData.uid.isNotEmpty()) "customers/${customerData.uid}" else ""
 
-                            val customerInfo = CustomerInfo(
-                                customerName = customerData.fullname,
-                                customerRef = customerData.userRef,
-                                customerPhone = customerData.phone
-                            )
+                                val customerInfo = CustomerInfo(
+                                    customerName = customerData.fullname,
+                                    customerRef = customerData.userRef,
+                                    customerPhone = customerData.phone
+                                )
 
-                            val orderInfo = createOrderInfoList()
-                            val paymentDetails = PaymentDetail(
-                                coinsUsed = coinsUse.toInt(),
-                                finalPrice = totalPriceToPay.toInt(),
-                                numberOfItems = totalQuantity,
-                                paymentMethod = paymentMethod,
-                                paymentStatus = false,
-                                promoUsed = sumPromoValues(promoCode).toInt(),
-                                subtotalItems = subTotalPrice
-                            )
+                                val orderInfo = createOrderInfoList()
+                                val paymentDetails = PaymentDetail(
+                                    coinsUsed = coinsUse.toInt(),
+                                    finalPrice = totalPriceToPay.toInt(),
+                                    numberOfItems = totalQuantity,
+                                    paymentMethod = paymentMethod,
+                                    paymentStatus = false,
+                                    promoUsed = sumPromoValues(promoCode).toInt(),
+                                    subtotalItems = subTotalPrice
+                                )
 
-                            val queueNumberText = NumberUtils.convertToFormattedString(totalQueueNumber + 1)
+                                val queueNumberText = NumberUtils.convertToFormattedString(totalQueueNumber + 1)
 
-                            userReservationData = Reservation(
-                                barbershopRef = outletSelected.rootRef,
-                                bestDealsRef = emptyList(),
-                                capsterInfo = capsterInfo,
-                                queueNumber = queueNumberText,
-                                customerInfo = customerInfo,
-                                notes = binding.realLayoutCustomer.etNotes.text.toString().trim(),
-                                orderInfo = orderInfo,
-                                orderType = "reserve",
-                                outletLocation = outletSelected.outletName,
-                                paymentDetail = paymentDetails,
-                                queueStatus = "waiting",
-                                timestampCreated = Timestamp.now(),
-                                timestampToBooking = timeSelected
-                            )
+                                userReservationData = Reservation(
+                                    barbershopRef = outletSelected.rootRef,
+                                    bestDealsRef = emptyList(),
+                                    capsterInfo = capsterInfo,
+                                    queueNumber = queueNumberText,
+                                    customerInfo = customerInfo,
+                                    notes = binding.realLayoutCustomer.etNotes.text.toString().trim(),
+                                    orderInfo = orderInfo,
+                                    orderType = "reserve",
+                                    outletLocation = outletSelected.outletName,
+                                    paymentDetail = paymentDetails,
+                                    queueStatus = "waiting",
+                                    timestampCreated = Timestamp.now(),
+                                    timestampToBooking = timeSelected
+                                )
 
-                            if (isSuccessGetReservation) addNewReservationAndNavigate()
-                            else {
-                                binding.progressBar.visibility = View.GONE
-                                Toast.makeText(this@ReviewOrderPage, "Silakan coba lagi setelah beberapa saat.", Toast.LENGTH_SHORT).show()
+                                if (isSuccessGetReservation) addNewReservationAndNavigate()
+                                else {
+                                    binding.progressBar.visibility = View.GONE
+                                    Toast.makeText(this@ReviewOrderPage, "Silakan coba lagi setelah beberapa saat.", Toast.LENGTH_SHORT).show()
+                                    isNavigating = false
+                                    currentView?.isClickable = true
+                                }
                             }
                         }
                     }
@@ -841,6 +854,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             .addOnFailureListener {
                 binding.progressBar.visibility = View.GONE
                 Toast.makeText(this@ReviewOrderPage, "Permintaan reservasi Anda gagal diproses. Silakan coba lagi nanti.", Toast.LENGTH_SHORT).show()
+                isNavigating = false
+                currentView?.isClickable = true
             }
     }
 
@@ -848,10 +863,10 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         // val isRandomCapster = capsterSelected.uid == "----------------"
         val isGuestAccount = customerData.uid.isEmpty()
         val data = ListStackData(
-            timestampData = userReservationData.timestampToBooking ?: Timestamp.now(),
+            createAtData = userReservationData.timestampToBooking ?: Timestamp.now(),
             referenceData = reservationRef.path,
-            capsterName = capsterSelected.fullname,
-            customerName = if (!isGuestAccount) customerData.fullname else "",
+            capsterRef = capsterSelected.userRef,
+            customerRef = if (!isGuestAccount) customerData.userRef else "",
             // randomCapster = isRandomCapster,
             // guestAccount = customerData.uid.isEmpty()
         )
@@ -873,26 +888,27 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             // Menunggu semua operasi selesai
             try {
                 awaitAll(updateStackResult, updateOutletResult)
-                navigatePage(
-                    this@ReviewOrderPage,
-                    ComplateOrderPage::class.java,
-                    binding.btnSendRequest
-                )
+                val intent = Intent(this@ReviewOrderPage, ComplateOrderPage::class.java)
+                intent.apply {
+                    putExtra(RESERVATION_DATA, userReservationData)
+                }
+                startActivity(intent)
+
+                binding.progressBar.visibility = View.GONE
             } catch (e: Exception) {
                 isUpdateStackSuccess = false
                 binding.progressBar.visibility = View.GONE
-                 Toast.makeText(this@ReviewOrderPage, "Terjadi kesalahan, silahkan coba lagi!!!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ReviewOrderPage, "Terjadi kesalahan, silahkan coba lagi!!!", Toast.LENGTH_SHORT).show()
+                isNavigating = false
+                currentView?.isClickable = true
             }
         }
     }
 
     private fun updateUserStackReservationList(data: ListStackData) {
-        // val customerRef = if (data.customerName.isNotEmpty()) "customers/${customerData.uid}" else ""
-        val customerRef = if (data.customerName.isNotEmpty()) customerData.userRef else ""
-
-        if (customerRef.isNotEmpty()) {
+        if (data.customerRef.isNotEmpty()) {
             if (isUpdateStackSuccess) customerData.reservationList = customerData.reservationList?.apply { add(data) } ?: mutableListOf(data)
-            db.document(customerRef).update("reservation_list", customerData.reservationList)
+            db.document(data.customerRef).update("reservation_list", customerData.reservationList)
                 .addOnFailureListener { exception ->
                     Log.d("ReservationData", "Error updating reservation list: ${exception.message}")
                     // Toast.makeText(this@ReviewOrderPage, "Error updating reservation list: ${exception.message}", Toast.LENGTH_SHORT).show()
@@ -901,22 +917,18 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun updateUserStackAppointmentList(data: ListStackData) {
-        val customerRef = if (data.customerName.isNotEmpty()) customerData.userRef else ""
-        val capsterRef = if (data.capsterName.isNotEmpty()) capsterSelected.userRef else ""
-
-
-        if (customerRef.isNotEmpty()) {
+        if (data.customerRef.isNotEmpty()) {
             if (isUpdateStackSuccess) customerData.appointmentList = customerData.appointmentList?.apply { add(data) } ?: mutableListOf(data)
-            db.document(customerRef).update("appointment_list", customerData.appointmentList)
+            db.document(data.customerRef).update("appointment_list", customerData.appointmentList)
                 .addOnFailureListener { exception ->
                     Log.d("ReservationData", "Error updating appointment list: ${exception.message}")
                     // Toast.makeText(this@ReviewOrderPage, "Error updating appointment list: ${exception.message}", Toast.LENGTH_SHORT).show()
                 }
         }
 
-        if (capsterRef.isNotEmpty()) {
+        if (data.capsterRef.isNotEmpty()) {
             if (isUpdateStackSuccess) capsterSelected.appointmentList = capsterSelected.appointmentList?.apply { add(data) } ?: mutableListOf(data)
-            db.document(capsterRef).update("appointment_list", capsterSelected.appointmentList)
+            db.document(data.capsterRef).update("appointment_list", capsterSelected.appointmentList)
                 .addOnFailureListener { exception ->
                     Log.d("ReservationData", "Error updating appointment list: ${exception.message}")
                     // Toast.makeText(this@ReviewOrderPage, "Error updating appointment list: ${exception.message}", Toast.LENGTH_SHORT).show()
@@ -959,23 +971,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
     }
 
-    private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            Log.d("ReservationData", "Line 869")
-            intent.apply {
-                putExtra(RESERVATION_DATA, userReservationData)
-//                putParcelableArrayListExtra(SERVICE_DATA_KEY, ArrayList(servicesList))
-//                putParcelableArrayListExtra(BUNDLING_DATA_KEY, ArrayList(bundlingPackagesList))
-            }
-            startActivity(intent)
-            binding.progressBar.visibility = View.GONE
-        } else return
-    }
-
     override fun onDestroy() {
         super.onDestroy()
 
@@ -990,9 +985,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     override fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean, currentList: List<BundlingPackage>?) {
-        // Akses dan perbarui data di ViewModel
-        reviewPageViewModel.updateBundlingQuantity(index, bundlingPackage.bundlingQuantity)
-
         // Logika pengelolaan item yang dipilih
         if (!addCount) {
             reviewPageViewModel.removeItemSelectedByName(bundlingPackage.packageName, bundlingPackage.bundlingQuantity == 0)
@@ -1000,15 +992,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             reviewPageViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package")
         }
 
+        // Akses dan perbarui data di ViewModel
+        reviewPageViewModel.updateBundlingQuantity(bundlingPackage.itemIndex, bundlingPackage.bundlingQuantity)
         // Update visibility based on remaining items
         binding.rlBundlings.visibility = if (currentList?.size == 0) View.GONE else View.VISIBLE
 
     }
 
     override fun onItemClickListener(service: Service, index: Int, addCount: Boolean, currentList: List<Service>?) {
-        // Akses dan perbarui data di ViewModel
-        reviewPageViewModel.updateServicesQuantity(index, service.serviceQuantity)
-
         // Logika pengelolaan item yang dipilih
         if (!addCount) {
             reviewPageViewModel.removeItemSelectedByName(service.serviceName, service.serviceQuantity == 0)
@@ -1024,6 +1015,9 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         } else if (service.serviceQuantity >= 1) {
             reviewPageViewModel.addItemSelectedCounting(service.serviceName, "service")
         }
+
+        // Akses dan perbarui data di ViewModel
+        reviewPageViewModel.updateServicesQuantity(service.itemIndex, service.serviceQuantity)
     }
 
 

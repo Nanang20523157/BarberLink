@@ -31,7 +31,7 @@
                 android:layout_height="200dp"
                 android:layout_gravity="end|top"
                 android:layout_marginTop="-20dp"
-                android:src="@drawable/background_line_card_red_status" />
+                tools:src="@drawable/background_line_card_red_status" />
 
         </com.google.android.material.card.MaterialCardView>
 
@@ -115,7 +115,7 @@
                         android:layout_marginTop="14dp"
                         android:layout_marginBottom="4.5dp"
                         android:paddingVertical="4dp"
-                        android:paddingHorizontal="28dp"
+                        android:paddingHorizontal="22dp"
                         android:textStyle="bold"
                         android:textColor="@color/black_font_color" />
 

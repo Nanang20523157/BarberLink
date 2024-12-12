@@ -1,12 +1,11 @@
 package com.example.barberlink.UserInterface.Teller
 
-import Employee
-import Outlet
 import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
@@ -22,7 +21,10 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListCapsterAdapter
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
@@ -89,9 +91,11 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
         binding = ActivityQueueTrackerPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         fragmentManager = supportFragmentManager
         sessionTeller = sessionManager.getSessionTeller()
         dataTellerRef = sessionManager.getDataTellerRef() ?: ""
@@ -265,13 +269,21 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     }
 
     private fun combineValues(map: Map<String, String>): String {
-        val values = map.values.toList()
-        return if (values.size == 1) {
-            values.first()
+        // Ubah nilai menjadi Int, urutkan, dan konversi kembali ke String
+        val sortedValues = map.values
+            .map { it.toInt() } // Konversi String ke Int
+            .sorted()           // Urutkan dari terkecil ke terbesar
+            .map { it.toString().padStart(2, '0') } // Pastikan format dua digit jika diperlukan
+
+        return if (sortedValues.size == 1) {
+            sortedValues.first()
+        } else if (sortedValues.isNotEmpty()) {
+            sortedValues.joinToString(separator = ">  ") + ">"
         } else {
-            values.joinToString(separator = " - ")
+            ""
         }
     }
+
 
     private fun listenSpecificOutletData() {
         outletListener = db.document(dataTellerRef).addSnapshotListener { documentSnapshot, exception ->
@@ -367,14 +379,16 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         CoroutineScope(Dispatchers.Default).launch {
                            if (!isFirstLoad) {
                                val newReservationList = it.documents.mapNotNull { document ->
-                                   document.toObject(Reservation::class.java)
+                                   document.toObject(Reservation::class.java)?.apply {
+                                       reserveRef = document.reference.path
+                                   }
                                }.filter { it.queueStatus !in listOf("pending", "expired") }
 
                                reservationMutex.withLock {
                                    reservationList.clear()
                                    reservationList.addAll(newReservationList)
                                }
-                               calculateQueueData(true)
+                               calculateQueueData(keyword.isEmpty())
                            }
                         }
                     }
@@ -496,7 +510,9 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 .addOnSuccessListener { documents ->
                     CoroutineScope(Dispatchers.Default).launch {
                         val newReservationList = documents.mapNotNull { document ->
-                            document.toObject(Reservation::class.java)
+                            document.toObject(Reservation::class.java).apply {
+                                reserveRef = document.reference.path
+                            }
                         }.filter { it.queueStatus !in listOf("pending", "expired") }
 
                         reservationMutex.withLock {
@@ -541,8 +557,12 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     if (indexRef != null) {
                         currentQueue.remove(indexRef)
                         capsterWaitingCount.remove(indexRef)
+                        capsterWaitingCount.remove("")
                     }
-                    reservationList.filter { it.capsterInfo.capsterName.lowercase(Locale.getDefault()).contains(lowerCaseQuery) }
+                    reservationList.filter { reservation ->
+                        reservation.capsterInfo.capsterName == "" ||
+                                reservation.capsterInfo.capsterName.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
+                    }
                 }
 
                 filteredReservations.forEach { reservation ->
@@ -557,10 +577,14 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             completeQueue++
                             totalQueue++
                         }
-                        "canceled", "skipped" -> totalQueue++
+                        "canceled", "skipped" -> {
+                            completeQueue++
+                            totalQueue++
+                        }
                         "process" -> {
                             currentQueue[reservation.capsterInfo.capsterRef] = reservation.queueNumber
                             totalQueue++
+                            restQueue++
                         }
                         // "pending", "expired" -> {}
                     }
@@ -568,9 +592,19 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
                 capsterListMutex.withLock {
                     capsterList.forEach { capster ->
-                        capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
+                        capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0) + capsterWaitingCount.getOrDefault("", 0)
                     }
                 }
+
+                // Add logs for currentQueue with detailed CapsterRef
+                currentQueue.forEach { (capsterRef, queueNumber) ->
+                    Log.d("QueueLog", "CurrentQueue -> CapsterRef: $capsterRef, QueueNumber: $queueNumber")
+                }
+
+                // Add logs for capsterWaitingCount
+//                capsterWaitingCount.forEach { (capsterRef, count) ->
+//                    Log.d("QueueLog", "CapsterWaitingCount -> CapsterRef: $capsterRef, WaitingCount: $count")
+//                }
 
 //            if (isFirstLoad || isChangeDate) {
                 if (isFirstLoad) {
@@ -669,7 +703,11 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     }
                 }
                 R.id.cvDateLabel -> {
-                    showDatePickerDialog(timeSelected)
+                    v.isClickable = false
+                    currentView = v
+                    if (!isNavigating) {
+                        showDatePickerDialog(timeSelected)
+                    } else return
                 }
                 R.id.fabQueueBoard -> {
                     if (outletSelected.listEmployees.isNotEmpty()) showQueueBoardDialog()
@@ -748,6 +786,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     }
 
     private fun showQueueBoardDialog() {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT)
         shouldClearBackStack = false
         dialogFragment = ListQueueBoardFragment.newInstance(capsterList as ArrayList<Employee>, outletSelected)
         // The device is smaller, so show the fragment fullscreen.
@@ -756,7 +795,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
                 .add(android.R.id.content, dialogFragment, "ListQueueBoardFragment")
@@ -768,6 +807,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
+            DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
             shouldClearBackStack = true
             dialogFragment.dismiss()
             fragmentManager.popBackStack()
@@ -776,7 +816,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             val intent = Intent(this, SelectUserRolePage::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             finish()
         }
 
@@ -879,6 +919,13 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 listenToReservationData()
             }
 
+        }
+
+        // Tambahkan listener untuk event dismiss
+        datePicker.addOnDismissListener {
+            // Fungsi yang akan dijalankan saat dialog di-dismiss
+            isNavigating = false
+            currentView?.isClickable = true
         }
 
         datePicker.show(supportFragmentManager, "DATE_PICKER")

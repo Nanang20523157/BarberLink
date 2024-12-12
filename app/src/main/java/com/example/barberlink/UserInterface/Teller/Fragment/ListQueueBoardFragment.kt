@@ -1,7 +1,5 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
-import Employee
-import Outlet
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,6 +9,8 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListQueueBoardAdapter
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.R
 import com.example.barberlink.databinding.FragmentListQueueBoardBinding
 import kotlinx.coroutines.CoroutineScope

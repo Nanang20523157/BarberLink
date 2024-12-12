@@ -123,8 +123,8 @@
                             android:textSize="12.5sp"
                             android:layout_marginHorizontal="10dp"
                             android:drawablePadding="5dp"
-                            android:hint="@string/hint_phone"
                             android:inputType="number"
+                            android:hint="@string/hint_phone"
                             android:drawableStart="@drawable/ic_phone" />
 
                     </com.google.android.material.textfield.TextInputLayout>

@@ -1,6 +1,6 @@
+package com.example.barberlink.DataClass
 
 import android.os.Parcelable
-import com.example.barberlink.DataClass.ListStackData
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
@@ -20,7 +20,8 @@ data class UserAdminData(
     @get:PropertyName("phone") @set:PropertyName("phone") var phone: String = "",
     @get:PropertyName("image_company_profile") @set:PropertyName("image_company_profile") var imageCompanyProfile: String = "",
     @get:PropertyName("subscription_status") @set:PropertyName("subscription_status") var subscriptionStatus: Boolean = true,
-    @get:PropertyName("operational_hour") @set:PropertyName("operational_hour") var operationalHour: @RawValue OperationalHour = OperationalHour()
+    @get:PropertyName("operational_hour") @set:PropertyName("operational_hour") var operationalHour: @RawValue OperationalHour = OperationalHour(),
+    @get:Exclude @set:Exclude var userRef: String = "", // Hanya Digunakan pada saat Sign Up
 ) : Parcelable
 
 // Operational hours for different days
@@ -61,8 +62,40 @@ data class BundlingPackage(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var priceToDisplay: Int = 0,
     @get:Exclude @set:Exclude var listItemDetails: @RawValue List<Service>? = null,
-    @get:Exclude @set:Exclude var bundlingQuantity: Int = 0
-) : Parcelable
+    @get:Exclude @set:Exclude var bundlingQuantity: Int = 0,
+    @get:Exclude @set:Exclude var itemIndex: Int = 0,
+) : Parcelable {
+    // Deep copy function for BundlingPackage
+
+    fun deepCopy(deepCopyItemsDetails: Boolean): BundlingPackage {
+        return BundlingPackage(
+            accumulatedPrice = this.accumulatedPrice,
+            applyToGeneral = this.applyToGeneral,
+            autoSelected = this.autoSelected,
+            defaultItem = this.defaultItem,
+            listItems = this.listItems.toList(),
+            packageCounting = this.packageCounting?.toMap(),
+            packageDesc = this.packageDesc,
+            packageDiscount = this.packageDiscount,
+            packageName = this.packageName,
+            packagePrice = this.packagePrice,
+            packageRating = this.packageRating,
+            resultsShareAmount = this.resultsShareAmount?.toMap(),
+            resultsShareFormat = this.resultsShareFormat,
+            rootRef = this.rootRef,
+            uid = this.uid,
+            priceToDisplay = this.priceToDisplay,
+            listItemDetails = if (deepCopyItemsDetails) {
+                this.listItemDetails?.map { it.deepCopy() } // Deep copy each Service
+            } else {
+                this.listItemDetails // Copy references
+            },
+            bundlingQuantity = this.bundlingQuantity,
+            itemIndex = this.itemIndex
+        )
+    }
+
+}
 
 
 // Division data class
@@ -107,7 +140,43 @@ data class Employee(
 //    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
 //    @get:PropertyName("rest_queue_counting") @set:PropertyName("rest_queue_counting") var restQueueCounting: Int = 0,
 //    @get:PropertyName("user_review_counting") @set:PropertyName("user_review_counting") var userReviewCounting: Int = 0
-) : Parcelable
+) : Parcelable {
+    // Deep copy function for Employee
+    fun deepCopy(copyAppointments: Boolean): Employee {
+        return Employee(
+            accumulatedLateness = this.accumulatedLateness?.toMap(),
+            amountOfBon = this.amountOfBon,
+            appointmentList = if (copyAppointments) {
+                this.appointmentList?.map { it.deepCopy() }?.toMutableList()
+            } else {
+                this.appointmentList // Copy reference
+            },
+            availabilityStatus = this.availabilityStatus,
+            customerCounting = this.customerCounting?.toMap(),
+            email = this.email,
+            employeeRating = this.employeeRating,
+            fullname = this.fullname,
+            gender = this.gender,
+            listPlacement = this.listPlacement.toList(),
+            password = this.password,
+            phone = this.phone,
+            photoProfile = this.photoProfile,
+            pin = this.pin,
+            point = this.point,
+            positions = this.positions,
+            role = this.role,
+            roleDetail = this.roleDetail,
+            rootRef = this.rootRef,
+            salary = this.salary,
+            uid = this.uid,
+            username = this.username,
+            userRef = this.userRef,
+            outletRef = this.outletRef,
+            restOfQueue = this.restOfQueue
+        )
+    }
+
+}
 
 
 @Parcelize
@@ -275,8 +344,37 @@ data class Service(
     @get:PropertyName("service_name") @set:PropertyName("service_name") var serviceName: String = "",
     @get:PropertyName("service_price") @set:PropertyName("service_price") var servicePrice: Int = 0,
     @get:PropertyName("service_rating") @set:PropertyName("service_rating") var serviceRating: Double = 5.0,
+    @get:PropertyName("account_verification") @set:PropertyName("account_verification") var accountVerification: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var priceToDisplay: Int = 0,
-    @get:Exclude @set:Exclude var serviceQuantity: Int = 0
-) : Parcelable
+    @get:Exclude @set:Exclude var serviceQuantity: Int = 0,
+    @get:Exclude @set:Exclude var itemIndex: Int = 0,
+) : Parcelable {
+    // Deep copy function for Employee
+    fun deepCopy(): Service {
+        return Service(
+            applyToGeneral = this.applyToGeneral,
+            autoSelected = this.autoSelected,
+            categoryDetail = this.categoryDetail,
+            defaultItem = this.defaultItem,
+            freeOfCharge = this.freeOfCharge,
+            resultsShareAmount = this.resultsShareAmount?.toMap(),
+            resultsShareFormat = this.resultsShareFormat,
+            rootRef = this.rootRef,
+            serviceCategory = this.serviceCategory,
+            serviceCounting = this.serviceCounting?.toMap(),
+            serviceDesc = this.serviceDesc,
+            serviceIcon = this.serviceIcon,
+            serviceImg = this.serviceImg,
+            serviceName = this.serviceName,
+            servicePrice = this.servicePrice,
+            serviceRating = this.serviceRating,
+            accountVerification = this.accountVerification,
+            uid = this.uid,
+            priceToDisplay = this.priceToDisplay,
+            serviceQuantity = this.serviceQuantity,
+            itemIndex = this.itemIndex
+        )
+    }
+}
 

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/nav_beranda">
+
+    <fragment
+        android:id="@+id/nav_beranda"
+        android:name="com.example.barberlink.UserInterface.UiDrawer.Fragment.Beranda.BerandaAdminFragment"
+        android:label="Beranda Admin"
+        tools:layout="@layout/fragment_beranda_admin">
+        <argument
+            android:name="userAdminData"
+            app:argType="com.example.barberlink.DataClass.UserAdminData" />
+        <action
+            android:id="@+id/action_nav_beranda_to_settingPageScreen"
+            app:destination="@id/settingPageScreen"
+            app:launchSingleTop="true" />
+        <action
+            android:id="@+id/action_nav_beranda_to_dashboardAdminPage"
+            app:destination="@id/dashboardAdminPage"
+            app:launchSingleTop="true" />
+        <action
+            android:id="@+id/action_nav_beranda_to_manageOutletPage"
+            app:destination="@id/manageOutletPage"
+            app:launchSingleTop="true" />
+    </fragment>
+
+    <activity
+        android:id="@+id/settingPageScreen"
+        android:name="com.example.barberlink.UserInterface.SettingPageScreen"
+        android:label="activity_setting_page_screen"
+        tools:layout="@layout/activity_setting_page_screen" >
+        <argument
+            android:name="originPage"
+            app:argType="string"
+            android:defaultValue="default value text" />
+    </activity>
+    <activity
+        android:id="@+id/dashboardAdminPage"
+        android:name="com.example.barberlink.UserInterface.Admin.DashboardAdminPage"
+        android:label="activity_dashboard_admin_page"
+        tools:layout="@layout/activity_dashboard_admin_page" >
+        <argument
+            android:name="outletList"
+            app:argType="com.example.barberlink.DataClass.Outlet[]" />
+        <argument
+            android:name="employeeList"
+            app:argType="com.example.barberlink.DataClass.Employee[]" />
+        <argument
+            android:name="userAdminData"
+            app:argType="com.example.barberlink.DataClass.UserAdminData" />
+    </activity>
+    <activity
+        android:id="@+id/manageOutletPage"
+        android:name="com.example.barberlink.UserInterface.Admin.ManageOutletPage"
+        android:label="ManageOutletPage"
+        tools:layout="@layout/activity_manage_outlet_page">
+        <argument
+            android:name="outletList"
+            app:argType="com.example.barberlink.DataClass.Outlet[]" />
+        <argument
+            android:name="employeeList"
+            app:argType="com.example.barberlink.DataClass.Employee[]" />
+        <argument
+            android:name="userAdminData"
+            app:argType="com.example.barberlink.DataClass.UserAdminData" />
+    </activity>
+
+</navigation>

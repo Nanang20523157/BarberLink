@@ -1,13 +1,13 @@
 package com.example.barberlink.UserInterface.Teller.ViewModel
 
-import BundlingPackage
-import Employee
-import Service
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Service
 
 class SharedViewModel : ViewModel() {
 
@@ -26,6 +26,13 @@ class SharedViewModel : ViewModel() {
     // Tambahan untuk servicesList
     private val _servicesList = MutableLiveData<List<Service>>().apply { value = listOf() }
     val servicesList: LiveData<List<Service>> = _servicesList
+
+    // Properti LiveData untuk daftar Int dengan nilai default list kosong
+    private val _indexBundlingChanged = MutableLiveData<MutableList<Int>>().apply { value = mutableListOf() }
+    val indexBundlingChanged: LiveData<MutableList<Int>> = _indexBundlingChanged
+
+    private val _indexServiceChanged = MutableLiveData<MutableList<Int>>().apply { value = mutableListOf() }
+    val indexServiceChanged: LiveData<MutableList<Int>> = _indexServiceChanged
 
     private val _isDataChanged = MediatorLiveData<Boolean>().apply {
         value = false
@@ -109,6 +116,7 @@ class SharedViewModel : ViewModel() {
         }
         _bundlingPackagesList.value = _bundlingPackagesList.value
         Log.d("LifeAct", "observer 95: resetAllItem")
+        _isDataChanged.value = true
     }
 
     // Fungsi untuk mereset semua layanan (kategori "service")
@@ -129,6 +137,7 @@ class SharedViewModel : ViewModel() {
 
         _servicesList.value = _servicesList.value
         Log.d("LifeAct", "observer 114: resetAllServices")
+        _isDataChanged.value = true
     }
 
     fun setUpAndSortedBundling(
@@ -169,6 +178,9 @@ class SharedViewModel : ViewModel() {
 
             // Urutkan bundlingPackagesList: yang autoSelected atau defaultItem di indeks awal
             sortByDescending { it.autoSelected || it.defaultItem }
+            forEachIndexed { index, bundlingPackage ->
+                bundlingPackage.itemIndex = index
+            }
         }
 
         // Update _bundlingPackagesList dengan list yang sudah diubah
@@ -225,6 +237,9 @@ class SharedViewModel : ViewModel() {
 
             // Urutkan servicesList: yang autoSelected atau defaultItem di indeks awal
             sortByDescending { it.autoSelected || it.defaultItem }
+            forEachIndexed { index, service ->
+                service.itemIndex = index
+            }
         }
 
         // Update _servicesList dengan list yang sudah diubah
@@ -263,7 +278,16 @@ class SharedViewModel : ViewModel() {
 //        }
         // Memperbarui LiveData di main thread
 //        _bundlingPackagesList.value = updatedList
+        val currentList = _indexBundlingChanged.value ?: mutableListOf()
+        if (!currentList.contains(index)) { // Periksa apakah nilai sudah ada
+            currentList.add(index)
+            _indexBundlingChanged.value = currentList
+        }
         _isDataChanged.value = true
+    }
+
+    fun resetIndexBundlingChanged() = synchronized(this) {
+        _indexBundlingChanged.value = mutableListOf()
     }
 
     fun updateServicesQuantity(index: Int, newQuantity: Int) = synchronized(this) {
@@ -276,7 +300,16 @@ class SharedViewModel : ViewModel() {
 //        }
         // Memperbarui LiveData di main thread
 //        _servicesList.value = updatedList
+        val currentList = _indexServiceChanged.value ?: mutableListOf()
+        if (!currentList.contains(index)) { // Periksa apakah nilai sudah ada
+            currentList.add(index)
+            _indexServiceChanged.value = currentList
+        }
         _isDataChanged.value = true
+    }
+
+    fun resetIndexServiceChanged() = synchronized(this) {
+        _indexServiceChanged.value = mutableListOf()
     }
 
     fun clearAllData() = synchronized(this) {
@@ -293,10 +326,16 @@ class SharedViewModel : ViewModel() {
         _isDataChanged.addSource(_bundlingPackagesList) {
             _isDataChanged.value = true
             Log.d("TestAct", "isDataChanged 33: true by bundling")
+            val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
+                    (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
+            _itemSelectedCounting.value = currentCount
         }
         _isDataChanged.addSource(_servicesList) {
             _isDataChanged.value  = true
             Log.d("TestAct", "isDataChanged 37: true by service")
+            val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
+                    (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
+            _itemSelectedCounting.value = currentCount
         }
 
         Log.d("LifeAct", "observer 257: clearAllData")

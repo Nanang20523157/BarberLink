@@ -1,6 +1,5 @@
 package com.example.barberlink.UserInterface.SignIn.Login
 
-import UserAdminData
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -18,9 +17,12 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Admin.BerandaAdminPage
+import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
 import com.example.barberlink.UserInterface.SignUp.SignUpSuccess
 import com.example.barberlink.databinding.ActivityLoginAdminPageBinding
@@ -46,8 +48,14 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginAdminPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Mengatur warna status bar
+        window.statusBarColor = ContextCompat.getColor(this, R.color.dark_black_gradation)
+        val windowInsetsController =
+            ViewCompat.getWindowInsetsController(window.decorView)
 
-        intent.getParcelableExtra(SignUpSuccess.ADMIN_KEY, UserAdminData::class.java)?.let {
+        windowInsetsController?.isAppearanceLightStatusBars = false
+
+        intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
             userAdminData = it
             binding.signInEmail.setText(userAdminData.email)
             binding.signInPassword.setText(userAdminData.password)
@@ -234,8 +242,11 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             .addOnSuccessListener { document ->
                 binding.progressBar.visibility = View.GONE
                 if (document != null) {
-                    userAdminData = document.toObject(UserAdminData::class.java) ?: UserAdminData()
-                    navigatePage(this, BerandaAdminPage::class.java, userId, binding.btnLogin)
+                    userAdminData = document.toObject(UserAdminData::class.java).apply {
+                        this?.userRef = document.reference.path
+                    } ?: UserAdminData()
+                    // navigatePage(this, BerandaAdminActivity::class.java, userId, binding.btnLogin)
+                    navigatePage(this, MainActivity::class.java, userId, binding.btnLogin)
                 } else {
                     auth.signOut()
                     sessionManager.clearSessionAdmin()

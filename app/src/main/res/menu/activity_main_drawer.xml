@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+        <item android:title="Kelola">
+            <menu>
+                <item
+                    android:id="@+id/nav_product"
+                    android:icon="@drawable/ic_manage_product_outline"
+                    android:title="Produk" />
+                <item
+                    android:id="@+id/nav_service"
+                    android:icon="@drawable/ic_manage_service_outline"
+                    android:title="Layanan" />
+                <item
+                    android:id="@+id/nav_bundle"
+                    android:icon="@drawable/ic_manage_bundle_outline"
+                    android:title="Paket/Bundel" />
+                <item
+                    android:id="@+id/nav_account"
+                    android:icon="@drawable/ic_manage_capster_outline"
+                    android:title="Akun Pegawai" />
+                <item
+                    android:id="@+id/nav_shift"
+                    android:icon="@drawable/ic_shift_capster_outline"
+                    android:title="Shift Pegawai" />
+                <item
+                    android:id="@+id/nav_payment"
+                    android:icon="@drawable/ic_payment_method_outline"
+                    android:title="Pembayaran" />
+                <item
+                    android:id="@+id/nav_promo"
+                    android:icon="@drawable/ic_barbershop_promo_outline"
+                    android:title="Promo" />
+            </menu>
+        </item>
+
+        <item android:title="Managemen">
+            <menu>
+                <item
+                    android:id="@+id/nav_stock"
+                    android:icon="@drawable/ic_stock_product_outline"
+                    android:title="Persedian Barang" />
+                <item
+                    android:id="@+id/nav_inventory"
+                    android:icon="@drawable/ic_goods_inventory_outline"
+                    android:title="Inventaris Barang" />
+            </menu>
+        </item>
+
+        <item android:title="Riwayat">
+            <menu>
+                <item
+                    android:id="@+id/nav_attendance"
+                    android:icon="@drawable/ic_capster_attendance_outline"
+                    android:title="Presensi Pegawai" />
+                <item
+                    android:id="@+id/nav_permits"
+                    android:icon="@drawable/ic_capster_permit_outline"
+                    android:title="Perijinan Pegawai" />
+                <item
+                    android:id="@+id/nav_kasbon"
+                    android:icon="@drawable/ic_capster_kasbon_outline"
+                    android:title="KasBon Pegawai" />
+                <item
+                    android:id="@+id/nav_expanditure"
+                    android:icon="@drawable/ic_expenditure_outline"
+                    android:title="Pengeluaran" />
+                <item
+                    android:id="@+id/nav_product_transactions"
+                    android:icon="@drawable/ic_product_stat_outline"
+                    android:title="Transaksi Produk" />
+                <item
+                    android:id="@+id/nav_service_transactions"
+                    android:icon="@drawable/ic_service_stat_outline"
+                    android:title="Transaksi Jasa" />
+            </menu>
+        </item>
+    </group>
+
+    <item
+        android:id="@+id/nav_space"
+        android:title=""
+        android:enabled="false"
+        android:clickable="false" />
+
+</menu>

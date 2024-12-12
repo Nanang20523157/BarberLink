@@ -2,6 +2,7 @@ package com.example.barberlink.UserInterface.Teller
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -9,6 +10,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.Injection
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
@@ -28,6 +30,7 @@ class ComplateOrderPage : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
         binding = ActivityComplateOrderPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -96,7 +99,7 @@ class ComplateOrderPage : AppCompatActivity() {
                 putExtra(CAPSTER_NAME_KEY, data)
             }
             startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             finish()
             complatePageViewModel.clearAllData()
         } else return
@@ -111,7 +114,7 @@ class ComplateOrderPage : AppCompatActivity() {
             putExtra(CAPSTER_NAME_KEY, data)
         }
         startActivity(intent)
-        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
         finish()
         complatePageViewModel.clearAllData()
     }

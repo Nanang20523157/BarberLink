@@ -1,8 +1,5 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
-import BundlingPackage
-import Employee
-import Service
 import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,7 +9,10 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.example.barberlink.databinding.FragmentQueueExecutionBinding
@@ -45,10 +45,16 @@ class QueueExecutionFragment : DialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            currentReservation = it.getParcelable(ARG_PARAM1)
+            val dataReservation: Reservation = it.getParcelable(ARG_PARAM1) ?: Reservation()
             serviceList = it.getParcelableArrayList(ARG_PARAM2)
             bundlingList = it.getParcelableArrayList(ARG_PARAM3)
             capsterData = it.getParcelable(ARG_PARAM4)
+
+            currentReservation = dataReservation.deepCopy(
+                copyCustomerDetail = false,
+                copyCustomerWithAppointment = false,
+                copyCustomerWithReservation = false
+            )
         }
 
         context = requireContext()
@@ -124,10 +130,14 @@ class QueueExecutionFragment : DialogFragment() {
                 "reservation_data" to currentReservation,
                 "is_random_capster" to isRandomCapster
             ))
+
+            dismiss()
+            parentFragmentManager.popBackStack()
         }
 
         binding.btnNo.setOnClickListener {
             dismiss()
+            parentFragmentManager.popBackStack()
         }
 
     }

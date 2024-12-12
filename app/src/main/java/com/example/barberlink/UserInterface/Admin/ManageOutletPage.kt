@@ -1,8 +1,5 @@
 package com.example.barberlink.UserInterface.Admin
 
-import Employee
-import Outlet
-import UserAdminData
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -17,6 +14,9 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListOutletAdapter
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.Fragment.ResetQueueBoardFragment
 import com.example.barberlink.databinding.ActivityManageOutletPageBinding
@@ -49,33 +49,34 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivityManageOutletPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         fragmentManager = supportFragmentManager
-        intent.getParcelableArrayListExtra(BerandaAdminPage.OUTLET_DATA_KEY, Outlet::class.java)?.let {
-            CoroutineScope(Dispatchers.Default).launch {
-                outletsMutex.withLock {
-                    outletsList = it
-                }
+        // Mendapatkan argumen dari SafeArgs
+        val args = ManageOutletPageArgs.fromBundle(intent.extras ?: Bundle())
+
+        // Melakukan operasi dengan data tersebut
+        CoroutineScope(Dispatchers.Default).launch {
+            outletsMutex.withLock {
+                outletsList = args.outletList.toCollection(ArrayList())
+                init()
+            }
+
+            employeesMutex.withLock {
+                employeeList = args.employeeList.toCollection(ArrayList())
+            }
+
+            // Pastikan untuk menjalankan bagian ini di main thread jika perlu
+            withContext(Dispatchers.Main) {
+                val userAdminData = args.userAdminData
+                barbershopId = userAdminData.uid
+                listenToOutletsData()
             }
         }
 
-        intent.getParcelableArrayListExtra(BerandaAdminPage.EMPLOYEE_DATA_KEY, Employee::class.java)?.let {
-            CoroutineScope(Dispatchers.Default).launch {
-                employeesMutex.withLock {
-                    employeeList = it
-                }
-            }
-        }
-
-        intent.getParcelableExtra(BerandaAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
-            barbershopId = it.uid
-            listenToOutletsData()
-        }
-
-        init()
         binding.ivBack.setOnClickListener(this)
 
         supportFragmentManager.setFragmentResultListener("action_result_user", this) { _, bundle ->
@@ -199,7 +200,7 @@ class ManageOutletPage : AppCompatActivity(), View.OnClickListener, ItemListOutl
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
                 .add(android.R.id.content, dialogFragment, "ResetQueueBoardFragment")

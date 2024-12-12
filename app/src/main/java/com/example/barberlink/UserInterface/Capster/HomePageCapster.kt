@@ -1,9 +1,8 @@
 package com.example.barberlink.UserInterface.Capster
 
-import Employee
-import Outlet
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -18,13 +17,16 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Admin.AdminSettingPage
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
 import com.example.barberlink.UserInterface.Capster.Fragment.PinInputFragment
+import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.CopyUtils
 import com.example.barberlink.Utils.GetDateUtils
@@ -95,9 +97,11 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
         binding = ActivityHomePageCapsterBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         fragmentManager = supportFragmentManager
         sessionCapster = sessionManager.getSessionCapster()
         dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
@@ -287,7 +291,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             db.collectionGroup(collectionPath)
                 .where(
                     Filter.and(
-                        Filter.equalTo("barbershop_ref", "barbershops/${userEmployeeData.uid}"),
+                        Filter.equalTo("barbershop_ref", userEmployeeData.rootRef),
                         Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
                         Filter.greaterThanOrEqualTo(dateField, startOfMonth),
                         Filter.lessThan(dateField, startOfNextMonth)
@@ -317,7 +321,9 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
                         val jobs = documents.map { document ->
                             async {
-                                val reservation = document.toObject(Reservation::class.java)
+                                val reservation = document.toObject(Reservation::class.java).apply {
+                                    reserveRef = document.reference.path
+                                }
                                 processReservation(reservation)
                             }
                         }
@@ -453,7 +459,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private fun getAllData() {
         // Filter untuk koleksi grup 'reservations'
         val reservationFilter = Filter.and(
-            Filter.equalTo("barbershop_ref", "barbershops/${userEmployeeData.uid}"),
+            Filter.equalTo("barbershop_ref", userEmployeeData.rootRef),
             Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
             Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfMonth),
             Filter.lessThan("timestamp_to_booking", startOfNextMonth)
@@ -495,8 +501,9 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                             reservationsResult?.let { result ->
                                 reservationListMutex.withLock {
                                     result.documents.forEach { document ->
-                                        document.toObject(Reservation::class.java)
-                                            ?.let { processReservation(it) }
+                                        document.toObject(Reservation::class.java)?.apply {
+                                            reserveRef = document.reference.path
+                                        }?.let { processReservation(it) }
                                     }
                                 }
                             }
@@ -580,6 +587,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun showCapitalInputDialog(outletList: ArrayList<Outlet>) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT)
         shouldClearBackStack = false
         dialogFragment = CapitalInputFragment.newInstance(outletList, null, userEmployeeData)
         // The device is smaller, so show the fragment fullscreen.
@@ -588,7 +596,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
                 .add(android.R.id.content, dialogFragment, "CapitalInputFragment")
@@ -661,7 +669,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                     Toast.makeText(this@HomePageCapster, "Employee attendance feature is under development...", Toast.LENGTH_SHORT).show()
                 }
                 R.id.ivSettings -> {
-                    navigatePage(this@HomePageCapster, AdminSettingPage::class.java, false, realLayout.ivSettings)
+                    navigatePage(this@HomePageCapster, SettingPageScreen::class.java, false, realLayout.ivSettings)
                 }
                 R.id.fabInputCapital -> {
                     if (!isShimmerVisible) {
@@ -729,6 +737,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
+            DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
             shouldClearBackStack = true
             dialogFragment.dismiss()
             fragmentManager.popBackStack()
@@ -737,7 +746,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             val intent = Intent(this, SelectUserRolePage::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             finish()
         }
     }

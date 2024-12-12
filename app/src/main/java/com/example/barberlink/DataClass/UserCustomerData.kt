@@ -24,17 +24,59 @@ data class UserCustomerData(
     @get:Exclude @set:Exclude var dataSelected: Boolean = false,
     @get:Exclude @set:Exclude var guestAccount: Boolean = false,
     @get:Exclude @set:Exclude var userRef: String = ""
-) : Parcelable
+) : Parcelable {
+    fun deepCopy(
+        copyAppointments: Boolean,
+        copyReservations: Boolean
+    ): UserCustomerData {
+        return UserCustomerData(
+            appointmentList = if (copyAppointments) {
+                this.appointmentList?.map { it.deepCopy() }?.toMutableList()
+            } else {
+                this.appointmentList // Copy reference
+            },
+            email = this.email,
+            fullname = this.fullname,
+            gender = this.gender,
+            membership = this.membership,
+            password = this.password,
+            phone = this.phone,
+            photoProfile = this.photoProfile,
+            reservationList = if (copyReservations) {
+                this.reservationList?.map { it.deepCopy() }?.toMutableList()
+            } else {
+                this.reservationList // Copy reference
+            },
+            uid = this.uid,
+            username = this.username,
+            userCoins = this.userCoins,
+            lastReserve = this.lastReserve,
+            dataSelected = this.dataSelected,
+            guestAccount = this.guestAccount,
+            userRef = this.userRef
+        )
+    }
+
+}
 
 @Parcelize
 data class ListStackData(
-    @get:PropertyName("timestamp_data") @set:PropertyName("timestamp_data") var timestampData: Timestamp = Timestamp.now(),
+    @get:PropertyName("create_at_data") @set:PropertyName("create_at_data") var createAtData: Timestamp = Timestamp.now(),
     @get:PropertyName("reference_data") @set:PropertyName("reference_data") var referenceData: String = "",
-    @get:PropertyName("capster_name") @set:PropertyName("capster_name") var capsterName: String = "",
-    @get:PropertyName("customer_name") @set:PropertyName("customer_name") var customerName: String = "",
+    @get:PropertyName("capster_ref") @set:PropertyName("capster_ref") var capsterRef: String = "",
+    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = "",
 //    @get:PropertyName("random_capster") @set:PropertyName("random_capster") var randomCapster: Boolean = false,
 //    @get:PropertyName("guest_account") @set:PropertyName("guest_account") var guestAccount: Boolean = false
-) : Parcelable
+) : Parcelable {
+    fun deepCopy(): ListStackData {
+        return ListStackData(
+            createAtData = this.createAtData,
+            referenceData = this.referenceData,
+            capsterRef = this.capsterRef,
+            customerRef = this.customerRef
+        )
+    }
+}
 
 
 

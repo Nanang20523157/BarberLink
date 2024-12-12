@@ -21,7 +21,7 @@
             android:layout_height="wrap_content"
             android:background="@color/white"
             android:layout_gravity="center"
-            app:cardCornerRadius="37dp"
+            app:cardCornerRadius="35dp"
             android:layout_marginHorizontal="10dp">
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -468,7 +468,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="47dp"
                     android:layout_marginTop="30dp"
-                    android:layout_marginBottom="40dp"
+                    android:layout_marginBottom="55dp"
                     android:layout_marginHorizontal="70dp"
                     android:backgroundTint="@color/black"
                     android:minWidth="110dp"

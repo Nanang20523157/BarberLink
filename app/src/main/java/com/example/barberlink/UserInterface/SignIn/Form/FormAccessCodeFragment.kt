@@ -1,7 +1,5 @@
 package com.example.barberlink.UserInterface.SignIn.Form
 
-import Employee
-import Outlet
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -18,6 +16,8 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
@@ -58,12 +58,13 @@ class FormAccessCodeFragment : DialogFragment() {
     private val capsterList = mutableListOf<Employee>()
     private val reservationList =  mutableListOf<Reservation>()
 
+    private var listener: OnClearBackStackListener? = null
+
     // Interface yang akan diimplementasikan oleh Activity
     interface OnClearBackStackListener {
+        // Interface For Fragment
         fun onClearBackStackRequested()
     }
-
-    private var listener: OnClearBackStackListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -227,7 +228,9 @@ class FormAccessCodeFragment : DialogFragment() {
                 .addOnSuccessListener { documents ->
                     CoroutineScope(Dispatchers.Default).launch {
                         val newReservationList = documents.mapNotNull { document ->
-                            document.toObject(Reservation::class.java)
+                            document.toObject(Reservation::class.java).apply {
+                                reserveRef = document.reference.path
+                            }
                         }.filter { it.queueStatus !in listOf("pending", "expired") }
 
                         withContext(Dispatchers.Main) {

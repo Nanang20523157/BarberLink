@@ -16,19 +16,35 @@
             android:layout_height="wrap_content"
             android:fillViewport="true">
 
-            <FrameLayout
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-                <include
-                    android:id="@+id/shimmerLayout"
-                    layout="@layout/shimmer_layout_home_page_capster" />
+                <LinearLayout
+                    android:id="@+id/backgroundStatusBar"
+                    android:layout_width="match_parent"
+                    android:layout_height="25dp"
+                    android:alpha="1"
+                    android:background="@color/white"
+                    android:orientation="horizontal" />
 
-                <include
-                    android:id="@+id/realLayout"
-                    layout="@layout/real_layout_home_page_capster" />
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
 
-            </FrameLayout>
+                    <include
+                        android:id="@+id/shimmerLayout"
+                        layout="@layout/shimmer_layout_home_page_capster" />
+
+                    <include
+                        android:id="@+id/realLayout"
+                        layout="@layout/real_layout_home_page_capster" />
+
+                </FrameLayout>
+
+            </LinearLayout>
+
 
         </androidx.core.widget.NestedScrollView>
 

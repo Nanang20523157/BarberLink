@@ -1,18 +1,19 @@
-package com.example.barberlink.UserInterface.Admin
+package com.example.barberlink.UserInterface
 
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
-import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
-import com.example.barberlink.databinding.ActivityAdminSettingPageBinding
+import com.example.barberlink.databinding.ActivitySettingPageScreenBinding
 import com.google.firebase.auth.FirebaseAuth
 
-class AdminSettingPage : AppCompatActivity(), View.OnClickListener {
-    private lateinit var binding: ActivityAdminSettingPageBinding
+class SettingPageScreen : AppCompatActivity(), View.OnClickListener {
+    private lateinit var binding: ActivitySettingPageScreenBinding
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private var originOfIntent: String? = null
     private val sessionManager: SessionManager by lazy { SessionManager(this) }
@@ -22,12 +23,16 @@ class AdminSettingPage : AppCompatActivity(), View.OnClickListener {
     private var currentView: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
-        binding = ActivityAdminSettingPageBinding.inflate(layoutInflater)
+        binding = ActivitySettingPageScreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         sessionAdmin = sessionManager.getSessionAdmin()
         sessionCapster = sessionManager.getSessionCapster()
 
+//        val args = SettingPageScreenArgs.fromBundle(intent.extras ?: Bundle())
+//        originOfIntent = args.originPage
         // Cek intent dari BerandaAdmin atau HomePageCapster
         originOfIntent = when {
             intent.hasExtra(ORIGIN_INTENT_KEY) -> intent.getStringExtra(ORIGIN_INTENT_KEY)
@@ -50,6 +55,7 @@ class AdminSettingPage : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun logout() {
+        Log.d("LogOutClick", "originOfIntent: $originOfIntent")
         if (originOfIntent == "BerandaAdminPage" && sessionAdmin) {
             auth.signOut()
             sessionManager.clearSessionAdmin()
@@ -69,8 +75,8 @@ class AdminSettingPage : AppCompatActivity(), View.OnClickListener {
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
             startActivity(intentNavigate)
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) // Mengatur animasi transisi
-            finishAffinity()
+//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) // Mengatur animasi transisi
+            finish()
         } else return
     }
 

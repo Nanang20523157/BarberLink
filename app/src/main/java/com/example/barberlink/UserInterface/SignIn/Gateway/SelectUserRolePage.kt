@@ -6,10 +6,11 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Admin.BerandaAdminPage
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
+import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
@@ -25,6 +26,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     private var capsterSession: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivitySelectUserRolePageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -54,7 +56,8 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 //                }
                 R.id.btnAdminOwner -> {
                     Log.d("SelectUserRolePage", "Admin Session: $adminSession <> ${sessionManager.getDataAdminRef()}")
-                    if (adminSession) navigatePage(this@SelectUserRolePage, BerandaAdminPage::class.java, btnAdminOwner)
+                    // if (adminSession) navigatePage(this@SelectUserRolePage, BerandaAdminActivity::class.java, btnAdminOwner)
+                    if (adminSession) navigatePage(this@SelectUserRolePage, MainActivity::class.java, btnAdminOwner)
                     else navigatePage(this@SelectUserRolePage, LoginAdminPage::class.java, btnAdminOwner)
                 }
                 R.id.btnPegawai -> {
@@ -75,7 +78,6 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         if (!isNavigating) {
             isNavigating = true
             val intent = Intent(context, destination)
-
             // Check if the destination is HomePageCapster or QueueTrackerPage
             if (destination == HomePageCapster::class.java || destination == QueueTrackerPage::class.java) {
                 intent.putExtra(ACTION_GET_DATA, true)

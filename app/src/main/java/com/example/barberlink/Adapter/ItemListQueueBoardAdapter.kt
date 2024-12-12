@@ -1,7 +1,6 @@
 package com.example.barberlink.Adapter
 
-import Employee
-import Outlet
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
@@ -10,6 +9,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListCurrentQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListCurrentQueueBinding
@@ -61,20 +62,31 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+            }
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
 
+            // Validasi posisi target
+            if (positionToScroll in 0 until itemCount) {
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                // Log untuk debugging
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListCurrentQueueBinding) :
