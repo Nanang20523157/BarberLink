@@ -1,12 +1,8 @@
 package com.example.barberlink.UserInterface.Teller
 
-import BundlingPackage
-import Customer
-import Employee
-import Outlet
-import Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -27,7 +23,13 @@ import com.bumptech.glide.Glide
 import com.example.barberlink.Adapter.ItemListCustomerAdapter
 import com.example.barberlink.Adapter.ItemListPackageBookingAdapter
 import com.example.barberlink.Adapter.ItemListServiceBookingAdapter
+import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Customer
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.Injection
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
@@ -62,7 +64,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private lateinit var outletSelected: Outlet
     private lateinit var capsterSelected: Employee
     private lateinit var timeSelected: Timestamp
-    private lateinit var customerData: UserCustomerData
+    private var customerData: UserCustomerData? = null
     private lateinit var customerGuestAccount: UserCustomerData
     private var keyword: String = ""
     private var isNavigating = false
@@ -85,9 +87,11 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
         binding = ActivityBarberBookingPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         fragmentManager = supportFragmentManager
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
@@ -143,9 +147,33 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 ) { it.first }  // Join only the 'first' element of each Pair
                 // Use formattedString as needed
                 binding.orderDetails.text = formattedString
+//                if (!isFirstLoad) {
+//                    bundlingAdapter.notifyDataSetChanged()
+//                    serviceAdapter.notifyDataSetChanged()
+//                }
             }
 
             Log.d("TestAct", "===================")
+        }
+
+        bookingPageViewModel.indexBundlingChanged.observe(this) { indexes ->
+            if (indexes.isNotEmpty()) {
+                indexes.forEach {
+                    bundlingAdapter.notifyItemChanged(it)
+                    Log.d("TestIndex", "indexBundlingChanged: $it")
+                }
+                bookingPageViewModel.resetIndexBundlingChanged()
+            }
+        }
+
+        bookingPageViewModel.indexServiceChanged.observe(this) { indexes ->
+            if (indexes.isNotEmpty()) {
+                indexes.forEach {
+                    serviceAdapter.notifyItemChanged(it)
+                    Log.d("TestIndex", "indexServiceChanged: $it")
+                }
+                bookingPageViewModel.resetIndexServiceChanged()
+            }
         }
 
         binding.apply {
@@ -254,10 +282,15 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 result[0].dataSelected = true
                 customerData = result[0]
             } else {
-                if (::customerData.isInitialized) result.find { it.uid == customerData.uid }?.dataSelected = true
+                result.find { it.uid == customerData?.uid }?.dataSelected = true
             }
 
-            customerSelectedListener(customerData)
+            // Periksa apakah ada elemen dengan dataSelected = true
+            if (result.none { it.dataSelected }) {
+                customerData = null
+            }
+
+            customerData?.let { customerSelectedListener(it) }
 
             withContext(Dispatchers.Main) {
                 result.forEachIndexed { index, user ->
@@ -938,7 +971,11 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     onBackPressed()
                 }
                 R.id.cvDateLabel -> {
-                    showDatePickerDialog(timeSelected)
+                    v.isClickable = false
+                    currentView = v
+                    if (!isNavigating) {
+                        showDatePickerDialog(timeSelected)
+                    } else return
                 }
                 R.id.btnAddNewCustomer -> {
                     showAddNewCustomerDialog()
@@ -953,13 +990,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     // Sebelum menggunakan customerData
                     Log.d("ViewModel", bookingPageViewModel.itemSelectedCounting.value.toString())
                     Log.d("ViewModel", bookingPageViewModel.toString())
-                    if (::customerData.isInitialized) {
+                    if (customerData != null) {
                         navigatePage(this@BarberBookingPage, ReviewOrderPage::class.java, btnContinue)
                     } else {
                         // Tangani kasus ketika customerData belum diinisialisasi
                         Toast.makeText(this@BarberBookingPage, "Data customer belum dimasukkan!!!", Toast.LENGTH_SHORT).show()
                     }
-
                 }
                 R.id.ivAddNewCustomer -> {
                     showAddNewCustomerDialog()
@@ -998,7 +1034,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
                 .add(android.R.id.content, dialogFragment, "AddNewCustomerFragment")
@@ -1045,6 +1081,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 setDateFilterValue(Timestamp(date))
             }
 
+        }
+
+        // Tambahkan listener untuk event dismiss
+        datePicker.addOnDismissListener {
+            // Fungsi yang akan dijalankan saat dialog di-dismiss
+            isNavigating = false
+            currentView?.isClickable = true
         }
 
         datePicker.show(supportFragmentManager, "DATE_PICKER")
@@ -1104,7 +1147,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
 
         // Akses dan perbarui data di ViewModel
-        bookingPageViewModel.updateBundlingQuantity(index, bundlingPackage.bundlingQuantity)
+        bookingPageViewModel.updateBundlingQuantity(bundlingPackage.itemIndex, bundlingPackage.bundlingQuantity)
     }
 
     override fun onItemClickListener(service: Service, index: Int, addCount: Boolean) {
@@ -1119,7 +1162,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
 
         // Akses dan perbarui data di ViewModel
-        bookingPageViewModel.updateServicesQuantity(index, service.serviceQuantity)
+        bookingPageViewModel.updateServicesQuantity(service.itemIndex, service.serviceQuantity)
     }
 
 

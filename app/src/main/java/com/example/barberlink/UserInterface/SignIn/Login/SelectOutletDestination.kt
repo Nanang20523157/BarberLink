@@ -1,6 +1,5 @@
 package com.example.barberlink.UserInterface.SignIn.Login
 
-import Outlet
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -10,6 +9,8 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListDestinationAdapter
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.databinding.ActivitySelectOutletDestinationBinding
@@ -39,6 +40,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private val outletsMutex = Mutex()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivitySelectOutletDestinationBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -169,7 +171,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
                 .add(android.R.id.content, dialogFragment, "FormAccessCodeFragment")

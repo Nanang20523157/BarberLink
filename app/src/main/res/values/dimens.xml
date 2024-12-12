@@ -2,4 +2,11 @@
 <!-- dimens.xml -->
 <resources>
     <dimen name="recycler_height_large">310dp</dimen>
+    <dimen name="start_corner_radius">26dp</dimen>
+
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="nav_header_vertical_spacing">8dp</dimen>
+    <dimen name="nav_header_height">220dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
 </resources>

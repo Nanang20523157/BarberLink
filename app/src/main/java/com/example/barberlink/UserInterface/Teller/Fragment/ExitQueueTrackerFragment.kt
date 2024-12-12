@@ -1,6 +1,5 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
-import Outlet
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -10,8 +9,8 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Helper.SessionManager
-import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.databinding.FragmentExitQueueTrackerBinding
 
@@ -88,7 +87,7 @@ class ExitQueueTrackerFragment : DialogFragment() {
 
             // Memastikan bahwa context adalah instance dari Activity
             (context as? Activity)?.let { activity ->
-                activity.overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//                activity.overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
                 activity.finish()
             }
         } else return

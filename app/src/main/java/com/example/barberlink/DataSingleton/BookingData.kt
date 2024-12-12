@@ -1,8 +1,8 @@
 package com.example.barberlink.DataSingleton
 
-import BundlingPackage
-import Employee
-import Service
+import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Service
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

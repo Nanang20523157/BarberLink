@@ -10,6 +10,7 @@ import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.webkit.WebSettings
 import androidx.appcompat.app.AppCompatActivity
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
@@ -26,6 +27,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
     private var currentView: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivityLandingPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -70,6 +72,11 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         if (!isNavigating) {
             isNavigating = true
             val intent = Intent(context, destination)
+            if (destination == SignUpStepOne::class.java) {
+                intent.apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+            }
             startActivity(intent)
         } else return
     }
@@ -84,11 +91,23 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
     private fun animateLandingPage() {
         // Animasi untuk background splash
         Handler().postDelayed({
-            val backgroundAnimator = ObjectAnimator.ofFloat(binding.backgroundImg, "alpha", 0f, 1f).apply {
+            // Animasi untuk backgroundImg
+            val backgroundImgAnimator = ObjectAnimator.ofFloat(binding.backgroundImg, "alpha", 0f, 1f).apply {
                 duration = 400
                 interpolator = AccelerateDecelerateInterpolator()
             }
-            backgroundAnimator.start()
+
+            // Animasi untuk backgroundStatusBar
+            val backgroundStatusBarAnimator = ObjectAnimator.ofFloat(binding.backgroundStatusBar, "alpha", 0f, 1f).apply {
+                duration = 400
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+
+            // Jalankan animasi secara bersamaan
+            AnimatorSet().apply {
+                playTogether(backgroundImgAnimator, backgroundStatusBarAnimator)
+                start()
+            }
         }, 300)
 
         val animatorSet = AnimatorSet().apply {
@@ -106,6 +125,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         Handler().postDelayed({
             animatorSet.start()
         }, 900)
+
     }
 
 

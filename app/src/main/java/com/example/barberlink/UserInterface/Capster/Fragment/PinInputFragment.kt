@@ -1,7 +1,5 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
-import Employee
-import Outlet
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -18,6 +16,8 @@ import android.view.inputmethod.InputMethodManager
 import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster

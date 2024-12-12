@@ -1,22 +1,26 @@
 package com.example.barberlink.UserInterface.SignUp
 
-import UserAdminData
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserRolesData
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivitySignUpStepOneBinding
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 
 class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
@@ -24,19 +28,21 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     private var userAdminData: UserAdminData? = null
     private var userRolesData: UserRolesData? = null
     private var userCustomerData: UserCustomerData? = null
+    private var userEmployeeData: Employee? = null
     private var formattedPhoneNumber: String? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var isNavigating = false
     private var currentView: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this@SignUpStepOne)
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepOneBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.btnNext.setOnClickListener(this)
-        binding.tvSignIn.setOnClickListener(this)
-        binding.ivBack.setOnClickListener(this)
+        binding.btnNext.setOnClickListener(this@SignUpStepOne)
+        binding.tvSignIn.setOnClickListener(this@SignUpStepOne)
+        binding.ivBack.setOnClickListener(this@SignUpStepOne)
 
         setupEditTextListeners()
     }
@@ -44,7 +50,8 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnNext -> {
-                checkPhoneNumberInFirestoreAndNavigate()
+                // checkPhoneNumberInFirestoreAndNavigate()
+                checkPhoneNumberAndNavigate()
             }
             R.id.tvSignIn -> {
                 navigatePage(this@SignUpStepOne, SelectUserRolePage::class.java, null, binding.tvSignIn)
@@ -63,10 +70,13 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             val intent = Intent(context, destination)
             phoneNumber?.let {
                 userAdminData?.phone = it
-                Toast.makeText(this, "Nomor Anda: $it", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@SignUpStepOne, "Nomor Anda: $it", Toast.LENGTH_LONG).show()
                 intent.putExtra(ADMIN_KEY, userAdminData)
                 intent.putExtra(ROLES_KEY, userRolesData)
             }
+//            if (destination == SelectUserRolePage::class.java) {
+//                intent.putExtra("new_activity_key", true)
+//            }
             startActivity(intent)
         } else return
     }
@@ -154,42 +164,186 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    private fun checkPhoneNumberInFirestoreAndNavigate() {
+    private fun checkPhoneNumberAndNavigate() {
         binding.progressBar.visibility = View.VISIBLE
         userAdminData = UserAdminData()
         userRolesData = UserRolesData()
         userCustomerData = UserCustomerData()
 
         formattedPhoneNumber?.let { phoneNumber ->
+            Log.d("TriggerPP", phoneNumber)
             db.collection("users").document(phoneNumber).get()
                 .addOnSuccessListener { document ->
-                    binding.progressBar.visibility = View.GONE
-                    if (document.exists()) {
-                        document.toObject(UserRolesData::class.java)?.let {
-                            userRolesData = it
+                    when {
+                        document.exists() -> handleExistingUser(document)
+                        else -> {
+                            checkCustomerExistenceAndAdd(phoneNumber)
                         }
-
-                        if (userRolesData?.role == "admin" || userRolesData?.role == "hybrid") {
-                            setTextViewToErrorState(R.string.phone_number_already_exists_text)
-                        } else if (userRolesData?.role == "customer") {
-                            userRolesData?.customerRef?.let { getDataCustomerReference(it) }
-                        }
-                    } else {
-                        setTextViewToValidState()
-                        navigatePage(this, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
                     }
                 }
                 .addOnFailureListener { exception ->
-                    binding.progressBar.visibility = View.GONE
-                    if (exception.message.equals("Failed to get document because the client is offline.")) {
-                        Toast.makeText(
-                            this,
-                            "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else Toast.makeText(this, "Error : ${exception.message}", Toast.LENGTH_LONG).show()
+                    handleError(exception)
                 }
         }
+    }
+
+    private fun handleExistingUser(document: DocumentSnapshot) {
+        Log.d("TriggerPP", "X1X")
+        document.toObject(UserRolesData::class.java)?.let {
+            userRolesData = it
+        }
+
+        when (userRolesData?.role) {
+            "admin", "pairAE", "pairAC(-)", "pairAC(+)", "hybrid(-)", "hybrid(+)" -> {
+                Log.d("TriggerPP", "X1X")
+                binding.progressBar.visibility = View.GONE
+                setTextViewToErrorState(R.string.phone_number_already_exists_text)
+            }
+            "employee", "pairEC(-)", "pairEC(+)" -> {
+                Log.d("TriggerPP", "X2X")
+                userRolesData?.employeeRef?.let { getDataReference(it, "employee") }
+            }
+            else -> {
+                Log.d("TriggerPP", "X3X")
+                userRolesData?.customerRef?.let { getDataReference(it, "customer")  }
+            }
+        }
+    }
+
+    private fun checkCustomerExistenceAndAdd(phoneNumber: String) {
+        db.collection("customers").document(phoneNumber).get()
+            .addOnSuccessListener { customerDocument ->
+                if (customerDocument.exists()) {
+                    Log.d("TriggerPP", "X4X")
+                    userRolesData?.role = "undefined"
+
+                    customerDocument.toObject(UserCustomerData::class.java)?.let { customerData ->
+                        customerData.userRef = customerDocument.reference.path
+                        userCustomerData = customerData
+                    }
+
+                    userAdminData?.apply {
+                        uid = ""
+                        imageCompanyProfile = ""
+                        ownerName = userCustomerData?.fullname.toString()
+                        email = ""
+                        password = ""
+                        userRef = userCustomerData?.userRef.toString()
+                    }
+
+                    setupCustomerData()
+                } else {
+                    Log.d("TriggerPP", "X5X")
+                    binding.progressBar.visibility = View.GONE
+                    setTextViewToValidState()
+                    navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
+                }
+            }
+            .addOnFailureListener { exception ->
+                handleError(exception)
+            }
+    }
+
+    private fun getDataReference(reference: String, role: String) {
+        Log.d("TriggerUU", "X5X")
+        db.document(reference).get()
+            .addOnSuccessListener { document ->
+                document.takeIf { it.exists() }?.let {
+                    when (role) {
+                        "employee" -> {
+                            Log.d("TriggerUU", "X5.2X")
+                            it.toObject(Employee::class.java)?.let { data ->
+                                data.userRef = document.reference.path
+                                userEmployeeData = data
+                            }
+                        }
+                        else -> {
+                            Log.d("TriggerUU", "X5.3X")
+                            it.toObject(UserCustomerData::class.java)?.let { data ->
+                                data.userRef = document.reference.path
+                                userCustomerData = data
+                            }
+                        }
+                    }
+
+                    setupCustomerData()
+                }
+            }
+            .addOnFailureListener { exception ->
+                Toast.makeText(this@SignUpStepOne, "Error accessing userRef: ${exception.message}", Toast.LENGTH_LONG).show()
+            }
+    }
+
+    private fun setupCustomerData() {
+        when (userRolesData?.role) {
+            "employee", "pairEC(-)", "pairEC(+)" -> {
+                userAdminData?.apply {
+                    uid = userEmployeeData?.uid.toString()
+                    imageCompanyProfile = userEmployeeData?.photoProfile.toString()
+                    ownerName = userEmployeeData?.fullname.toString()
+                    email = userEmployeeData?.email.toString()
+                    password = userEmployeeData?.password.toString()
+                    userRef = userEmployeeData?.userRef.toString()
+                }
+            }
+            else -> {
+                userAdminData?.apply {
+                    uid = userCustomerData?.uid.toString()
+                    imageCompanyProfile = userCustomerData?.photoProfile.toString()
+                    ownerName = userCustomerData?.fullname.toString()
+                    email = userCustomerData?.email.toString()
+                    password = userCustomerData?.password.toString()
+                    userRef = userCustomerData?.userRef.toString()
+                }
+            }
+        }
+
+        setTextViewToValidState()
+        navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
+    }
+
+//    private fun checkPhoneNumberInFirestoreAndNavigate() {
+//        binding.progressBar.visibility = View.VISIBLE
+//        userAdminData = UserAdminData()
+//        userRolesData = UserRolesData()
+//        userCustomerData = UserCustomerData()
+//
+//        formattedPhoneNumber?.let { phoneNumber ->
+//            db.collection("users").document(phoneNumber).get()
+//                .addOnSuccessListener { document ->
+//                    if (document.exists()) {
+//                        document.toObject(UserRolesData::class.java)?.let {
+//                            userRolesData = it
+//                        }
+//
+//                        if (userRolesData?.role == "admin" || userRolesData?.role == "hybrid") {
+//                            binding.progressBar.visibility = View.GONE
+//                            setTextViewToErrorState(R.string.phone_number_already_exists_text)
+//                        } else if (userRolesData?.role == "customer") {
+//                            userRolesData?.customerRef?.let { getDataCustomerReference(it) }
+//                        }
+//                    } else {
+//                        binding.progressBar.visibility = View.GONE
+//                        setTextViewToValidState()
+//                        navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
+//                    }
+//                }
+//                .addOnFailureListener { exception ->
+//                    handleError(exception)
+//                }
+//
+//        }
+//    }
+
+    private fun handleError(exception: Exception) {
+        binding.progressBar.visibility = View.GONE
+        if (exception.message.equals("Failed to get document because the client is offline.")) {
+            Toast.makeText(
+                this@SignUpStepOne,
+                "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
+                Toast.LENGTH_LONG
+            ).show()
+        } else Toast.makeText(this@SignUpStepOne, "Error : ${exception.message}", Toast.LENGTH_LONG).show()
     }
 
 //    private fun applyAllDataToUserRolesData(document: DocumentSnapshot) {
@@ -205,35 +359,33 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
 //        }
 //    }
 
-    private fun getDataCustomerReference(customerRef: String) {
-        binding.progressBar.visibility = View.VISIBLE
-
-        db.document(customerRef).get()
-            .addOnSuccessListener { customerDocument ->
-                binding.progressBar.visibility = View.GONE
-                if (customerDocument.exists()) {
-                    customerDocument.toObject(UserCustomerData::class.java)?.apply {
-                        userRef = customerDocument.reference.path
-                        userCustomerData = this
-                    }
-
-                    userAdminData?.apply {
-                        uid = userCustomerData?.uid.toString()
-                        imageCompanyProfile = userCustomerData?.photoProfile.toString()
-                        ownerName = userCustomerData?.fullname.toString()
-                        email = userCustomerData?.email.toString()
-                        password = userCustomerData?.password.toString()
-                    }
-
-                    setTextViewToValidState()
-                    navigatePage(this, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
-                }
-            }
-            .addOnFailureListener { exception ->
-                binding.progressBar.visibility = View.GONE
-                Toast.makeText(this, "Error accessing customerRef: ${exception.message}", Toast.LENGTH_LONG).show()
-            }
-    }
+//    private fun getDataCustomerReference(customerRef: String) {
+//        db.document(customerRef).get()
+//            .addOnSuccessListener { customerDocument ->
+//                binding.progressBar.visibility = View.GONE
+//                if (customerDocument.exists()) {
+//                    customerDocument.toObject(UserCustomerData::class.java)?.let { customerData ->
+//                        customerData.userRef = customerDocument.reference.path
+//                        userCustomerData = customerData
+//                    }
+//
+//                    userAdminData?.apply {
+//                        uid = userCustomerData?.uid.toString()
+//                        imageCompanyProfile = userCustomerData?.photoProfile.toString()
+//                        ownerName = userCustomerData?.fullname.toString()
+//                        email = userCustomerData?.email.toString()
+//                        password = userCustomerData?.password.toString()
+//                    }
+//
+//                    setTextViewToValidState()
+//                    navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
+//                }
+//            }
+//            .addOnFailureListener { exception ->
+//                binding.progressBar.visibility = View.GONE
+//                Toast.makeText(this@SignUpStepOne, "Error accessing customerRef: ${exception.message}", Toast.LENGTH_LONG).show()
+//            }
+//    }
 
 //    private fun applyAllDataToUserCustomerData(document: DocumentSnapshot) {
 //        document.toObject(UserCustomerData::class.java)?.let {

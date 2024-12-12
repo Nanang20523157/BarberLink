@@ -1,6 +1,5 @@
 package com.example.barberlink.Adapter
 
-import Service
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -11,6 +10,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListOrdersBookingAdapterBinding
@@ -28,6 +28,10 @@ class ItemListServiceOrdersAdapter(
 
     fun setCapsterRef(capsterRef: String) {
         this.capsterRef = capsterRef
+    }
+
+    fun setlastScrollPosition(position: Int) {
+        this.lastScrollPosition = position
     }
 
     interface OnItemClicked {
@@ -70,19 +74,32 @@ class ItemListServiceOrdersAdapter(
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+            }
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
+
+            // Validasi posisi target
+            if (positionToScroll in 0 until itemCount) {
+                Log.d("itemCount", "adapter: $lastScrollPosition")
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                // Log untuk debugging
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListOrdersBookingBinding) :

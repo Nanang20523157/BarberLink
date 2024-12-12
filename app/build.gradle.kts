@@ -4,16 +4,17 @@ plugins {
     id("kotlin-android")
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
+    id("androidx.navigation.safeargs")
 }
 
 android {
     namespace = "com.example.barberlink"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.barberlink"
         minSdk = 24
-        targetSdk = 33
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
@@ -105,5 +106,12 @@ dependencies {
     implementation("com.github.demogorgorn:MonthAndYearPicker:1.0.11")
 
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+
+    implementation("com.github.judemanutd:autostarter:1.1.0")
+
+    implementation("androidx.activity:activity-ktx:1.8.0") // Pastikan versi terbaru (edgeToEdge FullSceen)
+
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
 
 }

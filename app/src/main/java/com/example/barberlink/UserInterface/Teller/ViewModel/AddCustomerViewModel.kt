@@ -3,7 +3,7 @@ package com.example.barberlink.UserInterface.Teller.ViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.barberlink.Utils.Event
+import com.example.barberlink.Helper.Event
 
 // ViewModel class to handle Snackbar message state
 class AddCustomerViewModel : ViewModel() {

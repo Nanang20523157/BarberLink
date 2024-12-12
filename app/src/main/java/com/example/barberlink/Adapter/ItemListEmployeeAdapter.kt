@@ -1,6 +1,6 @@
 package com.example.barberlink.Adapter
 
-import Employee
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListEmployeeAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeCardBinding
@@ -54,20 +55,40 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
+            var step = "one"
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+                step = "two"
+            }
+            lastScrollPosition++
+            Log.v("RecyclerView", "employee step: $step")
+            Log.d("RecyclerView", "isShimmer Employee: $isShimmer, lastScrollPosition: $lastScrollPosition")
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
+                Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
+                Log.d("RecyclerView", "86: shimmer employee off")
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
+
+            // Validasi posisi target
+            if (positionToScroll in 0 until itemCount) {
+                Log.e("RecyclerView", "Target position: $positionToScroll")
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                // Log untuk debugging
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutEmployeeCardBinding) :

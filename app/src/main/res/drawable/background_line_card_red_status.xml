@@ -6,10 +6,10 @@
   <group>
     <clip-path
         android:pathData="M0,0.21h513.81v442.11h-513.81z"/>
-<!--    <path-->
-<!--        android:pathData="M523.51,-624.41l-612.07,706.36l-21.96,-18.81l612.08,-706.35l21.95,18.8z"-->
-<!--        android:strokeWidth="0"-->
-<!--        android:fillColor="#d91965"/>-->
+    <!--    <path-->
+    <!--        android:pathData="M523.51,-624.41l-612.07,706.36l-21.96,-18.81l612.08,-706.35l21.95,18.8z"-->
+    <!--        android:strokeWidth="0"-->
+    <!--        android:fillColor="#d91965"/>-->
     <path
         android:pathData="M581.17,-604.79l-652.25,752.77l-21.95,-18.8l652.25,-752.78l21.95,18.81z"
         android:strokeWidth="0"

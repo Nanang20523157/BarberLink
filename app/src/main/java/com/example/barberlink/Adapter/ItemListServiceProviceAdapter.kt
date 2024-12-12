@@ -1,6 +1,6 @@
 package com.example.barberlink.Adapter
 
-import Service
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListServiceProvideAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutServiceProvideBinding
@@ -53,21 +54,33 @@ class ItemListServiceProviceAdapter : ListAdapter<Service, RecyclerView.ViewHold
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
+            var step = "one"
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
+            if (lastScrollPosition == -1) {
+                lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
+                step = "two"
+            }
+            Log.v("RecyclerView", "service step: $step")
         }
 
         isShimmer = shimmer
         notifyDataSetChanged()
 
         recyclerView?.post {
+            val itemCount = recyclerView?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
                 lastScrollPosition
             }
-            layoutManager?.scrollToPosition(positionToScroll)
 
+            if (positionToScroll in 0 until itemCount) {
+                layoutManager?.scrollToPosition(positionToScroll)
+            } else {
+                Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+            }
         }
+
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutServiceProvideBinding) :
@@ -104,4 +117,5 @@ class ItemListServiceProviceAdapter : ListAdapter<Service, RecyclerView.ViewHold
             return oldItem == newItem
         }
     }
+
 }

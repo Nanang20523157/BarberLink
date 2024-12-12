@@ -7,9 +7,13 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
+import android.view.WindowInsetsController
 import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.Intro.OnBoarding.OnBoardingPage
@@ -43,6 +47,7 @@ class SplashScreen : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivitySplashScreenBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -118,4 +123,42 @@ class SplashScreen : AppCompatActivity() {
             logoAnimator.start()
         }, 1400)
     }
+
+    // Function to set background color StatusBar
+    private fun setStatusBarAppearance(backgroundColor: Int, isDarkIcons: Boolean) {
+        // Ubah warna background StatusBar
+        window.statusBarColor = ContextCompat.getColor(this, backgroundColor)
+
+        // Cek versi API untuk kompatibilitas
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // API 30 (Android 11) ke atas
+            val windowInsetsController = window.insetsController
+            if (windowInsetsController != null) {
+                if (isDarkIcons) {
+                    // Ikon berwarna gelap
+                    windowInsetsController.setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    )
+                } else {
+                    // Ikon berwarna terang
+                    windowInsetsController.setSystemBarsAppearance(
+                        0,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    )
+                }
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // API 23 (Android 6.0) sampai API 29 (Android 10)
+            val decorView = window.decorView
+            if (isDarkIcons) {
+                // Ikon berwarna gelap
+                decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                // Ikon berwarna terang
+                decorView.systemUiVisibility = 0
+            }
+        }
+    }
+
 }

@@ -1,13 +1,8 @@
 package com.example.barberlink.UserInterface.Admin
 
-import BundlingPackage
-import Employee
-import Outlet
-import Product
-import Service
-import UserAdminData
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -21,8 +16,12 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.marginBottom
+import androidx.core.view.marginEnd
+import androidx.core.widget.NestedScrollView
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
+import androidx.navigation.NavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
@@ -33,17 +32,27 @@ import com.example.barberlink.Adapter.ItemListEmployeeAdapter
 import com.example.barberlink.Adapter.ItemListPackageBundlingAdapter
 import com.example.barberlink.Adapter.ItemListProductAdapter
 import com.example.barberlink.Adapter.ItemListServiceProviceAdapter
+import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.Product
+import com.example.barberlink.DataClass.Service
+import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Interface.DrawerController
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
+import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.SignUpSuccess
-import com.example.barberlink.databinding.ActivityBerandaAdminPageBinding
+import com.example.barberlink.databinding.FragmentBerandaAdminBinding
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.TaskCompletionSource
 import com.google.android.gms.tasks.Tasks
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
@@ -54,9 +63,14 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-
-class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
-    private lateinit var binding: ActivityBerandaAdminPageBinding
+/**
+ * A simple [Fragment] subclass.
+ * Use the [BerandaAdminActivity.newInstance] factory method to
+ * create an instance of this fragment.
+ */
+class BerandaAdminActivity : AppCompatActivity(), View.OnClickListener {
+    private lateinit var binding: FragmentBerandaAdminBinding
+    private lateinit var navController: NavController
     private lateinit var userAdminData: UserAdminData
     private var userId: String = ""
     private var isNavigating = false
@@ -64,7 +78,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
+    private val sessionManager: SessionManager by lazy { SessionManager(this@BerandaAdminActivity) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private lateinit var serviceAdapter: ItemListServiceProviceAdapter
     private lateinit var employeeAdapter: ItemListEmployeeAdapter
@@ -97,20 +111,22 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
         super.onCreate(savedInstanceState)
-        binding = ActivityBerandaAdminPageBinding.inflate(layoutInflater)
+        binding = FragmentBerandaAdminBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         init()
         binding.apply {
-            ivSettings.setOnClickListener(this@BerandaAdminPage)
-            fabManageCodeAccess.setOnClickListener(this@BerandaAdminPage)
-            fabInputCapital.setOnClickListener(this@BerandaAdminPage)
-            fabDashboardAdmin.setOnClickListener(this@BerandaAdminPage)
+            ivSettings.setOnClickListener(this@BerandaAdminActivity)
+            fabManageCodeAccess.setOnClickListener(this@BerandaAdminActivity)
+            fabInputCapital.setOnClickListener(this@BerandaAdminActivity)
+            fabDashboardAdmin.setOnClickListener(this@BerandaAdminActivity)
+            ivHamburger.setOnClickListener(this@BerandaAdminActivity)
 
             // Atur warna SwipeRefreshLayout agar sesuai dengan ProgressBar
             swipeRefreshLayout.setColorSchemeColors(
-                ContextCompat.getColor(this@BerandaAdminPage, R.color.sky_blue)
+                ContextCompat.getColor(this@BerandaAdminActivity, R.color.sky_blue)
             )
 
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
@@ -123,13 +139,25 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                 getAllData()
             })
 
-            nestedScrollView.setOnScrollChangeListener { _, _, scrollY, _, oldScrollY ->
+            nestedScrollView.setOnScrollChangeListener { v, _, scrollY, _, oldScrollY ->
+                val nestedScrollView = v as NestedScrollView
+                val contentHeight = nestedScrollView.getChildAt(0).measuredHeight
+                val scrollViewHeight = nestedScrollView.measuredHeight
+
+                // Hitung threshold (50dp ke piksel)
+                val threshold = 50 * nestedScrollView.resources.displayMetrics.density
+                val isNearBottom = scrollY + scrollViewHeight + threshold >= contentHeight
+
                 if (scrollY > oldScrollY) {
                     // Pengguna menggulir ke bawah
+                    hideFabToRight(fabInputCapital)
+                    hideFabToRight(fabManageCodeAccess)
                     hideFab(fabDashboardAdmin)
                 } else if (scrollY < oldScrollY) {
                     // Pengguna menggulir ke atas
                     showFab(fabDashboardAdmin)
+                    showFabFromLeft(fabInputCapital)
+                    showFabFromLeft(fabManageCodeAccess)
                 }
             }
         }
@@ -137,29 +165,31 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
         setAndDisplayBanner()
         fragmentManager = supportFragmentManager
-        val adminData = intent.getParcelableExtra(SignUpSuccess.ADMIN_KEY, UserAdminData::class.java) ?:
-        intent.getParcelableExtra(LoginAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)
 
+        userAdminData = UserAdminData()
+        intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+            userAdminData = it
+        } ?: intent.getParcelableExtra(LoginAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+            userAdminData = it
+        }
         val adminRef = sessionManager.getDataAdminRef()
         userId = adminRef?.substringAfter("barbershops/") ?: ""
 
-        if (adminData != null) {
-            userAdminData = adminData
+        if (userAdminData.uid.isNotEmpty()) {
             // loadImageWithGlide(userAdminData.imageCompanyProfile)
             getAllData()
         } else {
             if (userId.isNotEmpty()) {
-                userAdminData = UserAdminData()
                 getBarbershopDataFromDatabase()
                 getAllData()
             } else {
-                Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BerandaAdminActivity, "User not logged in", Toast.LENGTH_SHORT).show()
             }
         }
 
         setupListeners()
-
     }
+
 
     private fun refreshPageEffect() {
         binding.tvEmptyLayanan.visibility = View.GONE
@@ -172,19 +202,23 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     private fun init() {
         with (binding) {
             serviceAdapter = ItemListServiceProviceAdapter()
-            recyclerLayanan.layoutManager = LinearLayoutManager(this@BerandaAdminPage, LinearLayoutManager.HORIZONTAL, false)
+            recyclerLayanan.layoutManager =
+                LinearLayoutManager(this@BerandaAdminActivity, LinearLayoutManager.HORIZONTAL, false)
             recyclerLayanan.adapter = serviceAdapter
 
             employeeAdapter = ItemListEmployeeAdapter()
-            recyclerPegawai.layoutManager = LinearLayoutManager(this@BerandaAdminPage, LinearLayoutManager.HORIZONTAL, false)
+            recyclerPegawai.layoutManager =
+                LinearLayoutManager(this@BerandaAdminActivity, LinearLayoutManager.HORIZONTAL, false)
             recyclerPegawai.adapter = employeeAdapter
 
             bundlingAdapter = ItemListPackageBundlingAdapter()
-            recyclerPaketBundling.layoutManager = LinearLayoutManager(this@BerandaAdminPage, LinearLayoutManager.HORIZONTAL, false)
+            recyclerPaketBundling.layoutManager =
+                LinearLayoutManager(this@BerandaAdminActivity, LinearLayoutManager.HORIZONTAL, false)
             recyclerPaketBundling.adapter = bundlingAdapter
 
             productAdapter = ItemListProductAdapter()
-            recyclerProduk.layoutManager = LinearLayoutManager(this@BerandaAdminPage, LinearLayoutManager.HORIZONTAL, false)
+            recyclerProduk.layoutManager =
+                LinearLayoutManager(this@BerandaAdminActivity, LinearLayoutManager.HORIZONTAL, false)
             recyclerProduk.adapter = productAdapter
         }
     }
@@ -215,11 +249,19 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             .document(userId)
             .addSnapshotListener { document, exception ->
                 exception?.let {
-                    Toast.makeText(this, "Error listening to barbershop data: ${it.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@BerandaAdminActivity,
+                        "Error listening to barbershop data: ${it.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     return@addSnapshotListener
                 }
                 document?.takeIf { it.exists() }?.let {
-                    if (!isFirstLoad) userAdminData = it.toObject(UserAdminData::class.java) ?: UserAdminData()
+                    if (!isFirstLoad) {
+                        userAdminData = it.toObject(UserAdminData::class.java).apply {
+                            this?.userRef = it.reference.path
+                        } ?: UserAdminData()
+                    }
                     // loadImageWithGlide(userAdminData.imageCompanyProfile)
                 }
             }
@@ -232,7 +274,11 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             .collection("outlets")
             .addSnapshotListener { documents, exception ->
                 if (exception != null) {
-                    Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@BerandaAdminActivity,
+                        "Error listening to outlets data: ${exception.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     return@addSnapshotListener
                 }
 
@@ -280,7 +326,11 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 
         return collectionRef.addSnapshotListener { documents, exception ->
             exception?.let {
-                Toast.makeText(this, "Error listening to $collectionPath data: ${it.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@BerandaAdminActivity,
+                    "Error listening to $collectionPath data: ${it.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
                 return@addSnapshotListener
             }
             documents?.let {
@@ -307,7 +357,8 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                         }
 
                         withContext(Dispatchers.Main) {
-                            emptyView.visibility = if (listToUpdate.isEmpty()) View.VISIBLE else View.GONE
+                            emptyView.visibility =
+                                if (listToUpdate.isEmpty()) View.VISIBLE else View.GONE
                             adapter.submitList(listToUpdate)
                             adapter.notifyDataSetChanged()
                         }
@@ -368,14 +419,20 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             .get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
-                    userAdminData = document.toObject(UserAdminData::class.java) ?: UserAdminData()
+                    userAdminData = document.toObject(UserAdminData::class.java).apply {
+                        this?.userRef = document.reference.path
+                    } ?: UserAdminData()
                     // loadImageWithGlide(userAdminData.imageCompanyProfile)
                 } else {
-                    Toast.makeText(this, "No such document", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BerandaAdminActivity, "No such document", Toast.LENGTH_SHORT).show()
                 }
             }
             .addOnFailureListener { exception ->
-                Toast.makeText(this, "Error getting document: ${exception.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@BerandaAdminActivity,
+                    "Error getting document: ${exception.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
@@ -396,7 +453,8 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         queryField: String? = null,
         queryValue: Any? = null
     ): Task<QuerySnapshot> {
-        val taskCompletionSource = TaskCompletionSource<QuerySnapshot>() // TaskCompletionSource untuk mengendalikan Task
+        val taskCompletionSource =
+            TaskCompletionSource<QuerySnapshot>() // TaskCompletionSource untuk mengendalikan Task
 
         val collectionRef = if (isCollectionGroup) {
             val groupRef = db.collectionGroup(collectionPath)
@@ -443,7 +501,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
                         }
                     } else {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(this@BerandaAdminPage, emptyMessage, Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@BerandaAdminActivity, emptyMessage, Toast.LENGTH_SHORT).show()
                         }
                     }
 
@@ -452,7 +510,11 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             }
             .addOnFailureListener { exception ->
                 taskCompletionSource.setException(exception) // Menandai Task sebagai gagal jika terjadi error
-                Toast.makeText(this, "Error getting $collectionPath data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@BerandaAdminActivity,
+                    "Error getting $collectionPath data: ${exception.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
 
         return taskCompletionSource.task // Kembalikan Task yang akan selesai hanya ketika pengambilan data selesai
@@ -502,7 +564,11 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             .addOnFailureListener { exception ->
                 displayAllData()
                 binding.swipeRefreshLayout.isRefreshing = false
-                Toast.makeText(this, "Error getting all data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this@BerandaAdminActivity,
+                    "Error getting all data: ${exception.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 
@@ -562,6 +628,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
 //    }
 
     private fun showCapitalInputDialog(outletList: ArrayList<Outlet>) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT)
         shouldClearBackStack = false
         dialogFragment = CapitalInputFragment.newInstance(outletList, userAdminData, null)
         // The device is smaller, so show the fragment fullscreen.
@@ -570,10 +637,10 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
-                .add(android.R.id.content, dialogFragment, "CapitalInputFragment")
+                .add(R.id.capital_input_container, dialogFragment, "CapitalInputFragment")
                 .addToBackStack("CapitalInputFragment")
                 .commit()
         }
@@ -600,6 +667,24 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
             .start()
     }
 
+    private fun hideFabToRight(fab: FloatingActionButton) {
+        fab.animate()
+            .translationX(fab.width.toFloat() + fab.marginEnd.toFloat())
+            .alpha(0f)
+            .setDuration(300)
+            .setInterpolator(AccelerateInterpolator())
+            .start()
+    }
+
+    private fun showFabFromLeft(fab: FloatingActionButton) {
+        fab.animate()
+            .translationX(0f)
+            .alpha(1f)
+            .setDuration(300)
+            .setInterpolator(DecelerateInterpolator())
+            .start()
+    }
+
 
 //    private fun loadImageWithGlide(imageUrl: String) {
 //        if (imageUrl.isNotEmpty()) {
@@ -619,23 +704,38 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         with (binding) {
             when(v?.id){
                 R.id.ivSettings -> {
-                    navigatePage(this@BerandaAdminPage, AdminSettingPage::class.java, false, ivSettings)
+                    navigatePage(this@BerandaAdminActivity, SettingPageScreen::class.java, false, ivSettings)
+//                    val settingDirections = BerandaAdminFragmentDirections.actionNavBerandaToSettingPageScreen().apply {
+//                        this.originPage = "BerandaAdminFragment"
+//                    }
+//                    navController.navigate(settingDirections)
                 }
                 R.id.fabManageCodeAccess -> {
                     if (!isShimmerVisible) {
-                        navigatePage(this@BerandaAdminPage, ManageOutletPage::class.java, true, fabManageCodeAccess)
-                    }
+                        // navigatePage(this@BerandaAdminActivity, ManageOutletPage::class.java, true, fabManageCodeAccess)
+//                        val manageOutletDirections = BerandaAdminFragmentDirections.actionNavBerandaToManageOutletPage(
+//                            outletsList.toTypedArray(), employeesList.toTypedArray(), userAdminData
+//                        )
+//                        navController.navigate(manageOutletDirections)
+                    } else {}
                 }
                 R.id.fabInputCapital -> {
-                    if (!isShimmerVisible) {
-                        showCapitalInputDialog(ArrayList(outletsList))
-                    }
+                    if (!isShimmerVisible) showCapitalInputDialog(ArrayList(outletsList))else {}
                 }
                 R.id.fabDashboardAdmin -> {
                     if (!isShimmerVisible) {
-                        navigatePage(this@BerandaAdminPage, DashboardAdminPage::class.java, true, fabDashboardAdmin)
-                    }
+                        // navigatePage(this@BerandaAdminActivity, DashboardAdminPage::class.java, true, fabDashboardAdmin)
+//                        val dashboardAdminDirections = BerandaAdminFragmentDirections.actionNavBerandaToDashboardAdminPage(
+//                            outletsList.toTypedArray(), employeesList.toTypedArray(), userAdminData
+//                        )
+//                        navController.navigate(dashboardAdminDirections)
+                    } else {}
                 }
+                R.id.ivHamburger -> {
+                    val drawerController = this@BerandaAdminActivity as? DrawerController
+                    drawerController?.openDrawer()
+                }
+                else -> {}
             }
         }
     }
@@ -668,15 +768,16 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
+            DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
             shouldClearBackStack = true
             dialogFragment.dismiss()
             fragmentManager.popBackStack()
         } else {
             super.onBackPressed()
-            val intent = Intent(this, SelectUserRolePage::class.java)
+            val intent = Intent(this@BerandaAdminActivity, SelectUserRolePage::class.java)
             intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
             startActivity(intent)
-            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
             finish()
         }
 
@@ -717,7 +818,7 @@ class BerandaAdminPage : AppCompatActivity(), View.OnClickListener {
         binding.imageSlider.setItemClickListener(object : ItemClickListener {
             override fun onItemSelected(position: Int) {
                 val itemMessage = "Selected Image $position"
-                this@BerandaAdminPage.let {
+                this@BerandaAdminActivity.let {
                     Toast.makeText(it, itemMessage, Toast.LENGTH_SHORT).show()
                 }
             }

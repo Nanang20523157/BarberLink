@@ -3,7 +3,28 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Tambahkan elemen <queries> di sini -->
+    <queries>
+
+        <!-- Untuk mendeteksi aplikasi WhatsApp -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data
+                android:host="api.whatsapp.com"
+                android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+
+            <data
+                android:host="wa.me"
+                android:scheme="https" />
+        </intent>
+        <!-- Tambahkan package untuk WhatsApp dan WhatsApp Business -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" /> <!-- WhatsApp Business -->
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -15,11 +36,31 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BarberLink"
         tools:targetApi="31">
+        <service
+            android:name=".Services.SenderMessageService"
+            android:exported="false"/>
+        <service
+            android:name=".Accessibility.WhatsappAccessibilityService"
+            android:exported="true"
+            android:label="My Whatsapp Accessibility"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/whatsappservice" />
+
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".Adapter.ItemListCapsterAdapter"
             android:exported="false" />
         <activity
             android:name=".UserInterface.Admin.DashboardAdminPage"
+            android:exported="false" />
+        <activity
+            android:name=".UserInterface.Admin.BerandaAdminActivity"
             android:exported="false" />
         <activity
             android:name=".Adapter.ItemPackageFullCardAdapter"
@@ -31,7 +72,7 @@
             android:name=".UserInterface.Admin.ManageOutletPage"
             android:exported="false" />
         <activity
-            android:name=".UserInterface.Admin.AdminSettingPage"
+            android:name=".UserInterface.SettingPageScreen"
             android:exported="false" />
         <activity
             android:name=".UserInterface.Capster.QueueControlPage"
@@ -52,9 +93,6 @@
             android:name=".UserInterface.Teller.QueueTrackerPage"
             android:exported="false"
             android:launchMode="singleTop" />
-        <activity
-            android:name=".UserInterface.Admin.BerandaAdminPage"
-            android:exported="false" />
         <activity
             android:name=".UserInterface.Capster.HomePageCapster"
             android:exported="false" />
@@ -84,14 +122,13 @@
             android:launchMode="singleInstancePerTask" />
         <activity
             android:name=".UserInterface.Intro.Landing.LandingPage"
-            android:exported="false" />
+            android:exported="false"/>
         <activity
             android:name=".UserInterface.Intro.OnBoarding.OnBoardingPage"
             android:exported="false" />
         <activity
             android:name=".UserInterface.Intro.Splash.SplashScreen"
-            android:exported="true"
-            android:theme="@style/Theme.BarberLink.FullScreen">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

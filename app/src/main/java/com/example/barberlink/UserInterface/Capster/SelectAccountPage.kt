@@ -1,7 +1,5 @@
 package com.example.barberlink.UserInterface.Capster
 
-import Employee
-import Outlet
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -15,6 +13,9 @@ import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListPickUserAdapter
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.UserInterface.Capster.Fragment.PinInputFragment
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.databinding.ActivitySelectAccountPageBinding
@@ -45,6 +46,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivitySelectAccountPageBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -163,7 +165,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (!isDestroyed && !isFinishing) {
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
                 .add(android.R.id.content, dialogFragment, "PinInputFragment")

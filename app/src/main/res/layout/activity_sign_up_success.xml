@@ -1,89 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center_horizontal"
-    android:padding="16dp">
+    android:orientation="vertical">
 
-    <!-- Title -->
-    <TextView
-        android:id="@+id/tvTitle"
+    <LinearLayout
+        android:id="@+id/backgroundStatusBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        tools:text="JANUR BARBERSHOP"
-        android:textSize="30sp"
-        android:fontFamily="@font/bangers_regular"
-        android:textColor="@color/black_font_color"
-        android:gravity="center"
-        android:layout_marginTop="35dp"
-        android:layout_marginStart="-2dp" />
-
-    <!-- Subtitle -->
-    <TextView
-        android:id="@+id/subtitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/string_p_o_s_barber_template"
-        android:textSize="11sp"
-        android:textStyle="bold"
-        android:layout_marginHorizontal="10dp"
-        android:fontFamily="@font/georgia_regular"
-        android:textColor="@color/black_font_color"
-        android:gravity="center"
-        android:layout_marginBottom="32dp" />
+        android:layout_height="25dp"
+        android:alpha="1"
+        android:background="@color/white"
+        android:orientation="horizontal" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:layout_weight="1"
-        android:gravity="center">
+        android:gravity="center_horizontal"
+        android:padding="16dp">
 
-        <!-- Checkmark Icon and Success Message -->
-        <ImageView
-            android:id="@+id/successIcon"
-            android:layout_width="115dp"
-            android:layout_height="115dp"
-            android:layout_marginTop="-75dp"
-            android:layout_marginStart="-0.5dp"
-            android:src="@drawable/success"
-            android:contentDescription="@string/image_success_icon"/>
-
+        <!-- Title -->
         <TextView
-            android:id="@+id/successMessage"
-            android:layout_width="wrap_content"
+            android:id="@+id/tvTitle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/Congratulations"
-            android:layout_marginTop="-10dp"
-            android:textSize="20sp"
-            android:textStyle="bold"
+            tools:text="JANUR BARBERSHOP"
+            android:textSize="30sp"
+            android:fontFamily="@font/bangers_regular"
             android:textColor="@color/black_font_color"
             android:gravity="center"
-            android:layout_marginBottom="5dp" />
+            android:layout_marginTop="35dp"
+            android:layout_marginStart="-2dp" />
 
+        <!-- Subtitle -->
         <TextView
-            android:id="@+id/successSubmessage"
-            android:layout_width="wrap_content"
+            android:id="@+id/subtitle"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/submessage_Congratulations"
+            android:text="@string/string_p_o_s_barber_template"
             android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginHorizontal="10dp"
+            android:fontFamily="@font/georgia_regular"
             android:textColor="@color/black_font_color"
             android:gravity="center"
             android:layout_marginBottom="32dp" />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:orientation="vertical"
+            android:layout_weight="1"
+            android:gravity="center">
+
+            <!-- Checkmark Icon and Success Message -->
+            <ImageView
+                android:id="@+id/successIcon"
+                android:layout_width="115dp"
+                android:layout_height="115dp"
+                android:layout_marginTop="-75dp"
+                android:layout_marginStart="-0.5dp"
+                android:src="@drawable/success"
+                android:contentDescription="@string/image_success_icon"/>
+
+            <TextView
+                android:id="@+id/successMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/Congratulations"
+                android:layout_marginTop="-10dp"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"
+                android:gravity="center"
+                android:layout_marginBottom="5dp" />
+
+            <TextView
+                android:id="@+id/successSubmessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/submessage_Congratulations"
+                android:textSize="11sp"
+                android:textColor="@color/black_font_color"
+                android:gravity="center"
+                android:layout_marginBottom="32dp" />
+
+        </LinearLayout>
+
+        <!-- Finish Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDone"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:layout_marginBottom="35dp"
+            android:layout_marginHorizontal="40dp"
+            android:backgroundTint="@color/black"
+            android:text="@string/btn_done" />
+
     </LinearLayout>
 
-    <!-- Finish Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnDone"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:layout_marginBottom="35dp"
-        android:layout_marginHorizontal="40dp"
-        android:backgroundTint="@color/black"
-        android:text="@string/btn_done" />
-
 </LinearLayout>
+

@@ -6,239 +6,256 @@
     android:layout_height="wrap_content"
     tools:context=".UserInterface.SignUp.SignUpStepTwo">
 
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:orientation="vertical">
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/light_grey_horizons_background"
-            app:cardElevation="5dp"
-            app:cardCornerRadius="30dp"
-            android:visibility="gone"
-            android:layout_centerInParent="true"
-            android:layout_centerHorizontal="true"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.5"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent">
+        <LinearLayout
+            android:id="@+id/backgroundStatusBar"
+            android:layout_width="match_parent"
+            android:layout_height="25dp"
+            android:alpha="1"
+            android:background="@color/white"
+            android:orientation="horizontal" />
 
-            <ProgressBar
-                android:layout_width="35dp"
-                android:layout_height="35dp"
-                android:layout_margin="5dp"
-                android:elevation="20dp"
-                android:indeterminateTint="@color/sky_blue" />
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Back Button -->
-        <ImageView
-            android:id="@+id/ivBack"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentStart="true"
-            android:layout_marginTop="16dp"
-            android:layout_marginStart="10dp"
-            android:src="@drawable/ic_back"
-            android:contentDescription="@string/icon_back_button_desc" />
-
-        <!-- Title -->
-        <TextView
-            android:id="@+id/tvTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
-            android:layout_marginTop="16dp"
-            android:text="@string/toolbar_register_page"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#000000" />
-
-        <ImageView
-            android:id="@+id/imageCyberSecurity"
-            android:layout_width="190dp"
-            android:layout_height="190dp"
-            android:layout_gravity="center"
-            android:layout_centerHorizontal="true"
-            android:layout_below="@id/tvTitle"
-            android:layout_marginTop="20dp"
-            android:src="@drawable/cyber_security"
-            android:contentDescription="@string/image_cyber_security_ilustration" />
-
-        <TextView
-            android:id="@+id/cyberSecurityDescription"
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/imageCyberSecurity"
-            android:fontFamily="@font/arial_medium"
-            android:layout_marginHorizontal="45dp"
-            android:textColor="@color/black_font_color"
-            android:text="@string/detail_section_password"
-            android:textAlignment="center"
-            android:textSize="13sp" />
+            android:padding="16dp">
 
-        <TextView
-            android:id="@+id/intruction"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/arial_medium"
-            android:textColor="@color/black_font_color"
-            android:layout_below="@id/cyberSecurityDescription"
-            android:layout_marginTop="30dp"
-            android:layout_marginHorizontal="25dp"
-            android:text="@string/create_password_intruction"
-            android:textSize="13sp" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="5dp"
+                app:cardCornerRadius="30dp"
+                android:visibility="gone"
+                android:layout_centerInParent="true"
+                android:layout_centerHorizontal="true"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.5"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
 
-        <TextView
-            android:id="@+id/inputLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/arial_medium"
-            android:textColor="@color/black_font_color"
-            android:layout_below="@id/intruction"
-            android:layout_marginTop="10dp"
-            android:layout_marginHorizontal="25dp"
-            android:textStyle="bold"
-            android:text="@string/input_password_label"
-            android:textSize="16sp" />
+                <ProgressBar
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_margin="5dp"
+                    android:elevation="20dp"
+                    android:indeterminateTint="@color/sky_blue" />
 
-        <TextView
-            android:id="@+id/passwordLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/arial_medium"
-            android:textColor="@color/black_font_color"
-            android:layout_below="@id/inputLabel"
-            android:layout_marginTop="10dp"
-            android:layout_marginHorizontal="30dp"
-            android:text="@string/password_hint"
-            android:textSize="13sp" />
+            </com.google.android.material.card.MaterialCardView>
 
-        <!-- Password Input -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/wrapperPassword"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/passwordLabel"
-            android:layout_marginHorizontal="14dp"
-            app:hintEnabled="false"
-            android:gravity="start"
-            app:errorEnabled="true"
-            app:boxStrokeErrorColor="@color/red"
-            app:errorIconDrawable="@drawable/ic_error"
-            app:errorIconTint="@color/red"
-            app:errorTextColor="@color/red"
-            app:counterEnabled="true"
-            app:counterMaxLength="15"
-            app:boxStrokeColor="@color/green_lime_wf"
-            android:layout_marginTop="5dp">
+            <!-- Back Button -->
+            <ImageView
+                android:id="@+id/ivBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentStart="true"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="10dp"
+                android:src="@drawable/ic_back"
+                android:contentDescription="@string/icon_back_button_desc" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPassword"
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="16dp"
+                android:text="@string/toolbar_register_page"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#000000" />
+
+            <ImageView
+                android:id="@+id/imageCyberSecurity"
+                android:layout_width="190dp"
+                android:layout_height="190dp"
+                android:layout_gravity="center"
+                android:layout_centerHorizontal="true"
+                android:layout_below="@id/tvTitle"
+                android:layout_marginTop="20dp"
+                android:src="@drawable/cyber_security"
+                android:contentDescription="@string/image_cyber_security_ilustration" />
+
+            <TextView
+                android:id="@+id/cyberSecurityDescription"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
-                android:padding="3dp"
-                android:hint="@string/password_hint"
-                android:inputType="text|textPassword"
-                android:textSize="12.5sp"
-                android:maxLength="15"
-                android:drawablePadding="2dp"
-                android:layout_marginHorizontal="10dp"
-                android:drawableStart="@drawable/ic_lock" />
+                android:layout_height="wrap_content"
+                android:layout_below="@id/imageCyberSecurity"
+                android:fontFamily="@font/arial_medium"
+                android:layout_marginHorizontal="45dp"
+                android:textColor="@color/black_font_color"
+                android:text="@string/detail_section_password"
+                android:textAlignment="center"
+                android:textSize="13sp" />
 
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <TextView
-            android:id="@+id/confirmLabel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/arial_medium"
-            android:textColor="@color/black_font_color"
-            android:layout_below="@id/wrapperPassword"
-            android:layout_marginTop="5dp"
-            android:layout_marginHorizontal="30dp"
-            android:text="@string/confirm_password_hint"
-            android:textSize="13sp" />
-
-        <!-- Confirm Password Input -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/wrapperConfirmPassword"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/confirmLabel"
-            android:layout_marginHorizontal="14dp"
-            app:hintEnabled="false"
-            android:gravity="start"
-            app:errorEnabled="true"
-            app:boxStrokeErrorColor="@color/red"
-            app:errorIconDrawable="@drawable/ic_error"
-            app:errorIconTint="@color/red"
-            app:errorTextColor="@color/red"
-            app:counterEnabled="true"
-            app:counterMaxLength="15"
-            app:boxStrokeColor="@color/green_lime_wf"
-            android:layout_marginTop="5dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etConfirmPassword"
+            <TextView
+                android:id="@+id/intruction"
                 android:layout_width="match_parent"
-                android:layout_height="45dp"
-                android:padding="3dp"
-                android:hint="@string/confirm_password_hint"
-                android:inputType="text|textPassword"
-                android:textSize="12.5sp"
-                android:maxLength="15"
-                android:drawablePadding="2dp"
-                android:layout_marginHorizontal="10dp"
-                android:drawableStart="@drawable/ic_lock" />
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black_font_color"
+                android:layout_below="@id/cyberSecurityDescription"
+                android:layout_marginTop="30dp"
+                android:layout_marginHorizontal="25dp"
+                android:text="@string/create_password_intruction"
+                android:textSize="13sp" />
 
-        </com.google.android.material.textfield.TextInputLayout>
+            <TextView
+                android:id="@+id/inputLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black_font_color"
+                android:layout_below="@id/intruction"
+                android:layout_marginTop="10dp"
+                android:layout_marginHorizontal="25dp"
+                android:textStyle="bold"
+                android:text="@string/input_password_label"
+                android:textSize="16sp" />
 
-        <!-- Show Password Checkbox -->
-        <TextView
-            android:id="@+id/textShowPassword"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/wrapperConfirmPassword"
-            android:layout_marginStart="20dp"
-            android:gravity="center_vertical"
-            android:layout_marginEnd="-7dp"
-            android:layout_marginTop="-2.5dp"
-            android:layout_alignTop="@id/checkBoxShowPassword"
-            android:layout_alignBottom="@id/checkBoxShowPassword"
-            android:layout_toStartOf="@id/checkBoxShowPassword"
-            android:textSize="12sp"
-            android:text="@string/show_password" />
+            <TextView
+                android:id="@+id/passwordLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black_font_color"
+                android:layout_below="@id/inputLabel"
+                android:layout_marginTop="10dp"
+                android:layout_marginHorizontal="30dp"
+                android:text="@string/password_hint"
+                android:textSize="13sp" />
 
-        <CheckBox
-            android:id="@+id/checkBoxShowPassword"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_below="@id/wrapperConfirmPassword"
-            android:textSize="12sp"
-            android:layout_marginTop="5dp"
-            android:layout_marginEnd="17dp"
-            style="@style/Widget.App.CheckBox"/>
+            <!-- Password Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/wrapperPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/passwordLabel"
+                android:layout_marginHorizontal="14dp"
+                app:hintEnabled="false"
+                android:gravity="start"
+                app:errorEnabled="true"
+                app:boxStrokeErrorColor="@color/red"
+                app:errorIconDrawable="@drawable/ic_error"
+                app:errorIconTint="@color/red"
+                app:errorTextColor="@color/red"
+                app:counterEnabled="true"
+                app:counterMaxLength="15"
+                app:boxStrokeColor="@color/green_lime_wf"
+                android:layout_marginTop="5dp">
 
-        <!-- Create Account Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCreateAccount"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_below="@id/wrapperConfirmPassword"
-            android:layout_marginTop="180dp"
-            android:layout_marginBottom="35dp"
-            android:layout_marginHorizontal="24dp"
-            android:backgroundTint="@color/disable_grey_background"
-            android:text="@string/create_account"
-            android:textColor="#FFFFFF" />
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="45dp"
+                    android:padding="3dp"
+                    android:hint="@string/password_hint"
+                    android:inputType="text|textPassword"
+                    android:textSize="12.5sp"
+                    android:maxLength="15"
+                    android:drawablePadding="2dp"
+                    android:layout_marginHorizontal="10dp"
+                    android:drawableStart="@drawable/ic_lock" />
 
-    </RelativeLayout>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <TextView
+                android:id="@+id/confirmLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black_font_color"
+                android:layout_below="@id/wrapperPassword"
+                android:layout_marginTop="5dp"
+                android:layout_marginHorizontal="30dp"
+                android:text="@string/confirm_password_hint"
+                android:textSize="13sp" />
+
+            <!-- Confirm Password Input -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/wrapperConfirmPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/confirmLabel"
+                android:layout_marginHorizontal="14dp"
+                app:hintEnabled="false"
+                android:gravity="start"
+                app:errorEnabled="true"
+                app:boxStrokeErrorColor="@color/red"
+                app:errorIconDrawable="@drawable/ic_error"
+                app:errorIconTint="@color/red"
+                app:errorTextColor="@color/red"
+                app:counterEnabled="true"
+                app:counterMaxLength="15"
+                app:boxStrokeColor="@color/green_lime_wf"
+                android:layout_marginTop="5dp">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etConfirmPassword"
+                    android:layout_width="match_parent"
+                    android:layout_height="45dp"
+                    android:padding="3dp"
+                    android:hint="@string/confirm_password_hint"
+                    android:inputType="text|textPassword"
+                    android:textSize="12.5sp"
+                    android:maxLength="15"
+                    android:drawablePadding="2dp"
+                    android:layout_marginHorizontal="10dp"
+                    android:drawableStart="@drawable/ic_lock" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Show Password Checkbox -->
+            <TextView
+                android:id="@+id/textShowPassword"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/wrapperConfirmPassword"
+                android:layout_marginStart="20dp"
+                android:gravity="center_vertical"
+                android:layout_marginEnd="-7dp"
+                android:layout_marginTop="-2.5dp"
+                android:layout_alignTop="@id/checkBoxShowPassword"
+                android:layout_alignBottom="@id/checkBoxShowPassword"
+                android:layout_toStartOf="@id/checkBoxShowPassword"
+                android:textSize="12sp"
+                android:text="@string/show_password" />
+
+            <CheckBox
+                android:id="@+id/checkBoxShowPassword"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_below="@id/wrapperConfirmPassword"
+                android:textSize="12sp"
+                android:layout_marginTop="5dp"
+                android:layout_marginEnd="17dp"
+                style="@style/Widget.App.CheckBox"/>
+
+            <!-- Create Account Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCreateAccount"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_below="@id/wrapperConfirmPassword"
+                android:layout_marginTop="180dp"
+                android:layout_marginBottom="35dp"
+                android:layout_marginHorizontal="24dp"
+                android:backgroundTint="@color/disable_grey_background"
+                android:text="@string/create_account"
+                android:textColor="#FFFFFF" />
+
+        </RelativeLayout>
+
+    </LinearLayout>
+
+
 
 </androidx.core.widget.NestedScrollView>

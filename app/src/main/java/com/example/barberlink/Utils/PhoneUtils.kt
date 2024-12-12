@@ -10,7 +10,7 @@ object PhoneUtils {
 
         // Tentukan posisi awal untuk pemformatan dan buat nomor telepon tanpa kode negara
         val formattedPhone = when {
-            // sanitizedPhoneNumber.startsWith("0") -> sanitizedPhoneNumber.drop(1) // Hapus angka 0 di depan
+            phoneNumber.startsWith("0") -> phoneNumber.drop(1) // Hapus angka 0 di depan
             phoneNumber.startsWith("+62 ") -> phoneNumber.drop(4)
             phoneNumber.startsWith("+62") -> phoneNumber.drop(3) // Hapus +62 di depan
             phoneNumber.startsWith("62 ") -> phoneNumber.drop(3) // Hapus 62 di depan

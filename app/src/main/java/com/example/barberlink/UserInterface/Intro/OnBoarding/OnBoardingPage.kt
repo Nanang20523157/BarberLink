@@ -12,6 +12,7 @@ import androidx.core.view.get
 import androidx.viewpager2.widget.ViewPager2
 import com.example.barberlink.Adapter.OnBoardingSliderAdapter
 import com.example.barberlink.DataClass.IntroDataSlide
+import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.databinding.ActivityOnBoardingPageBinding
@@ -39,6 +40,7 @@ class OnBoardingPage : AppCompatActivity() {
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        DisplaySetting.enableEdgeToEdgeAllVersion(this)
         super.onCreate(savedInstanceState)
         binding = ActivityOnBoardingPageBinding.inflate(layoutInflater)
         setContentView(binding.root)

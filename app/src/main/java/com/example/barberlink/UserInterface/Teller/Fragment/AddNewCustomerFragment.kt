@@ -1,9 +1,5 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
-import Customer
-import Employee
-import Outlet
-import UserAdminData
 import android.content.Context
 import android.os.Bundle
 import android.text.Editable
@@ -25,11 +21,15 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Customer
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserRolesData
+import com.example.barberlink.Helper.Event
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.ViewModel.AddCustomerViewModel
-import com.example.barberlink.Utils.Event
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.FragmentAddNewCustomerBinding
 import com.google.android.material.snackbar.Snackbar
@@ -388,6 +388,9 @@ class AddNewCustomerFragment : DialogFragment() {
                     else -> resetInputForm()
                 }
             }
+            .addOnFailureListener { exception ->
+                handleError(exception)
+            }
     }
 
     // Function to handle existing user and update their data if manual input is detected
@@ -448,7 +451,7 @@ class AddNewCustomerFragment : DialogFragment() {
             }
             .addOnFailureListener { exception ->
                 Log.d("TriggerUU", "X[N2]X")
-                handleError("Error: ${exception.message}")
+                handleError(exception)
             }
     }
 
@@ -482,7 +485,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 }
             }
             .addOnFailureListener { exception ->
-                handleError("Error: ${exception.message}")
+                handleError(exception)
             }
     }
 
@@ -556,14 +559,16 @@ class AddNewCustomerFragment : DialogFragment() {
                     when (role) {
                         "admin" -> {
                             Log.d("TriggerUU", "X5.1X")
-                            it.toObject(UserAdminData::class.java)?.let { data ->
-                                userAdminData = data
+                            it.toObject(UserAdminData::class.java)?.apply {
+                                userRef = it.reference.path
+                                userAdminData = this
                             }
                         }
                         "employee" -> {
                             Log.d("TriggerUU", "X5.2X")
-                            it.toObject(Employee::class.java)?.let { data ->
-                                userEmployeeData = data
+                            it.toObject(Employee::class.java)?.apply {
+                                userRef = it.reference.path
+                                userEmployeeData = this
                             }
                         }
                         else -> {
@@ -579,7 +584,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 }
             }
             .addOnFailureListener { exception ->
-                Toast.makeText(context, "Error accessing adminRef: ${exception.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Error accessing userRef: ${exception.message}", Toast.LENGTH_LONG).show()
             }
     }
 
@@ -711,7 +716,7 @@ class AddNewCustomerFragment : DialogFragment() {
                     }
                 }
                 .addOnFailureListener { exception ->
-                    handleError("Error: ${exception.message}")
+                    handleError(exception)
                 }
         }
     }
@@ -738,7 +743,7 @@ class AddNewCustomerFragment : DialogFragment() {
             db.collection("users").document(userPhoneNumber).set(it)
                 .addOnSuccessListener { addCustomerToOutlet() }
                 .addOnFailureListener { exception ->
-                    handleError("Error: ${exception.message}")
+                    handleError(exception)
                 }
         }
     }
@@ -772,7 +777,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 lastCustomer?.let { finalizeCustomerAddition(it) }
             }
             .addOnFailureListener { exception ->
-                handleError("Error: ${exception.message}")
+                handleError(exception)
             }
     }
 
@@ -788,9 +793,15 @@ class AddNewCustomerFragment : DialogFragment() {
         dismiss()
     }
 
-    private fun handleError(message: String) {
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    private fun handleError(exception: Exception) {
         binding.progressBar.visibility = View.GONE
+        if (exception.message.equals("Failed to get document because the client is offline.")) {
+            Toast.makeText(
+                context,
+                "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
+                Toast.LENGTH_LONG
+            ).show()
+        } else Toast.makeText(context, "Error : ${exception.message}", Toast.LENGTH_LONG).show()
     }
 
     companion object {

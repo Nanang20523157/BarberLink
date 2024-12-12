@@ -1,4 +1,4 @@
-package com.example.barberlink.Utils
+package com.example.barberlink.Helper
 
 open class Event<out T>(private val content: T) {
 

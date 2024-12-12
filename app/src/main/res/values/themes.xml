@@ -3,17 +3,22 @@
     <style name="Base.Theme.BarberLink" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
-        <item name="android:statusBarColor">@color/dark_black_gradation</item>
+<!--        <item name="android:statusBarColor">@color/dark_black_gradation</item>-->
+<!--        <item name="android:windowTranslucentStatus">true</item>-->
+<!--        <item name="android:windowLightStatusBar">true</item>-->
         <item name="materialCalendarTheme">@style/ThemeOverlay.App.DatePicker</item>
         <item name="android:windowBackground">@color/white</item>
+
+        <!-- enable window content transitions -->
+        <item name="android:windowActivityTransitions">true</item>
 
 <!--        <item name="materialAlertDialogTheme">@style/MonthPickerDialogStyle</item>-->
     </style>
 
-    <style name="Theme.BarberLink.FullScreen">
-        <item name="android:windowFullscreen">true</item>
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
+    <style name="Theme.BarberLink.WithoutStatusBar" parent="Base.Theme.BarberLink" >
+        <item name="android:statusBarColor">@color/dark_black_gradation</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <style name="Theme.BarberLink" parent="Base.Theme.BarberLink" />

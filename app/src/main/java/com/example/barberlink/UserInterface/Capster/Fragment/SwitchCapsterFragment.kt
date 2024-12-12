@@ -1,10 +1,7 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
-import BundlingPackage
-import Employee
-import Outlet
-import Service
 import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -19,7 +16,11 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentSwitchQueueBinding
@@ -67,10 +68,20 @@ class SwitchCapsterFragment : DialogFragment() {
         super.onCreate(savedInstanceState)
         arguments?.let {
             currentReservation = it.getParcelable(ARG_PARAM1)
-            serviceList = it.getParcelableArrayList(ARG_PARAM2)
-            bundlingList = it.getParcelableArrayList(ARG_PARAM3)
-            capsterData = it.getParcelable(ARG_PARAM4)
+            val dataListService: ArrayList<Service> = it.getParcelableArrayList(ARG_PARAM2) ?: arrayListOf()
+            val dataListBundling: ArrayList<BundlingPackage> = it.getParcelableArrayList(ARG_PARAM3) ?: arrayListOf()
+            val userData: Employee = it.getParcelable(ARG_PARAM4) ?: Employee()
             outletSelected = it.getParcelable(ARG_PARAM5)
+
+            duplicateReservation = currentReservation?.deepCopy(
+                copyCustomerDetail = false,
+                copyCustomerWithAppointment = false,
+                copyCustomerWithReservation = false
+            )
+            val (copiedServices, copiedBundlings) = createDeepCopy(dataListService, dataListBundling)
+            serviceList = copiedServices as ArrayList<Service>
+            bundlingList = copiedBundlings as ArrayList<BundlingPackage>
+            capsterData = userData.deepCopy(false)
         }
 
         context = requireContext()
@@ -87,56 +98,24 @@ class SwitchCapsterFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        setBtnNextToDisableState()
         binding.tvEmployeeName.isSelected = true
-        duplicateReservation = currentReservation?.copy()
+        Toast.makeText(context, "Pilih capster pengganti melalui Dropdown yang tersedia", Toast.LENGTH_SHORT).show()
+        binding.acCapsterName.setText(capsterData?.fullname, false)
+
+        Log.d("SwitchTagFragment", "TT Current Reservation: $currentReservation")
         priceBeforeChange = currentReservation?.paymentDetail?.finalPrice ?: 0
+        priceAfterChange = currentReservation?.paymentDetail?.finalPrice ?: 0
+        Log.d("SwitchTagFragment", "TT Price Before Change: $priceBeforeChange || Price After Change: $priceAfterChange")
         capsterData?.let {
             initialUidCapster = it.uid
             displayCapsterData(it)
         }
         getCapsterData()
+        setEstimatePriceChange()
 
         binding.switchAdjustPrice.setOnCheckedChangeListener { _, isChecked: Boolean ->
-            if (isChecked) {
-                val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), capsterData?.uid ?: "All")
-
-                accumulatedItemPrice = bundlingList?.sumOf { it.bundlingQuantity * it.priceToDisplay }?.let {result ->
-                    serviceList?.sumOf { it.serviceQuantity * it.priceToDisplay }
-                        ?.plus(result)
-                } ?: 0
-
-                priceAfterChange = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
-
-                duplicateReservation?.apply {
-                    capsterInfo.shareProfit = totalShareProfit.toInt()
-                    paymentDetail.subtotalItems = accumulatedItemPrice
-                    paymentDetail.finalPrice = priceAfterChange
-                }
-
-            } else {
-                priceAfterChange = currentReservation?.paymentDetail?.finalPrice ?: 0
-
-                duplicateReservation?.apply {
-                    capsterInfo.shareProfit = currentReservation?.capsterInfo?.shareProfit ?: 0
-                    paymentDetail.subtotalItems = currentReservation?.paymentDetail?.subtotalItems ?: 0
-                    paymentDetail.finalPrice = currentReservation?.paymentDetail?.subtotalItems ?: 0
-                }
-            }
-
-            binding.apply {
-                cvArrowIncrease.visibility = if (priceBeforeChange != priceAfterChange) View.VISIBLE else View.GONE
-                tvPriceAfter.visibility = if (priceBeforeChange != priceAfterChange) View.VISIBLE else View.GONE
-
-                if (priceBeforeChange == priceAfterChange) {
-                    tvPriceBefore.text = getString(R.string.no_price_change_text)
-                    tvPriceBefore.setTextColor(root.context.resources.getColor(R.color.magenta))
-                } else {
-                    tvPriceBefore.text = NumberUtils.numberToCurrency(priceBeforeChange.toDouble())
-                    tvPriceBefore.setTextColor(root.context.resources.getColor(R.color.black_font_color))
-                    tvPriceAfter.text = NumberUtils.numberToCurrency(priceAfterChange.toDouble())
-                    tvPriceAfter.setTextColor(root.context.resources.getColor(R.color.green_btn))
-                }
-            }
+            setReservationDataChange(isChecked)
         }
 
         binding.btnSaveChanges.setOnClickListener {
@@ -144,8 +123,88 @@ class SwitchCapsterFragment : DialogFragment() {
                 "new_reservation_data" to duplicateReservation,
                 "is_delete_data_reservation" to (capsterData?.uid != initialUidCapster)
             ))
+
+            dismiss()
+            parentFragmentManager.popBackStack()
         }
 
+    }
+
+    private fun createDeepCopy(
+        serviceList: List<Service>,
+        bundlingList: List<BundlingPackage>
+    ): Pair<List<Service>, List<BundlingPackage>> {
+        val copiedServices = serviceList.map { it.copy() }
+        val copiedBundlings = bundlingList.map { it.copy() }
+        return Pair(copiedServices, copiedBundlings)
+    }
+
+    private fun setReservationDataChange(isChecked: Boolean) {
+        if (isChecked) {
+            val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), capsterData?.uid ?: "All")
+
+            accumulatedItemPrice = bundlingList?.sumOf { it.bundlingQuantity * it.priceToDisplay }?.let {result ->
+                serviceList?.sumOf { it.serviceQuantity * it.priceToDisplay }
+                    ?.plus(result)
+            } ?: 0
+
+            priceAfterChange = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+
+            duplicateReservation?.apply {
+                capsterInfo.shareProfit = totalShareProfit.toInt()
+                paymentDetail.subtotalItems = accumulatedItemPrice
+                paymentDetail.finalPrice = priceAfterChange
+            }
+
+        } else {
+            priceAfterChange = currentReservation?.paymentDetail?.finalPrice ?: 0
+
+            duplicateReservation?.apply {
+                capsterInfo.shareProfit = currentReservation?.capsterInfo?.shareProfit ?: 0
+                paymentDetail.subtotalItems = currentReservation?.paymentDetail?.subtotalItems ?: 0
+                paymentDetail.finalPrice = currentReservation?.paymentDetail?.subtotalItems ?: 0
+            }
+        }
+
+        duplicateReservation?.dontAdjustFee = !isChecked
+
+        Log.d("SwitchTagFragment", "Price Before Change: $priceBeforeChange || Price After Change: $priceAfterChange")
+        setEstimatePriceChange()
+    }
+
+    private fun setEstimatePriceChange() {
+        binding.apply {
+            cvArrowIncrease.visibility = if (priceBeforeChange != priceAfterChange) View.VISIBLE else View.GONE
+            tvPriceAfter.visibility = if (priceBeforeChange != priceAfterChange) View.VISIBLE else View.GONE
+
+            if (priceBeforeChange == priceAfterChange) {
+                tvPriceBefore.text = getString(R.string.no_price_change_text)
+                tvPriceBefore.setTextColor(root.context.resources.getColor(R.color.magenta))
+            } else {
+                tvPriceBefore.text = NumberUtils.numberToCurrency(priceBeforeChange.toDouble())
+                tvPriceBefore.setTextColor(root.context.resources.getColor(R.color.black_font_color))
+                tvPriceAfter.text = NumberUtils.numberToCurrency(priceAfterChange.toDouble())
+                tvPriceAfter.setTextColor(root.context.resources.getColor(R.color.green_btn))
+            }
+        }
+    }
+
+    private fun setBtnNextToDisableState() {
+        with(binding) {
+            btnSaveChanges.isEnabled = false
+            btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
+            btnSaveChanges.setTypeface(null, Typeface.NORMAL)
+            btnSaveChanges.setTextColor(resources.getColor(R.color.white))
+        }
+    }
+
+    private fun setBtnNextToEnableState() {
+        with(binding) {
+            btnSaveChanges.isEnabled = true
+            btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
+            btnSaveChanges.setTypeface(null, Typeface.BOLD)
+            btnSaveChanges.setTextColor(resources.getColor(R.color.green_lime_wf))
+        }
     }
 
     private fun getCapsterData() {
@@ -155,6 +214,8 @@ class SwitchCapsterFragment : DialogFragment() {
                 Toast.makeText(context, "Anda belum menambahkan daftar capster untuk outlet", Toast.LENGTH_SHORT).show()
                 return
             }
+
+            Log.d("SwitchTagFragment", "Outlet: ${outlet.rootRef}/divisions/capster/employees")
 
             // Ambil data awal
             db.document(outlet.rootRef)
@@ -168,13 +229,15 @@ class SwitchCapsterFragment : DialogFragment() {
                             document.toObject(Employee::class.java).apply {
                                 userRef = document.reference.path
                                 outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                            }.takeIf { it.uid in employeeUidList }
+                            }.takeIf {
+                                it.uid in employeeUidList
+                            }
                         }
 
                         withContext(Dispatchers.Main) {
                             capsterList.clear()
                             capsterList.addAll(newCapsterList)
-                            if (capsterList.isEmpty()) {
+                            if (newCapsterList.isNotEmpty()) {
                                 setupDropdownCapster()
                             } else {
                                 Toast.makeText(context, "Tidak ditemukan data capster yang sesuai", Toast.LENGTH_SHORT).show()
@@ -209,12 +272,22 @@ class SwitchCapsterFragment : DialogFragment() {
                 displayCapsterData(it)
                 adjustOrderItemData(serviceList ?: emptyList(), bundlingList ?: emptyList(), it.uid)
 
+                if (initialUidCapster != it.uid) {
+                    setBtnNextToEnableState()
+                    Toast.makeText(context, "Anda memilih ${it.fullname} sebagai capster penganti.", Toast.LENGTH_SHORT).show()
+                } else {
+                    setBtnNextToDisableState()
+                    Toast.makeText(context, "Anda tidak dapat memilih diri Anda sendiri sebagai capster penganti.", Toast.LENGTH_SHORT).show()
+                }
+
                 duplicateReservation?.apply {
                     capsterInfo.capsterName = it.fullname
                     capsterInfo.capsterRef = it.userRef
                     capsterInfo.shareProfit = this.capsterInfo.shareProfit
                 }
                 capsterData = it
+
+                setReservationDataChange(binding.switchAdjustPrice.isChecked)
             }
         }
     }
@@ -236,6 +309,7 @@ class SwitchCapsterFragment : DialogFragment() {
             } else {
                 bundling.packagePrice
             }
+            Log.d("CheckAdapter", "Service Data: ${bundling.packageName} - ${bundling.bundlingQuantity} - ${bundling.priceToDisplay}")
         }
 
         serviceList.onEach { service ->
@@ -250,6 +324,7 @@ class SwitchCapsterFragment : DialogFragment() {
             } else {
                 service.servicePrice
             }
+            Log.d("CheckAdapter", "Service Data: ${service.serviceName} - ${service.serviceQuantity} - ${service.priceToDisplay}")
         }
 
     }

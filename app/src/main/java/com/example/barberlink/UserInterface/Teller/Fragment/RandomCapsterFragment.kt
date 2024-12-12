@@ -1,6 +1,5 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
-import Employee
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -9,6 +8,7 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.databinding.FragmentRandomCapsterBinding
 
 // TODO: Rename parameter arguments, choose names that match
