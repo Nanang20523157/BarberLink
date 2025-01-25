@@ -46,8 +46,15 @@ class ConfirmQueueFragment : DialogFragment() {
     private var isCapitalAmountValid = false
     private var finalCashBackAmount: String = ""
     private var userInputAmount: String = "0"
+    private var currentSnackbar: Snackbar? = null
 
     private val binding get() = _binding!!
+//    private lateinit var sessionDelegate: FragmentSessionDelegate
+
+//    override fun onAttach(context: Context) {
+//        super.onAttach(context)
+//        sessionDelegate = FragmentSessionDelegate(context)
+//    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +65,21 @@ class ConfirmQueueFragment : DialogFragment() {
 
         context = requireContext()
     }
+
+//    override fun onStart() {
+//        BarberLinkApp.sessionManager.setActivePage("Employee")
+//        super.onStart()
+//        sessionDelegate.checkSession {
+//            handleSessionExpired()
+//        }
+//    }
+
+//    private fun handleSessionExpired() {
+//        dismiss()
+//        parentFragmentManager.popBackStack()
+//
+//        sessionDelegate.handleSessionExpired(context, SelectUserRolePage::class.java)
+//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -93,10 +115,11 @@ class ConfirmQueueFragment : DialogFragment() {
 
                     if (formattedAmount != null) {
                         setFragmentResult(
-                            "cash_back_result_data",
+                            "confirm_result_data",
                             bundleOf(
                                 "user_payment_amount" to NumberUtils.numberToCurrency(formattedAmount.toDouble()), // Nilai uang yang dibayar
-                                "cash_back_amount" to finalCashBackAmount // Nilai uang kembalian
+                                "cash_back_amount" to finalCashBackAmount, // Nilai uang kembalian
+                                "dismiss_dialog" to true
                             )
                         )
                     }
@@ -108,6 +131,10 @@ class ConfirmQueueFragment : DialogFragment() {
         }
 
         binding.btnNo.setOnClickListener {
+            setFragmentResult("action_dismiss_dialog", bundleOf(
+                "dismiss_dialog" to true
+            ))
+
             dismiss()
             parentFragmentManager.popBackStack()
         }
@@ -246,17 +273,21 @@ class ConfirmQueueFragment : DialogFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+
+        currentSnackbar?.dismiss()
     }
 
     private fun showSnackBar(eventMessage: Event<String>) {
         val message = eventMessage.getContentIfNotHandled() ?: return
-        Snackbar.make(
+        currentSnackbar = Snackbar.make(
             binding.rlConfirmFragment,
             message,
             Snackbar.LENGTH_LONG
         ).setAction("Replace") {
             binding.etMoneyAmount.setText(confirmQueueViewModel.capitalAmount.value?.getContentIfNotHandled())
-        }.show()
+        }
+
+        currentSnackbar?.show()
     }
 
     companion object {

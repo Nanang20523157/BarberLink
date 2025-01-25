@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.R
 import com.example.barberlink.Utils.CodeGeneratorUtils
 import com.example.barberlink.Utils.CopyUtils
@@ -25,13 +26,15 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 
 class ItemListOutletAdapter(
+    private val vegaManager: VegaLayoutManager,
     private val itemClicked: OnItemClicked,
     private val listener: OnQueueResetListener
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
     private var isShimmer = true
-    private val shimmerItemCount = 2
+    private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+    private var isRestoring = false
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
     interface OnQueueResetListener {
@@ -115,6 +118,7 @@ class ItemListOutletAdapter(
             val reviewCount = 2134
 
             with(binding) {
+                Log.d("TestCLickMore", "Check ${binding.root.height}")
                 tvOutletName.text = outlet.outletName
                 tvOutletName.isSelected = true
 
@@ -130,6 +134,8 @@ class ItemListOutletAdapter(
                     tvStatusActive.setTextColor(root.context.getColor(R.color.magenta))
                 }
 
+                clCodeAccess.visibility = if (outlet.isCollapseCard) View.GONE else View.VISIBLE
+
                 setButtonAccessCode(outlet.outletAccessCode, outlet.lastUpdated, binding)
                 setStatusOutlet(outlet.openStatus, binding)
 
@@ -144,6 +150,13 @@ class ItemListOutletAdapter(
                 }
 
                 switch2.setOnCheckedChangeListener { _, isChecked ->
+                    // Jika sedang dalam proses restore, abaikan listener
+                    if (isRestoring) return@setOnCheckedChangeListener
+//                    outlet.openStatus = isChecked
+//                    recyclerView?.post {
+//                        notifyItemChanged(adapterPosition)
+//                    }
+
                     // Jika kondisi di atas tidak terpenuhi, lanjutkan ke fungsi berikutnya
                     setStatusOutlet(isChecked, binding)
                     var skip = false
@@ -165,11 +178,10 @@ class ItemListOutletAdapter(
 
                     // save data
                     if (!skip) {
-                        Log.d("UpdateOutletStatus", "Update 156 True")
+                        Log.d("TestCLickMore", "Update 156 $isChecked")
                         updateOutletStatus(outlet, isChecked, binding)
                     }
                 }
-
 
                 btnCopyCode.setOnClickListener {
                     // Generate or revoke code access
@@ -190,8 +202,26 @@ class ItemListOutletAdapter(
                     Toast.makeText(it.context, "View detail feature is under development...", Toast.LENGTH_SHORT).show()
                 }
 
+                if (!outlet.isCollapseCard) {
+                    btnMore.startAnimation(
+                        RotateAnimation(
+                        0f, 180f,
+                        Animation.RELATIVE_TO_SELF, 0.5f,
+                        Animation.RELATIVE_TO_SELF, 0.5f
+                    ).apply {
+                        duration = 0
+                        fillAfter = true
+                    })
+                }
+
                 btnMore.setOnClickListener {
-                    val rotateAnimation = if (outlet.isCollapseCard) {
+                    itemClicked.onItemClickListener(outlet)
+                    outlet.isCollapseCard = !outlet.isCollapseCard
+                    val isCollapse = outlet.isCollapseCard
+                    clCodeAccess.visibility = if (!isCollapse) View.VISIBLE else View.GONE
+
+                    val rotateAnimation = if (!isCollapse) {
+                        Log.d("AnimationMore", "Update 180 True")
                         RotateAnimation(
                             0f, 180f,
                             Animation.RELATIVE_TO_SELF, 0.5f,
@@ -201,6 +231,7 @@ class ItemListOutletAdapter(
                             fillAfter = true
                         }
                     } else {
+                        Log.d("AnimationMore", "Update 180 False")
                         RotateAnimation(
                             180f, 0f,
                             Animation.RELATIVE_TO_SELF, 0.5f,
@@ -213,9 +244,11 @@ class ItemListOutletAdapter(
 
                     btnMore.startAnimation(rotateAnimation)
 
-                    clCodeAccess.visibility = if (outlet.isCollapseCard) View.VISIBLE else View.GONE
-                    outlet.isCollapseCard = !outlet.isCollapseCard
-                    itemClicked.onItemClickListener(outlet)
+                    val newHeight = getRootHeight(binding)
+                    Log.d("TestCLickMore", "OriginalHeight ${binding.root.height} || New Height: $newHeight")
+
+                    vegaManager.setItemExpanded(adapterPosition, !isCollapse, newHeight) // <-- Panggil fungsi ini
+
                 }
 
                 btnGenerateCode.setOnClickListener {
@@ -243,10 +276,20 @@ class ItemListOutletAdapter(
     }
 
     fun restoreSwitchStatus(index: Int) {
+        Log.d("TestCLickMore", "Restore 156 True")
         val outlet = getItem(index)
         val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
         if (binding != null) {
+            // Tandai proses restore sedang berlangsung
+            isRestoring = true
+
+            // Update status switch
             setStatusOutlet(outlet.openStatus, binding)
+
+            // Berikan sedikit delay untuk memastikan UI selesai diperbarui sebelum mengembalikan listener
+            binding.switch2.post {
+                isRestoring = false
+            }
         }
     }
 
@@ -258,6 +301,17 @@ class ItemListOutletAdapter(
         }
     }
 
+    private fun getRootHeight(binding: ItemListManageOutletAdapterBinding): Int {
+        // Hitung tinggi binding.root secara manual
+        // Ukur binding.root menggunakan pengaturan yang sama seperti RecyclerView
+        binding.root.measure(
+            View.MeasureSpec.makeMeasureSpec(binding.root.width, View.MeasureSpec.EXACTLY), // Pakai lebar yang ada
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED) // Tinggi tidak terbatas
+        )
+        Log.d("TestCLickMore", "New 1: ${binding.root.measuredHeight}")
+        return binding.root.measuredHeight
+    }
+
     private fun updateOutletStatus(outlet: Outlet, isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {
         val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
 
@@ -265,13 +319,22 @@ class ItemListOutletAdapter(
         val updatedCurrentQueue = if (isOpen) outlet.currentQueue ?: emptyMap()
         else outlet.currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
 
+        Log.d("IsOpen", "outlet: ${outlet.openStatus} || isOpen: $isOpen || updatedCurrentQueue: ${updatedCurrentQueue}")
+
         // Update the outlet status and current queue in Firestore
         outletRef.update(mapOf(
             "open_status" to isOpen,
-            "current_queue" to updatedCurrentQueue // Update currentQueue to all "00"
+            "current_queue" to updatedCurrentQueue, // Update currentQueue to all "00"
+            "timestamp_modify" to Timestamp.now()
         ))
             .addOnSuccessListener {
-                if (isOpen != outlet.openStatus) Toast.makeText(binding.root.context, "Outlet status updated", Toast.LENGTH_SHORT).show()
+                // Jika sama berarti berhasil diubah
+                if (isOpen == outlet.openStatus) {
+                    Toast.makeText(binding.root.context, "Outlet status updated", Toast.LENGTH_SHORT).show()
+                    Log.d("IsOpen", "Show Toast")
+                } else {
+                    Log.d("IsOpen", "No Toast")
+                }
             }
             .addOnFailureListener { e ->
                 Toast.makeText(binding.root.context, "Failed to update status: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -308,7 +371,7 @@ class ItemListOutletAdapter(
             } else {
                 // Outlet is closed
                 tvStatusOutlet.text = root.context.getString(R.string.close_state_label_switch)
-                tvOpenStateLabel.text = root.context.getString(R.string.open_state_label_switch)
+                tvOpenStateLabel.text = root.context.getString(R.string.close_state_label_switch)
 
                 tvStatusOutlet.background = AppCompatResources.getDrawable(
                     root.context,

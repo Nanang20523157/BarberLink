@@ -56,7 +56,7 @@ class ItemListServiceBookingAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val service = getItem(position)
-            (holder as ItemViewHolder).bind(service, position)
+            (holder as ItemViewHolder).bind(service)
         }
     }
 
@@ -104,7 +104,7 @@ class ItemListServiceBookingAdapter(
     inner class ItemViewHolder(private val binding: ItemListServiceBookingAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(service: Service, position: Int) {
+        fun bind(service: Service) {
             with (binding) {
                 tvFeeCapsterInfo.isSelected = true
                 price.isSelected = true
@@ -126,24 +126,33 @@ class ItemListServiceBookingAdapter(
                 btnDefault.visibility = if (service.defaultItem) View.VISIBLE else View.GONE
 
                 btnSelectOrder.setOnClickListener {
-                    service.serviceQuantity = 1
-                    notifyItemChanged(position)
-                    itemClicked.onItemClickListener(service, position, addCount = true)
+                     service.serviceQuantity = 1
+                     notifyItemChanged(adapterPosition)
+//                    val updatedService = service.copy(serviceQuantity = 1)
+//                    val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
+//                    submitList(updatedList)
+                    itemClicked.onItemClickListener(service, adapterPosition, addCount = true)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
-                    service.serviceQuantity++
-                    notifyItemChanged(position)
-                    itemClicked.onItemClickListener(service, position, addCount = true)
+                     service.serviceQuantity++
+                     notifyItemChanged(adapterPosition)
+//                    val updatedService = service.copy(serviceQuantity = service.serviceQuantity + 1)
+//                    val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
+//                    submitList(updatedList)
+                    itemClicked.onItemClickListener(service, adapterPosition, addCount = true)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
                 minusButton.setOnClickListener {
                     if (service.serviceQuantity > 0) {
-                        service.serviceQuantity--
-                        notifyItemChanged(position)
-                        itemClicked.onItemClickListener(service, position, addCount = false)
+                         service.serviceQuantity--
+                         notifyItemChanged(adapterPosition)
+//                        val updatedService = service.copy(serviceQuantity = service.serviceQuantity - 1)
+//                        val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
+//                        submitList(updatedList)
+                        itemClicked.onItemClickListener(service, adapterPosition, addCount = false)
                     }
                 }
 

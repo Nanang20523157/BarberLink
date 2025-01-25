@@ -1,10 +1,16 @@
 package com.example.barberlink.Adapter
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat.getColor
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.OnLifecycleEvent
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -16,13 +22,27 @@ import com.example.barberlink.databinding.ItemListNumberQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListNumberQueueBinding
 
 class ItemListCollapseQueueAdapter(
-    private val itemClicked: OnItemClicked
-) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
+    private val itemClicked: OnItemClicked,
+    private val lifecycleOwner: LifecycleOwner
+) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()), LifecycleObserver {
     private var isShimmer = true
     private val shimmerItemCount = 4
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var blockAllUserClickAction: Boolean = false
+
+    private var isDestroyed = false
+    private val handler = Handler(Looper.getMainLooper())
+
+    init {
+        lifecycleOwner.lifecycle.addObserver(this)
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+    fun onDestroy() {
+        isDestroyed = true
+        handler.removeCallbacksAndMessages(null) // Hentikan semua callback
+    }
 
     fun setlastScrollPosition(position: Int) {
         this.lastScrollPosition = position
@@ -105,6 +125,57 @@ class ItemListCollapseQueueAdapter(
             }
         }
 
+    }
+
+    fun letScrollToLastPosition() {
+        Log.d("ObjectReferences", "ItemListCollapseQueueAdapter >>>>>>>>")
+        // Log apakah recyclerView null
+        if (recyclerView == null) {
+            Log.e("ObjectReferences", "recyclerView is null")
+        } else {
+            Log.d("ObjectReferences", "recyclerView is not null")
+        }
+
+        waitForRecyclerView {
+            val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+            recyclerView?.post {
+                val itemCount = recyclerView?.adapter?.itemCount ?: 0
+                val positionToScroll = if (isShimmer) {
+                    minOf(lastScrollPosition, shimmerItemCount - 1)
+                } else {
+                    lastScrollPosition
+                }
+
+                // Validasi posisi target
+                if (positionToScroll in 0 until itemCount) {
+                    Log.d("ObjectReferences", "adapter: $lastScrollPosition")
+                    layoutManager?.scrollToPosition(positionToScroll)
+                } else {
+                    // Log untuk debugging
+                    Log.e("ObjectReferences", "Invalid target position: $positionToScroll, itemCount: $itemCount")
+                }
+            }
+        }
+
+    }
+
+    fun waitForRecyclerView(action: () -> Unit) {
+        val checkInterval = 50L
+
+        handler.post(object : Runnable {
+            override fun run() {
+                if (isDestroyed) {
+                    handler.removeCallbacks(this)
+                    return
+                }
+
+                if (recyclerView != null) {
+                    action()
+                } else {
+                    handler.postDelayed(this, checkInterval)
+                }
+            }
+        })
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :

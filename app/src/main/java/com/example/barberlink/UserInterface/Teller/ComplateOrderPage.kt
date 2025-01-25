@@ -6,22 +6,24 @@ import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.animation.AnimationUtils
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.barberlink.DataClass.Reservation
-import com.example.barberlink.Helper.DisplaySetting
 import com.example.barberlink.Helper.Injection
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
-import com.example.barberlink.UserInterface.Teller.ViewModel.SharedViewModel
+import com.example.barberlink.UserInterface.Teller.ViewModel.SharedDataViewModel
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityComplateOrderPageBinding
 
 class ComplateOrderPage : AppCompatActivity() {
     private lateinit var binding: ActivityComplateOrderPageBinding
     private lateinit var userReservationData: Reservation
-    private lateinit var complatePageViewModel: SharedViewModel
+    private lateinit var complatePageViewModel: SharedDataViewModel
     private lateinit var viewModelFactory: ViewModelFactory
     // private val servicesList = mutableListOf<Service>()
     // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
@@ -30,19 +32,35 @@ class ComplateOrderPage : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivityComplateOrderPageBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
         viewModelFactory = Injection.provideViewModelFactory()
         complatePageViewModel = ViewModelProvider(
             this,
             viewModelFactory
-        )[SharedViewModel::class.java]
+        )[SharedDataViewModel::class.java]
 
-        userReservationData = intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, Reservation::class.java) ?: Reservation()
+        @Suppress("DEPRECATION")
+        userReservationData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, Reservation::class.java) ?: Reservation()
+        } else {
+            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA) ?: Reservation()
+        }
 //        intent.getParcelableArrayListExtra(ReviewOrderPage.SERVICE_DATA_KEY, Service::class.java)?.let {
 //            servicesList.addAll(it)
 //        }
@@ -52,10 +70,22 @@ class ComplateOrderPage : AppCompatActivity() {
 
         setupView()
         binding.realLayout.btnNavigateToHomePage.setOnClickListener {
-            navigatePage(this@ComplateOrderPage, QueueTrackerPage::class.java, binding.realLayout.btnNavigateToHomePage)
+            navigatePage(this@ComplateOrderPage, QueueTrackerPage::class.java, it)
         }
 
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+    }
+
+//    @RequiresApi(Build.VERSION_CODES.S)
+//    override fun onResume() {
+//        super.onResume()
+//        // Set sudut dinamis sesuai perangkat
+//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+//    }
 
     private fun setupView() {
         binding.apply {
@@ -88,35 +118,35 @@ class ComplateOrderPage : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val data = userReservationData.capsterInfo.capsterName.ifEmpty { "All" }
-            val intent = Intent(context, destination).apply {
-                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-                putExtra(CAPSTER_NAME_KEY, data)
-            }
-            startActivity(intent)
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val data = userReservationData.capsterInfo.capsterName.ifEmpty { "All" }
+                val intent = Intent(context, destination).apply {
+//                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    putExtra(CAPSTER_NAME_KEY, data)
+                }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
 //            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-            finish()
-            complatePageViewModel.clearAllData()
-        } else return
+                finish()
+                complatePageViewModel.clearAllData()
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        super.onBackPressed()
-        val data = userReservationData.capsterInfo.capsterName.ifEmpty { "All" }
-        val intent = Intent(this@ComplateOrderPage, QueueTrackerPage::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            putExtra(CAPSTER_NAME_KEY, data)
+        if (isNavigating) super.onBackPressed()
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            navigatePage(this@ComplateOrderPage, QueueTrackerPage::class.java, binding.realLayout.btnNavigateToHomePage)
         }
-        startActivity(intent)
-//        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-        finish()
-        complatePageViewModel.clearAllData()
     }
 
     companion object {

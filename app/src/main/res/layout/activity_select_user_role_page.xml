@@ -1,248 +1,274 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:context=".UserInterface.SignIn.Gateway.SelectUserRolePage">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/main_content"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
-            android:id="@+id/backgroundStatusBar"
-            android:layout_width="match_parent"
-            android:layout_height="25dp"
-            android:alpha="1"
-            android:background="@color/white"
-            android:orientation="horizontal" />
-
-        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="16dp">
+            android:orientation="vertical">
 
-            <!-- Back Button -->
-            <ImageView
-                android:id="@+id/ivBack"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_alignParentStart="true"
-                android:layout_marginTop="16dp"
-                android:layout_marginStart="10dp"
-                android:src="@drawable/ic_back"
-                android:contentDescription="@string/icon_back_button_desc" />
+            <!--        <LinearLayout-->
+            <!--            android:id="@+id/backgroundStatusBar"-->
+            <!--            android:layout_width="match_parent"-->
+            <!--            android:layout_height="25dp"-->
+            <!--            android:alpha="1"-->
+            <!--            android:background="@color/white"-->
+            <!--            android:orientation="horizontal" />-->
 
-            <!-- Title -->
-            <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="16dp"
-                android:text="@string/toolbar_select_role_page"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#000000" />
-
-            <LinearLayout
-                android:id="@+id/mainContent"
-                android:layout_marginTop="25dp"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@id/tvTitle"
-                android:orientation="vertical">
+                android:layout_height="wrap_content">
 
-                <!-- Greeting Message -->
-                <TextView
-                    android:id="@+id/greeting"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/welcome_in_select_role"
-                    android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:layout_marginStart="13dp"
-                    android:textColor="@android:color/black"
-                    android:layout_marginBottom="5dp" />
+                <androidx.core.widget.NestedScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fillViewport="true">
 
-                <TextView
-                    android:id="@+id/instruction"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/instructions_guide"
-                    android:fontFamily="@font/arial_medium"
-                    android:textSize="14sp"
-                    android:textColor="@color/black_font_color"
-                    android:layout_marginStart="13dp"
-                    android:layout_marginBottom="40dp" />
-
-                <!-- Role Option: Owner/Admin -->
-                <LinearLayout
-                    android:id="@+id/btnAdminOwner"
-                    android:layout_width="135dp"
-                    android:layout_height="160dp"
-                    android:orientation="vertical"
-                    android:layout_gravity="center_horizontal"
-                    android:background="@drawable/role_background"
-                    android:padding="16dp"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center">
-
-                    <ImageView
-                        android:id="@+id/owner_admin_image"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:src="@drawable/back_to_back_owner"
-                        android:contentDescription="@string/image_owner_ilustration_desc" />
-
-                    <TextView
-                        android:id="@+id/owner_admin_label"
+                    <RelativeLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/btn_select_owner_admin"
-                        android:gravity="center"
-                        android:paddingVertical="6dp"
-                        android:paddingHorizontal="12dp"
-                        android:background="@drawable/role_teks_background"
-                        android:textSize="11sp"
-                        android:fontFamily="@font/outfit_bold"
-                        android:textColor="@android:color/black"
-                        android:layout_marginTop="-6dp" />
-                </LinearLayout>
+                        android:paddingTop="10dp"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="16dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false">
 
-                <!-- Divider -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/or"
-                    android:textSize="14sp"
-                    android:fontFamily="@font/outfit_regular"
-                    android:textColor="@color/black_font_color"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="8dp" />
+                        <!-- Back Button -->
+                        <ImageView
+                            android:id="@+id/ivBack"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_alignParentStart="true"
+                            android:layout_marginStart="10dp"
+                            android:src="@drawable/ic_back"
+                            android:contentDescription="@string/icon_back_button_desc" />
 
-                <!-- Role Option: Pegawai/Capster -->
-                <LinearLayout
-                    android:id="@+id/btnPegawai"
-                    android:layout_width="135dp"
-                    android:layout_height="160dp"
-                    android:orientation="vertical"
-                    android:layout_gravity="center_horizontal"
-                    android:background="@drawable/role_background"
-                    android:padding="16dp"
-                    android:layout_marginBottom="8dp"
-                    android:gravity="center">
+                        <!-- Title -->
+                        <TextView
+                            android:id="@+id/tvTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_centerHorizontal="true"
+                            android:text="@string/toolbar_select_role_page"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="#000000" />
 
-                    <ImageView
-                        android:id="@+id/pegawai_capster_image"
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:src="@drawable/female_hairdresser_team"
-                        android:contentDescription="@string/image_capster_ilustration_desc" />
+                        <LinearLayout
+                            android:id="@+id/mainContent"
+                            android:layout_marginTop="25dp"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_below="@id/tvTitle"
+                            android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/pegawai_capster_label"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/btn_select_employee"
-                        android:gravity="center"
-                        android:paddingVertical="6dp"
-                        android:paddingHorizontal="12dp"
-                        android:background="@drawable/role_teks_background"
-                        android:textSize="11sp"
-                        android:fontFamily="@font/outfit_bold"
-                        android:textColor="@android:color/black"
-                        android:layout_marginTop="-4.5dp" />
-                </LinearLayout>
+                            <!-- Greeting Message -->
+                            <TextView
+                                android:id="@+id/greeting"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/welcome_in_select_role"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:layout_marginStart="13dp"
+                                android:textColor="@android:color/black"
+                                android:layout_marginBottom="5dp" />
 
-                <!-- Divider -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/or"
-                    android:textSize="14sp"
-                    android:fontFamily="@font/outfit_regular"
-                    android:textColor="@color/black_font_color"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="8dp" />
+                            <TextView
+                                android:id="@+id/instruction"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/instructions_guide"
+                                android:fontFamily="@font/arial_medium"
+                                android:textSize="14sp"
+                                android:textColor="@color/black_font_color"
+                                android:layout_marginStart="13dp"
+                                android:layout_marginBottom="40dp" />
 
-                <!-- Role Option: Kasir/Teller -->
-                <LinearLayout
-                    android:id="@+id/btnKasirTeller"
-                    android:layout_width="135dp"
-                    android:layout_height="160dp"
-                    android:orientation="vertical"
-                    android:layout_gravity="center_horizontal"
-                    android:background="@drawable/role_background"
-                    android:padding="16dp"
-                    android:layout_marginBottom="30dp"
-                    android:gravity="center">
+                            <!-- Role Option: Owner/Admin -->
+                            <LinearLayout
+                                android:id="@+id/btnAdminOwner"
+                                android:layout_width="135dp"
+                                android:layout_height="160dp"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_horizontal"
+                                android:background="@drawable/role_background"
+                                android:padding="16dp"
+                                android:layout_marginBottom="8dp"
+                                android:gravity="center">
 
-                    <ImageView
-                        android:id="@+id/kasirTellerImage"
-                        android:layout_width="90dp"
-                        android:layout_height="96dp"
-                        android:src="@drawable/steps_by_steps_process"
-                        android:contentDescription="@string/image_teller_ilustration_desc" />
+                                <ImageView
+                                    android:id="@+id/owner_admin_image"
+                                    android:layout_width="100dp"
+                                    android:layout_height="100dp"
+                                    android:src="@drawable/back_to_back_owner"
+                                    android:contentDescription="@string/image_owner_ilustration_desc" />
 
-                    <TextView
-                        android:id="@+id/kasirTellerLabel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/btn_take_number"
-                        android:gravity="center"
-                        android:paddingVertical="6dp"
-                        android:paddingHorizontal="12dp"
-                        android:background="@drawable/role_teks_background"
-                        android:textSize="11sp"
-                        android:fontFamily="@font/outfit_bold"
-                        android:textColor="@android:color/black" />
-                </LinearLayout>
+                                <TextView
+                                    android:id="@+id/owner_admin_label"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/btn_select_owner_admin"
+                                    android:gravity="center"
+                                    android:paddingVertical="6dp"
+                                    android:paddingHorizontal="12dp"
+                                    android:background="@drawable/role_teks_background"
+                                    android:textSize="11sp"
+                                    android:fontFamily="@font/outfit_bold"
+                                    android:textColor="@android:color/black"
+                                    android:layout_marginTop="-6dp" />
+                            </LinearLayout>
 
-            </LinearLayout>
+                            <!-- Divider -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/or"
+                                android:textSize="14sp"
+                                android:fontFamily="@font/outfit_regular"
+                                android:textColor="@color/black_font_color"
+                                android:layout_gravity="center_horizontal"
+                                android:layout_marginBottom="8dp" />
 
-            <!-- Sign Up Button -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="67dp"
-                android:gravity="center_horizontal"
-                android:layout_below="@id/mainContent"
-                android:orientation="horizontal"
-                android:paddingTop="5dp"
-                android:layout_marginBottom="30dp">
+                            <!-- Role Option: Pegawai/Capster -->
+                            <LinearLayout
+                                android:id="@+id/btnPegawai"
+                                android:layout_width="135dp"
+                                android:layout_height="160dp"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_horizontal"
+                                android:background="@drawable/role_background"
+                                android:padding="16dp"
+                                android:layout_marginBottom="8dp"
+                                android:gravity="center">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top|center"
-                    android:fontFamily="@font/arial_medium"
-                    android:text="@string/powered_by_barberlink_inc"
-                    android:textColor="@color/black"
-                    android:gravity="center"
-                    android:layout_marginTop="2dp"
-                    android:textSize="14sp" />
+                                <ImageView
+                                    android:id="@+id/pegawai_capster_image"
+                                    android:layout_width="100dp"
+                                    android:layout_height="100dp"
+                                    android:src="@drawable/female_hairdresser_team"
+                                    android:contentDescription="@string/image_capster_ilustration_desc" />
 
-                <TextView
-                    android:id="@+id/btnSignUp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="top|center"
-                    android:paddingHorizontal="4dp"
-                    android:paddingVertical="10dp"
-                    android:visibility="visible"
-                    android:fontFamily="@font/arial_medium"
-                    android:text="©2024"
-                    android:textColor="@color/green_lime_wf"
-                    android:layout_marginTop="2.5dp"
-                    android:textSize="14sp" />
+                                <TextView
+                                    android:id="@+id/pegawai_capster_label"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/btn_select_employee"
+                                    android:gravity="center"
+                                    android:paddingVertical="6dp"
+                                    android:paddingHorizontal="12dp"
+                                    android:background="@drawable/role_teks_background"
+                                    android:textSize="11sp"
+                                    android:fontFamily="@font/outfit_bold"
+                                    android:textColor="@android:color/black"
+                                    android:layout_marginTop="-4.5dp" />
+                            </LinearLayout>
 
-            </LinearLayout>
+                            <!-- Divider -->
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/or"
+                                android:textSize="14sp"
+                                android:fontFamily="@font/outfit_regular"
+                                android:textColor="@color/black_font_color"
+                                android:layout_gravity="center_horizontal"
+                                android:layout_marginBottom="8dp" />
 
-        </RelativeLayout>
+                            <!-- Role Option: Kasir/Teller -->
+                            <LinearLayout
+                                android:id="@+id/btnKasirTeller"
+                                android:layout_width="135dp"
+                                android:layout_height="160dp"
+                                android:orientation="vertical"
+                                android:layout_gravity="center_horizontal"
+                                android:background="@drawable/role_background"
+                                android:padding="16dp"
+                                android:layout_marginBottom="30dp"
+                                android:gravity="center">
 
+                                <ImageView
+                                    android:id="@+id/kasirTellerImage"
+                                    android:layout_width="90dp"
+                                    android:layout_height="96dp"
+                                    android:src="@drawable/steps_by_steps_process"
+                                    android:contentDescription="@string/image_teller_ilustration_desc" />
 
-    </LinearLayout>
+                                <TextView
+                                    android:id="@+id/kasirTellerLabel"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/btn_take_number"
+                                    android:gravity="center"
+                                    android:paddingVertical="6dp"
+                                    android:paddingHorizontal="12dp"
+                                    android:background="@drawable/role_teks_background"
+                                    android:textSize="11sp"
+                                    android:fontFamily="@font/outfit_bold"
+                                    android:textColor="@android:color/black" />
+                            </LinearLayout>
 
-</androidx.core.widget.NestedScrollView>
+                        </LinearLayout>
+
+                        <!-- Sign Up Button -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="67dp"
+                            android:gravity="center_horizontal"
+                            android:layout_below="@id/mainContent"
+                            android:orientation="horizontal"
+                            android:paddingTop="5dp"
+                            android:layout_marginBottom="30dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="top|center"
+                                android:fontFamily="@font/arial_medium"
+                                android:text="@string/powered_by_barberlink_inc"
+                                android:textColor="@color/black"
+                                android:gravity="center"
+                                android:layout_marginTop="2dp"
+                                android:textSize="14sp" />
+
+                            <TextView
+                                android:id="@+id/btnSignUp"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="top|center"
+                                android:paddingHorizontal="4dp"
+                                android:paddingVertical="10dp"
+                                android:visibility="visible"
+                                android:fontFamily="@font/arial_medium"
+                                android:text="©2024"
+                                android:textColor="@color/green_lime_wf"
+                                android:layout_marginTop="2.5dp"
+                                android:textSize="14sp" />
+
+                        </LinearLayout>
+
+                    </RelativeLayout>
+
+                </androidx.core.widget.NestedScrollView>
+
+            </FrameLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</FrameLayout>
+

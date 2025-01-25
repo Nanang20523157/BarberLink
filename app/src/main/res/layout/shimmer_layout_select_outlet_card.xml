@@ -5,8 +5,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="5dp"
+    android:paddingTop="4dp"
     android:paddingHorizontal="16dp"
+    android:paddingBottom="3dp"
     android:clipToPadding="false"
     android:clipChildren="false">
 
@@ -30,7 +31,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardCornerRadius="20dp"
-            app:cardElevation="1.5dp"
+            app:cardElevation="0.5dp"
             android:backgroundTint="@color/light_grey_horizons_background">
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -203,7 +204,7 @@
                 <TextView
                     android:id="@+id/btnStatusOutlet"
                     android:layout_width="wrap_content"
-                    android:layout_height="25.5dp"
+                    android:layout_height="24.5dp"
                     android:text="@string/btn_select"
                     android:textColor="@color/grey_300"
                     android:textStyle="bold"

@@ -1,9 +1,11 @@
 package com.example.barberlink.Adapter
 
+import android.graphics.Rect
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
@@ -51,6 +53,8 @@ class ItemListCapsterAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val employee = getItem(position)
             (holder as ItemViewHolder).bind(employee)
+
+            holder.checkOverlap()
         }
     }
 
@@ -139,6 +143,38 @@ class ItemListCapsterAdapter(
 //                }
             }
 
+        }
+
+        fun checkOverlap() {
+            binding.root.viewTreeObserver.addOnGlobalLayoutListener(object :
+                ViewTreeObserver.OnGlobalLayoutListener {
+
+                override fun onGlobalLayout() {
+                    val llRatingRect = Rect()
+                    val llRestQueueRect = Rect()
+
+                    // Ambil posisi dan ukuran llRating
+                    binding.llRating.getGlobalVisibleRect(llRatingRect)
+
+                    // Ambil posisi dan ukuran llRestQueueFromCapster
+                    binding.llRestQueueFromCapster.getGlobalVisibleRect(llRestQueueRect)
+
+                    // Periksa apakah kedua view tumpang tindih
+                    val isOverlapping = Rect.intersects(llRatingRect, llRestQueueRect)
+
+                    // Atur visibility berdasarkan hasil pemeriksaan
+                    if (isOverlapping) {
+                        binding.tvRating.visibility = View.GONE
+                    } else {
+                        binding.tvRating.visibility = View.VISIBLE
+                    }
+
+                    Log.d("CheckingOverlap", "isOverlapping: $isOverlapping")
+
+                    // Hapus listener untuk mencegah multiple calls
+                    binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                }
+            })
         }
 
         private fun setUserGender(gender: String) {

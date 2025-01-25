@@ -15,7 +15,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 // TODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
+private const val ARG_PARAM1 = "paymentMethod"
 private const val ARG_PARAM2 = "param2"
 
 /**
@@ -29,7 +29,7 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
     // onDestroyView.
     private val binding get() = _binding!!
     // TODO: Rename and change types of parameters
-    private var param1: String? = null
+//    private var paymentMethod: String? = null
     private var param2: String? = null
     private var selectedPaymentMethod: String? = null
     private lateinit var context: Context
@@ -37,7 +37,7 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
+            selectedPaymentMethod = it.getString(ARG_PARAM1)
             param2 = it.getString(ARG_PARAM2)
         }
 
@@ -55,7 +55,13 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        binding.rbCash.isChecked = true
+
+        // Set radio button berdasarkan selectedPaymentMethod
+        when (selectedPaymentMethod) {
+            "CASH" -> binding.rbCash.isChecked = true
+            "QRIS" -> binding.rbQris.isChecked = true
+            else -> binding.rbCash.isChecked = true // Default ke CASH jika tidak ada pilihan
+        }
 
         binding.ivBack.setOnClickListener {
             dismiss() // Close the dialog when ivBack is clicked
@@ -88,16 +94,16 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
          * Use this factory method to create a new instance of
          * this fragment using the provided parameters.
          *
-         * @param param1 Parameter 1.
+         * @param paymentMethod Parameter 1.
          * @param param2 Parameter 2.
          * @return A new instance of fragment PaymentMethodFragment.
          */
         // TODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(param1: String? = null, param2: String? = null) =
+        fun newInstance(paymentMethod: String, param2: String? = null) =
             PaymentMethodFragment().apply {
                 arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
+                    putString(ARG_PARAM1, paymentMethod)
                     putString(ARG_PARAM2, param2)
                 }
             }

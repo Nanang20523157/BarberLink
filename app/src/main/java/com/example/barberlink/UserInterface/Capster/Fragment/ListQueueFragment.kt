@@ -1,6 +1,7 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
 import android.content.Context
+import android.content.DialogInterface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListExpandQueueAdapter
 import com.example.barberlink.DataClass.Reservation
@@ -16,8 +18,6 @@ import com.example.barberlink.databinding.FragmentListQueueBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -45,6 +45,28 @@ class ListQueueFragment : BottomSheetDialogFragment() {
     private lateinit var behavior: BottomSheetBehavior<View>
     private lateinit var shape: GradientDrawable
 
+//    private lateinit var sessionDelegate: FragmentSessionDelegate
+
+//    override fun onAttach(context: Context) {
+//        super.onAttach(context)
+//        sessionDelegate = FragmentSessionDelegate(context)
+//    }
+
+    interface OnDismissListener {
+        fun onDialogDismissed()
+    }
+
+    private var dismissListener: OnDismissListener? = null
+
+    fun setOnDismissListener(listener: OnDismissListener) {
+        dismissListener = listener
+    }
+
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        dismissListener?.onDialogDismissed()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -54,6 +76,20 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
         context = requireContext()
     }
+
+//    override fun onStart() {
+//        BarberLinkApp.sessionManager.setActivePage("Employee")
+//        super.onStart()
+//        sessionDelegate.checkSession {
+//            handleSessionExpired()
+//        }
+//    }
+
+//    private fun handleSessionExpired() {
+//        dismiss()
+//
+//        sessionDelegate.handleSessionExpired(context, SelectUserRolePage::class.java)
+//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -105,7 +141,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
         // Menggunakan coroutine untuk menunda eksekusi submitList
         reservations?.let {
-            CoroutineScope(Dispatchers.Main).launch {
+            lifecycleScope.launch {
                 // Hitung mundur 800 ms
                 delay(500)
                 // Submit data ke adapter setelah delay

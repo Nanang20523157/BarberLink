@@ -20,11 +20,19 @@
         <action
             android:id="@+id/action_nav_beranda_to_dashboardAdminPage"
             app:destination="@id/dashboardAdminPage"
-            app:launchSingleTop="true" />
+            app:enterAnim="@anim/slide_miximize_in_right"
+            app:exitAnim="@anim/slide_minimize_out_left"
+            app:launchSingleTop="true"
+            app:popEnterAnim="@anim/slide_miximize_in_left"
+            app:popExitAnim="@anim/slide_minimize_out_right" />
         <action
             android:id="@+id/action_nav_beranda_to_manageOutletPage"
             app:destination="@id/manageOutletPage"
-            app:launchSingleTop="true" />
+            app:enterAnim="@anim/slide_miximize_in_right"
+            app:exitAnim="@anim/slide_minimize_out_left"
+            app:launchSingleTop="true"
+            app:popEnterAnim="@anim/slide_miximize_in_left"
+            app:popExitAnim="@anim/slide_minimize_out_right" />
     </fragment>
 
     <activity

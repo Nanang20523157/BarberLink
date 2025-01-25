@@ -294,7 +294,7 @@
     <string name="example_date_value">Kamis, 17 Januari 2020 (20:00 WIB)</string>
     <string name="text_0">0</string>
     <string name="outlet_name_cannot_be_empty">Nama outlet tidak boleh kosong.</string>
-    <string name="outlet_name_was_not_found">Nama outlet tidak tidak ditemukan.</string>
+    <string name="outlet_name_was_not_found">Nama outlet tidak ditemukan.</string>
     <string name="daily_capital_cannot_be_empty">Besaran modal tidak boleh kosong.</string>
     <string name="daily_capital_must_be_a_number">Besaran modal harus berupa angka nominal.</string>
     <string name="example_user_name">Nanang Kurniawan</string>
@@ -425,4 +425,7 @@
     <string name="nav_header_subtitle">android.studio@barberlink.com</string>
     <string name="nav_header_desc">Navigation header</string>
     <string name="menu_beranda">Beranda Page</string>
+    <string name="no_matching_capster_account">Email tidak terdaftar sebagai akun pegawai.</string>
+    <string name="no_matching_owner_account">Email tidak terdaftar sebagai owner barbershop.</string>
+    <string name="rp_15_000">Rp 15.000</string>
 </resources>

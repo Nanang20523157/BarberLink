@@ -19,7 +19,7 @@ class ItemListDestinationAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(DestinationDiffCallback()) {
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
 

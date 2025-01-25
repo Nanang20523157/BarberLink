@@ -2,25 +2,34 @@ package com.example.barberlink.UserInterface.UiDrawer.Fragment.Beranda
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.OrientationEventListener
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
+import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.annotation.RequiresApi
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.marginBottom
 import androidx.core.view.marginEnd
+import androidx.core.view.marginLeft
+import androidx.core.view.marginRight
 import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentTransaction
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -39,9 +48,10 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
-import com.example.barberlink.Helper.DisplaySetting
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Interface.DrawerController
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
 import com.example.barberlink.UserInterface.MainActivity
@@ -55,12 +65,13 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * A simple [Fragment] subclass.
@@ -69,15 +80,16 @@ import kotlinx.coroutines.withContext
  */
 class BerandaAdminFragment : Fragment(), View.OnClickListener {
     private var _binding: FragmentBerandaAdminBinding? = null
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
     private lateinit var navController: NavController
     private lateinit var userAdminData: UserAdminData
     private var userId: String = ""
     private var isNavigating = false
     private var isFirstLoad = true
+    private var remainingListeners = AtomicInteger(6)
     private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
-    private val sessionManager: SessionManager by lazy { SessionManager(context) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private lateinit var serviceAdapter: ItemListServiceProviceAdapter
     private lateinit var employeeAdapter: ItemListEmployeeAdapter
@@ -90,7 +102,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
     private lateinit var outletListener: ListenerRegistration
     private lateinit var barbershopListener: ListenerRegistration
     private var isShimmerVisible: Boolean = false
-    private var isCapitalInputShown = false
+    private var isCapitalInputShow = false
     private var shouldClearBackStack = true
     // Mutex objects for each list to control access
     private val outletsListMutex = Mutex()
@@ -98,6 +110,12 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
     private val bundlingListMutex = Mutex()
     private val employeesListMutex = Mutex()
     private val productsListMutex = Mutex()
+    private var fabHasAnimation: Boolean = false
+    private var isDestroyed = false
+    private var lastPositionServiceAdapter: Int = 0
+    private var lastPositionBundlingAdapter: Int = 0
+    private var lastPositionEmployeeAdapter: Int = 0
+    private var lastPositionProductAdapter: Int = 0
 //    private var currentMonth = GetDateUtils.getCurrentMonthYear(Timestamp.now())
 //    private var todayDate = GetDateUtils.formatTimestampToDate(Timestamp.now())
 
@@ -110,12 +128,12 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
     private val binding get() = _binding!!
     private lateinit var context: Context
 
-    private var listener: SetDialogCapitalStatus? = null
+//    private var listener: SetDialogCapitalStatus? = null
 
-    interface SetDialogCapitalStatus {
-        // Interface For Fragment
-        fun setIsDialogCapitalShow(isShow: Boolean)
-    }
+//    interface SetDialogCapitalStatus {
+//        // Interface For Fragment
+//        fun setIsDialogCapitalShow(isShow: Boolean)
+//    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,6 +144,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
         context = requireContext()
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -134,9 +153,100 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
         return binding.root
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        isCapitalInputShow = savedInstanceState?.getBoolean("is_capital_input_show", false) ?: false
+        shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
+
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, requireContext(), true)
+        WindowInsetsHandler.applyWindowInsets(binding.root) { _, left, right, _ ->
+            val layoutParams = binding.swipeRefreshLayout.layoutParams
+            val layoutParams1 = binding.recyclerLayanan.layoutParams
+            val layoutParams2 = binding.recyclerPegawai.layoutParams
+            val layoutParams3 = binding.recyclerProduk.layoutParams
+            val layoutParams4 = binding.recyclerPaketBundling.layoutParams
+            val layoutParams5 = binding.fabDashboardAdmin.layoutParams
+            val layoutParams6 = binding.fabInputCapital.layoutParams
+            val layoutParams7 = binding.fabManageCodeAccess.layoutParams
+            val padding = maxOf(left, right)
+
+            Log.d("WindowInsets", "Left: $left, Right: $right")
+            if (layoutParams is ViewGroup.MarginLayoutParams) {
+                // Menyesuaikan margin
+                layoutParams.leftMargin = if (left != 0) -left else 0
+                layoutParams.rightMargin = if (right != 0) -right else 0
+                binding.swipeRefreshLayout.layoutParams = layoutParams
+                binding.root.setPadding((padding/2) + binding.root.paddingLeft, binding.root.paddingTop, (padding/2) + binding.root.paddingRight, binding.root.paddingBottom)
+            }
+            if (layoutParams1 is ViewGroup.MarginLayoutParams) {
+                if (binding.recyclerLayanan.marginLeft == 0 && binding.recyclerLayanan.marginRight == 0) {
+                    binding.recyclerLayanan.setPadding((padding/2) + binding.recyclerLayanan.paddingLeft, binding.recyclerLayanan.paddingTop, (padding/2) + binding.recyclerLayanan.paddingRight, binding.recyclerLayanan.paddingBottom)
+                }
+                layoutParams1.leftMargin = -(padding/2)
+                layoutParams1.rightMargin = -(padding/2)
+                binding.recyclerLayanan.layoutParams = layoutParams1
+            }
+            if (layoutParams2 is ViewGroup.MarginLayoutParams) {
+                if (binding.recyclerPegawai.marginLeft == 0 && binding.recyclerPegawai.marginRight == 0) {
+                    binding.recyclerPegawai.setPadding((padding/2) + binding.recyclerPegawai.paddingLeft, binding.recyclerPegawai.paddingTop, (padding/2) + binding.recyclerPegawai.paddingRight, binding.recyclerPegawai.paddingBottom)
+                }
+                layoutParams2.leftMargin = -(padding/2)
+                layoutParams2.rightMargin = -(padding/2)
+                binding.recyclerPegawai.layoutParams = layoutParams2
+            }
+            if (layoutParams3 is ViewGroup.MarginLayoutParams) {
+                if (binding.recyclerProduk.marginLeft == 0 && binding.recyclerProduk.marginRight == 0) {
+                    binding.recyclerProduk.setPadding((padding/2) + binding.recyclerProduk.paddingLeft, binding.recyclerProduk.paddingTop, (padding/2) + binding.recyclerProduk.paddingRight, binding.recyclerProduk.paddingBottom)
+                }
+                layoutParams3.leftMargin = -(padding/2)
+                layoutParams3.rightMargin = -(padding/2)
+                binding.recyclerProduk.layoutParams = layoutParams3
+            }
+            if (layoutParams4 is ViewGroup.MarginLayoutParams) {
+                if (binding.recyclerPaketBundling.marginLeft == 0 && binding.recyclerPaketBundling.marginRight == 0) {
+                    binding.recyclerPaketBundling.setPadding((padding/2) + binding.recyclerPaketBundling.paddingLeft, binding.recyclerPaketBundling.paddingTop, (padding/2) + binding.recyclerPaketBundling.paddingRight, binding.recyclerPaketBundling.paddingBottom)
+                }
+                Log.d("WindowInsets", "Padding Left: ${binding.recyclerPaketBundling.paddingLeft} Right: ${binding.recyclerPaketBundling.paddingRight}")
+                layoutParams4.leftMargin = -(padding/2)
+                layoutParams4.rightMargin = -(padding/2)
+                binding.recyclerPaketBundling.layoutParams = layoutParams4
+            }
+            if (layoutParams5 is ViewGroup.MarginLayoutParams) {
+                val leftMargin = if (left != 0) binding.fabDashboardAdmin.marginLeft - left else binding.fabDashboardAdmin.marginRight
+                Log.d("WindowInsets", "FAD Left Margin: $leftMargin")
+                layoutParams5.leftMargin = leftMargin
+                binding.fabDashboardAdmin.layoutParams = layoutParams5
+            }
+            if (layoutParams6 is ViewGroup.MarginLayoutParams) {
+                val rightMargin = if (right != 0) binding.fabInputCapital.marginRight - right else binding.fabInputCapital.marginLeft
+                Log.d("WindowInsets", "FIC Right Margin: $rightMargin")
+                layoutParams6.rightMargin = rightMargin
+                binding.fabInputCapital.layoutParams = layoutParams6
+            }
+            if (layoutParams7 is ViewGroup.MarginLayoutParams) {
+                val rightMargin = if (right != 0) binding.fabManageCodeAccess.marginRight - right else binding.fabManageCodeAccess.marginLeft
+                Log.d("WindowInsets", "FMC Right Margin: $rightMargin")
+                layoutParams7.rightMargin = rightMargin
+                binding.fabManageCodeAccess.layoutParams = layoutParams7
+            }
+        }
+        // GAK SETTING STATUS BAR KARENA UDAH DI SET SAAT DI MAIN ACTIVITY
         super.onViewCreated(view, savedInstanceState)
         navController = Navigation.findNavController(requireView())
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(context, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
+        if (savedInstanceState != null) {
+            lastPositionEmployeeAdapter = savedInstanceState.getInt("last_position_employee_adapter", 0)
+            lastPositionServiceAdapter = savedInstanceState.getInt("last_position_service_adapter", 0)
+            lastPositionBundlingAdapter = savedInstanceState.getInt("last_position_bundling_adapter", 0)
+            lastPositionProductAdapter = savedInstanceState.getInt("last_position_product_adapter", 0)
+        }
+
         init()
         binding.apply {
             ivSettings.setOnClickListener(this@BerandaAdminFragment)
@@ -150,6 +260,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                 ContextCompat.getColor(context, R.color.sky_blue)
             )
 
+            swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
+//            swipeRefreshLayout.setProgressViewOffset(false, 0, (64 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
                 refreshPageEffect()
 //                bundlingAdapter.notifyDataSetChanged()
@@ -160,6 +272,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                 getAllData()
             })
 
+            val nestedScrollView = binding.mainContent
             nestedScrollView.setOnScrollChangeListener { v, _, scrollY, _, oldScrollY ->
                 val nestedScrollView = v as NestedScrollView
                 val contentHeight = nestedScrollView.getChildAt(0).measuredHeight
@@ -184,27 +297,77 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
         }
         showShimmer(true)
 
+        adjustCardViewLayout()
         setAndDisplayBanner()
-        fragmentManager = childFragmentManager
+        fragmentManager = requireActivity().supportFragmentManager
 
         val adminRef = sessionManager.getDataAdminRef()
         userId = adminRef?.substringAfter("barbershops/") ?: ""
 
-        if (userAdminData.uid.isNotEmpty()) {
-            // loadImageWithGlide(userAdminData.imageCompanyProfile)
-            getAllData()
-        } else {
-            if (userId.isNotEmpty()) {
-                getBarbershopDataFromDatabase()
+        if (userId.isNotEmpty()) {
+            if (userAdminData.uid.isNotEmpty()) {
+                // loadImageWithGlide(userAdminData.imageCompanyProfile)
                 getAllData()
             } else {
-                Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
+                getBarbershopDataFromDatabase()
+                getAllData()
             }
+
+//            Log.d("AutoLogout", "Fragment User ID: $userId >< ${BarberLinkApp.sessionManager.getActivePage()}")
+        } else {
+            Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
         }
 
-        setupListeners()
+        requireActivity().supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(requireActivity(), lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+        }
 
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+        outState.putBoolean("is_capital_input_show", isCapitalInputShow)
+        outState.putBoolean("should_clear_backstack", shouldClearBackStack)
+
+        outState.putInt("last_position_employee_adapter", lastPositionEmployeeAdapter)
+        outState.putInt("last_position_service_adapter", lastPositionServiceAdapter)
+        outState.putInt("last_position_bundling_adapter", lastPositionBundlingAdapter)
+        outState.putInt("last_position_product_adapter", lastPositionProductAdapter)
+    }
+
+    // Fungsi untuk mengatur ulang layout params berdasarkan orientasi
+    private fun adjustCardViewLayout() {
+        val orientation = resources.configuration.orientation
+        val params = binding.cvImageSlider.layoutParams as ConstraintLayout.LayoutParams
+
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            // Atur ukuran untuk orientasi potret
+            params.width = 0
+            params.height = 0
+            params.dimensionRatio = "16:8.5"
+        } else if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            // Atur ukuran untuk orientasi lanskap
+            params.width = 0
+            params.height = 0
+            params.dimensionRatio = "16:6"
+        }
+
+        // Terapkan perubahan
+        binding.cvImageSlider.layoutParams = params
+    }
+
+    // Fungsi untuk konversi dp ke px
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
+//    override fun onStart() {
+//        BarberLinkApp.sessionManager.setActivePage("Admin")
+//        Log.d("AutoLogout", "Fragment OnStart Role: Admin >< activePage: ${BarberLinkApp.sessionManager.getActivePage()}")
+//        super.onStart()
+//    }
 
     private fun refreshPageEffect() {
         binding.tvEmptyLayanan.visibility = View.GONE
@@ -257,6 +420,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
         listenToProductsData()
         listenToBundlingPackagesData()
         listenToEmployeesData()
+
+        lifecycleScope.launch {
+            while (remainingListeners.get() > 0) {
+                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
+            }
+            isFirstLoad = false
+            Log.d("FirstLoopEdited", "First Load BAF = false")
+        }
     }
 
     private fun listenToBarbershopData() {
@@ -269,6 +440,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                         "Error listening to barbershop data: ${it.message}",
                         Toast.LENGTH_SHORT
                     ).show()
+                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                     return@addSnapshotListener
                 }
                 document?.takeIf { it.exists() }?.let {
@@ -278,6 +450,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                         } ?: UserAdminData()
                     }
                     // loadImageWithGlide(userAdminData.imageCompanyProfile)
+                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 }
             }
     }
@@ -294,11 +467,12 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                         "Error listening to outlets data: ${exception.message}",
                         Toast.LENGTH_SHORT
                     ).show()
+                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                     return@addSnapshotListener
                 }
 
                 documents?.let {
-                    CoroutineScope(Dispatchers.Default).launch {
+                    lifecycleScope.launch(Dispatchers.Default) {
                         if (!isFirstLoad) {
                             val outlets = it.mapNotNull { doc ->
                                 val outlet = doc.toObject(Outlet::class.java)
@@ -310,6 +484,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                                 outletsList.addAll(outlets)
                             }
                         }
+
+                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                     }
                 }
             }
@@ -346,10 +522,11 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                     "Error listening to $collectionPath data: ${it.message}",
                     Toast.LENGTH_SHORT
                 ).show()
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@addSnapshotListener
             }
             documents?.let {
-                CoroutineScope(Dispatchers.Default).launch {
+                lifecycleScope.launch(Dispatchers.Default) {
                     if (!isFirstLoad) {
                         val dataList = it.mapNotNull { document ->
                             document.toObject(dataClass)
@@ -377,7 +554,10 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                             adapter.submitList(listToUpdate)
                             adapter.notifyDataSetChanged()
                         }
+
                     }
+
+                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 }
             }
         }
@@ -400,7 +580,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
             dataClass = BundlingPackage::class.java,
             postProcess = {
                 // Synchronize the access to both lists
-                CoroutineScope(Dispatchers.Default).launch {
+                lifecycleScope.launch(Dispatchers.Default) {
                     servicesListMutex.withLock {
                         bundlingPackagesList.forEach { bundling ->
                             val serviceBundlingList = servicesList.filter { service ->
@@ -486,7 +666,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
 
         collectionRef.get()
             .addOnSuccessListener { documents ->
-                CoroutineScope(Dispatchers.Default).launch {
+                lifecycleScope.launch(Dispatchers.Default) {
                     if (!documents.isEmpty) {
                         val items = documents.mapNotNull { doc ->
                             val item = doc.toObject(dataClass)
@@ -535,6 +715,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
         return taskCompletionSource.task // Kembalikan Task yang akan selesai hanya ketika pengambilan data selesai
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun getAllData() {
         val tasks = listOf(
             getCollectionData("outlets", outletsList, "No outlets found", Outlet::class.java),
@@ -554,7 +735,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
 
         Tasks.whenAllComplete(tasks)
             .addOnSuccessListener {
-                CoroutineScope(Dispatchers.Default).launch {
+                lifecycleScope.launch(Dispatchers.Default) {
                     bundlingListMutex.withLock {
                         servicesListMutex.withLock {
                             bundlingPackagesList.forEach { bundling ->
@@ -567,18 +748,18 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                     }
                     withContext(Dispatchers.Main) {
                         displayAllData()
-                        if (!isCapitalInputShown) {
+                        if (!isCapitalInputShow) {
                             Handler(Looper.getMainLooper()).postDelayed({
                                 showCapitalInputDialog(ArrayList(outletsList))
                             }, 300)
                         }
-                        binding.swipeRefreshLayout.isRefreshing = false
+                        // binding.swipeRefreshLayout.isRefreshing = false
                     }
                 }
             }
             .addOnFailureListener { exception ->
                 displayAllData()
-                binding.swipeRefreshLayout.isRefreshing = false
+                // binding.swipeRefreshLayout.isRefreshing = false
                 Toast.makeText(
                     context,
                     "Error getting all data: ${exception.message}",
@@ -587,23 +768,40 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
             }
     }
 
-    private fun displayAllData() {
-        Log.d("ListenData", "Data 503 count ${servicesList.size}")
-        serviceAdapter.submitList(servicesList)
-        employeeAdapter.submitList(employeesList)
-        bundlingAdapter.submitList(bundlingPackagesList)
-        productAdapter.submitList(productsList)
-
-        with (binding) {
-            Log.d("ListenData", "Data 510 count ${servicesList.size}")
-            tvEmptyLayanan.visibility = if (servicesList.isEmpty()) View.VISIBLE else View.GONE
-            tvEmptyPegawai.visibility = if (employeesList.isEmpty()) View.VISIBLE else View.GONE
-            tvEmptyPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.VISIBLE else View.GONE
-            tvEmptyProduk.visibility = if (productsList.isEmpty()) View.VISIBLE else View.GONE
+    private fun safeBindingAction(action: (binding: FragmentBerandaAdminBinding) -> Unit) {
+        // Pastikan coroutine mengikuti lifecycle dari fragment
+        viewLifecycleOwner.lifecycleScope.launch {
+            while (viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                val currentBinding = binding
+                action(currentBinding)
+                break // Keluar dari loop setelah binding ditemukan dan aksi dijalankan
+                delay(100) // Cek ulang setiap 100ms
+            }
         }
+    }
 
-        showShimmer(false)
-        isFirstLoad = false
+    private fun displayAllData() {
+        safeBindingAction { binding ->
+            Log.d("ListenData", "Data 503 count ${servicesList.size}")
+            serviceAdapter.submitList(servicesList)
+            employeeAdapter.submitList(employeesList)
+            bundlingAdapter.submitList(bundlingPackagesList)
+            productAdapter.submitList(productsList)
+
+            binding.let {
+                with(binding) {
+                    Log.d("ListenData", "Data 510 count ${servicesList.size}")
+                    tvEmptyLayanan.visibility = if (servicesList.isEmpty()) View.VISIBLE else View.GONE
+                    tvEmptyPegawai.visibility = if (employeesList.isEmpty()) View.VISIBLE else View.GONE
+                    tvEmptyPaketBundling.visibility = if (bundlingPackagesList.isEmpty()) View.VISIBLE else View.GONE
+                    tvEmptyProduk.visibility = if (productsList.isEmpty()) View.VISIBLE else View.GONE
+                }
+
+                showShimmer(false)
+                binding.swipeRefreshLayout.isRefreshing = false
+            }
+            if (isFirstLoad) setupListeners()
+        }
     }
 
 //    private fun getDailyCapitalForTodayUsingCollectionGroup() {
@@ -642,28 +840,37 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
 //            }
 //    }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun showCapitalInputDialog(outletList: ArrayList<Outlet>) {
-        setDialogCapitalStatus(true)
-        activity?.let {
-            DisplaySetting.enableEdgeToEdgeAllVersion(it, lightStatusBar = false, statusBarColor = Color.TRANSPARENT)
-        }
+//        setDialogCapitalStatus(true)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(requireActivity(), lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
         shouldClearBackStack = false
+        if (requireActivity().supportFragmentManager.findFragmentByTag("CapitalInputFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
         dialogFragment = CapitalInputFragment.newInstance(outletList, userAdminData, null)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
         // For a polished look, specify a transition animation.
-        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
-        if (isAdded && !isDetached && !childFragmentManager.isStateSaved) {
-            // Lakukan transaksi fragment
+        // Pastikan fragment dalam kondisi aman
+        if (isAdded && !isDetached && !requireActivity().supportFragmentManager.isStateSaved) {
             transaction
-                .add(R.id.capital_input_container, dialogFragment, "CapitalInputFragment")
+                .add(android.R.id.content, dialogFragment, "CapitalInputFragment")
                 .addToBackStack("CapitalInputFragment")
                 .commit()
         }
 
-        isCapitalInputShown = true
+        isCapitalInputShow = true
 //        dialogFragment.show(fragmentManager, "CapitalInputFragment")
     }
 
@@ -718,6 +925,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
 //        }
 //    }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         with (binding) {
             when(v?.id){
@@ -731,32 +939,32 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                 R.id.fabManageCodeAccess -> {
                     if (!isShimmerVisible) {
                         // navigatePage(context, ManageOutletPage::class.java, true, fabManageCodeAccess)
-                        v.isClickable = false
-                        currentView = v
-                        if (!isNavigating) {
-                            isNavigating = true
-                            val manageOutletDirections = BerandaAdminFragmentDirections.actionNavBerandaToManageOutletPage(
-                                outletsList.toTypedArray(), employeesList.toTypedArray(), userAdminData
-                            )
-                            navController.navigate(manageOutletDirections)
-                        } else {}
+                        WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                            disableBtnWhenShowDialog(v) {
+                                val manageOutletDirections = BerandaAdminFragmentDirections.actionNavBerandaToManageOutletPage(
+                                    outletsList.toTypedArray(), employeesList.toTypedArray(), userAdminData
+                                )
+                                navController.navigate(manageOutletDirections)
+                            }
+                        }
                     } else {}
                 }
                 R.id.fabInputCapital -> {
-                    if (!isShimmerVisible) showCapitalInputDialog(ArrayList(outletsList))else {}
+                    if (!isShimmerVisible) {
+                        showCapitalInputDialog(ArrayList(outletsList))
+                    } else {}
                 }
                 R.id.fabDashboardAdmin -> {
                     if (!isShimmerVisible) {
                         // navigatePage(context, DashboardAdminPage::class.java, true, fabDashboardAdmin)
-                        v.isClickable = false
-                        currentView = v
-                        if (!isNavigating) {
-                            isNavigating = true
-                            val dashboardAdminDirections = BerandaAdminFragmentDirections.actionNavBerandaToDashboardAdminPage(
-                                outletsList.toTypedArray(), employeesList.toTypedArray(), userAdminData
-                            )
-                            navController.navigate(dashboardAdminDirections)
-                        } else return
+                        WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                            disableBtnWhenShowDialog(v) {
+                                val dashboardAdminDirections = BerandaAdminFragmentDirections.actionNavBerandaToDashboardAdminPage(
+                                    outletsList.toTypedArray(), employeesList.toTypedArray(), userAdminData
+                                )
+                                navController.navigate(dashboardAdminDirections)
+                            }
+                        }
                     } else {}
                 }
                 R.id.ivHamburger -> {
@@ -783,11 +991,26 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
                 intent.putExtra(ORIGIN_INTENT_KEY, "BerandaAdminPage")
             }
             startActivity(intent)
+//            (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
         } else return
     }
 
+    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
+        v.isClickable = false
+        currentView = v
+        if (!isNavigating) {
+            isNavigating = true
+            functionShowDialog()
+        } else return
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
+//        BarberLinkApp.sessionManager.setActivePage("Admin")
+//        Log.d("AutoLogout", "Fragment OnResume Role: Admin >< activePage: ${BarberLinkApp.sessionManager.getActivePage()}")
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
@@ -813,39 +1036,42 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
     override fun onAttach(context: Context) {
         super.onAttach(context)
 
+
         val callback = object : OnBackPressedCallback(true) {
+            @RequiresApi(Build.VERSION_CODES.S)
             override fun handleOnBackPressed() {
                 if (fragmentManager.backStackEntryCount > 0) {
-                    activity?.let {
-                        DisplaySetting.enableEdgeToEdgeAllVersion(it, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
-                    }
+                    StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(requireActivity(), lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
                     shouldClearBackStack = true
-                    dialogFragment.dismiss()
+                    if (::dialogFragment.isInitialized) dialogFragment.dismiss()
                     fragmentManager.popBackStack()
                     Log.d("BackNavigationHome", "Tolol")
                 } else {
-                    setDialogCapitalStatus(false)
+//                    setDialogCapitalStatus(false)
 //                    // Jika tidak ada stack di Fragment, biarkan Activity menangani
-                    isEnabled = false // Nonaktifkan callback ini sementara
-                    requireActivity().onBackPressedDispatcher.onBackPressed() // Operasikan ke Activity
-                    isEnabled = true // Aktifkan kembali
-                    Log.d("BackNavigationHome", "Tenan")
+                    WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                        isEnabled = false // Nonaktifkan callback ini sementara
+                        (requireActivity() as MainActivity).getBackToPreviousPage() // Operasikan ke Activity
+                        isEnabled = true // Aktifkan kembali
+                        Log.d("BackNavigationHome", "Tenan")
+                    }
                 }
             }
         }
+
         requireActivity().onBackPressedDispatcher.addCallback(this, callback)
 
-        try {
-            // Mengaitkan listener dengan activity yang memanggil
-            listener = context as? SetDialogCapitalStatus
-        } catch (e: ClassCastException) {
-            throw ClassCastException("$context harus mengimplementasikan SetDialogCapitalStatus")
-        }
+//        try {
+//            // Mengaitkan listener dengan activity yang memanggil
+//            listener = context as? SetDialogCapitalStatus
+//        } catch (e: ClassCastException) {
+//            throw ClassCastException("$context harus mengimplementasikan SetDialogCapitalStatus")
+//        }
     }
 
-    private fun setDialogCapitalStatus(isShow: Boolean) {
-        listener?.setIsDialogCapitalShow(isShow)
-    }
+//    private fun setDialogCapitalStatus(isShow: Boolean) {
+//        listener?.setIsDialogCapitalShow(isShow)
+//    }
 
     override fun onPause() {
         super.onPause()
@@ -864,6 +1090,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener {
         super.onDestroy()
         _binding = null
 
+        isDestroyed = true
         if (::serviceListener.isInitialized) serviceListener.remove()
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::bundlingListener.isInitialized) bundlingListener.remove()

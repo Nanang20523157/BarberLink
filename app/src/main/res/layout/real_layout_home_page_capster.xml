@@ -12,7 +12,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:paddingTop="10dp"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="16dp">
 
         <!-- Toolbar and Header -->
         <de.hdodenhof.circleimageview.CircleImageView
@@ -36,7 +38,7 @@
             android:text="@string/title_home_page_capster"
             android:textSize="19.5sp"
             android:textStyle="bold"
-            android:layout_marginTop="15dp"
+            android:layout_marginTop="-1dp"
             android:gravity="center"
             android:textColor="@color/black"
             app:layout_constraintStart_toStartOf="parent"
@@ -101,6 +103,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="210dp"
                 android:scaleType="fitXY"
+                android:layout_marginStart="-5dp"
+                android:layout_marginEnd="-5dp"
+                android:layout_marginTop="-5dp"
+                android:layout_marginBottom="-5dp"
                 android:src="@drawable/card_balance"
                 android:contentDescription="@string/image_card_balance_desc" />
 

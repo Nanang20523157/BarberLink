@@ -3,11 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/shimmer_view_container"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     app:shimmer_auto_start="true"
     app:shimmer_base_alpha="0.7"
-    android:layout_gravity="center_horizontal"
     app:shimmer_direction="left_to_right"
     app:shimmer_duration="500"
     app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
@@ -16,9 +15,11 @@
     app:shimmer_tilt="0">
 
     <com.google.android.material.card.MaterialCardView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:minWidth="270dp"
         android:layout_marginHorizontal="4dp"
+        android:layout_gravity="center_horizontal"
         app:cardCornerRadius="15dp"
         app:cardElevation="0.5dp"
         android:backgroundTint="@color/light_grey_horizons_background"
@@ -26,7 +27,7 @@
         android:layout_marginBottom="3dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:paddingHorizontal="7dp"
@@ -147,7 +148,8 @@
                 app:layout_constraintStart_toEndOf="@id/tvEmployeeName"
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"/>
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="1"/>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

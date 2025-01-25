@@ -1,8 +1,12 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
+import android.content.Context
+import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
@@ -36,8 +40,16 @@ class QueueSuccessFragment : DialogFragment() {
     private var previousStatus: String? = ""
     private var message: String? = ""
     private var isHandled = false
+    private lateinit var context: Context
 
     private val binding get() = _binding!!
+
+//    private lateinit var sessionDelegate: FragmentSessionDelegate
+
+//    override fun onAttach(context: Context) {
+//        super.onAttach(context)
+//        sessionDelegate = FragmentSessionDelegate(context)
+//    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,7 +60,24 @@ class QueueSuccessFragment : DialogFragment() {
             previousStatus = it.getString(ARG_PARAM4)
             message = it.getString(ARG_PARAM5)
         }
+
+        context = requireContext()
     }
+
+//    override fun onStart() {
+//        BarberLinkApp.sessionManager.setActivePage("Employee")
+//        super.onStart()
+//        sessionDelegate.checkSession {
+//            handleSessionExpired()
+//        }
+//    }
+
+//    private fun handleSessionExpired() {
+//        dismiss()
+//        parentFragmentManager.popBackStack()
+//
+//        sessionDelegate.handleSessionExpired(context, SelectUserRolePage::class.java)
+//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -72,6 +101,41 @@ class QueueSuccessFragment : DialogFragment() {
             dismiss() // Tutup fragment setelahnya
             parentFragmentManager.popBackStack() // Hapus fragment
         }
+
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                if (isTouchOnForm(e)) {
+                    return false  // Jangan lanjutkan dismiss
+                }
+
+                setFragmentResult("action_dismiss_dialog", bundleOf(
+                    "dismiss_dialog" to true
+                ))
+
+                dismiss()
+                parentFragmentManager.popBackStack()
+                return true
+            }
+        })
+
+        binding.nvBackgroundScrim.setOnTouchListener { view, event ->
+            if (gestureDetector.onTouchEvent(event)) {
+                // Deteksi klik dan panggil performClick untuk aksesibilitas
+                view.performClick()
+                true
+            } else {
+                // Teruskan event ke sistem untuk menangani scroll/swipe
+                false
+            }
+        }
+    }
+
+    private fun isTouchOnForm(event: MotionEvent): Boolean {
+        val location = IntArray(2)
+        binding.cdQueueSuccess.getLocationOnScreen(location)
+        val rect = Rect(location[0], location[1], location[0] + binding.cdQueueSuccess.width, location[1] + binding.cdQueueSuccess.height)
+
+        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
     private fun handleDoneAction() {
@@ -87,7 +151,8 @@ class QueueSuccessFragment : DialogFragment() {
                 bundleOf(
                     "new_index" to newIndex,
                     "previous_status" to previousStatus,
-                    "message" to message
+                    "message" to message,
+                    "dismiss_dialog" to true
                 )
             )
         } else {
