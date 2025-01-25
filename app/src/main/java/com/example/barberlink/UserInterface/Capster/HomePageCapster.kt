@@ -9,25 +9,29 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
+import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentTransaction
+import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.Reservation
-import com.example.barberlink.Helper.DisplaySetting
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
-import com.example.barberlink.UserInterface.Capster.Fragment.PinInputFragment
 import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.Utils.CopyUtils
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils
@@ -38,21 +42,22 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.concurrent.atomic.AtomicInteger
 
-class HomePageCapster : AppCompatActivity(), View.OnClickListener {
+class HomePageCapster : BaseActivity(), View.OnClickListener {
     private lateinit var binding: ActivityHomePageCapsterBinding
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private lateinit var userEmployeeData: Employee
 //    private lateinit var outletSelected: Outlet
     private var sessionCapster: Boolean = false
@@ -60,6 +65,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 //    private var outletCapsterRef: String = ""
     private var isNavigating = false
     private var isFirstLoad = true
+    private var remainingListeners = AtomicInteger(4)
     private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
@@ -69,7 +75,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
     private var amountServiceRevenue: Int = 0
     private var amountProductRevenue: Int = 0
     private var isHidden: Boolean = false
-    private var isCapitalInputShown = false
+    private var isCapitalInputShow = false
     private var currentMonth: String = ""
     private var numberOfCompletedQueue: Int = 0
     private var numberOfWaitingQueue: Int = 0
@@ -97,10 +103,52 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
+        val backStackCount = savedInstanceState?.getInt("back_stack_count", 0) ?: 0
+        if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        isCapitalInputShow = savedInstanceState?.getBoolean("is_capital_input_show", false) ?: false
+        shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
+
+
         super.onCreate(savedInstanceState)
         binding = ActivityHomePageCapsterBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
+            Log.d("WindowInsets", "topMargin: $top || rightMargin: $right || leftMargin: $left")
+            val layoutParams1 = binding.lineMarginLeft.layoutParams
+            if (layoutParams1 is ViewGroup.MarginLayoutParams) {
+                layoutParams1.topMargin = -top
+                binding.lineMarginLeft.layoutParams = layoutParams1
+            }
+            val layoutParams2 = binding.lineMarginRight.layoutParams
+            if (layoutParams2 is ViewGroup.MarginLayoutParams) {
+                layoutParams2.topMargin = -top
+                binding.lineMarginRight.layoutParams = layoutParams2
+            }
+
+            binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
+            binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
+        }
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
+        isCapitalInputShow = savedInstanceState?.getBoolean("dialog_capital_show", false) ?: false
+
+        setNavigationCallback(object : NavigationCallback {
+            override fun navigate() {
+                // Implementasi navigasi spesifik untuk MainActivity
+//                val intent = Intent(this@MainActivity, SelectUserRoleActivity::class.java)
+//                startActivity(intent)
+                Log.d("UserInteraction", this@HomePageCapster::class.java.simpleName)
+            }
+        })
 
         fragmentManager = supportFragmentManager
         sessionCapster = sessionManager.getSessionCapster()
@@ -140,6 +188,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                 ContextCompat.getColor(this@HomePageCapster, R.color.sky_blue)
             )
 
+            swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
+//            swipeRefreshLayout.setProgressViewOffset(false, 0, (64 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
                 showShimmer(true)
                 getAllData()
@@ -153,13 +203,37 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             getCapsterData()
         } else {
 //            outletSelected = intent.getParcelableExtra(PinInputFragment.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
-            userEmployeeData = intent.getParcelableExtra(PinInputFragment.USER_DATA_KEY, Employee::class.java) ?: Employee()
+            // userEmployeeData = intent.getParcelableExtra(PinInputFragment.USER_DATA_KEY, Employee::class.java) ?: Employee()
+            @Suppress("DEPRECATION")
+            userEmployeeData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(LoginAdminPage.EMPLOYEE_DATA_KEY, Employee::class.java) ?: Employee()
+            } else {
+                intent.getParcelableExtra(LoginAdminPage.EMPLOYEE_DATA_KEY) ?: Employee()
+            }
             if (userEmployeeData.uid.isNotEmpty()) {
                 getAllData()
             }
         }
 
+        supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+        }
+
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+        outState.putBoolean("dialog_capital_show", isCapitalInputShow)
+        outState.putBoolean("should_clear_backstack", shouldClearBackStack)
+        outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+    }
+
+//    override fun onStart() {
+//        BarberLinkApp.sessionManager.setActivePage("Employee")
+//        super.onStart()
+//    }
 
     private fun setupListeners() {
 //        listenSpecificOutletData()
@@ -167,6 +241,15 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         listenToOutletsData()
         listenToReservationsData()
         listenToSalesData()
+
+        // Tambahkan logika sinkronisasi di sini
+        lifecycleScope.launch {
+            while (remainingListeners.get() > 0) {
+                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
+            }
+            isFirstLoad = false
+            Log.d("FirstLoopEdited", "First Load HPC = false")
+        }
     }
 
     private fun showShimmer(show: Boolean) {
@@ -223,6 +306,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         employeeListener = db.document(dataCapsterRef).addSnapshotListener { documents, exception ->
             exception?.let {
                 Toast.makeText(this, "Error listening to employee data: ${it.message}", Toast.LENGTH_SHORT).show()
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@addSnapshotListener
             }
 
@@ -241,6 +325,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                         if (isHidden) hideUid(userEmployeeData.uid) else showUid(userEmployeeData.uid)
                     }
                 }
+
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
             }
         }
     }
@@ -251,10 +337,11 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             .addSnapshotListener { documents, exception ->
                 if (exception != null) {
                     Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
+                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                     return@addSnapshotListener
                 }
                 documents?.let {
-                    CoroutineScope(Dispatchers.Default).launch {
+                    lifecycleScope.launch(Dispatchers.Default) {
                         if (!isFirstLoad) {
                             val outlets = it.mapNotNull { doc ->
                                 val outlet = doc.toObject(Outlet::class.java)
@@ -266,6 +353,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                                 outletsList.addAll(outlets)
                             }
                         }
+
+                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                     }
                 }
             }
@@ -302,6 +391,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         query.addSnapshotListener { documents, exception ->
             exception?.let {
                 Toast.makeText(this, "Error listening to $collectionPath data: ${it.message}", Toast.LENGTH_SHORT).show()
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@addSnapshotListener
             }
             documents?.let(onSuccess)
@@ -313,7 +403,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             collectionPath = "reservations",
             dateField = "timestamp_to_booking"
         ) { documents ->
-            CoroutineScope(Dispatchers.Default).launch {
+            lifecycleScope.launch(Dispatchers.Default) {
                 if (!isFirstLoad) {
                     reservationListMutex.withLock {
                         reservationList.clear()
@@ -334,6 +424,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                         }
                     }
                 }
+
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
             }
         }
     }
@@ -343,7 +435,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
             collectionPath = "${userEmployeeData.rootRef}/sales",
             dateField = "timestamp_created"
         ) { documents ->
-            CoroutineScope(Dispatchers.Default).launch {
+            lifecycleScope.launch(Dispatchers.Default) {
                 if (!isFirstLoad) {
                     productSalesListMutex.withLock {
                         productSalesList.clear()
@@ -362,6 +454,8 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                         }
                     }
                 }
+
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
             }
         }
     }
@@ -433,6 +527,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 //        }
 //    }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun getCapsterData() {
         db.document(dataCapsterRef).get()
             .addOnSuccessListener { documentSnapshot ->
@@ -456,6 +551,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun getAllData() {
         // Filter untuk koleksi grup 'reservations'
         val reservationFilter = Filter.and(
@@ -488,7 +584,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
         Tasks.whenAllSuccess<QuerySnapshot>(tasks)
             .addOnSuccessListener { results ->
-                CoroutineScope(Dispatchers.Default).launch {
+                lifecycleScope.launch(Dispatchers.Default) {
                     resetVariabel()
 
                     val reservationsResult = results[0]
@@ -538,7 +634,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 
                     withContext(Dispatchers.Main) {
                         displayEmployeeData()
-                        if (!isCapitalInputShown) {
+                        if (!isCapitalInputShow) {
                             Handler(Looper.getMainLooper()).postDelayed({
                                 showCapitalInputDialog(ArrayList(outletsList))
                             }, 300)
@@ -552,9 +648,9 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                 binding.swipeRefreshLayout.isRefreshing = false
                 Toast.makeText(this@HomePageCapster, "Error getting data: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-            .addOnCompleteListener {
-                setupListeners()
-            }
+//            .addOnCompleteListener {
+//                setupListeners()
+//            }
     }
 
 
@@ -583,17 +679,28 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         }
 
         showShimmer(false)
-        isFirstLoad = false
+        if (isFirstLoad) setupListeners()
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun showCapitalInputDialog(outletList: ArrayList<Outlet>) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
         shouldClearBackStack = false
+        if (supportFragmentManager.findFragmentByTag("CapitalInputFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
         dialogFragment = CapitalInputFragment.newInstance(outletList, null, userEmployeeData)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
         // For a polished look, specify a transition animation.
-        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
         // To make it fullscreen, use the 'content' root view as the container
         // for the fragment, which is always the root view for the activity.
         if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
@@ -604,7 +711,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                 .commit()
         }
 
-        isCapitalInputShown = true
+        isCapitalInputShow = true
 //        dialogFragment.show(fragmentManager, "CapitalInputFragment")
     }
 
@@ -641,6 +748,7 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
         isHidden = false
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         with(binding) {
             when (v?.id) {
@@ -672,24 +780,24 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
                     navigatePage(this@HomePageCapster, SettingPageScreen::class.java, false, realLayout.ivSettings)
                 }
                 R.id.fabInputCapital -> {
-                    if (!isShimmerVisible) {
-                        showCapitalInputDialog(ArrayList(outletsList))
-                    }
+                    showCapitalInputDialog(ArrayList(outletsList))
                 }
             }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, isSendData: Boolean, view: View) {
-        view.isClickable = false
-        currentView = view
-        // setFilteringForToday()
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            if (isSendData) {
-                intent.putParcelableArrayListExtra(OUTLET_LIST_KEY, ArrayList(outletsList))
-                intent.putExtra(CAPSTER_DATA_KEY, userEmployeeData)
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            // setFilteringForToday()
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+                if (isSendData) {
+                    intent.putParcelableArrayListExtra(OUTLET_LIST_KEY, ArrayList(outletsList))
+                    intent.putExtra(CAPSTER_DATA_KEY, userEmployeeData)
 //                CoroutineScope(Dispatchers.Default).launch {
 //                    val todayReservations: List<Reservation>
 //
@@ -708,50 +816,71 @@ class HomePageCapster : AppCompatActivity(), View.OnClickListener {
 //                        // intent.putParcelableArrayListExtra(RESERVATIONS_KEY, ArrayList(todayReservations))
 //                    }
 //                }
-            } else {
-                intent.putExtra(ORIGIN_INTENT_KEY, "HomePageCapster")
-            }
-            startActivity(intent)
-        } else return
+                } else {
+                    intent.putExtra(ORIGIN_INTENT_KEY, "HomePageCapster")
+                }
+
+                startActivity(intent)
+                if (destination == QueueControlPage::class.java) overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
-    private fun setFilteringForToday() {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        startOfDay = Timestamp(calendar.time)
+//    private fun setFilteringForToday() {
+//        val calendar = Calendar.getInstance()
+//        calendar.set(Calendar.HOUR_OF_DAY, 0)
+//        calendar.set(Calendar.MINUTE, 0)
+//        calendar.set(Calendar.SECOND, 0)
+//        calendar.set(Calendar.MILLISECOND, 0)
+//        startOfDay = Timestamp(calendar.time)
+//
+//        calendar.add(Calendar.DAY_OF_MONTH, 1)
+//        startOfNextDay = Timestamp(calendar.time)
+//    }
+//
+//    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
+//        v.isClickable = false
+//        currentView = v
+//        if (!isNavigating) {
+//            isNavigating = true
+//            functionShowDialog()
+//        } else return
+//    }
 
-        calendar.add(Calendar.DAY_OF_MONTH, 1)
-        startOfNextDay = Timestamp(calendar.time)
-    }
-
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
+        Log.d("CheckLifecycle", "==================== ON RESUME HOMEPAGE =====================")
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
-            DisplaySetting.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF))
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
             shouldClearBackStack = true
-            dialogFragment.dismiss()
+            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
             fragmentManager.popBackStack()
         } else {
-            super.onBackPressed()
-            val intent = Intent(this, SelectUserRolePage::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-            startActivity(intent)
+            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+                super.onBackPressed()
+                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            }
+//            BarberLinkApp.sessionManager.clearActivePage()
+//            val intent = Intent(this, SelectUserRolePage::class.java)
+//            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+//            startActivity(intent)
 //            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-            finish()
         }
     }
 
     override fun onPause() {
+        Log.d("CheckLifecycle", "==================== ON PAUSE HOMEPAGE =====================")
         super.onPause()
         if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
             clearBackStack()

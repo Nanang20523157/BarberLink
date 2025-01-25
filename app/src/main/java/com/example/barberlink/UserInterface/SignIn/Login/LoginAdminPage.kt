@@ -1,8 +1,8 @@
 package com.example.barberlink.UserInterface.SignIn.Login
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.AsyncTask
@@ -13,16 +13,21 @@ import android.text.TextWatcher
 import android.util.Log
 import android.util.Patterns
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
+import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.UserAdminData
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Capster.HomePageCapster
+import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.MainActivity
+import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
 import com.example.barberlink.UserInterface.SignUp.SignUpSuccess
 import com.example.barberlink.databinding.ActivityLoginAdminPageBinding
@@ -34,37 +39,74 @@ import java.io.IOException
 
 class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLoginAdminPageBinding
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private lateinit var userAdminData: UserAdminData
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
+    private lateinit var employeeData: Employee
     private var isEmailValid: Boolean = false
     private var isPasswordValid: Boolean = false
     private var isNavigating = false
     private var currentView: View? = null
+    private var loginType: String = ""
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivityLoginAdminPageBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
         // Mengatur warna status bar
-        window.statusBarColor = ContextCompat.getColor(this, R.color.dark_black_gradation)
-        val windowInsetsController =
-            ViewCompat.getWindowInsetsController(window.decorView)
+//        window.statusBarColor = ContextCompat.getColor(this, R.color.black_line_and_ornamen)
+//        val windowInsetsController =
+//            ViewCompat.getWindowInsetsController(window.decorView)
+//
+//        windowInsetsController?.isAppearanceLightStatusBars = false
 
-        windowInsetsController?.isAppearanceLightStatusBars = false
-
-        intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
-            userAdminData = it
-            binding.signInEmail.setText(userAdminData.email)
-            binding.signInPassword.setText(userAdminData.password)
+        loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+                userAdminData = it
+                binding.signInEmail.setText(userAdminData.email)
+                binding.signInPassword.setText(userAdminData.password)
+            }
+        } else {
+            intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_DATA_KEY)?.let {
+                userAdminData = it
+                binding.signInEmail.setText(userAdminData.email)
+                binding.signInPassword.setText(userAdminData.password)
+            }
         }
 
         binding.btnLogin.setOnClickListener(this)
         binding.btnSignUp.setOnClickListener(this)
 
+        if (loginType == "Login as Employee") {
+            binding.dontHaveAnyAccount.visibility = View.INVISIBLE
+            binding.btnSignUp.visibility = View.INVISIBLE
+        } else if (loginType == "Login as Admin") {
+            binding.dontHaveAnyAccount.visibility = View.VISIBLE
+            binding.btnSignUp.visibility = View.VISIBLE
+        }
+
         setupEditTextListeners()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
     }
 
     private fun setupEditTextListeners() {
@@ -95,6 +137,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when(v?.id) {
             R.id.btnLogin -> {
@@ -111,7 +154,9 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                 }
             }
             R.id.btnSignUp -> {
-                navigatePage(this, SignUpStepOne::class.java, null, binding.btnSignUp)
+                if (loginType == "Login as Admin") {
+                    navigatePage(this, SignUpStepOne::class.java, null, binding.btnSignUp)
+                }
             }
         }
     }
@@ -151,6 +196,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun performLogin() {
         val email = binding.signInEmail.text.toString().trim()
         val password = binding.signInPassword.text.toString().trim()
@@ -173,10 +219,10 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     .addOnCompleteListener(this) { task ->
                         if (task.isSuccessful) {
                             val user = auth.currentUser
-                            user?.let {
-                                sessionManager.setSessionAdmin(true)
-                                sessionManager.setDataAdminRef("barbershops/${it.uid}")
-                                fetchUserData(it.uid)
+                            if (loginType == "Login as Employee")
+                                user?.let { fetchUserEmployeeData(it.uid) }
+                            else if (loginType == "Login as Admin") {
+                                user?.let { fetchUserAdminData(it.uid) }
                             }
                         } else {
                             handleLoginError(task.exception)
@@ -237,46 +283,130 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         binding.progressBar.visibility = View.GONE
     }
 
-    private fun fetchUserData(userId: String) {
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun fetchUserEmployeeData(userId: String) {
+        db.collectionGroup("employees")
+            .whereEqualTo("uid", userId)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (!querySnapshot.isEmpty) {
+                    val document = querySnapshot.documents.firstOrNull()
+                    if (document != null) {
+                        employeeData = document.toObject(Employee::class.java)?.apply {
+                            userRef = document.reference.path
+                            outletRef = ""
+                        } ?: Employee()
+
+                        if (employeeData.uid != "----------------") {
+                            sessionManager.setSessionCapster(true)
+                            sessionManager.setDataCapsterRef(employeeData.userRef)
+                            // Lakukan sesuatu dengan employeeData
+                            // AutoLogoutManager.startAutoLogout(this, "Employee", 60000) // 1 menit
+                            navigatePage(this, HomePageCapster::class.java, userId, binding.btnLogin)
+                        } else {
+                            auth.signOut()
+                            binding.emailCustomError.text = getString(R.string.no_matching_capster_account)
+                            setFocus(binding.signInEmail)
+                        }
+                    } else {
+                        auth.signOut()
+                        binding.emailCustomError.text = getString(R.string.no_matching_capster_account)
+                        setFocus(binding.signInEmail)
+                    }
+                } else {
+                    auth.signOut()
+                    binding.emailCustomError.text = getString(R.string.no_matching_capster_account)
+                    setFocus(binding.signInEmail)
+                }
+
+                binding.progressBar.visibility = View.GONE
+            }.addOnFailureListener { exception ->
+                binding.progressBar.visibility = View.GONE
+                auth.signOut()
+                Toast.makeText(this, "Error getting querySnapshot: $exception", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun fetchUserAdminData(userId: String) {
         db.collection("barbershops").document(userId).get()
             .addOnSuccessListener { document ->
-                binding.progressBar.visibility = View.GONE
                 if (document != null) {
                     userAdminData = document.toObject(UserAdminData::class.java).apply {
                         this?.userRef = document.reference.path
                     } ?: UserAdminData()
-                    // navigatePage(this, BerandaAdminActivity::class.java, userId, binding.btnLogin)
-                    navigatePage(this, MainActivity::class.java, userId, binding.btnLogin)
+
+                    if (userAdminData.uid.isNotEmpty()) {
+                        sessionManager.setSessionAdmin(true)
+                        sessionManager.setDataAdminRef("barbershops/${userAdminData.uid}")
+
+                        // AutoLogoutManager.startAutoLogout(this, "Admin", 60000) // 1 menit
+                        navigatePage(this, MainActivity::class.java, userId, binding.btnLogin)
+                    } else {
+                        auth.signOut()
+                        binding.emailCustomError.text = getString(R.string.no_matching_owner_account)
+                        setFocus(binding.signInEmail)
+                    }
                 } else {
                     auth.signOut()
-                    sessionManager.clearSessionAdmin()
-                    Toast.makeText(this, "No such document.", Toast.LENGTH_SHORT).show()
+                    binding.emailCustomError.text = getString(R.string.no_matching_owner_account)
+                    setFocus(binding.signInEmail)
                 }
+
+                binding.progressBar.visibility = View.GONE
             }
             .addOnFailureListener { exception ->
                 binding.progressBar.visibility = View.GONE
                 auth.signOut()
-                sessionManager.clearSessionAdmin()
                 Toast.makeText(this, "Error getting document: $exception", Toast.LENGTH_SHORT).show()
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, userUID: String?, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            userUID?.let {
-                intent.putExtra(ADMIN_DATA_KEY, userAdminData)
-                context.startActivity(intent)
-                (context as? Activity)?.finish()
-            } ?: context.startActivity(intent)
-        } else return
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+
+                userUID?.let {
+                    val intentToLandingPage = Intent(context, LandingPage::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    startActivity(intentToLandingPage)
+
+                    // Tambahkan SelectUserRolePage ke back stack tanpa animasi
+                    val intentToSelectUserRoles = Intent(context, SelectUserRolePage::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NO_ANIMATION
+                    }
+                    startActivity(intentToSelectUserRoles)
+
+                    if (loginType == "Login as Admin") intent.putExtra(ADMIN_DATA_KEY, userAdminData)
+                    else intent.putExtra(EMPLOYEE_DATA_KEY, employeeData)
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                    finish()
+                } ?: also {
+                    if (destination == SignUpStepOne::class.java) {
+//                    intent.apply {
+//                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+//                    }
+                        intent.putExtra("origin_page_from", "LoginAdminPage")
+                    }
+                    startActivity(intent)
+                    overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                }
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
@@ -324,6 +454,14 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onBackPressed() {
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            super.onBackPressed()
+            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+        }
+    }
+
     private fun setFocus(editText: TextInputEditText) {
         editText.requestFocus()
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -332,6 +470,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
     companion object {
         const val ADMIN_DATA_KEY = "ADMIN_DATA_KEY"
+        const val EMPLOYEE_DATA_KEY = "EMPLOYEE_DATA_KEY"
     }
 
 }

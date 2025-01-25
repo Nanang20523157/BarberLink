@@ -1,10 +1,13 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
 import android.content.Context
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
@@ -15,6 +18,7 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Employee
@@ -25,7 +29,6 @@ import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentSwitchQueueBinding
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,6 +67,13 @@ class SwitchCapsterFragment : DialogFragment() {
     private var param1: String? = null
     private var param2: String? = null
 
+//    private lateinit var sessionDelegate: FragmentSessionDelegate
+
+//    override fun onAttach(context: Context) {
+//        super.onAttach(context)
+//        sessionDelegate = FragmentSessionDelegate(context)
+//    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -81,11 +91,26 @@ class SwitchCapsterFragment : DialogFragment() {
             val (copiedServices, copiedBundlings) = createDeepCopy(dataListService, dataListBundling)
             serviceList = copiedServices as ArrayList<Service>
             bundlingList = copiedBundlings as ArrayList<BundlingPackage>
-            capsterData = userData.deepCopy(false)
+            capsterData = userData.deepCopy(copyReminder =  false, copyNotification = false)
         }
 
         context = requireContext()
     }
+
+//    override fun onStart() {
+//        BarberLinkApp.sessionManager.setActivePage("Employee")
+//        super.onStart()
+//        sessionDelegate.checkSession {
+//            handleSessionExpired()
+//        }
+//    }
+
+//    private fun handleSessionExpired() {
+//        dismiss()
+//        parentFragmentManager.popBackStack()
+//
+//        sessionDelegate.handleSessionExpired(context, SelectUserRolePage::class.java)
+//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -121,13 +146,49 @@ class SwitchCapsterFragment : DialogFragment() {
         binding.btnSaveChanges.setOnClickListener {
             setFragmentResult("switch_result_data", bundleOf(
                 "new_reservation_data" to duplicateReservation,
-                "is_delete_data_reservation" to (capsterData?.uid != initialUidCapster)
+                "is_delete_data_reservation" to (capsterData?.uid != initialUidCapster),
+                "dismiss_dialog" to true
             ))
 
             dismiss()
             parentFragmentManager.popBackStack()
         }
 
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                if (isTouchOnForm(e)) {
+                    return false  // Jangan lanjutkan dismiss
+                }
+
+                setFragmentResult("action_dismiss_dialog", bundleOf(
+                    "dismiss_dialog" to true
+                ))
+
+                dismiss()
+                parentFragmentManager.popBackStack()
+                return true
+            }
+        })
+
+        binding.nvBackgroundScrim.setOnTouchListener { view, event ->
+            if (gestureDetector.onTouchEvent(event)) {
+                // Deteksi klik dan panggil performClick untuk aksesibilitas
+                view.performClick()
+                true
+            } else {
+                // Teruskan event ke sistem untuk menangani scroll/swipe
+                false
+            }
+        }
+
+    }
+
+    private fun isTouchOnForm(event: MotionEvent): Boolean {
+        val location = IntArray(2)
+        binding.cdSwitchQueue.getLocationOnScreen(location)
+        val rect = Rect(location[0], location[1], location[0] + binding.cdSwitchQueue.width, location[1] + binding.cdSwitchQueue.height)
+
+        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
     private fun createDeepCopy(
@@ -224,7 +285,7 @@ class SwitchCapsterFragment : DialogFragment() {
                 .collection("employees")
                 .get()
                 .addOnSuccessListener { documents ->
-                    CoroutineScope(Dispatchers.Default).launch {
+                    lifecycleScope.launch(Dispatchers.Default) {
                         val newCapsterList = documents.mapNotNull { document ->
                             document.toObject(Employee::class.java).apply {
                                 userRef = document.reference.path

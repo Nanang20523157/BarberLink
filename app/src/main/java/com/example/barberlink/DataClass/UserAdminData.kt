@@ -111,7 +111,8 @@ data class Division(
 data class Employee(
     @get:PropertyName("accumulated_lateness") @set:PropertyName("accumulated_lateness") var accumulatedLateness: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("amount_of_bon") @set:PropertyName("amount_of_bon") var amountOfBon: Int = 0,
-    @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: MutableList<ListStackData>? = null,
+    // @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: MutableList<ListStackData>? = null,
+    @get:PropertyName("user_reminder") @set:PropertyName("user_reminder") var userReminder: MutableList<NotificationReminder>? = null,
     @get:PropertyName("availability_status") @set:PropertyName("availability_status") var availabilityStatus: Boolean = true,
     @get:PropertyName("customer_counting") @set:PropertyName("customer_counting") var customerCounting: @RawValue Map<String, Int>? = emptyMap(),
     @get:PropertyName("email") @set:PropertyName("email") var email: String = "",
@@ -131,6 +132,7 @@ data class Employee(
     @get:PropertyName("salary") @set:PropertyName("salary") var salary: Int = 0,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "----------------",
     @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
+    @get:PropertyName("user_notification") @set:PropertyName("user_notification") var userNotification: MutableList<NotificationReminder>? = null,
     @get:Exclude @set:Exclude var userRef: String = "",
     @get:Exclude @set:Exclude var outletRef: String = "",
     @get:Exclude @set:Exclude var restOfQueue: Int = 0,
@@ -142,14 +144,19 @@ data class Employee(
 //    @get:PropertyName("user_review_counting") @set:PropertyName("user_review_counting") var userReviewCounting: Int = 0
 ) : Parcelable {
     // Deep copy function for Employee
-    fun deepCopy(copyAppointments: Boolean): Employee {
+    fun deepCopy(copyReminder: Boolean, copyNotification: Boolean): Employee {
         return Employee(
             accumulatedLateness = this.accumulatedLateness?.toMap(),
             amountOfBon = this.amountOfBon,
-            appointmentList = if (copyAppointments) {
-                this.appointmentList?.map { it.deepCopy() }?.toMutableList()
+//            appointmentList = if (copyAppointments) {
+//                this.appointmentList?.map { it.deepCopy() }?.toMutableList()
+//            } else {
+//                this.appointmentList // Copy reference
+//            },
+            userReminder = if (copyReminder) {
+                this.userReminder?.map { it.deepCopy() }?.toMutableList()
             } else {
-                this.appointmentList // Copy reference
+                this.userReminder // Copy reference
             },
             availabilityStatus = this.availabilityStatus,
             customerCounting = this.customerCounting?.toMap(),
@@ -170,6 +177,11 @@ data class Employee(
             salary = this.salary,
             uid = this.uid,
             username = this.username,
+            userNotification = if (copyNotification) {
+                this.userNotification?.map { it.deepCopy() }?.toMutableList()
+            } else {
+                this.userNotification // Copy reference
+            },
             userRef = this.userRef,
             outletRef = this.outletRef,
             restOfQueue = this.restOfQueue

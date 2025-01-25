@@ -1,222 +1,230 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:context=".UserInterface.SettingPageScreen">
 
-    <LinearLayout
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/main_content"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_height="match_parent"
+        android:fillViewport="true">
 
         <LinearLayout
-            android:id="@+id/backgroundStatusBar"
-            android:layout_width="match_parent"
-            android:layout_height="25dp"
-            android:alpha="1"
-            android:background="@color/white"
-            android:orientation="horizontal" />
-
-        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:clipChildren="false"
-            android:clipToPadding="false"
-            android:padding="16dp">
+            android:orientation="vertical">
 
-            <!-- Back Button -->
-            <ImageView
-                android:id="@+id/ivBack"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_alignParentStart="true"
-                android:layout_marginTop="17dp"
-                android:layout_marginStart="15dp"
-                android:src="@drawable/ic_back"
-                android:contentDescription="@string/icon_back_button_desc" />
+            <LinearLayout
+                android:id="@+id/backgroundStatusBar"
+                android:layout_width="match_parent"
+                android:layout_height="25dp"
+                android:alpha="1"
+                android:orientation="horizontal" />
 
-            <!-- Title -->
-            <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerHorizontal="true"
-                android:layout_marginTop="16dp"
-                android:text="@string/toolbar_settings_page"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#000000" />
-
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/imageId"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_alignParentEnd="true"
-                android:layout_marginEnd="18dp"
-                android:layout_marginTop="16dp"
-                android:src="@drawable/bendera" />
-
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cvSetting1"
+            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="35dp"
-                android:layout_marginEnd="30dp"
-                android:layout_marginTop="45dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="@android:color/transparent"
-                android:layout_below="@id/tvTitle">
+                android:paddingTop="32dp"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="16dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
 
+                <!-- Back Button -->
+                <ImageView
+                    android:id="@+id/ivBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginStart="15dp"
+                    android:src="@drawable/ic_back"
+                    android:contentDescription="@string/icon_back_button_desc" />
+
+                <!-- Title -->
                 <TextView
-                    android:id="@+id/textView43"
+                    android:id="@+id/tvTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/arial_bold"
-                    android:text="@string/ponsel_notification"
-                    android:textColor="#000000"
-                    android:textSize="16.5sp" />
-
-                <Switch
-                    android:id="@+id/switch2"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="25dp"
-                    android:text="@string/sound"
-                    android:textSize="14sp"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/toolbar_settings_page"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
                     android:textColor="#000000" />
-                <Switch
-                    android:id="@+id/switch3"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="80dp"
-                    android:text="@string/vibrate"
-                    android:textSize="14sp"
-                    android:textColor="#000000" />
-            </androidx.cardview.widget.CardView>
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cvSetting2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="35dp"
-                android:layout_marginEnd="30dp"
-                android:layout_marginTop="30dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="@android:color/transparent"
-                android:layout_below="@id/cvSetting1">
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/imageId"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginEnd="18dp"
+                    android:src="@drawable/bendera" />
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cvSetting1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="35dp"
+                    android:layout_marginEnd="30dp"
+                    android:layout_marginTop="45dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    android:layout_below="@id/tvTitle">
+
+                    <TextView
+                        android:id="@+id/textView43"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/arial_bold"
+                        android:text="@string/ponsel_notification"
+                        android:textColor="#000000"
+                        android:textSize="16.5sp" />
+
+                    <Switch
+                        android:id="@+id/switch2"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="25dp"
+                        android:text="@string/sound"
+                        android:textSize="14sp"
+                        android:textColor="#000000" />
+                    <Switch
+                        android:id="@+id/switch3"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="80dp"
+                        android:text="@string/vibrate"
+                        android:textSize="14sp"
+                        android:textColor="#000000" />
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cvSetting2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="35dp"
+                    android:layout_marginEnd="30dp"
+                    android:layout_marginTop="30dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    android:layout_below="@id/cvSetting1">
+
+                    <TextView
+                        android:id="@+id/textView45"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/arial_bold"
+                        android:text="@string/permission_app"
+                        android:textColor="#000000"
+                        android:textSize="16.5sp" />
+
+                    <Switch
+                        android:id="@+id/switch4"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="25dp"
+                        android:text="@string/microphone"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switch5"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="80dp"
+                        android:text="@string/camera"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switch6"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="135dp"
+                        android:text="@string/Location"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cvSetting3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="35dp"
+                    android:layout_marginEnd="30dp"
+                    android:layout_marginTop="30dp"
+                    app:cardElevation="0dp"
+                    app:cardBackgroundColor="@android:color/transparent"
+                    android:layout_below="@id/cvSetting2">
+
+                    <TextView
+                        android:id="@+id/textView46"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/arial_bold"
+                        android:text="@string/security_and_privacy"
+                        android:textColor="#000000"
+                        android:textSize="16.5sp" />
+
+                    <Switch
+                        android:id="@+id/switch7"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="25dp"
+                        android:text="Password"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+
+                    <Switch
+                        android:id="@+id/switch8"
+                        android:layout_width="match_parent"
+                        android:layout_height="50dp"
+                        android:layout_marginTop="80dp"
+                        android:text="@string/network_tracking"
+                        android:textColor="#000000"
+                        android:textSize="14sp" />
+                </androidx.cardview.widget.CardView>
+
+                <Button
+                    android:id="@+id/btnLogout"
+                    android:layout_width="190dp"
+                    android:layout_height="45dp"
+                    android:backgroundTint="@color/black"
+                    android:fontFamily="@font/arial_medium"
+                    android:text="@string/logout"
+                    android:textAlignment="gravity"
+                    android:textStyle="bold"
+                    android:textColor="@color/magenta"
+                    android:layout_marginTop="40dp"
+                    android:layout_below="@id/cvSetting3"
+                    android:layout_centerHorizontal="true"
+                    android:textSize="15sp"
+                    app:cornerRadius="10dp"
+                    app:strokeColor="#71CFB9" />
 
                 <TextView
-                    android:id="@+id/textView45"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/arial_bold"
-                    android:text="@string/permission_app"
-                    android:textColor="#000000"
-                    android:textSize="16.5sp" />
+                    android:layout_marginBottom="35dp"
+                    android:fontFamily="@font/outfit_regular"
+                    android:layout_below="@id/btnLogout"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/version_1_0_0_2024_barberlink_inc"
+                    android:textAlignment="center"
+                    android:textSize="11sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    tools:layout_editor_absoluteX="0dp"
+                    android:textColor="#868889"/>
 
-                <Switch
-                    android:id="@+id/switch4"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="25dp"
-                    android:text="@string/microphone"
-                    android:textColor="#000000"
-                    android:textSize="14sp" />
+            </RelativeLayout>
 
-                <Switch
-                    android:id="@+id/switch5"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="80dp"
-                    android:text="@string/camera"
-                    android:textColor="#000000"
-                    android:textSize="14sp" />
+        </LinearLayout>
 
-                <Switch
-                    android:id="@+id/switch6"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="135dp"
-                    android:text="@string/Location"
-                    android:textColor="#000000"
-                    android:textSize="14sp" />
-            </androidx.cardview.widget.CardView>
+    </androidx.core.widget.NestedScrollView>
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cvSetting3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="35dp"
-                android:layout_marginEnd="30dp"
-                android:layout_marginTop="30dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="@android:color/transparent"
-                android:layout_below="@id/cvSetting2">
-
-                <TextView
-                    android:id="@+id/textView46"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/arial_bold"
-                    android:text="@string/security_and_privacy"
-                    android:textColor="#000000"
-                    android:textSize="16.5sp" />
-
-                <Switch
-                    android:id="@+id/switch7"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="25dp"
-                    android:text="Password"
-                    android:textColor="#000000"
-                    android:textSize="14sp" />
-
-                <Switch
-                    android:id="@+id/switch8"
-                    android:layout_width="match_parent"
-                    android:layout_height="50dp"
-                    android:layout_marginTop="80dp"
-                    android:text="@string/network_tracking"
-                    android:textColor="#000000"
-                    android:textSize="14sp" />
-            </androidx.cardview.widget.CardView>
-
-            <Button
-                android:id="@+id/btnLogout"
-                android:layout_width="190dp"
-                android:layout_height="45dp"
-                android:backgroundTint="@color/black"
-                android:fontFamily="@font/arial_medium"
-                android:text="@string/logout"
-                android:textAlignment="gravity"
-                android:textStyle="bold"
-                android:textColor="@color/magenta"
-                android:layout_marginTop="40dp"
-                android:layout_below="@id/cvSetting3"
-                android:layout_centerHorizontal="true"
-                android:textSize="15sp"
-                app:cornerRadius="10dp"
-                app:strokeColor="#71CFB9" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="35dp"
-                android:fontFamily="@font/outfit_regular"
-                android:layout_below="@id/btnLogout"
-                android:layout_marginTop="12dp"
-                android:text="@string/version_1_0_0_2024_barberlink_inc"
-                android:textAlignment="center"
-                android:textSize="11sp"
-                app:layout_constraintBottom_toBottomOf="parent"
-                tools:layout_editor_absoluteX="0dp"
-                android:textColor="#868889"/>
-
-        </RelativeLayout>
-
-    </LinearLayout>
-
-</androidx.core.widget.NestedScrollView>
+</FrameLayout>

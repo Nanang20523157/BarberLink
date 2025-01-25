@@ -14,38 +14,46 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
-import com.example.barberlink.Helper.DisplaySetting
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ActivitySignUpStepThreeBinding
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 
 class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpStepThreeBinding
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private lateinit var userAdminData: UserAdminData
     private lateinit var userRolesData: UserRolesData
-    private lateinit var userAdminCopy: UserAdminData
+    private var userAdminCopy: UserAdminData = UserAdminData()
     private var isPasswordValid = false
     private var isConfirmPasswordValid = false
+    private var textInputPassword: String = ""
+    private var textInputConfirmPassword: String = ""
+    private var textPasswordError: String = ""
+    private var textConfirmPasswordError: String = ""
+    private var isSeePassword: Boolean = false
     private var imageUri: Uri? = null
     private var isNavigating = false
     private var currentView: View? = null
@@ -57,19 +65,84 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepThreeBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
 
-        intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
-            userAdminData = it
-        }
-        intent.getParcelableExtra(SignUpStepTwo.ROLES_KEY, UserRolesData::class.java)?.let {
-            userRolesData = it
-        }
-        intent.getStringExtra(SignUpStepTwo.IMAGE_KEY)?.let {
-            imageUri = Uri.parse(it)
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
+                    userAdminData = it
+                }
+                intent.getParcelableExtra(SignUpStepTwo.ROLES_KEY, UserRolesData::class.java)?.let {
+                    userRolesData = it
+                }
+            } else {
+                intent.getParcelableExtra<UserAdminData>(SignUpStepTwo.ADMIN_KEY)?.let {
+                    userAdminData = it
+                }
+                intent.getParcelableExtra<UserRolesData>(SignUpStepTwo.ROLES_KEY)?.let {
+                    userRolesData = it
+                }
+            }
+
+            intent.getStringExtra(SignUpStepTwo.IMAGE_KEY)?.let {
+                imageUri = Uri.parse(it)
+            }
+        } else {
+            userAdminData = savedInstanceState?.getParcelable("userAdminData") ?: UserAdminData()
+            userRolesData = savedInstanceState?.getParcelable("userRolesData") ?: UserRolesData()
+            userAdminCopy = savedInstanceState?.getParcelable("userAdminCopy") ?: UserAdminData()
+            isPasswordValid = savedInstanceState?.getBoolean("isPasswordValid") ?: false
+            isConfirmPasswordValid = savedInstanceState?.getBoolean("isConfirmPasswordValid") ?: false
+            textInputPassword = savedInstanceState?.getString("textInputPassword") ?: ""
+            textInputConfirmPassword = savedInstanceState?.getString("textInputConfirmPassword") ?: ""
+            textPasswordError = savedInstanceState?.getString("textPasswordError") ?: ""
+            textConfirmPasswordError = savedInstanceState?.getString("textConfirmPasswordError") ?: ""
+            isSeePassword = savedInstanceState?.getBoolean("isSeePassword") ?: false
+            imageUri = savedInstanceState?.getParcelable("imageUri")
+            isProcessError = savedInstanceState?.getBoolean("isProcessError") ?: false
+            retryStep = savedInstanceState?.getString("retryStep") ?: ""
+
+//            binding.apply {
+//                etPassword.setText(textInputPassword)
+//                etConfirmPassword.setText(textInputConfirmPassword)
+//
+//                if (isPasswordValid) {
+//                    wrapperPassword.error = textPasswordError
+//                } else {
+//                    wrapperPassword.error = null
+//                }
+//
+//                if (isConfirmPasswordValid) {
+//                    wrapperConfirmPassword.error = textConfirmPasswordError
+//                } else {
+//                    wrapperConfirmPassword.error = null
+//                }
+//
+//                if (isSeePassword) {
+//                    etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+//                    etConfirmPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+//                } else {
+//                    etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+//                    etConfirmPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+//                }
+//
+//                etPassword.text?.let { etPassword.setSelection(it.length) }
+//                etConfirmPassword.text?.let { etConfirmPassword.setSelection(it.length) }
+//            }
+
         }
 
         binding.btnCreateAccount.setOnClickListener(this)
@@ -79,7 +152,8 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
         with (binding) {
             checkBoxShowPassword.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
+                isSeePassword = isChecked
+                if (isSeePassword) {
                     // Show password
                     etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
                     etConfirmPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
@@ -95,6 +169,29 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+
+        // Menyimpan Parcelable atau Serializable
+        outState.putParcelable("userAdminData", userAdminData)
+        outState.putParcelable("userRolesData", userRolesData)
+        outState.putParcelable("userAdminCopy", userAdminCopy)
+
+        // Menyimpan tipe data primitif
+        outState.putBoolean("isPasswordValid", isPasswordValid)
+        outState.putBoolean("isConfirmPasswordValid", isConfirmPasswordValid)
+        outState.putString("textInputPassword", textInputPassword)
+        outState.putString("textInputConfirmPassword", textInputConfirmPassword)
+        outState.putString("textPasswordError", textPasswordError)
+        outState.putString("textConfirmPasswordError", textConfirmPasswordError)
+        outState.putBoolean("isSeePassword", isSeePassword)
+        outState.putParcelable("imageUri", imageUri)
+        outState.putBoolean("isProcessError", isProcessError)
+        outState.putString("retryStep", retryStep)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnCreateAccount -> {
@@ -148,6 +245,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun createNewAccount(email: String, password: String) {
         if (!isConnectedToInternet()) {
             Toast.makeText(
@@ -173,7 +271,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                                 userAdminData.uid = user.uid
                                 addNewUserAdminToDatabase()
                             } else {
-                                handleFailure("Error retrieving user information", "RETRIEVE_UID")
+                                handleFailure("Gagal mengambil kembali informasi akun pengguna.", "RETRIEVE_UID")
                             }
                         } else {
                             binding.progressBar.visibility = View.GONE
@@ -195,6 +293,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }.execute() // Pastikan untuk mengeksekusi AsyncTask
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun getUserUidFromAuth(email: String, password: String) {
         if (!isConnectedToInternet()) {
             handleFailure("Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.", "RETRIEVE_UID")
@@ -216,7 +315,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                                     userAdminData.uid = user.uid
                                     addNewUserAdminToDatabase()
                                 } else {
-                                    handleFailure("Error retrieving user information", "RETRIEVE_UID")
+                                    handleFailure("Gagal mengambil kembali informasi akun pengguna.", "RETRIEVE_UID")
                                 }
                             } else {
                                 handleFailure("Error signing in: ${signInTask.exception?.message}", "RETRIEVE_UID")
@@ -250,6 +349,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }.execute() // Pastikan untuk mengeksekusi AsyncTask
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun addNewUserAdminToDatabase() {
         imageUri?.let {
             Toast.makeText(this, "Creating your Account...", Toast.LENGTH_SHORT).show()
@@ -269,6 +369,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         } ?: saveNewDataAdminToFirestore()
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun saveNewDataAdminToFirestore() {
 //        Toast.makeText(this, "Create your Account...", Toast.LENGTH_SHORT).show()
 //        Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
@@ -282,6 +383,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun clearOutletsAndAddNew() {
         val outletsCollection = db.collection("barbershops")
             .document(userAdminData.uid)
@@ -315,27 +417,43 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun runAddOutletAndService() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val addOutletJob = async { addOutletDataBarbershopAsync() }
-            val addServiceJob = async { addDefaultItemServiceAsync() }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val taskFailed = AtomicBoolean(false)
+            val addOutletJob = async {
+                val prosesStatus = addOutletDataBarbershopAsync()
+                if (prosesStatus) { taskFailed.set(true) }
+            }
+            val addServiceJob = async {
+                val prosesStatus = addDefaultItemServiceAsync()
+                if (prosesStatus) { taskFailed.set(true) }
+            }
 
             try {
                 // Wait for both tasks to complete
                 addOutletJob.await()
                 addServiceJob.await()
 
-                // Run updateUserRolesAndProfile if both are successful
-                updateOrAddUserRoles()
+                if (taskFailed.get()) {
+                    withContext(Dispatchers.Main) {
+                        handleFailure("Gagal menambahkan data yang dibutuhkan", "ADD_SUPPORT_DATA")
+                    }
+                } else {
+                    // Run updateOrAddUserRoles if both are successful
+                    updateOrAddUserRoles()
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     handleFailure("Error running tasks: ${e.message}", "ADD_SUPPORT_DATA")
                 }
+                throw e
             }
         }
     }
 
-    private suspend fun addOutletDataBarbershopAsync() {
+    private suspend fun addOutletDataBarbershopAsync(): Boolean {
+        val isFailed = AtomicBoolean(false)
         val uidOutlet = userAdminData.barbershopIdentifier + "01"
         val outletData = Outlet(
             uid = uidOutlet,
@@ -349,10 +467,14 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             .collection("outlets")
             .document(uidOutlet)
             .set(outletData)
+            .addOnFailureListener { isFailed.set(true) }
             .await() // Convert to coroutine-friendly await
+
+        return isFailed.get()
     }
 
-    private suspend fun addDefaultItemServiceAsync() {
+    private suspend fun addDefaultItemServiceAsync(): Boolean {
+        val isFailed = AtomicBoolean(false)
         val defaultService = Service(
             applyToGeneral = true,
             autoSelected = true,
@@ -377,9 +499,13 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             .collection("services")
             .document(defaultService.uid)
             .set(defaultService)
+            .addOnFailureListener { isFailed.set(true) }
             .await() // Convert to coroutine-friendly await
+
+        return isFailed.get()
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun updateOrAddUserRoles() {
         userRolesData.apply {
             adminProvider = "email"
@@ -392,7 +518,6 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                 "customer" -> "pairAC(+)"
                 else -> "pairAC(-)"
             }
-            uid = userAdminData.phone
         }
 
         db.collection("users")
@@ -450,9 +575,9 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                                                 navigatePage(this@SignUpStepThree, SignUpSuccess::class.java, binding.btnCreateAccount)
                                             }
                                         }
-                                        .addOnFailureListener { exception ->
+                                        .addOnFailureListener {
                                             handleFailure(
-                                                "Error updating account_verification: ${exception.message}",
+                                                "Gagal melakukan verifikasi akun pengguna!",
                                                 "UPDATE_ROLES"
                                             )
                                         }
@@ -478,25 +603,32 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         retryStep = step
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            isProcessError = false
-            val intent = Intent(context, destination)
-            if (destination == SignUpSuccess::class.java) {
-                intent.apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                }
-            }
-            intent.putExtra(ADMIN_KEY, userAdminData)
-            startActivity(intent)
-        } else return
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                isProcessError = false
+                val intent = Intent(context, destination)
+//                if (destination == SignUpSuccess::class.java) {
+//                    intent.apply {
+//                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+//                    }
+//                }
+                intent.putExtra(ADMIN_KEY, userAdminData)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
@@ -542,18 +674,23 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
     private fun validatePasswordInput(): Boolean {
         val password = binding.etPassword.text.toString().trim()
+        textInputPassword = password
         val confirmPassword = binding.etConfirmPassword.text.toString().trim()
+        textInputConfirmPassword = confirmPassword
 
         return when {
             password.isEmpty() -> {
-                binding.wrapperPassword.error = getString(R.string.password_required)
+                textPasswordError = getString(R.string.password_required)
+                binding.wrapperPassword.error = textPasswordError
                 false
             }
             password.length < 8 -> {
-                binding.wrapperPassword.error = getString(R.string.password_is_too_short)
+                textPasswordError = getString(R.string.password_is_too_short)
+                binding.wrapperPassword.error = textPasswordError
                 false
             }
             else -> {
+                textPasswordError = ""
                 binding.wrapperPassword.error = null
                 userAdminData.password = password
                 if (confirmPassword.isNotEmpty()) {
@@ -566,18 +703,23 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
     private fun validateConfirmPasswordInput(): Boolean {
         val password = binding.etPassword.text.toString().trim()
+        textInputPassword = password
         val confirmPassword = binding.etConfirmPassword.text.toString().trim()
+        textInputConfirmPassword = confirmPassword
 
         return when {
             confirmPassword.isEmpty() -> {
-                binding.wrapperConfirmPassword.error = getString(R.string.confirm_password_required)
+                textConfirmPasswordError = getString(R.string.confirm_password_required)
+                binding.wrapperConfirmPassword.error = textConfirmPasswordError
                 false
             }
             password != confirmPassword && password.isNotEmpty() -> {
-                binding.wrapperConfirmPassword.error = getString(R.string.cpasswords_do_not_match)
+                textConfirmPasswordError = getString(R.string.cpasswords_do_not_match)
+                binding.wrapperConfirmPassword.error = textConfirmPasswordError
                 false
             }
             else -> {
+                textConfirmPasswordError = ""
                 binding.wrapperConfirmPassword.error = null
                 if (password != confirmPassword && password.isEmpty()) {
                     isPasswordValid = validatePasswordInput()
@@ -611,6 +753,14 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             btnCreateAccount.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepThree, R.color.black)
             btnCreateAccount.setTypeface(null, Typeface.BOLD)
             btnCreateAccount.setTextColor(resources.getColor(R.color.green_lime_wf))
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onBackPressed() {
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            super.onBackPressed()
+            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
         }
     }
 

@@ -1,44 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:context=".UserInterface.Intro.Splash.SplashScreen">
 
-    <ImageView
-        android:id="@+id/backgroundSplash"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main_content"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="fitXY"
-        android:alpha="0"
-        android:src="@drawable/background_splash"
-        android:contentDescription="@string/background_splash_screen_desc" />
+        android:layout_height="match_parent">
 
-    <ImageView
-        android:id="@+id/barberHead"
-        android:layout_width="0dp"
-        android:layout_height="220dp"
-        android:alpha="0"
-        app:layout_constraintVertical_bias="0.1"
-        android:src="@drawable/barber_head"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:contentDescription="@string/image_head_aset_desc"/>
+        <ImageView
+            android:id="@+id/backgroundSplash"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitXY"
+            android:alpha="0"
+            android:src="@drawable/background_splash"
+            android:contentDescription="@string/background_splash_screen_desc" />
 
-    <ImageView
-        android:id="@+id/barberlinkLogo"
-        android:layout_width="0dp"
-        android:layout_height="120dp"
-        android:alpha="0"
-        android:src="@drawable/full_medium_blue_logo"
-        app:layout_constraintVertical_bias="0.89"
-        app:layout_constraintTop_toBottomOf="@id/barberHead"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:contentDescription="@string/full_logo_barberlink_app_desc" />
+        <ImageView
+            android:id="@+id/barberHead"
+            android:layout_width="0dp"
+            android:layout_height="220dp"
+            android:alpha="0"
+            app:layout_constraintVertical_bias="0.1"
+            android:src="@drawable/barber_head"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@string/image_head_aset_desc"/>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+        <ImageView
+            android:id="@+id/barberlinkLogo"
+            android:layout_width="0dp"
+            android:layout_height="120dp"
+            android:alpha="0"
+            android:src="@drawable/full_medium_blue_logo"
+            app:layout_constraintVertical_bias="0.89"
+            app:layout_constraintTop_toBottomOf="@id/barberHead"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:contentDescription="@string/full_logo_barberlink_app_desc" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

@@ -1,12 +1,15 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
 import android.content.Context
+import android.graphics.Rect
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.util.TypedValue
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
@@ -104,6 +107,34 @@ class AddNewCustomerFragment : DialogFragment() {
         binding.tvInformation.isSelected = true
         binding.tvUsername.isSelected = true
 
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                if (isTouchOnForm(e)) {
+                    return false  // Jangan lanjutkan dismiss
+                }
+
+                Log.d("ListQueueBoardFragment", "Background scrim clicked")
+                setFragmentResult("action_dismiss_dialog", bundleOf(
+                    "dismiss_dialog" to true
+                ))
+
+                dismiss()
+                parentFragmentManager.popBackStack()
+                return true
+            }
+        })
+
+        binding.nvBackgroundScrim.setOnTouchListener { view, event ->
+            if (gestureDetector.onTouchEvent(event)) {
+                // Deteksi klik dan panggil performClick untuk aksesibilitas
+                view.performClick()
+                true
+            } else {
+                // Teruskan event ke sistem untuk menangani scroll/swipe
+                false
+            }
+        }
+
         binding.btnSave.setOnClickListener {
             if (validateInputs()) {
                 isSaveData = true
@@ -115,6 +146,14 @@ class AddNewCustomerFragment : DialogFragment() {
         }
 
         addCustomerViewModel.snackBarMessage.observe(this) { showSnackBar(it)  }
+    }
+
+    private fun isTouchOnForm(event: MotionEvent): Boolean {
+        val location = IntArray(2)
+        binding.cdAddNewCustomer.getLocationOnScreen(location)
+        val rect = Rect(location[0], location[1], location[0] + binding.cdAddNewCustomer.width, location[1] + binding.cdAddNewCustomer.height)
+
+        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
     private fun showSnackBar(eventMessage: Event<String>) {
@@ -611,7 +650,7 @@ class AddNewCustomerFragment : DialogFragment() {
                             photoProfile = userAdminData?.imageCompanyProfile.orEmpty()
                             fullname = if (userAdminData?.ownerName?.contains("Owner", ignoreCase = true) == true) {
                                 userInputName
-                            } else ({ userAdminData?.ownerName }).toString()
+                            } else { userAdminData?.ownerName.toString() }
                         }
                         binding.tvInformation.text = getString(R.string.owner_barber, userAdminData?.barbershopName)
                     }
@@ -788,9 +827,12 @@ class AddNewCustomerFragment : DialogFragment() {
         Toast.makeText(context, "Pelanggan baru berhasil ditambahkan", Toast.LENGTH_SHORT).show()
         setFragmentResult("customer_result_data", bundleOf(
             "customer_data" to userCustomerData,
+            "dismiss_dialog" to true
 //            "new_customer" to newCustomer,
         ))
+
         dismiss()
+        parentFragmentManager.popBackStack()
     }
 
     private fun handleError(exception: Exception) {

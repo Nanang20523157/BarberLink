@@ -3,25 +3,31 @@ package com.example.barberlink.UserInterface.Capster.Fragment
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
+import android.view.GestureDetector
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.setFragmentResult
 import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
-import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.databinding.FragmentPinInputBinding
 
 // TODO: Rename parameter arguments, choose names that match
@@ -36,7 +42,7 @@ private const val ARG_PARAM2 = "param2"
  */
 class PinInputFragment : DialogFragment() {
     private var _binding: FragmentPinInputBinding? = null
-    private lateinit var sessionManager: SessionManager
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
     private lateinit var context: Context
     private val binding get() = _binding!!
     // TODO: Rename and change types of parameters
@@ -71,8 +77,44 @@ class PinInputFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        sessionManager = SessionManager(context)
         setupPinView()
+
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                // Jangan dismiss dialog jika area cdCapitalForm yang diklik
+                if (isTouchOnForm(e)) {
+                    return false  // Jangan lanjutkan dismiss
+                }
+
+                setFragmentResult("action_dismiss_dialog", bundleOf(
+                    "dismiss_dialog" to true
+                ))
+
+                dismiss()
+                parentFragmentManager.popBackStack()
+                return true
+            }
+        })
+
+        binding.nvBackgroundScrim.setOnTouchListener { view, event ->
+            if (gestureDetector.onTouchEvent(event)) {
+                // Deteksi klik dan panggil performClick untuk aksesibilitas
+                view.performClick()
+                true
+            } else {
+                // Teruskan event ke sistem untuk menangani scroll/swipe
+                false
+            }
+        }
+
+    }
+
+    private fun isTouchOnForm(event: MotionEvent): Boolean {
+        val location = IntArray(2)
+        binding.cardPinInput.getLocationOnScreen(location)
+        val rect = Rect(location[0], location[1], location[0] + binding.cardPinInput.width, location[1] + binding.cardPinInput.height)
+
+        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
     override fun onAttach(context: Context) {
@@ -133,6 +175,7 @@ class PinInputFragment : DialogFragment() {
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
+                @RequiresApi(Build.VERSION_CODES.S)
                 override fun afterTextChanged(s: Editable?) {
                     if (s?.length == 6) {
                         if (s.toString() == userEmployeeData?.pin) {
@@ -148,8 +191,8 @@ class PinInputFragment : DialogFragment() {
                                 binding.progressBar.visibility = View.GONE
                                 sessionManager.setSessionCapster(true)
                                 userEmployeeData?.userRef?.let { sessionManager.setDataCapsterRef(it) }
-                                Log.d("OutletSelected", "${outletSelected?.rootRef}/outlets/${outletSelected?.uid}")
-                                outletSelected?.uid?.let { sessionManager.setOutletSelectedRef("${outletSelected?.rootRef}/outlets/$it") }
+                                // Log.d("OutletSelected", "${outletSelected?.rootRef}/outlets/${outletSelected?.uid}")
+                                // outletSelected?.uid?.let { sessionManager.setOutletSelectedRef("${outletSelected?.rootRef}/outlets/$it") }
                                 navigatePage(context, HomePageCapster::class.java)
                             }, 800)
                         } else {
@@ -176,21 +219,24 @@ class PinInputFragment : DialogFragment() {
         imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>) {
-        val intent = Intent(context, destination)
-        intent.apply {
-            putExtra(USER_DATA_KEY, userEmployeeData)
-            putExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, outletSelected)
-            // flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, requireContext(), false) {
+            val intent = Intent(context, destination)
+            intent.apply {
+                putExtra(USER_DATA_KEY, userEmployeeData)
+                // putExtra(PinInputFragment.OUTLET_DATA_KEY, outletSelected)
+                // flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+            // Tutup DialogFragment jika ada
+            triggerClearBackStack()
+            dismiss() // Menutup DialogFragment
+            parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
+            context.startActivity(intent)
+            (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            // Tutup aktivitas saat ini
+            (context as? Activity)?.finish()
         }
-        // Tutup DialogFragment jika ada
-        triggerClearBackStack()
-        dismiss() // Menutup DialogFragment
-        parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
-        context.startActivity(intent)
-        // Tutup aktivitas saat ini
-        (context as? Activity)?.finish()
     }
 
     override fun onDestroyView() {

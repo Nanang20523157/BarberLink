@@ -68,6 +68,15 @@ class ItemListServiceOrdersAdapter(
     }
 
     fun setShimmer(shimmer: Boolean) {
+        Log.d("ObjectReferences", "shimmer argumen: $shimmer, isShimmer: $isShimmer")
+
+        // Log apakah recyclerView null
+        if (recyclerView == null) {
+            Log.e("ObjectReferences", "recyclerView is null")
+        } else {
+            Log.d("ObjectReferences", "recyclerView is not null")
+        }
+
         if (isShimmer == shimmer) return
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
@@ -92,7 +101,7 @@ class ItemListServiceOrdersAdapter(
 
             // Validasi posisi target
             if (positionToScroll in 0 until itemCount) {
-                Log.d("itemCount", "adapter: $lastScrollPosition")
+                Log.d("TagScroll", "adapter: $lastScrollPosition")
                 layoutManager?.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging

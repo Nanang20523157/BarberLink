@@ -1,54 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
     tools:context=".UserInterface.Capster.HomePageCapster">
 
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefreshLayout"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
 
-        <androidx.core.widget.NestedScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:fillViewport="true">
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
 
-            <LinearLayout
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLayout"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:elevation="3dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:layout_weight="1">
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/main_content"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_height="match_parent"
+                android:fillViewport="true">
 
                 <LinearLayout
-                    android:id="@+id/backgroundStatusBar"
                     android:layout_width="match_parent"
-                    android:layout_height="25dp"
-                    android:alpha="1"
-                    android:background="@color/white"
-                    android:orientation="horizontal" />
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-                <FrameLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    <!--                <LinearLayout-->
+                    <!--                    android:id="@+id/backgroundStatusBar"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="25dp"-->
+                    <!--                    android:alpha="1"-->
+                    <!--                    android:background="@color/white"-->
+                    <!--                    android:orientation="horizontal" />-->
 
-                    <include
-                        android:id="@+id/shimmerLayout"
-                        layout="@layout/shimmer_layout_home_page_capster" />
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
 
-                    <include
-                        android:id="@+id/realLayout"
-                        layout="@layout/real_layout_home_page_capster" />
+                        <include
+                            android:id="@+id/shimmerLayout"
+                            layout="@layout/shimmer_layout_home_page_capster" />
 
-                </FrameLayout>
+                        <include
+                            android:id="@+id/realLayout"
+                            layout="@layout/real_layout_home_page_capster" />
 
-            </LinearLayout>
+                    </FrameLayout>
 
+                </LinearLayout>
 
-        </androidx.core.widget.NestedScrollView>
+            </androidx.core.widget.NestedScrollView>
 
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabListQueue"

@@ -2,12 +2,16 @@ package com.example.barberlink.UserInterface.SignIn.Gateway
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.animation.AnimationUtils
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import com.example.barberlink.Helper.DisplaySetting
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.MainActivity
@@ -18,18 +22,32 @@ import com.example.barberlink.databinding.ActivitySelectUserRolePageBinding
 
 class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySelectUserRolePageBinding
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private var isNavigating = false
     private var currentView: View? = null
     private var adminSession: Boolean = false
     private var tellerSession: Boolean = false
     private var capsterSession: Boolean = false
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivitySelectUserRolePageBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
+//        BarberLinkApp.sessionManager.clearActivePage()
 
         with(binding) {
             ivBack.setOnClickListener(this@SelectUserRolePage)
@@ -40,6 +58,27 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+    }
+
+//    override fun onNewIntent(intent: Intent) {
+//        super.onNewIntent(intent)
+//        // Ambil nilai resetFlag dari intent
+//        val resetFlag = intent.getBooleanExtra("reset_flag_session", false)
+//
+//        if (resetFlag) {
+//            // Lakukan sesuatu jika ResetFlag = true
+//            BarberLinkApp.sessionManager.clearActivePage()
+//            Log.d("onNewIntent", "Reset flag detected. Active page cleared.")
+//        } else {
+//            Log.d("onNewIntent", "No reset flag detected.")
+//        }
+//    }
+
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         adminSession = sessionManager.getSessionAdmin()
         tellerSession = sessionManager.getSessionTeller()
@@ -55,60 +94,96 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 //                    navigatePage(this@SelectUserRolePage, SignUpStepOne::class.java, btnSignUp)
 //                }
                 R.id.btnAdminOwner -> {
-                    Log.d("SelectUserRolePage", "Admin Session: $adminSession <> ${sessionManager.getDataAdminRef()}")
+                    Log.d("AutoLogout", "Admin Session: $adminSession <> ${sessionManager.getDataAdminRef()}")
                     // if (adminSession) navigatePage(this@SelectUserRolePage, BerandaAdminActivity::class.java, btnAdminOwner)
                     if (adminSession) navigatePage(this@SelectUserRolePage, MainActivity::class.java, btnAdminOwner)
                     else navigatePage(this@SelectUserRolePage, LoginAdminPage::class.java, btnAdminOwner)
                 }
                 R.id.btnPegawai -> {
+                    Log.d("AutoLogout", "Capster Session: $capsterSession <> ${sessionManager.getDataCapsterRef()}")
                     if (capsterSession) navigatePage(this@SelectUserRolePage, HomePageCapster::class.java, btnPegawai)
-                    else navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnPegawai)
+                    else navigatePage(this@SelectUserRolePage, LoginAdminPage::class.java, btnPegawai)
+                    // else navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnPegawai)
                 }
                 R.id.btnKasirTeller -> {
-                    if (tellerSession) navigatePage(this@SelectUserRolePage, QueueTrackerPage::class.java, btnKasirTeller)
-                    else navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnKasirTeller)
+                    Log.d("TellerSession", "Teller Session: $tellerSession")
+                    if (tellerSession) {
+                        navigatePage(this@SelectUserRolePage, QueueTrackerPage::class.java, btnKasirTeller)
+                    }
+                    else {
+                        navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnKasirTeller)
+                    }
                 }
             }
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            // Check if the destination is HomePageCapster or QueueTrackerPage
-            if (destination == HomePageCapster::class.java || destination == QueueTrackerPage::class.java) {
-                intent.putExtra(ACTION_GET_DATA, true)
-            } else if (destination == SelectOutletDestination::class.java) {
-                // Check the view and destination to set the appropriate intent extra
-                if (view.id == R.id.btnPegawai) {
-                    intent.putExtra(LOGIN_TYPE_KEY, "Login as Employee")
-                } else if (view.id == R.id.btnKasirTeller) {
-                    intent.putExtra(LOGIN_TYPE_KEY, "Login as Teller")
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+                // Check if the destination is HomePageCapster or QueueTrackerPage
+                if (destination == HomePageCapster::class.java || destination == QueueTrackerPage::class.java) {
+                    intent.putExtra(ACTION_GET_DATA, true)
+                } else if (destination == SelectOutletDestination::class.java) {
+                    // Check the view and destination to set the appropriate intent extra
+                    if (view.id == R.id.btnPegawai) {
+                        intent.putExtra(LOGIN_TYPE_KEY, "Login as Employee")
+                    } else if (view.id == R.id.btnKasirTeller) {
+                        intent.putExtra(LOGIN_TYPE_KEY, "Login as Teller")
+                    }
+                } else if (destination == LoginAdminPage::class.java) {
+                    if (view.id == R.id.btnPegawai) {
+                        intent.putExtra(LOGIN_TYPE_KEY, "Login as Employee")
+                    } else if (view.id == R.id.btnAdminOwner) {
+                        intent.putExtra(LOGIN_TYPE_KEY, "Login as Admin")
+                    }
                 }
-            }
 
-            startActivity(intent)
-        } else return
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                Log.d("WinWinWin", "SelectUserRolePage: navigation")
+                // if (destination == LoginAdminPage::class.java) overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
-//    @Deprecated("Deprecated in Java")
-//    override fun onBackPressed() {
-//        super.onBackPressed()
+    @RequiresApi(Build.VERSION_CODES.S)
+    @Deprecated("Deprecated in Java",
+        ReplaceWith("super.onBackPressed()", "androidx.appcompat.app.AppCompatActivity")
+    )
+    override fun onBackPressed() {
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            super.onBackPressed()
+            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            Log.d("WinWinWin", "SelectUserRolePage: back navigation")
+        }
 //        val intent = Intent(this, LandingPage::class.java)
-//        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+//        intent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
 //        startActivity(intent)
-//        overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-//        finish()
-//    }
+//        finish() // Menutup SelectUserRolePage agar tidak ada di back stack
+    }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
+        Log.d("CheckLifecycle", "==================== ON RESUME SELECT-ROLE =====================")
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // BarberLinkApp.sessionManager.clearActivePage()
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
+    }
+
+    override fun onPause() {
+        Log.d("CheckLifecycle", "==================== ON PAUSE SELECT-ROLE =====================")
+        super.onPause()
+        Log.d("WinWinWin", "SelectUserRolePage: onPause")
     }
 
     companion object {

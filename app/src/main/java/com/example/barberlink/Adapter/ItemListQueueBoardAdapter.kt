@@ -10,7 +10,6 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Employee
-import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListCurrentQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListCurrentQueueBinding
@@ -20,10 +19,10 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
-    private var outlet: Outlet? = null
+    private lateinit var currentQueue: Map<String, String>
 
-    fun setOutlet(outlet: Outlet) {
-        this.outlet = outlet
+    fun setCurrentQueue(value: Map<String, String>) {
+        this.currentQueue = value
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -101,7 +100,7 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
                 tvEmployeeName.isSelected = true
                 tvEmployeeName.text = employee.fullname
                 // Set queue number based on the employee's uid
-                var queueNumber = outlet?.currentQueue?.get(employee.uid) ?: "--" // Jika tidak ada data, tampilkan "N/A"
+                var queueNumber = currentQueue[employee.uid] ?: "--" // Jika tidak ada data, tampilkan "N/A"
                 queueNumber = if (employee.availabilityStatus) {
                     if (queueNumber == "00") "--"
                     else queueNumber

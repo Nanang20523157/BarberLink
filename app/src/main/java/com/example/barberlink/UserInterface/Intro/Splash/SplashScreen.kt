@@ -13,20 +13,19 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.example.barberlink.Helper.DisplaySetting
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.Intro.OnBoarding.OnBoardingPage
 import com.example.barberlink.databinding.ActivitySplashScreenBinding
-import com.google.firebase.auth.FirebaseAuth
 
 class SplashScreen : AppCompatActivity() {
     private lateinit var binding: ActivitySplashScreenBinding
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private lateinit var headAnimator: ObjectAnimator
     private lateinit var logoAnimator: ObjectAnimator
     private val handler = Handler(Looper.getMainLooper())
-    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private var sessionAdmin: Boolean = false
     private var sessionTeller: Boolean = false
     private var sessionCapster: Boolean = false
@@ -45,11 +44,17 @@ class SplashScreen : AppCompatActivity() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
+        // Set window background sesuai tema
+        WindowInsetsHandler.setWindowBackground(resources, window)
+
         super.onCreate(savedInstanceState)
         binding = ActivitySplashScreenBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         setContentView(binding.root)
         sessionCapster = sessionManager.getSessionCapster()
         sessionTeller = sessionManager.getSessionTeller()
@@ -59,6 +64,13 @@ class SplashScreen : AppCompatActivity() {
 
         handler.postDelayed(startOnBoarding, 3750)
     }
+
+//    @RequiresApi(Build.VERSION_CODES.S)
+//    override fun onResume() {
+//        super.onResume()
+//        // Set sudut dinamis sesuai perangkat
+//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+//    }
 
     override fun onBackPressed() {
         super.onBackPressed()

@@ -6,10 +6,11 @@
     android:layout_height="match_parent"
     android:layout_gravity="center"
     android:clipToPadding="false"
-    android:clipChildren="false"
-    android:orientation="vertical">
+    android:clipChildren="false">
 
-    <androidx.core.widget.NestedScrollView
+<!--    <androidx.core.widget.NestedScrollView-->
+    <com.example.barberlink.CustomView.CustomNestedScrollView
+        android:id="@+id/nvBackgroundScrim"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/background_scrim"
@@ -17,6 +18,7 @@
         android:focusable="true">
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cdQueueExecution"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/white"
@@ -210,6 +212,6 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-    </androidx.core.widget.NestedScrollView>
+    </com.example.barberlink.CustomView.CustomNestedScrollView>
 
 </RelativeLayout>

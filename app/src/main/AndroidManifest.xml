@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Tambahkan elemen <queries> di sini -->
+    <!-- Izin untuk layanan foreground (Android 9+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
     <queries>
 
         <!-- Untuk mendeteksi aplikasi WhatsApp -->
@@ -27,6 +30,7 @@
     </queries>
 
     <application
+        android:name=".BarberLinkApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -42,7 +46,7 @@
         <service
             android:name=".Accessibility.WhatsappAccessibilityService"
             android:exported="true"
-            android:label="My Whatsapp Accessibility"
+            android:label="Barberlink Accessibility"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <meta-data
                 android:name="android.accessibilityservice"
@@ -54,90 +58,122 @@
         </service>
 
         <activity
-            android:name=".Adapter.ItemListCapsterAdapter"
-            android:exported="false" />
-        <activity
             android:name=".UserInterface.Admin.DashboardAdminPage"
-            android:exported="false" />
-        <activity
-            android:name=".UserInterface.Admin.BerandaAdminActivity"
-            android:exported="false" />
-        <activity
-            android:name=".Adapter.ItemPackageFullCardAdapter"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SignIn.Login.SelectOutletDestination"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Admin.ManageOutletPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SettingPageScreen"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Capster.QueueControlPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Teller.ComplateOrderPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Teller.BestDealsPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Teller.ReviewOrderPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Teller.BarberBookingPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Teller.QueueTrackerPage"
             android:exported="false"
-            android:launchMode="singleTop" />
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Capster.HomePageCapster"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SignIn.Gateway.SelectUserRolePage"
             android:exported="false"
-            android:launchMode="singleInstancePerTask" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
+<!--            android:launchMode="singleInstancePerTask" />-->
         <activity
             android:name=".UserInterface.Capster.SelectAccountPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SignIn.Login.LoginAdminPage"
             android:exported="false"
-            android:launchMode="singleInstancePerTask" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
+<!--            android:launchMode="singleInstancePerTask" />-->
         <activity
             android:name=".UserInterface.SignUp.SignUpSuccess"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SignUp.SignUpStepThree"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SignUp.SignUpStepTwo"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.SignUp.SignUpStepOne"
             android:exported="false"
-            android:launchMode="singleInstancePerTask" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
+<!--            android:launchMode="singleInstancePerTask" />-->
         <activity
             android:name=".UserInterface.Intro.Landing.LandingPage"
-            android:exported="false"/>
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Intro.OnBoarding.OnBoardingPage"
-            android:exported="false" />
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
+        <activity
+            android:name=".UserInterface.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow"/>
         <activity
             android:name=".UserInterface.Intro.Splash.SplashScreen"
-            android:exported="true">
+            android:exported="true"
+            android:configChanges="orientation|screenSize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".UserInterface.MainActivity"
-            android:exported="false" />
+
+<!--        <receiver android:name=".Broadcast.AutoLogoutReceiver"-->
+<!--            android:exported="false">-->
+<!--            <intent-filter>-->
+<!--                <action android:name="com.example.AUTO_LOGOUT" />-->
+<!--            </intent-filter>-->
+<!--        </receiver>-->
+
+<!--        <service-->
+<!--            android:name=".Services.SessionCleanupService"-->
+<!--            android:enabled="true"-->
+<!--            android:exported="true" />-->
+
+        <service
+            android:name=".Services.SessionCleanupService"
+            android:exported="false"
+            android:stopWithTask="true"
+            android:permission="android.permission.FOREGROUND_SERVICE" />
+
     </application>
 
 </manifest>

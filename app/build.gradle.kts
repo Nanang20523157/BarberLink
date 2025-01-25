@@ -66,7 +66,6 @@ dependencies {
     // Coroutines Android
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-
     // ImageSlider
     implementation("com.github.denzcoskun:ImageSlideshow:0.1.2")
 
@@ -95,10 +94,6 @@ dependencies {
     // RefreshLayout
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
-    // ViewModel and LiveData
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
-
     // Kotlin extensions for ViewModel and LiveData
     implementation("androidx.fragment:fragment-ktx:1.8.2")
 
@@ -113,5 +108,10 @@ dependencies {
 
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
+
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+
+    // Add this line to include the Lifecycle library
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
 }

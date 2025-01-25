@@ -17,19 +17,22 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
 import android.widget.PopupWindow
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
-import com.example.barberlink.Helper.DisplaySetting
-import com.example.barberlink.Helper.SessionManager
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ActivitySignUpStepTwoBinding
 import com.example.barberlink.databinding.InquiryConfirmationWindowBinding
@@ -39,7 +42,6 @@ import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -47,18 +49,21 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 
 class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpStepTwoBinding
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private lateinit var windowBinding: InquiryConfirmationWindowBinding
-    private val sessionManager: SessionManager by lazy { SessionManager(this) }
     private lateinit var userAdminData: UserAdminData
     private lateinit var userRolesData: UserRolesData
-    private lateinit var userAdminCopy: UserAdminData
+    private var userAdminCopy: UserAdminData = UserAdminData()
     private var imageUri: Uri? = null
     private var imageCopy: Uri? = null
     private var isBarberNameValid = false
     private var isBarberEmailValid = false
+    private var textEmailError: String = ""
+    private var textBarbershopError: String = ""
     private var uid: String = ""
     private var existingEmail: String = ""
     private var isNavigating = false
@@ -71,37 +76,118 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepTwoBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
 
-        intent.getParcelableExtra(SignUpStepOne.ADMIN_KEY, UserAdminData::class.java)?.let {
-            userAdminData = it
-            uid = it.uid
-            userAdminData.email.let { email ->
-                this.existingEmail = email
-                binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
-                if (email != "") isBarberEmailValid = validateBarbershopEmail()
-            }
-            userAdminData.imageCompanyProfile.let { imageUrl ->
-                if (imageUrl.isNotEmpty()) {
-                    binding.ivProfile.visibility = View.VISIBLE
-                    binding.ivEmptyProfile.visibility = View.GONE
-                    if (!isDestroyed && !isFinishing) {
-                        // Lakukan transaksi fragment
-                        Glide.with(this)
-                            .load(userAdminData.imageCompanyProfile)
-                            .placeholder(
-                                ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                            .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                            .into(binding.ivProfile)
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(SignUpStepOne.ADMIN_KEY, UserAdminData::class.java)?.let {
+                    userAdminData = it
+                    uid = it.uid
+                    userAdminData.email.let { email ->
+                        this.existingEmail = email
+                        binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
+                        if (email != "") isBarberEmailValid = validateBarbershopEmail()
+                    }
+                    userAdminData.imageCompanyProfile.let { imageUrl ->
+                        if (imageUrl.isNotEmpty()) {
+                            binding.ivProfile.visibility = View.VISIBLE
+                            binding.ivEmptyProfile.visibility = View.GONE
+                            if (!isDestroyed && !isFinishing) {
+                                // Lakukan transaksi fragment
+                                Glide.with(this)
+                                    .load(userAdminData.imageCompanyProfile)
+                                    .placeholder(
+                                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                    .into(binding.ivProfile)
+                            }
+                        }
                     }
                 }
+                intent.getParcelableExtra(SignUpStepOne.ROLES_KEY, UserRolesData::class.java)?.let {
+                    userRolesData = it
+                }
+            } else {
+                intent.getParcelableExtra<UserAdminData>(SignUpStepOne.ADMIN_KEY)?.let {
+                    userAdminData = it
+                    uid = it.uid
+                    userAdminData.email.let { email ->
+                        this.existingEmail = email
+                        binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
+                        if (email != "") isBarberEmailValid = validateBarbershopEmail()
+                    }
+                    userAdminData.imageCompanyProfile.let { imageUrl ->
+                        if (imageUrl.isNotEmpty()) {
+                            binding.ivProfile.visibility = View.VISIBLE
+                            binding.ivEmptyProfile.visibility = View.GONE
+                            if (!isDestroyed && !isFinishing) {
+                                // Lakukan transaksi fragment
+                                Glide.with(this)
+                                    .load(userAdminData.imageCompanyProfile)
+                                    .placeholder(
+                                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                    .into(binding.ivProfile)
+                            }
+                        }
+                    }
+                }
+                intent.getParcelableExtra<UserRolesData>(SignUpStepOne.ROLES_KEY)?.let {
+                    userRolesData = it
+                }
             }
-        }
-        intent.getParcelableExtra(SignUpStepOne.ROLES_KEY, UserRolesData::class.java)?.let {
-            userRolesData = it
+        } else {
+            userAdminData = savedInstanceState?.getParcelable("userAdminData") ?: UserAdminData()
+            userRolesData = savedInstanceState?.getParcelable("userRolesData") ?: UserRolesData()
+            userAdminCopy = savedInstanceState?.getParcelable("userAdminCopy") ?: UserAdminData()
+            imageUri = savedInstanceState?.getParcelable("imageUri")
+            imageCopy = savedInstanceState?.getParcelable("imageCopy")
+            isBarberNameValid = savedInstanceState?.getBoolean("isBarberNameValid") ?: false
+            isBarberEmailValid = savedInstanceState?.getBoolean("isBarberEmailValid") ?: false
+            textBarbershopError = savedInstanceState?.getString("textBarbershopError") ?: ""
+            textEmailError = savedInstanceState?.getString("textEmailError") ?: ""
+            uid = savedInstanceState?.getString("uid") ?: ""
+            existingEmail = savedInstanceState?.getString("existingEmail") ?: ""
+            isProcessError = savedInstanceState?.getBoolean("isProcessError") ?: false
+            retryStep = savedInstanceState?.getString("retryStep") ?: ""
+
+//            if (imageUri != null) {
+//                binding.ivProfile.setImageURI(imageUri)
+//                binding.ivProfile.visibility = View.VISIBLE
+//                binding.ivEmptyProfile.visibility = View.GONE
+//            }
+//
+//            binding.etBarbershopName.text = Editable.Factory.getInstance().newEditable(userAdminData.barbershopName)
+//            binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(userAdminData.email)
+//
+//            if (isBarberNameValid) {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, false)
+//                binding.wrapperBarbershopName.error = null
+//            } else {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, true)
+//                binding.wrapperBarbershopName.error = textBarbershopError
+//            }
+//
+//            if (isBarberEmailValid) {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, false)
+//                binding.wrapperBarbershopEmail.error = null
+//            } else {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, true)
+//                binding.wrapperBarbershopEmail.error = textEmailError
+//            }
         }
 
         supportFragmentManager.setFragmentResultListener("image_picker_request", this) { _, bundle ->
@@ -127,6 +213,31 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         setupEditTextListeners()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+
+        // Simpan data Parcelable/Serializable
+        outState.putParcelable("userAdminData", userAdminData)
+        outState.putParcelable("userRolesData", userRolesData)
+        outState.putParcelable("userAdminCopy", userAdminCopy)
+
+        // Simpan data Uri
+        outState.putParcelable("imageUri", imageUri)
+        outState.putParcelable("imageCopy", imageCopy)
+
+        // Simpan tipe data primitif
+        outState.putBoolean("isBarberNameValid", isBarberNameValid)
+        outState.putBoolean("isBarberEmailValid", isBarberEmailValid)
+        outState.putString("textBarbershopError", textBarbershopError)
+        outState.putString("textEmailError", textEmailError)
+        outState.putString("uid", uid)
+        outState.putString("existingEmail", existingEmail)
+        outState.putBoolean("isProcessError", isProcessError)
+        outState.putString("retryStep", retryStep)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v) {
             binding.btnNext -> {
@@ -134,19 +245,29 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                     val barbershopName = binding.etBarbershopName.text.toString().trim().replace("\\s".toRegex(), "").lowercase()
                     checkBarbershopName(barbershopName) { exists ->
                         if (exists) {
+                            isBarberNameValid = false
                             setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, true)
-                            binding.wrapperBarbershopName.error = getString(R.string.barbershop_name_exists)
+                            textBarbershopError =  getString(R.string.barbershop_name_exists)
+                            binding.wrapperBarbershopName.error = textBarbershopError
                         } else {
+                            isBarberNameValid = true
                             setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, false)
+                            textBarbershopError = ""
                             binding.wrapperBarbershopName.error = null
 
                             if (userAdminData.uid.isNotEmpty()) showConfirmationWindow() else {
                                 checkEmailExists(userAdminData.email) { emailExists ->
                                     if (emailExists) {
+                                        isBarberEmailValid = false
                                         setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, true)
-                                        binding.wrapperBarbershopEmail.error =
-                                            getString(R.string.email_already_exist)
+                                        textEmailError = getString(R.string.email_already_exist)
+                                        binding.wrapperBarbershopEmail.error = textEmailError
                                     } else {
+                                        isBarberEmailValid = true
+                                        setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, false)
+                                        textEmailError = ""
+                                        binding.wrapperBarbershopEmail.error = null
+
                                         addNewUserAdminWithToDatabase(false)
                                     }
                                 }
@@ -182,6 +303,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun showConfirmationWindow() {
         // Inflate layout menggunakan View Binding
         windowBinding = InquiryConfirmationWindowBinding.inflate(layoutInflater)
@@ -254,6 +376,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun addNewUserAdminWithToDatabase(sameAccount: Boolean) {
         if (sameAccount) {
             binding.progressBar.visibility = View.VISIBLE
@@ -284,6 +407,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun saveNewDataAdminToFirestore() {
         // Add userAdminData to Firestore
 //        Toast.makeText(this, "Create your Account...", Toast.LENGTH_SHORT).show()
@@ -299,6 +423,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun clearOutletsAndAddNew() {
         val outletsCollection = db.collection("barbershops")
             .document(userAdminData.uid)
@@ -332,27 +457,43 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun runAddOutletAndService() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val addOutletJob = async { addOutletDataBarbershopAsync() }
-            val addServiceJob = async { addDefaultItemServiceAsync() }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val taskFailed = AtomicBoolean(false)
+            val addOutletJob = async {
+                val prosesStatus = addOutletDataBarbershopAsync()
+                if (prosesStatus) { taskFailed.set(true) }
+            }
+            val addServiceJob = async {
+                val prosesStatus = addDefaultItemServiceAsync()
+                if (prosesStatus) { taskFailed.set(true) }
+            }
 
             try {
                 // Wait for both tasks to complete
                 addOutletJob.await()
                 addServiceJob.await()
 
-                // Run updateUserRolesAndProfile if both are successful
-                updateUserRolesAndProfile()
+                if (taskFailed.get()) {
+                    withContext(Dispatchers.Main) {
+                        handleFailure("Gagal menambahkan data yang dibutuhkan", "ADD_SUPPORT_DATA")
+                    }
+                } else {
+                    // Run updateUserRolesAndProfile if both are successful
+                    updateUserRolesAndProfile()
+                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     handleFailure("Error running tasks: ${e.message}", "ADD_SUPPORT_DATA")
                 }
+                throw e
             }
         }
     }
 
-    private suspend fun addOutletDataBarbershopAsync() {
+    private suspend fun addOutletDataBarbershopAsync(): Boolean {
+        val isFailed = AtomicBoolean(false)
         val uidOutlet = userAdminData.barbershopIdentifier + "01"
         val outletData = Outlet(
             uid = uidOutlet,
@@ -366,10 +507,14 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             .collection("outlets")
             .document(uidOutlet)
             .set(outletData)
+            .addOnFailureListener { isFailed.set(true) }
             .await() // Convert to coroutine-friendly await
+
+        return isFailed.get()
     }
 
-    private suspend fun addDefaultItemServiceAsync() {
+    private suspend fun addDefaultItemServiceAsync(): Boolean {
+        val isFailed = AtomicBoolean(false)
         val defaultService = Service(
             applyToGeneral = true,
             autoSelected = true,
@@ -386,7 +531,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             serviceName = "Hair Care and Consultation",
             servicePrice = 0,
             serviceRating = 4.5,
-            uid = "BSoBVRz4H5wkAeppmTJw"
+            uid = "BSoBVRz4H5wkAeppmTJw",
         )
 
         db.collection("barbershops")
@@ -394,8 +539,12 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             .collection("services")
             .document(defaultService.uid)
             .set(defaultService)
+            .addOnFailureListener { isFailed.set(true) }
             .await() // Convert to coroutine-friendly await
+
+        return isFailed.get()
     }
+
 
     private fun updateCustomerPhotoProfile(): Task<Void> {
         // profilenya mau disamakan atau enggak?
@@ -435,6 +584,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             .set(userRolesData)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun updateUserRolesAndProfile() {
         val allTasks = mutableListOf(updateUserRoles()) // List untuk menampung semua task
 
@@ -535,6 +685,11 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun showImagePickerDialog() {
+        // Periksa apakah dialog dengan tag "ImagePickerFragment" sudah ada
+        if (supportFragmentManager.findFragmentByTag("ImagePickerFragment") != null) {
+            return
+        }
+
         val dialogFragment = ImagePickerFragment.newInstance()
         dialogFragment.setStyle(DialogFragment.STYLE_NORMAL, R.style.MyTransparentFragmentStyle)
         dialogFragment.show(supportFragmentManager, "ImagePickerfragment")
@@ -544,27 +699,34 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         return isBarberNameValid && isBarberEmailValid
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            isProcessError = false
-            val intent = Intent(context, destination)
-            if (destination == SignUpSuccess::class.java) {
-                intent.apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                }
-            }
-            intent.putExtra(ADMIN_KEY, userAdminData)
-            intent.putExtra(ROLES_KEY, userRolesData)
-            imageUri?.let { intent.putExtra(IMAGE_KEY, it.toString()) }
-            startActivity(intent)
-        } else return
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                isProcessError = false
+                val intent = Intent(context, destination)
+//                if (destination == SignUpSuccess::class.java) {
+//                    intent.apply {
+//                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+//                    }
+//                }
+                intent.putExtra(ADMIN_KEY, userAdminData)
+                intent.putExtra(ROLES_KEY, userRolesData)
+                imageUri?.let { intent.putExtra(IMAGE_KEY, it.toString()) }
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
@@ -642,11 +804,14 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             val name = etBarbershopName.text.toString().trim()
             return if (name.isEmpty()) {
                 setHeightOfWrapperInputLayout(wrapperBarbershopName, true)
-                wrapperBarbershopName.error = getString(R.string.empty_text_barbershop_name)
+                textBarbershopError = getString(R.string.empty_text_barbershop_name)
+                wrapperBarbershopName.error = textBarbershopError
                 false
             } else {
                 setHeightOfWrapperInputLayout(wrapperBarbershopName, false)
+                textBarbershopError = ""
                 wrapperBarbershopName.error = null
+
                 val barbershopName = binding.etBarbershopName.text.toString().trim()
                 userAdminData.barbershopName = barbershopName
                 if (userAdminData.ownerName.isEmpty()) {
@@ -668,19 +833,31 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             val email = etBarbershopEmail.text.toString().trim()
             return if (email.isEmpty()) {
                 setHeightOfWrapperInputLayout(wrapperBarbershopEmail, true)
-                wrapperBarbershopEmail.error = getString(R.string.empty_text_email_address)
+                textEmailError = getString(R.string.empty_text_email_address)
+                wrapperBarbershopEmail.error = textEmailError
                 false
             } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 setHeightOfWrapperInputLayout(wrapperBarbershopEmail, true)
-                wrapperBarbershopEmail.error = getString(R.string.invalid_text_email_address)
+                textEmailError = getString(R.string.invalid_text_email_address)
+                wrapperBarbershopEmail.error = textEmailError
                 false
             } else {
                 setHeightOfWrapperInputLayout(wrapperBarbershopEmail, false)
+                textEmailError = ""
                 wrapperBarbershopEmail.error = null
+
                 userAdminData.uid = if (email == existingEmail) uid else ""
                 userAdminData.email = binding.etBarbershopEmail.text.toString().trim()
                 true
             }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onBackPressed() {
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            super.onBackPressed()
+            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
         }
     }
 

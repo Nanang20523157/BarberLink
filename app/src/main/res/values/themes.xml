@@ -7,7 +7,6 @@
 <!--        <item name="android:windowTranslucentStatus">true</item>-->
 <!--        <item name="android:windowLightStatusBar">true</item>-->
         <item name="materialCalendarTheme">@style/ThemeOverlay.App.DatePicker</item>
-        <item name="android:windowBackground">@color/white</item>
 
         <!-- enable window content transitions -->
         <item name="android:windowActivityTransitions">true</item>
@@ -15,13 +14,17 @@
 <!--        <item name="materialAlertDialogTheme">@style/MonthPickerDialogStyle</item>-->
     </style>
 
-    <style name="Theme.BarberLink.WithoutStatusBar" parent="Base.Theme.BarberLink" >
-        <item name="android:statusBarColor">@color/dark_black_gradation</item>
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowLightStatusBar">true</item>
-    </style>
+<!--    <style name="Theme.BarberLink.WithoutStatusBar" parent="Base.Theme.BarberLink" >-->
+<!--        <item name="android:statusBarColor">@color/dark_black_gradation</item>-->
+<!--        <item name="android:windowTranslucentStatus">true</item>-->
+<!--        <item name="android:windowLightStatusBar">true</item>-->
+<!--    </style>-->
 
     <style name="Theme.BarberLink" parent="Base.Theme.BarberLink" />
+
+    <style name="Theme.BarberLink.DarkWindow" parent="Theme.BarberLink" >
+        <item name="android:windowBackground">@color/black</item>
+    </style>
 
     <style name="ThemeOverlay.App.DatePicker" parent="@style/ThemeOverlay.Material3.MaterialCalendar">
         <item name="colorPrimary">@color/sky_blue</item>

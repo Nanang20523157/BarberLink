@@ -4,35 +4,50 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.webkit.WebSettings
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import com.example.barberlink.Helper.DisplaySetting
+import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
 import com.example.barberlink.Utils.SvgUtils.loadSVGFromResource
 import com.example.barberlink.databinding.ActivityLandingPageBinding
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
 
 class LandingPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLandingPageBinding
     private var isNavigating = false
     private var currentView: View? = null
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivityLandingPageBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
-
-        animateLandingPage()
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (isRecreated) {
+            binding.backgroundStatusBar.alpha = 1f
+            binding.backgroundImg.alpha = 1f
+            binding.barberlinkLogo.alpha = 1f
+            binding.containerDetail.alpha = 1f
+        } else {
+            animateLandingPage()
+        }
 
         // Enable JavaScript
         val webSettings: WebSettings = binding.wvGifBarbershop.settings
@@ -42,7 +57,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         binding.wvGifBarbershop.setBackgroundColor(0x00000000)
 
         // Load SVG file as HTML
-        CoroutineScope(Dispatchers.Main).launch {
+        lifecycleScope.launch {
             val svgHtml = loadSVGFromResource(resources, R.raw.barbershop_animate3)
             binding.wvGifBarbershop.loadDataWithBaseURL(null, svgHtml, "text/html", "UTF-8", null)
         }
@@ -52,13 +67,35 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         binding.btnSignUp.setOnClickListener(this)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         with(binding) {
             when (v?.id) {
                 R.id.btnSignIn -> {
+//                    if (imageBarbershop.alpha.toInt() == 0) {
+//                        imageBarbershop.alpha = 1f // Tampilkan ImageView
+//                        wvGifBarbershop.apply {
+//                            clearCache(true)
+//                            clearHistory()
+//                            loadUrl("about:blank")
+//                        }
+//                    }
                     navigatePage(this@LandingPage, SelectUserRolePage::class.java, btnSignIn)
                 }
                 R.id.btnSignUp -> {
+//                    if (imageBarbershop.alpha.toInt() == 0) {
+//                        imageBarbershop.alpha = 1f // Tampilkan ImageView
+//                        wvGifBarbershop.apply {
+//                            clearCache(true)
+//                            clearHistory()
+//                            loadUrl("about:blank")
+//                        }
+//                    }
                     navigatePage(this@LandingPage, SignUpStepOne::class.java, btnSignUp)
                 }
                 else -> {}
@@ -66,26 +103,37 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            if (destination == SignUpStepOne::class.java) {
-                intent.apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+                if (destination == SignUpStepOne::class.java) {
+                    intent.putExtra("origin_page_from", "LandingPage")
                 }
-            }
-            startActivity(intent)
-        } else return
+                Log.d("WinWinWin", "LandingPage: navigation")
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
+    }
+
+    override fun onPause() {
+        super.onPause()
+        Log.d("WinWinWin", "LandingPage: onPause")
     }
 
     private fun animateLandingPage() {

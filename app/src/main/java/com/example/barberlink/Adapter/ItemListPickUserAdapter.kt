@@ -19,7 +19,7 @@ class ItemListPickUserAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Employee, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     interface OnItemClicked {
@@ -121,7 +121,7 @@ class ItemListPickUserAdapter(
                     ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
                 }
 
-                root.setOnClickListener {
+                cvMainInfoEmployee.setOnClickListener {
                     itemClicked.onItemClickListener(employee)
                 }
             }

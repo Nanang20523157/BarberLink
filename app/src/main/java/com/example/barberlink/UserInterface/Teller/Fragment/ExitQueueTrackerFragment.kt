@@ -2,16 +2,20 @@ package com.example.barberlink.UserInterface.Teller.Fragment
 
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.Helper.SessionManager
-import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.SessionManager
+import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
 import com.example.barberlink.databinding.FragmentExitQueueTrackerBinding
 
 // TODO: Rename parameter arguments, choose names that match
@@ -26,7 +30,7 @@ private const val ARG_PARAM2 = "param2"
  */
 class ExitQueueTrackerFragment : DialogFragment() {
     private var _binding: FragmentExitQueueTrackerBinding? = null
-    private lateinit var sessionManager: SessionManager
+    private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
     private lateinit var context: Context
     private var sessionTeller: Boolean = false
     private var dataTellerRef: String = ""
@@ -56,15 +60,15 @@ class ExitQueueTrackerFragment : DialogFragment() {
         return binding.root
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        sessionManager = SessionManager(context)
         sessionTeller = sessionManager.getSessionTeller()
         dataTellerRef = sessionManager.getDataTellerRef() ?: ""
 
         binding.btnYes.setOnClickListener {
             if (sessionTeller && dataTellerRef.isNotEmpty()) {
-                navigatePage(context, SelectUserRolePage::class.java, it)
+                navigatePage(it)
             }
         }
 
@@ -74,23 +78,25 @@ class ExitQueueTrackerFragment : DialogFragment() {
 
     }
 
-    private fun navigatePage(context: Context, destination: Class<*>, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            sessionManager.clearSessionTeller()
-            val intent = Intent(context, destination)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-            dismiss()
-            context.startActivity(intent)
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun navigatePage(view: View) {
+        WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as QueueTrackerPage).getQueueTrackerBinding().root, requireContext(), false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                Log.d("TellerSession", "Clearing Session")
+                sessionManager.clearSessionTeller()
+//            val intent = Intent(context, destination)
+//            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+                dismiss()
+                requireActivity().onBackPressedDispatcher.onBackPressed()
+//            context.startActivity(intent)
 
-            // Memastikan bahwa context adalah instance dari Activity
-            (context as? Activity)?.let { activity ->
-//                activity.overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-                activity.finish()
-            }
-        } else return
+                // Memastikan bahwa context adalah instance dari Activity
+                (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
     override fun onDestroyView() {

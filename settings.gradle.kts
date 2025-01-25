@@ -12,6 +12,8 @@ dependencyResolutionManagement {
         mavenCentral()
 
         maven { url = uri("https://jitpack.io") }
+        // Tambahkan JCenter repository
+        jcenter() // Menambahkan repository JCenter untuk dependensi lama
     }
 }
 

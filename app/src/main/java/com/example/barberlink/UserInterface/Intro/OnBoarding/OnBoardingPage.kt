@@ -1,18 +1,22 @@
 package com.example.barberlink.UserInterface.Intro.OnBoarding
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.LinearLayout
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.get
 import androidx.viewpager2.widget.ViewPager2
 import com.example.barberlink.Adapter.OnBoardingSliderAdapter
 import com.example.barberlink.DataClass.IntroDataSlide
-import com.example.barberlink.Helper.DisplaySetting
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.databinding.ActivityOnBoardingPageBinding
@@ -39,11 +43,23 @@ class OnBoardingPage : AppCompatActivity() {
         )
     )
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivityOnBoardingPageBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         // Set the adapter to the ViewPager2
         with(binding){
@@ -81,6 +97,11 @@ class OnBoardingPage : AppCompatActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+    }
+
     private fun navigateToLandingPage(view: View) {
         view.isClickable = false
         currentView = view
@@ -89,17 +110,21 @@ class OnBoardingPage : AppCompatActivity() {
             Intent(this@OnBoardingPage, LandingPage::class.java).also {
                 startActivity(it)
             }
+            finish()
         } else return
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
     }
 
-    private fun setupIndicator(){
+    private fun setupIndicator() {
         val indikator = arrayOfNulls<ImageView>(introSliderAdapter.itemCount)
         val layoutParams: LinearLayout.LayoutParams =
             LinearLayout.LayoutParams(
@@ -125,10 +150,10 @@ class OnBoardingPage : AppCompatActivity() {
     }
 
     // Fungsi Merubah Indikator saat berpindah Halaman
-    private fun setIndikatorSaarIni(index: Int){
+    private fun setIndikatorSaarIni(index: Int) {
         with(binding){
             val childCount =  indicatorsContainer.childCount
-            for (i in 0 until childCount){
+            for (i in 0 until childCount) {
                 val imageView = indicatorsContainer[i] as ImageView
                 if (i == index){
                     imageView.setImageDrawable(

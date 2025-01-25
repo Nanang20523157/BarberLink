@@ -2,17 +2,17 @@ package com.example.barberlink.UserInterface.Teller.Factory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.barberlink.UserInterface.Teller.ViewModel.SharedViewModel
+import com.example.barberlink.UserInterface.Teller.ViewModel.SharedDataViewModel
 
 class ViewModelFactory : ViewModelProvider.Factory {
 
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(SharedViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(SharedDataViewModel::class.java)) {
             val key = "SharedViewModel"
             if (hashMapViewModel.containsKey(key)) {
                 return getViewModel(key) as T
             } else {
-                addViewModel(key, SharedViewModel())
+                addViewModel(key, SharedDataViewModel())
                 return getViewModel(key) as T
             }
         }

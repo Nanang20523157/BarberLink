@@ -1,105 +1,116 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/background_scrim"
-    android:clickable="true"
-    android:focusable="true">
+    android:layout_gravity="center"
+    android:clipToPadding="false"
+    android:clipChildren="false">
 
-    <LinearLayout
+    <com.example.barberlink.CustomView.CustomNestedScrollView
+        android:id="@+id/nvBackgroundScrim"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="15dp"
-        android:clipToPadding="false"
-        android:clipChildren="false"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:layout_centerInParent="true">
+        android:layout_height="match_parent"
+        android:background="@drawable/background_scrim"
+        android:clickable="true"
+        android:focusable="true">
 
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="5dp"
-            android:backgroundTint="@color/light_grey_horizons_background"
-            app:cardElevation="10dp"
-            app:cardCornerRadius="25dp">
+            android:padding="15dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_gravity="center">
 
-            <androidx.appcompat.widget.LinearLayoutCompat
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardPinInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
+                android:layout_marginHorizontal="5dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                app:cardCornerRadius="25dp">
 
-                <TextView
-                    android:id="@+id/tvHeader"
-                    android:layout_width="wrap_content"
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/pin_pop_up_title"
-                    android:textSize="20sp"
-                    android:fontFamily="@font/arial_bold"
-                    android:textColor="@color/black_font_color"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="10dp" />
+                    android:orientation="vertical"
+                    android:padding="20dp">
 
-                <TextView
-                    android:id="@+id/tvInstruction"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/instructions_for_inserting_pin"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/arial_regular"
-                    android:textColor="@color/black_font_color"
-                    android:layout_gravity="center"
-                    android:paddingBottom="10dp" />
+                    <TextView
+                        android:id="@+id/tvHeader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/pin_pop_up_title"
+                        android:textSize="20sp"
+                        android:fontFamily="@font/arial_bold"
+                        android:textColor="@color/black_font_color"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="10dp" />
 
-                <com.chaos.view.PinView
-                    android:id="@+id/pinView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:padding="5dp"
-                    style="@style/PinWidget.PinView"
-                    android:cursorVisible="true"
-                    app:cursorColor="@color/black"
-                    android:textColor="@color/black"
-                    android:layout_gravity="center"
-                    android:layout_marginTop="10dp"
-                    android:layout_marginBottom="45dp"
-                    android:layout_marginHorizontal="25dp"
-                    app:itemCount="6"
-                    app:itemHeight="48dp"
-                    app:itemWidth="40dp"
-                    app:lineColor="@color/silver_grey"
-                    android:itemBackground="@drawable/pin_background_field"
-                    app:itemRadius="8dp"
-                    android:inputType="number" />
+                    <TextView
+                        android:id="@+id/tvInstruction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/instructions_for_inserting_pin"
+                        android:textSize="13sp"
+                        android:fontFamily="@font/arial_regular"
+                        android:textColor="@color/black_font_color"
+                        android:layout_gravity="center"
+                        android:paddingBottom="10dp" />
 
-            </androidx.appcompat.widget.LinearLayoutCompat>
+                    <com.chaos.view.PinView
+                        android:id="@+id/pinView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="5dp"
+                        style="@style/PinWidget.PinView"
+                        android:cursorVisible="true"
+                        app:cursorColor="@color/black"
+                        android:textColor="@color/black"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="45dp"
+                        android:layout_marginHorizontal="25dp"
+                        app:itemCount="6"
+                        app:itemHeight="48dp"
+                        app:itemWidth="40dp"
+                        app:lineColor="@color/silver_grey"
+                        android:itemBackground="@drawable/pin_background_field"
+                        app:itemRadius="8dp"
+                        android:inputType="number" />
 
-        </com.google.android.material.card.MaterialCardView>
+                </androidx.appcompat.widget.LinearLayoutCompat>
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/progressBar"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:backgroundTint="@color/light_grey_horizons_background"
-            app:cardElevation="15dp"
-            app:cardCornerRadius="30dp"
-            android:layout_marginTop="15dp"
-            android:visibility="gone"
-            android:layout_centerHorizontal="true"
-            android:layout_alignTop="@id/cardFormAccessCode">
+            </com.google.android.material.card.MaterialCardView>
 
-            <ProgressBar
-                android:layout_width="35dp"
-                android:layout_height="35dp"
-                android:layout_margin="5dp"
-                android:elevation="20dp"
-                android:indeterminateTint="@color/sky_blue" />
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="15dp"
+                app:cardCornerRadius="30dp"
+                android:layout_marginTop="15dp"
+                android:visibility="gone"
+                android:layout_centerHorizontal="true"
+                android:layout_alignTop="@id/cardFormAccessCode">
 
-        </com.google.android.material.card.MaterialCardView>
+                <ProgressBar
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_margin="5dp"
+                    android:elevation="20dp"
+                    android:indeterminateTint="@color/sky_blue" />
 
-    </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </com.example.barberlink.CustomView.CustomNestedScrollView>
 
 </RelativeLayout>

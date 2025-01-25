@@ -3,19 +3,23 @@ package com.example.barberlink.UserInterface.SignUp
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.view.animation.AnimationUtils
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserRolesData
-import com.example.barberlink.Helper.DisplaySetting
+import com.example.barberlink.Helper.StatusBarDisplayHandler
+import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.PhoneUtils
@@ -30,23 +34,49 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     private var userCustomerData: UserCustomerData? = null
     private var userEmployeeData: Employee? = null
     private var formattedPhoneNumber: String? = null
+    private var originPageFrom: String? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var isNavigating = false
     private var currentView: View? = null
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
-        DisplaySetting.enableEdgeToEdgeAllVersion(this@SignUpStepOne)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
+
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepOneBinding.inflate(layoutInflater)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
+        originPageFrom = intent.getStringExtra("origin_page_from").toString()
+        val userNumberInput = savedInstanceState?.getString("user_number_input") ?: ""
 
         binding.btnNext.setOnClickListener(this@SignUpStepOne)
         binding.tvSignIn.setOnClickListener(this@SignUpStepOne)
         binding.ivBack.setOnClickListener(this@SignUpStepOne)
 
+        if (userNumberInput.isNotEmpty()) binding.etPhoneNumber.setText(userNumberInput)
         setupEditTextListeners()
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_recreated", true)
+
+        val userNumberInput: String = binding.etPhoneNumber.text.toString()
+        outState.putString("user_number_input", userNumberInput)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnNext -> {
@@ -54,7 +84,11 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
                 checkPhoneNumberAndNavigate()
             }
             R.id.tvSignIn -> {
-                navigatePage(this@SignUpStepOne, SelectUserRolePage::class.java, null, binding.tvSignIn)
+                if (originPageFrom == "LandingPage") {
+                    navigatePage(this@SignUpStepOne, SelectUserRolePage::class.java, null, binding.tvSignIn)
+                } else {
+                    onBackPressed()
+                }
             }
             R.id.ivBack -> {
                 onBackPressed()
@@ -62,27 +96,34 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, phoneNumber: String?, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            phoneNumber?.let {
-                userAdminData?.phone = it
-                Toast.makeText(this@SignUpStepOne, "Nomor Anda: $it", Toast.LENGTH_LONG).show()
-                intent.putExtra(ADMIN_KEY, userAdminData)
-                intent.putExtra(ROLES_KEY, userRolesData)
-            }
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+                phoneNumber?.let {
+                    userAdminData?.phone = it
+                    Toast.makeText(this@SignUpStepOne, "Nomor Anda: $it", Toast.LENGTH_LONG).show()
+                    intent.putExtra(ADMIN_KEY, userAdminData)
+                    intent.putExtra(ROLES_KEY, userRolesData)
+                }
 //            if (destination == SelectUserRolePage::class.java) {
 //                intent.putExtra("new_activity_key", true)
 //            }
-            startActivity(intent)
-        } else return
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
@@ -164,6 +205,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun checkPhoneNumberAndNavigate() {
         binding.progressBar.visibility = View.VISIBLE
         userAdminData = UserAdminData()
@@ -187,6 +229,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun handleExistingUser(document: DocumentSnapshot) {
         Log.d("TriggerPP", "X1X")
         document.toObject(UserRolesData::class.java)?.let {
@@ -210,6 +253,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun checkCustomerExistenceAndAdd(phoneNumber: String) {
         db.collection("customers").document(phoneNumber).get()
             .addOnSuccessListener { customerDocument ->
@@ -244,6 +288,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun getDataReference(reference: String, role: String) {
         Log.d("TriggerUU", "X5X")
         db.document(reference).get()
@@ -274,6 +319,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun setupCustomerData() {
         when (userRolesData?.role) {
             "employee", "pairEC(-)", "pairEC(+)" -> {
@@ -298,6 +344,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             }
         }
 
+        binding.progressBar.visibility = View.GONE
         setTextViewToValidState()
         navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
     }
@@ -344,6 +391,14 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
                 Toast.LENGTH_LONG
             ).show()
         } else Toast.makeText(this@SignUpStepOne, "Error : ${exception.message}", Toast.LENGTH_LONG).show()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onBackPressed() {
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+            super.onBackPressed()
+            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+        }
     }
 
 //    private fun applyAllDataToUserRolesData(document: DocumentSnapshot) {
