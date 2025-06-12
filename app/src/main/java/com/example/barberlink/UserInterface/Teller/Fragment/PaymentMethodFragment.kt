@@ -13,7 +13,7 @@ import com.example.barberlink.R
 import com.example.barberlink.databinding.FragmentPaymentMethodBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "paymentMethod"
 private const val ARG_PARAM2 = "param2"
@@ -28,7 +28,7 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
-    // TODO: Rename and change types of parameters
+    // TNODO: Rename and change types of parameters
 //    private var paymentMethod: String? = null
     private var param2: String? = null
     private var selectedPaymentMethod: String? = null
@@ -36,9 +36,15 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            selectedPaymentMethod = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+        if (savedInstanceState != null) {
+            // Restore the selected payment method from the saved instance state
+            selectedPaymentMethod = savedInstanceState.getString(ARG_PARAM1)
+        } else {
+            // If no saved instance state, use the argument passed to the fragment
+            arguments?.let {
+                selectedPaymentMethod = it.getString(ARG_PARAM1)
+                param2 = it.getString(ARG_PARAM2)
+            }
         }
 
         context = requireContext()
@@ -84,6 +90,12 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Save the selected payment method to the outState bundle
+        outState.putString(ARG_PARAM1, selectedPaymentMethod)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -98,7 +110,7 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment PaymentMethodFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
         @JvmStatic
         fun newInstance(paymentMethod: String, param2: String? = null) =
             PaymentMethodFragment().apply {

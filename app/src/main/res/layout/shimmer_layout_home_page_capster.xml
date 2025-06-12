@@ -118,7 +118,7 @@
                 android:paddingEnd="0dp">
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_tvName"
+                    android:id="@+id/shimmerTvName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     app:shimmer_auto_start="true"
@@ -136,7 +136,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="match_parent"
                         android:fontFamily="@font/arial_medium"
-                        android:text="@string/example_user_name"
+                        android:text="@string/example_user_fullname"
                         android:background="@drawable/shimmer_corner_tiga_dp_400"
                         android:textSize="12sp"
                         android:textColor="@color/grey_400" />
@@ -153,7 +153,7 @@
                     android:textColor="#FEFEFE" />
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_tvSaldo"
+                    android:id="@+id/shimmerTvSaldo"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:shimmer_auto_start="true"
@@ -193,7 +193,7 @@
                         android:src="@drawable/fill_point" />
 
                     <com.facebook.shimmer.ShimmerFrameLayout
-                        android:id="@+id/shimmer_tvValuePoints"
+                        android:id="@+id/shimmerTvValuePoints"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="2dp"
@@ -219,7 +219,7 @@
                     </com.facebook.shimmer.ShimmerFrameLayout>
 
                     <com.facebook.shimmer.ShimmerFrameLayout
-                        android:id="@+id/shimmer_tvTextPoints"
+                        android:id="@+id/shimmerTvTextPoints"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="1dp"
@@ -259,7 +259,7 @@
                     android:layout_marginTop="10dp">
 
                     <com.facebook.shimmer.ShimmerFrameLayout
-                        android:id="@+id/shimmer_tvUid"
+                        android:id="@+id/shimmerTvUid"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         app:shimmer_auto_start="true"
@@ -465,7 +465,7 @@
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_BonPegawai"
+                    android:id="@+id/shimmerBonPegawai"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:shimmer_auto_start="true"
@@ -587,7 +587,7 @@
                         android:textSize="13sp" />
 
                     <com.facebook.shimmer.ShimmerFrameLayout
-                        android:id="@+id/shimmer_llCommisionJasa"
+                        android:id="@+id/shimmerLlCommisionJasa"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="20dp"
@@ -693,7 +693,7 @@
                         android:textSize="13sp" />
 
                     <com.facebook.shimmer.ShimmerFrameLayout
-                        android:id="@+id/shimmer_llCommisionProduk"
+                        android:id="@+id/shimmerLlCommisionProduk"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="20dp"
@@ -769,9 +769,9 @@
             app:layout_constraintTop_toBottomOf="@id/llKomisi"/>
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cvComplatedQueue"
+            android:id="@+id/cvCompletedQueue"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="90dp"
             android:layout_marginHorizontal="19dp"
             android:layout_marginTop="8dp"
             app:cardElevation="1dp"
@@ -786,9 +786,9 @@
                 android:orientation="horizontal">
 
                 <ImageView
-                    android:id="@+id/ivComplatedQueue"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
+                    android:id="@+id/ivCompletedQueue"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
                     android:layout_marginStart="25dp"
                     android:background="@drawable/gradient_lime"
                     android:contentDescription="@string/icon_completed_queue_desc"
@@ -799,7 +799,7 @@
                     app:srcCompat="@drawable/ic_succes" />
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_complatedQueue"
+                    android:id="@+id/shimmerCompletedQueue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:shimmer_auto_start="true"
@@ -813,9 +813,9 @@
                     app:shimmer_shape="linear"
                     app:shimmer_tilt="0"
                     android:layout_marginStart="20dp"
-                    app:layout_constraintStart_toEndOf="@id/ivComplatedQueue"
-                    app:layout_constraintTop_toTopOf="@id/ivComplatedQueue"
-                    app:layout_constraintBottom_toBottomOf="@id/ivComplatedQueue">
+                    app:layout_constraintStart_toEndOf="@id/ivCompletedQueue"
+                    app:layout_constraintTop_toTopOf="@id/ivCompletedQueue"
+                    app:layout_constraintBottom_toBottomOf="@id/ivCompletedQueue">
 
                     <androidx.appcompat.widget.LinearLayoutCompat
                         android:layout_width="wrap_content"
@@ -823,9 +823,9 @@
                         android:orientation="vertical">
 
                         <TextView
-                            android:id="@+id/tvComplatedQueueValue"
+                            android:id="@+id/tvCompletedQueueValue"
                             android:layout_width="wrap_content"
-                            android:layout_height="35dp"
+                            android:layout_height="27dp"
                             android:fontFamily="@font/arial_bold"
                             android:textColor="@color/grey_300"
                             android:background="@drawable/shimmer_corner_empat_dp_300"
@@ -835,14 +835,14 @@
                         <!--    android:layout_marginTop="-5dp"    -->
 
                         <TextView
-                            android:id="@+id/tvComplatedQueueLabel"
+                            android:id="@+id/tvCompletedQueueLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="1dp"
+                            android:layout_marginTop="2dp"
                             android:fontFamily="@font/arial_regular"
                             android:text="@string/status_completed_queue"
                             android:textColor="@color/grey_300"
-                            android:textSize="15sp"
+                            android:textSize="13sp"
                             android:background="@drawable/shimmer_corner_empat_dp_300" />
 
                         <!--    android:layout_marginTop="-3dp"    -->
@@ -858,14 +858,14 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cvWaitingQueue"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="90dp"
             android:layout_marginHorizontal="19dp"
             android:layout_marginTop="10dp"
             app:cardElevation="1dp"
             android:backgroundTint="@color/light_grey_horizons_background"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/cvComplatedQueue">
+            app:layout_constraintTop_toBottomOf="@+id/cvCompletedQueue">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
@@ -874,8 +874,8 @@
 
                 <ImageView
                     android:id="@+id/ivWaitingQueue"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
                     android:padding="8dp"
                     android:layout_marginStart="25dp"
                     app:layout_constraintBottom_toBottomOf="parent"
@@ -886,7 +886,7 @@
                     android:contentDescription="@string/icon_waiting_queue_ilustration" />
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_waitingQueue"
+                    android:id="@+id/shimmerWaitingQueue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:shimmer_auto_start="true"
@@ -912,7 +912,7 @@
                         <TextView
                             android:id="@+id/tvWaitingQueueValue"
                             android:layout_width="wrap_content"
-                            android:layout_height="35dp"
+                            android:layout_height="27dp"
                             android:fontFamily="@font/arial_bold"
                             android:textColor="@color/grey_300"
                             android:background="@drawable/shimmer_corner_empat_dp_300"
@@ -925,11 +925,11 @@
                             android:id="@+id/tvWaitingQueueLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="1dp"
+                            android:layout_marginTop="2dp"
                             android:fontFamily="@font/arial_regular"
                             android:text="@string/status_waiting_queue"
                             android:textColor="@color/grey_300"
-                            android:textSize="15sp"
+                            android:textSize="13sp"
                             android:background="@drawable/shimmer_corner_empat_dp_300" />
 
                         <!--    android:layout_marginTop="-3dp"    -->
@@ -946,7 +946,7 @@
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cvCancelQueue"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="90dp"
             android:layout_marginHorizontal="19dp"
             android:layout_marginTop="10dp"
             app:cardElevation="1dp"
@@ -964,8 +964,8 @@
 
                 <ImageView
                     android:id="@+id/ivCancelQueue"
-                    android:layout_width="50dp"
-                    android:layout_height="50dp"
+                    android:layout_width="45dp"
+                    android:layout_height="45dp"
                     android:padding="3dp"
                     android:layout_marginStart="25dp"
                     app:tint="@color/white"
@@ -977,7 +977,7 @@
                     android:contentDescription="@string/icon_cancel_queue_ilustration" />
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_cancelQueue"
+                    android:id="@+id/shimmerCancelQueue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:shimmer_auto_start="true"
@@ -1003,7 +1003,7 @@
                         <TextView
                             android:id="@+id/tvCancelQueueValue"
                             android:layout_width="wrap_content"
-                            android:layout_height="35dp"
+                            android:layout_height="27dp"
                             android:fontFamily="@font/arial_bold"
                             android:textColor="@color/grey_300"
                             android:background="@drawable/shimmer_corner_empat_dp_300"
@@ -1016,11 +1016,11 @@
                             android:id="@+id/tvCancelQueueLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="1dp"
+                            android:layout_marginTop="2dp"
                             android:fontFamily="@font/arial_regular"
                             android:text="@string/status_waiting_queue"
                             android:textColor="@color/grey_300"
-                            android:textSize="15sp"
+                            android:textSize="13sp"
                             android:background="@drawable/shimmer_corner_empat_dp_300" />
 
                         <!--    android:layout_marginTop="-3dp"    -->

@@ -8,10 +8,13 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
-import com.example.barberlink.DataClass.Employee
+import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.databinding.FragmentRandomCapsterBinding
+import kotlinx.coroutines.launch
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -23,7 +26,7 @@ private const val ARG_PARAM2 = "param2"
  */
 class RandomCapsterFragment : DialogFragment() {
     private var _binding: FragmentRandomCapsterBinding? = null
-    // TODO: Rename and change types of parameters
+    // TNODO: Rename and change types of parameters
     private var param1: String? = null
     private var param2: String? = null
     private val binding get() = _binding!!
@@ -48,17 +51,30 @@ class RandomCapsterFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.btnYes.setOnClickListener {
-            setFragmentResult("capster_result_data", bundleOf(
-                "capster_data" to Employee() // Employee() kosong
-            ))
+            checkNetworkConnection {
+                setFragmentResult("capster_result_data", bundleOf(
+                    "capster_data" to UserEmployeeData() // Employee() kosong
+                ))
 
-            dismiss()
+                dismiss()
+            }
         }
 
         binding.btnNo.setOnClickListener {
             dismiss()
         }
 
+    }
+
+    private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
+            }
+        }
     }
 
     override fun onDestroyView() {
@@ -75,7 +91,7 @@ class RandomCapsterFragment : DialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment RandomCapsterFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
         @JvmStatic
         fun newInstance(param1: String = "", param2: String = "") =
             RandomCapsterFragment().apply {

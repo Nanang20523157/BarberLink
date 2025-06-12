@@ -9,17 +9,30 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListCurrentQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListCurrentQueueBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
+class ItemListQueueBoardAdapter(
+    private val shimmerItemCount: Int
+) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
-    private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private lateinit var currentQueue: Map<String, String>
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+    }
 
     fun setCurrentQueue(value: Map<String, String>) {
         this.currentQueue = value
@@ -47,6 +60,9 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val employee = getItem(position)
             (holder as ItemViewHolder).bind(employee)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(UserEmployeeData()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -89,19 +105,28 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListCurrentQueueBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(userEmployeeData: UserEmployeeData) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListCurrentQueueAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(employee: Employee) {
+        fun bind(userEmployeeData: UserEmployeeData) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with (binding) {
                 tvQueueNumber.isSelected = true
                 tvEmployeeName.isSelected = true
-                tvEmployeeName.text = employee.fullname
+                tvEmployeeName.text = userEmployeeData.fullname
                 // Set queue number based on the employee's uid
-                var queueNumber = currentQueue[employee.uid] ?: "--" // Jika tidak ada data, tampilkan "N/A"
-                queueNumber = if (employee.availabilityStatus) {
+                var queueNumber = currentQueue[userEmployeeData.uid] ?: "--" // Jika tidak ada data, tampilkan "N/A"
+                queueNumber = if (userEmployeeData.availabilityStatus) {
                     if (queueNumber == "00") "--"
                     else queueNumber
                 } else {
@@ -116,9 +141,9 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
                     tvQueueNumber.setTextColor(ContextCompat.getColor(root.context, R.color.black))
                 }
 
-                if (employee.photoProfile.isNotEmpty()) {
+                if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
-                        .load(employee.photoProfile)
+                        .load(userEmployeeData.photoProfile)
                         .placeholder(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
@@ -137,12 +162,12 @@ class ItemListQueueBoardAdapter() : ListAdapter<Employee, RecyclerView.ViewHolde
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class CustomerDiffCallback : DiffUtil.ItemCallback<Employee>() {
-        override fun areItemsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+    class CustomerDiffCallback : DiffUtil.ItemCallback<UserEmployeeData>() {
+        override fun areItemsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+        override fun areContentsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem == newItem
         }
     }

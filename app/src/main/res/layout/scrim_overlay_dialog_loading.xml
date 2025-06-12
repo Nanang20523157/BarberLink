@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scrim Overlay -->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scrimOverlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/background_scrim"
+    android:visibility="visible"
+    android:gravity="center"
+    android:elevation="11dp"
+    android:clickable="true"
+    android:focusable="true">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="5dp"
+        android:backgroundTint="@color/light_grey_horizons_background"
+        app:cardElevation="7dp"
+        android:layout_marginTop="-30dp"
+        android:layout_gravity="center"
+        app:cardCornerRadius="30dp">
+
+        <ProgressBar
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:layout_margin="5dp"
+            android:elevation="20dp"
+            android:indeterminateTint="@color/sky_blue" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

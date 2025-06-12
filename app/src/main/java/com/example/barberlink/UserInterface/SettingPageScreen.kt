@@ -32,16 +32,17 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySettingPageScreenBinding.inflate(layoutInflater)
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
-        setContentView(binding.root)
         val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
             val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
             binding.mainContent.startAnimation(fadeInAnimation)
         }
+
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        setContentView(binding.root)
 
         sessionAdmin = sessionManager.getSessionAdmin()
         sessionCapster = sessionManager.getSessionCapster()
@@ -89,6 +90,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
             sessionManager.clearSessionAdmin()
             navigatePage(this, SelectUserRolePage::class.java, binding.btnLogout)
         } else if (originOfIntent == "HomePageCapster" && sessionCapster) {
+            auth.signOut()
             sessionManager.clearSessionCapster()
             navigatePage(this, SelectUserRolePage::class.java, binding.btnLogout)
         }
@@ -129,11 +131,6 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
             super.onBackPressed()
             overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
         }
-    }
-
-    override fun onPause() {
-        Log.d("CheckLifecycle", "==================== ON PAUSE SETTING-PAGE =====================")
-        super.onPause()
     }
 
     companion object{

@@ -34,7 +34,7 @@
             android:backgroundTint="@color/light_grey_horizons_background">
 
             <com.facebook.shimmer.ShimmerFrameLayout
-                android:id="@+id/shimmer_view_container3"
+                android:id="@+id/shimmer_view_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 app:shimmer_auto_start="true"

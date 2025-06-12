@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="5dp"
+    android:gravity="center_horizontal">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12.5dp"
+        android:layout_marginEnd="4dp"
+        android:layout_gravity="center_horizontal"
+        app:cardElevation="0.5dp"
+        app:cardCornerRadius="13dp"
+        app:cardBackgroundColor="@color/light_grey_horizons_background">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:visibility="visible">
+
+            <TextView
+                android:id="@+id/tvProdukMenu"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_gravity="center_vertical"
+                android:gravity="center"
+                android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="3dp"
+                android:fontFamily="@font/poppins_blackitalic"
+                android:lineSpacingExtra="-13sp"
+                tools:text="Hair Pomade"
+                android:textAlignment="center"
+                android:textColor="#A7A7AC"
+                android:textSize="26sp"
+                app:layout_constraintTop_toTopOf="@id/productImage"
+                app:layout_constraintStart_toStartOf="@id/productImage"
+                app:layout_constraintEnd_toEndOf="@id/productImage"
+                app:layout_constraintBottom_toBottomOf="@id/productImage"/>
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/productImage"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:layout_marginTop="10dp"
+                android:scaleType="centerCrop"
+                app:srcCompat="@drawable/banner_1"
+                android:layout_marginHorizontal="10dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:shapeAppearanceOverlay="@style/RoundedSquare" />
+
+            <TextView
+                android:id="@+id/tvProductName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:layout_marginHorizontal="15.5dp"
+                android:maxLines="2"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:fontFamily="@font/arial_regular"
+                android:textSize="13sp"
+                tools:text="Parfum Sauvage Dior - Parfum Sauvage Dior - Parfum Sauvage Dior"
+                app:layout_constraintTop_toBottomOf="@id/productImage"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"/>
+
+            <LinearLayout
+                android:id="@+id/llPrice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="15dp"
+                android:gravity="center_vertical"
+                app:layout_constraintStart_toStartOf="@id/tvProductName"
+                app:layout_constraintTop_toBottomOf="@id/tvProductName">
+
+                <!-- Star Icons -->
+                <ImageView
+                    android:id="@+id/ivPromo"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="1dp"
+                    android:layout_marginStart="-3dp"
+                    android:src="@drawable/ic_barbershop_promo_fill"
+                    android:contentDescription="@string/star_image_desc"
+                    android:visibility="gone"
+                    app:tint="@color/magenta" />
+
+                <!-- Price -->
+                <TextView
+                    android:id="@+id/price"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    tools:text="Rp 15.000"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textAlignment="textStart"
+                    android:layout_marginTop="-1dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:textColor="@android:color/black"/>
+
+                <TextView
+                    android:id="@+id/originalPrice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    tools:text="@string/original_price_template"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    android:textAlignment="textStart"
+                    android:layout_marginTop="-1dp"
+                    android:layout_marginStart="4dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:textColor="@color/grey_font"/>
+
+<!--                textView.text = Html.fromHtml(getString(R.string.strikethrough_text))-->
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvCOD"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Bisa COD"
+                android:textStyle="bold"
+                android:textSize="12sp"
+                android:visibility="gone"
+                android:textAlignment="textStart"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:textColor="#FFA200"
+                app:layout_constraintStart_toStartOf="@id/tvProductName"
+                app:layout_constraintTop_toBottomOf="@id/llPrice"/>
+
+            <LinearLayout
+                android:id="@+id/llRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="-1.5dp"
+                app:layout_constraintStart_toStartOf="@id/tvProductName"
+                app:layout_constraintTop_toBottomOf="@id/tvCOD">
+
+                <!-- Star Icons -->
+                <ImageView
+                    android:id="@+id/ivStar"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:layout_marginEnd="2dp"
+                    android:src="@drawable/full_star"
+                    android:contentDescription="@string/star_image_desc"/>
+
+                <TextView
+                    android:id="@+id/tvRating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/five_star_rating"
+                    android:textSize="11sp"
+                    android:layout_marginTop="-1.8dp"
+                    android:layout_marginStart="1dp"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
+
+                <View
+                    android:layout_width="3.5dp"
+                    android:layout_height="3.5dp"
+                    android:background="@drawable/background_dot_decoration"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginHorizontal="4dp"/>
+
+                <TextView
+                    android:id="@+id/tvProductSold"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:ellipsize="end"
+                    tools:text="500+ terjual"
+                    android:layout_marginTop="-1.8dp"
+                    android:layout_marginStart="-1.5dp"
+                    android:textSize="11sp"
+                    app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                    app:layout_constraintTop_toBottomOf="@id/llRating" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/llOriginLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                android:layout_marginTop="4dp"
+                android:layout_marginStart="-1.5dp"
+                android:layout_marginBottom="15dp"
+                app:layout_constraintStart_toStartOf="@id/llRating"
+                app:layout_constraintTop_toBottomOf="@id/llRating">
+
+                <!-- Star Icons -->
+                <ImageView
+                    android:id="@+id/ivMarker"
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
+                    android:layout_marginEnd="2dp"
+                    android:src="@drawable/marker"
+                    android:contentDescription="@string/star_image_desc"/>
+
+                <TextView
+                    android:id="@+id/tvMarkerLocation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    tools:text="Jakarta Barat"
+                    android:textSize="11sp"
+                    android:layout_marginTop="-2dp"
+                    android:layout_marginStart="-1dp"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
+
+            </LinearLayout>
+
+            <!-- Cancel Button -->
+            <FrameLayout
+                android:id="@+id/flButtonOrder"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/llOriginLocation"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:layout_marginHorizontal="13dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="15dp">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/btnCardCounter"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardElevation="0dp"
+                    android:gravity="center"
+                    android:visibility="gone"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    app:strokeColor="@color/black_font_color"
+                    android:layout_gravity="center_vertical"
+                    app:cardCornerRadius="6dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="25dp"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:clipChildren="false"
+                        android:clipToPadding="false"
+                        android:layout_gravity="center_vertical"
+                        android:background="@drawable/background_bottom_root_counter2">
+
+                        <LinearLayout
+                            android:id="@+id/minusButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_marginVertical="2dp"
+                            android:layout_marginStart="2dp"
+                            android:background="@drawable/background_bottom_minus_counter2">
+
+                            <ImageView
+                                android:id="@+id/imageView4"
+                                android:layout_width="21dp"
+                                android:layout_height="21dp"
+                                android:padding="4dp"
+                                android:layout_marginHorizontal="1dp"
+                                android:scaleType="fitXY"
+                                android:src="@drawable/ic_minus"
+                                app:tint="@color/black" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/quantityTextView"
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            tools:text="200x"
+                            android:textColor="@color/magenta"
+                            android:paddingStart="1dp"
+                            android:paddingEnd="0dp"
+                            android:textSize="10sp"
+                            android:layout_gravity="center_vertical"
+                            android:layout_weight="1"
+                            android:textStyle="bold"
+                            android:background="@color/black_font_color"
+                            android:gravity="center" />
+
+                        <LinearLayout
+                            android:id="@+id/plusButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_marginVertical="2dp"
+                            android:layout_marginEnd="2dp"
+                            android:background="@drawable/background_bottom_plus_counter2">
+
+                            <ImageView
+                                android:id="@+id/imageView3"
+                                android:layout_width="21dp"
+                                android:layout_height="21dp"
+                                android:padding="4dp"
+                                android:layout_marginHorizontal="1dp"
+                                android:scaleType="fitXY"
+                                android:src="@drawable/ic_plus"
+                                app:tint="@color/black" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSelectOrder"
+                    android:layout_width="match_parent"
+                    android:layout_height="33dp"
+                    android:visibility="visible"
+                    android:gravity="center"
+                    android:paddingTop="6dp"
+                    android:text="@string/btn_select"
+                    android:textColor="@color/green_lime_wf"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="6dp"
+                    android:backgroundTint="@android:color/transparent"
+                    app:strokeColor="@color/charcoal_grey_background"
+                    app:strokeWidth="1.5dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEmptyStock"
+                    android:layout_width="match_parent"
+                    android:layout_height="33dp"
+                    android:visibility="gone"
+                    android:gravity="center"
+                    android:paddingTop="5.5dp"
+                    android:text="Stok Habis"
+                    android:textColor="@color/magenta"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="6dp"
+                    android:backgroundTint="@android:color/transparent"
+                    app:strokeColor="@color/charcoal_grey_background"
+                    app:strokeWidth="1.5dp" />
+
+            </FrameLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.appcompat.widget.LinearLayoutCompat>

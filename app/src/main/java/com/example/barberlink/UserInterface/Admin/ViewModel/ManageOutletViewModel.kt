@@ -3,19 +3,25 @@ package com.example.barberlink.UserInterface.Admin.ViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserEmployeeData
 
 class ManageOutletViewModel : ViewModel() {
 
     private val _outletList = MutableLiveData<MutableList<Outlet>>().apply { emptyList<Outlet>() }
     val outletList: LiveData<MutableList<Outlet>> = _outletList
 
-    private val _employeeList = MutableLiveData<MutableList<Employee>>().apply { emptyList<Employee>() }
-    val employeeList: LiveData<MutableList<Employee>> = _employeeList
+    private val _outletSelected = MutableLiveData<Outlet?>()
+    val outletSelected: LiveData<Outlet?> = _outletSelected
+
+    private val _userEmployeeDataList = MutableLiveData<MutableList<UserEmployeeData>>().apply { emptyList<UserEmployeeData>() }
+    val userEmployeeDataList: LiveData<MutableList<UserEmployeeData>> = _userEmployeeDataList
 
     private val _extendedStateMap = MutableLiveData<MutableMap<String, Boolean>>(mutableMapOf())
     val extendedStateMap: LiveData<MutableMap<String, Boolean>> = _extendedStateMap
+
+    private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
+    val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
 
     fun setOutletList(outletList: MutableList<Outlet>) {
         _outletList.value = outletList
@@ -71,8 +77,20 @@ class ManageOutletViewModel : ViewModel() {
         _outletList.value = currentList
     }
 
-    fun setEmployeeList(employeeList: MutableList<Employee>) {
-        _employeeList.value = employeeList
+    fun setOutletSelected(outlet: Outlet?) {
+        _outletSelected.value = outlet
+    }
+
+    fun setEmployeeList(userEmployeeDataList: MutableList<UserEmployeeData>) {
+        _userEmployeeDataList.value = userEmployeeDataList
+    }
+
+    fun setCapsterList(capsterList: List<UserEmployeeData>) {
+        _capsterList.value = capsterList
+    }
+
+    fun clearAllDataCapster() {
+        _capsterList.value = emptyList()
     }
 
     fun clearAllDataOutlet() {
@@ -80,7 +98,7 @@ class ManageOutletViewModel : ViewModel() {
     }
 
     fun clearAllDataEmployee() {
-        _employeeList.value = mutableListOf()
+        _userEmployeeDataList.value = mutableListOf()
     }
 
     fun setExtendedStateMap(map: MutableMap<String, Boolean>) {

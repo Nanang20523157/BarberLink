@@ -14,10 +14,13 @@ import com.example.barberlink.R
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ItemListCustomerAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListCustomerCardBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListCustomerAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<UserCustomerData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
@@ -25,6 +28,15 @@ class ItemListCustomerAdapter(
 
     interface OnItemClicked {
         fun onItemClickListener(customer: UserCustomerData, list: List<UserCustomerData>)
+    }
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -49,6 +61,10 @@ class ItemListCustomerAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val customer = getItem(position)
             (holder as ItemViewHolder).bind(customer)
+            Log.d("ScrollCustomer", "???")
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(UserCustomerData()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -91,12 +107,21 @@ class ItemListCustomerAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListCustomerCardBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(customer: UserCustomerData) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListCustomerAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(customer: UserCustomerData) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with (binding) {
                 tvCustomerName.isSelected = true
                 tvCustomerName.text = customer.fullname

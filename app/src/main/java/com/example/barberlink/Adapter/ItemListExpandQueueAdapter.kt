@@ -12,18 +12,42 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ItemListQueueCustomersAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListQueueCustomersBinding
+import com.facebook.shimmer.ShimmerFrameLayout
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 
 class ItemListExpandQueueAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList2 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList3 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList4 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList5 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList6 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList7 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerGroups = listOf(
+        shimmerViewList,
+        shimmerViewList2,
+        shimmerViewList3,
+        shimmerViewList4,
+        shimmerViewList5,
+        shimmerViewList6,
+        shimmerViewList7
+    )
+
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private val shimmerItemCount = 1
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
 
@@ -33,6 +57,17 @@ class ItemListExpandQueueAdapter(
 
     interface OnItemClicked {
         fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
+    }
+
+    fun stopAllShimmerEffects() {
+        CoroutineScope(Dispatchers.Main).launch {
+            shimmerGroups.map { shimmerList ->
+                async {
+                    shimmerList.forEach { it.stopShimmer() }
+                    shimmerList.clear()
+                }
+            }.awaitAll()
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -57,6 +92,9 @@ class ItemListExpandQueueAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val reservation = getItem(position)
             (holder as ItemViewHolder).bind(reservation, position)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Reservation(), position) // Pass a dummy Reservation if needed
         }
     }
 
@@ -101,6 +139,26 @@ class ItemListExpandQueueAdapter(
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListQueueCustomersBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(reservation: Reservation, position: Int) {
+            shimmerViewList.add(binding.shimmerTvQueueNumber)
+            shimmerViewList2.add(binding.shimmerLlGender)
+            shimmerViewList3.add(binding.shimmerTvCustomerName)
+            shimmerViewList4.add(binding.shimmerTvCustomerPhone)
+            shimmerViewList5.add(binding.shimmerTvPaymentAmount)
+            shimmerViewList6.add(binding.shimmerTvStatusMember)
+            shimmerViewList7.add(binding.shimmerIvCustomerPhotoProfile)
+            // Contoh kondisi: hanya nyalakan shimmer jika reservation dalam status "waiting"
+            CoroutineScope(Dispatchers.Main).launch {
+                listOf(
+                    async { if (!binding.shimmerTvQueueNumber.isShimmerStarted) binding.shimmerTvQueueNumber.startShimmer() },
+                    async { if (!binding.shimmerLlGender.isShimmerStarted) binding.shimmerLlGender.startShimmer() },
+                    async { if (!binding.shimmerTvCustomerName.isShimmerStarted) binding.shimmerTvCustomerName.startShimmer() },
+                    async { if (!binding.shimmerTvCustomerPhone.isShimmerStarted) binding.shimmerTvCustomerPhone.startShimmer() },
+                    async { if (!binding.shimmerTvPaymentAmount.isShimmerStarted) binding.shimmerTvPaymentAmount.startShimmer() },
+                    async { if (!binding.shimmerTvStatusMember.isShimmerStarted) binding.shimmerTvStatusMember.startShimmer() },
+                    async { if (!binding.shimmerIvCustomerPhotoProfile.isShimmerStarted) binding.shimmerIvCustomerPhotoProfile.startShimmer() }
+                ).awaitAll()
+            }
+
             // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
             val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
             binding.tvQueueNumberPrefix.text = formattedNumber
@@ -111,6 +169,14 @@ class ItemListExpandQueueAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(reservation: Reservation, position: Int) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+            if (shimmerViewList2.isNotEmpty()) shimmerViewList2.clear()
+            if (shimmerViewList3.isNotEmpty()) shimmerViewList3.clear()
+            if (shimmerViewList4.isNotEmpty()) shimmerViewList4.clear()
+            if (shimmerViewList5.isNotEmpty()) shimmerViewList5.clear()
+            if (shimmerViewList6.isNotEmpty()) shimmerViewList6.clear()
+            if (shimmerViewList7.isNotEmpty()) shimmerViewList7.clear()
+
             with(binding) {
                 tvCurrentQueueNumber.isSelected = true
                 tvCustomerName.isSelected = true
@@ -118,18 +184,23 @@ class ItemListExpandQueueAdapter(
                 val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
                 tvQueueNumberPrefix.text = formattedNumber
                 tvCurrentQueueNumber.text = reservation.queueNumber
-                tvCustomerName.text = reservation.customerInfo.customerName
-                tvCustomerPhone.text = root.context.getString(R.string.phone_template, PhoneUtils.formatPhoneNumberWithZero(reservation.customerInfo.customerPhone))
+                tvCustomerName.text = reservation.dataCreator?.userFullname
+                tvCustomerPhone.text = root.context.getString(R.string.phone_template,
+                    reservation.dataCreator?.userPhone?.let {
+                        PhoneUtils.formatPhoneNumberWithZero(
+                            it
+                        )
+                    })
                 tvPaymentAmount.text = NumberUtils.numberToCurrency(reservation.paymentDetail.finalPrice.toDouble())
 
-                val customerData = reservation.customerInfo.customerDetail
-                customerData?.let {
-                    setMembershipStatus(it.membership)
-                    setUserGender(it.gender)
+                val customerData = reservation.dataCreator?.userDetails
+                customerData?.let { customer ->
+                    setMembershipStatus((customer as UserCustomerData).membership)
+                    setUserGender(customer.gender)
 
-                    if (it.photoProfile.isNotEmpty()) {
+                    if (customer.photoProfile.isNotEmpty()) {
                         Glide.with(root.context)
-                            .load(it.photoProfile)
+                            .load(customer.photoProfile)
                             .placeholder(
                                 ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                             .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))

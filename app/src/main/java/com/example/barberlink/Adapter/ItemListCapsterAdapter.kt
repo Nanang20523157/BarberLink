@@ -8,27 +8,54 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListSelectCapsterAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutCapsterSelectedBinding
+import com.facebook.shimmer.ShimmerFrameLayout
+import kotlinx.coroutines.launch
 
 class ItemListCapsterAdapter(
-    private val itemClicked: OnItemClicked
-) : ListAdapter<Employee, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+    private val itemClicked: OnItemClicked,
+    private val lifecycleOwner: LifecycleOwner
+) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private val shimmerItemCount = 4
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+    private var isOnline = false
 
     interface OnItemClicked {
-        fun onItemClickListener(employee: Employee, rootView: View)
+        fun onItemClickListener(userEmployeeData: UserEmployeeData, rootView: View)
+    }
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+    }
+
+    init {
+        lifecycleOwner.lifecycleScope.launch {
+            NetworkMonitor.isOnline.collect { status ->
+                isOnline = status
+                notifyDataSetChanged()
+            }
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -55,6 +82,9 @@ class ItemListCapsterAdapter(
             (holder as ItemViewHolder).bind(employee)
 
             holder.checkOverlap()
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(UserEmployeeData()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -97,34 +127,42 @@ class ItemListCapsterAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutCapsterSelectedBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(userEmployeeData: UserEmployeeData) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListSelectCapsterAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(employee: Employee) {
+        fun bind(userEmployeeData: UserEmployeeData) {
             val reviewCount = 2134
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
                 tvWaitingListLabel.isSelected = true
                 tvCapsterName.isSelected = true
-                tvCapsterName.text = employee.fullname
-                val username = employee.username.ifEmpty { "---" }
+                tvCapsterName.text = userEmployeeData.fullname
+                val username = userEmployeeData.username.ifEmpty { "---" }
                 tvUsername.text = root.context.getString(R.string.username_template, username)
-                tvRating.text = employee.employeeRating.toString()
+                tvRating.text = userEmployeeData.employeeRating.toString()
                 tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
-                tvRestQueueFromCapster.text = NumberUtils.convertToFormattedString(employee.restOfQueue)
+                tvRestQueueFromCapster.text = NumberUtils.convertToFormattedString(userEmployeeData.restOfQueue)
 
-                setUserGender(employee.gender)
+                setUserGender(userEmployeeData.gender)
 //                val specializationCost = NumberUtils.toKFormat(employee.specializationCost)
 //                tvSpecializationCost.text = specializationCost
 
 //                if (employee.availabilityStatus) setBtnNextToEnableState()
 //                else setBtnNextToDisableState()
 
-                if (employee.photoProfile.isNotEmpty()) {
+                if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
-                        .load(employee.photoProfile)
+                        .load(userEmployeeData.photoProfile)
                         .placeholder(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
@@ -135,7 +173,13 @@ class ItemListCapsterAdapter(
                 }
 
                 root.setOnClickListener {
-                    itemClicked.onItemClickListener(employee, root)
+                    if (!isOnline) {
+                        val errMessage = NetworkMonitor.errorMessage.value
+                        NetworkMonitor.showToast(errMessage, true)
+                        return@setOnClickListener
+                    }
+
+                    itemClicked.onItemClickListener(userEmployeeData, root)
                 }
 
 //                llStatusBooking.setOnClickListener {
@@ -313,12 +357,12 @@ class ItemListCapsterAdapter(
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class EmployeeDiffCallback : DiffUtil.ItemCallback<Employee>() {
-        override fun areItemsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+    class EmployeeDiffCallback : DiffUtil.ItemCallback<UserEmployeeData>() {
+        override fun areItemsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+        override fun areContentsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem == newItem
         }
     }

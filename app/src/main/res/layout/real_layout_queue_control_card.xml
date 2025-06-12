@@ -277,7 +277,7 @@
                     app:layout_constraintEnd_toEndOf="parent">
 
                     <TextView
-                        android:id="@+id/tvComplated"
+                        android:id="@+id/tvCompleted"
                         android:layout_width="match_parent"
                         android:layout_height="36dp"
                         android:background="@drawable/role_background_employee"
@@ -290,7 +290,7 @@
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
-                        android:text="@string/request_complated"/>
+                        android:text="@string/request_completed"/>
 
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/btnRequeue"
@@ -376,7 +376,7 @@
                             android:layout_height="27dp"
                             android:layout_marginStart="11.5dp"
                             android:layout_marginEnd="10.5dp"
-                            android:src="@drawable/ic_complate_person"
+                            android:src="@drawable/ic_complete_person"
                             android:layout_gravity="center_vertical"
                             android:contentDescription="@string/button_complete_queue" />
 

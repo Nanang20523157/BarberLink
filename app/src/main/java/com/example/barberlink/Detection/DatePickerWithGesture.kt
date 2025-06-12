@@ -1,9 +1,11 @@
 package com.example.barberlink.Detection
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import android.view.GestureDetector
 import android.view.MotionEvent
+import androidx.annotation.RequiresApi
 import androidx.core.view.GestureDetectorCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
@@ -12,6 +14,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.example.barberlink.Interface.NavigationCallback
 import com.example.barberlink.Manager.SharedGestureManager
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
+import com.example.barberlink.Utils.GetDateUtils.toUtcMidnightMillis
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.firebase.Timestamp
 import java.sql.Date
@@ -27,6 +30,7 @@ class DatePickerWithGesture(
     private lateinit var sharedGestureManager: SharedGestureManager
     private var dialog: DialogFragment? = null
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun showDatePickerDialog(
         timestamp: Timestamp,
         onDateSelected: (Date) -> Unit
@@ -35,7 +39,7 @@ class DatePickerWithGesture(
         sharedGestureManager = SharedGestureManager.getInstance()
         val datePicker = MaterialDatePicker.Builder.datePicker()
             .setTitleText("Select date")
-            .setSelection(timestamp.toDate().time)
+            .setSelection(timestamp.toUtcMidnightMillis())
             .build()
 
         // Listener saat tanggal dipilih

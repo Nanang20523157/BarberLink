@@ -11,14 +11,13 @@ import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
 import com.example.barberlink.databinding.FragmentExitQueueTrackerBinding
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -38,15 +37,15 @@ class ExitQueueTrackerFragment : DialogFragment() {
     private var isNavigating = false
     private var param2: String? = null
     private val binding get() = _binding!!
-    // TODO: Rename and change types of parameters
-    private var outletSelected: Outlet? = null
+    // TNODO: Rename and change types of parameters
+//    private var outletSelected: Outlet? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            outletSelected = it.getParcelable(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
+//        arguments?.let {
+//            outletSelected = it.getParcelable(ARG_PARAM1)
+//            param2 = it.getString(ARG_PARAM2)
+//        }
 
         context = requireContext()
     }
@@ -120,15 +119,18 @@ class ExitQueueTrackerFragment : DialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment ExitQueueTrackerFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
+//        @JvmStatic
+//        fun newInstance(outlet: Outlet, param2: String? = null) =
+//            ExitQueueTrackerFragment().apply {
+//                arguments = Bundle().apply {
+//                    putParcelable(ARG_PARAM1, outlet)
+//                    putString(ARG_PARAM2, param2)
+//                }
+//            }
+
         @JvmStatic
-        fun newInstance(outlet: Outlet, param2: String? = null) =
-            ExitQueueTrackerFragment().apply {
-                arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, outlet)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
+        fun newInstance() = ExitQueueTrackerFragment()
     }
 
 }

@@ -73,7 +73,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cvComplateQueue"
+            android:id="@+id/cvCompleteQueue"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="4dp"
@@ -98,7 +98,7 @@
                     android:layout_marginTop="22dp"/>
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_ComplateQueue"
+                    android:id="@+id/shimmerCompleteQueue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="20dp"
@@ -152,7 +152,7 @@
                     android:layout_marginTop="22dp"/>
 
                 <com.facebook.shimmer.ShimmerFrameLayout
-                    android:id="@+id/shimmer_RestQueue"
+                    android:id="@+id/shimmerRestQueue"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="20dp"

@@ -1,8 +1,11 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -21,27 +24,35 @@ import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
-import androidx.fragment.app.viewModels
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Customer
-import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserRolesData
+import com.example.barberlink.Factory.AddDataViewModelFactory
 import com.example.barberlink.Helper.Event
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.ViewModel.AddCustomerViewModel
-import com.example.barberlink.Utils.PhoneUtils
+import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
+import com.example.barberlink.Utils.PhoneUtils.findCountryCode
+import com.example.barberlink.Utils.PhoneUtils.formatPhoneNumberCodeCountry
 import com.example.barberlink.databinding.FragmentAddNewCustomerBinding
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputLayout
-import com.google.firebase.Timestamp
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -54,35 +65,76 @@ private const val ARG_PARAM2 = "param2"
 class AddNewCustomerFragment : DialogFragment() {
     private var _binding: FragmentAddNewCustomerBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val addCustomerViewModel: AddCustomerViewModel by viewModels()
+    private val shareReserveViewModel: SharedReserveViewModel by activityViewModels()
+    private lateinit var addCustomerViewModel: AddCustomerViewModel
+    private lateinit var addDataViewModelFactory: AddDataViewModelFactory
+    private var customerAddResultListener: OnCustomerAddResultListener? = null
     private val listGender = listOf("Rahasiakan", "Laki-laki", "Perempuan")
     private lateinit var context: Context
+
+    private var checkBoxIsCheck = false // ????
     private var isFullNameValid = false
     private var isPhoneNumberValid = false
-    private var userAdminData: UserAdminData? = null
-    private var userRolesData: UserRolesData? = null
-    private var userEmployeeData: Employee? = null
-    private var userCustomerData: UserCustomerData? = null
-    private var userPhoneNumber: String = ""
-    private var isUpdatingPhoneText = false
-    private var outletSelected: Outlet? = null
-    private var isSaveData: Boolean = false
-    private var userInputName: String = ""
-    private var userInputGender: String = ""
-    private var buttonStatus: String = "Add"
-    private var isUserManualInput: Boolean = true
+    private var previousText: String = ""
+    private var textErrorForFullname: String = "undefined"
+    private var textErrorForPhoneNumber: String = "undefined"
+    private var showToastChecking: Boolean = true
+    private var currentToastMessage: String? = null
+
+    private var isUpdatingPhoneText: Boolean = false
+    private var isOrientationChanged: Boolean = false
+    private var isSystemWriteData: Boolean = false
+    private var isShowSnackbarReplacement: Boolean = false
+    //private var userAdminData: UserAdminData? = null
+    //private var userRolesData: UserRolesData? = null
+    //private var userEmployeeData: UserEmployeeData? = null
+    //private var userCustomerData: UserCustomerData? = null
+
+    //private var outletSelected: Outlet? = null
+    private var lifecycleListener: DefaultLifecycleObserver? = null
+    private var currentSnackbar: Snackbar? = null
+    private var retryProcess: (() -> Unit)? = null
+    private lateinit var textWatcher1: TextWatcher
+    private lateinit var textWatcher2: TextWatcher
+    private var inputManualCheckOne: (() -> Unit)? = null
+    private var inputManualCheckTwo: (() -> Unit)? = null
+    private var myCurrentToast: Toast? = null
 
     private val binding get() = _binding!!
-    // TODO: Rename and change types of parameters
+    // TNODO: Rename and change types of parameters
     private var param1: String? = null
     private var param2: String? = null
 
+    interface OnCustomerAddResultListener {
+        fun onCustomerAddResult(success: Boolean)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            outletSelected = it.getParcelable(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+        if (savedInstanceState != null) {
+            // ????
+            checkBoxIsCheck = savedInstanceState.getBoolean("check_box_is_check", false)
+            isFullNameValid = savedInstanceState.getBoolean("is_full_name_valid", false)
+            isPhoneNumberValid = savedInstanceState.getBoolean("is_phone_number_valid", false)
+            previousText = savedInstanceState.getString("previous_text", "") ?: ""
+            textErrorForFullname = savedInstanceState.getString("text_error_for_fullname", "undefined") ?: "undefined"
+            textErrorForPhoneNumber = savedInstanceState.getString("text_error_for_phone_number", "undefined") ?: "undefined"
+            showToastChecking = savedInstanceState.getBoolean("show_toast_checking", true)
+            //isSaveData = savedInstanceState.getBoolean("is_save_data", false)
+            //userPhoneNumber = savedInstanceState.getString("user_phone_number", "") ?: ""
+            //userInputName = savedInstanceState.getString("user_input_name", "") ?: ""
+            //userInputGender = savedInstanceState.getString("user_input_gender", "Rahasiakan") ?: "Rahasiakan"
+            //isUserManualInput = savedInstanceState.getBoolean("is_user_manual_input", true)
+            //buttonStatus = savedInstanceState.getString("button_status", "Add") ?: "Add"
+            isUpdatingPhoneText = savedInstanceState.getBoolean("is_updating_phone_text", false)
+            isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
+            isSystemWriteData = savedInstanceState.getBoolean("is_system_write_data", false)
+            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
+//        arguments?.let {
+//            outletSelected = it.getParcelable(ARG_PARAM1)
+//            param2 = it.getString(ARG_PARAM2)
+//        }
 
         context = requireContext()
     }
@@ -96,16 +148,53 @@ class AddNewCustomerFragment : DialogFragment() {
         return binding.root
     }
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is OnCustomerAddResultListener) {
+            customerAddResultListener = context
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setupGenderDropdown()
-        setupEditTextListeners()
-        userAdminData = UserAdminData()
-        userEmployeeData = Employee()
-        userRolesData = UserRolesData()
-        userCustomerData = UserCustomerData(gender = "Rahasiakan")
+        addDataViewModelFactory = AddDataViewModelFactory(db)
+        addCustomerViewModel = ViewModelProvider(
+            this,
+            addDataViewModelFactory
+        )[AddCustomerViewModel::class.java]
+        addCustomerViewModel.onCustomerAddResult = { resultState ->
+            customerAddResultListener?.onCustomerAddResult(resultState)
+        }
+
+        if (savedInstanceState == null) {
+            Log.d("CheckSavedData", "initial data")
+            addCustomerViewModel.setUserAdminData(UserAdminData())
+            addCustomerViewModel.setUserEmployeeData(UserEmployeeData())
+            addCustomerViewModel.setUserRolesData(UserRolesData())
+            addCustomerViewModel.setUserCustomerData(UserCustomerData(
+                gender = addCustomerViewModel.getUserInputGander().ifEmpty { binding.genderDropdown.text.toString().trim() }
+            ))
+        }
+        shareReserveViewModel.outletSelected.observe(viewLifecycleOwner) {
+            addCustomerViewModel.setOutletSelected(it)
+        }
         binding.tvInformation.isSelected = true
         binding.tvUsername.isSelected = true
+
+        // Panggil fungsi pertama kali
+        updateMargins()
+
+        // Deteksi perubahan orientasi layar
+        val listener = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                updateMargins()
+            }
+        }
+
+        viewLifecycleOwner.lifecycle.addObserver(listener)
+
+        // Simpan listener agar bisa dihapus nanti jika perlu
+        this.lifecycleListener = listener
 
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -135,17 +224,236 @@ class AddNewCustomerFragment : DialogFragment() {
             }
         }
 
+        binding.checkBoxData.setOnCheckedChangeListener { _, isChecked ->
+            checkBoxIsCheck = isChecked
+        }
+
         binding.btnSave.setOnClickListener {
+            binding.btnSave.isClickable = false
+            Log.d("BtnSaveChecking", "Button Save Clicked 1")
             if (validateInputs()) {
-                isSaveData = true
-                checkAndAddCustomer()
+                if (checkBoxIsCheck) {
+                    checkNetworkConnection {
+                        addCustomerViewModel.checkAndAddCustomer()
+                    }
+                } else {
+                    showToast("Pastikan kembali apakah data sudah sesuai!!!")
+                    binding.btnSave.isClickable = true
+                }
             } else {
-                Toast.makeText(context, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
-                validateSpecificInput()
+                showToast("Mohon periksa kembali data yang dimasukkan")
+                if (!isFullNameValid) setFocus(binding.etFullname)
+                else if (!isPhoneNumberValid) setFocus(binding.etPhone)
+                binding.btnSave.isClickable = true
+//                validateSpecificInput()
             }
         }
 
-        addCustomerViewModel.snackBarMessage.observe(this) { showSnackBar(it)  }
+        addCustomerViewModel.addCustomerResult.observe(this) { state ->
+            when (state) {
+                is AddCustomerViewModel.ResultState.Loading -> {
+                    if (showToastChecking) { showToast("Memeriksa Nomor Telepon...") }
+                    binding.progressBar.visibility = View.VISIBLE
+                    showToastChecking = false // digunakan untuk memastikkan agar toast checking hanya ditampilkan sekali sebelum loading
+                }
+                is AddCustomerViewModel.ResultState.Success -> {
+                    // Navigasi ke halaman berikutnya
+                    Log.d("BtnSaveChecking", "Button Save Clicked 2")
+                    finalizeCustomerAddition(state.data)
+                    addCustomerViewModel.setAddCustomerResult(null)
+                }
+                is AddCustomerViewModel.ResultState.Failure -> {
+                    handleError(state.message)
+                    addCustomerViewModel.setAddCustomerResult(null)
+                }
+                is AddCustomerViewModel.ResultState.ResetingInput -> {
+                    resetInputForm(false)
+                    addCustomerViewModel.setAddCustomerResult(null)
+                }
+                is AddCustomerViewModel.ResultState.DisplayError -> {
+                    isPhoneNumberValid = false
+                    textErrorForPhoneNumber = getString(R.string.exist_customer)
+                    setInvalidInput(binding.wrapperPhone, textErrorForPhoneNumber, binding.etPhone, true)
+                    addCustomerViewModel.resetObtainedData(binding.genderDropdown.text.toString().trim())
+                    addCustomerViewModel.setAddCustomerResult(null)
+                }
+                is AddCustomerViewModel.ResultState.DisplayData -> {
+                    isShowSnackbarReplacement = true
+                    when (state.userRole) {
+                        "admin" -> {
+                            binding.tvInformation.text = getString(R.string.owner_barber, addCustomerViewModel.getUserAdminData().barbershopName)
+                        }
+                        "employee" -> {
+                            binding.tvInformation.text = getString(
+                                R.string.employee_barber,
+                                addCustomerViewModel.getUserEmployeeData().listPlacement.firstOrNull()
+                            )
+                        }
+                        "customer" -> {
+                            binding.tvInformation.text = getString(R.string.user_customer_information)
+                        }
+                    }
+
+                    Log.d("CheckSavedData", "${addCustomerViewModel.getUserCustomerData()}")
+
+                    addCustomerViewModel.getUserCustomerData().photoProfile.takeIf { it.isNotEmpty() }.let {
+                        Glide.with(context)
+                            .load(it)
+                            .placeholder(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                            .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                            .into(binding.ivPhotoProfile)
+                    }
+
+                    binding.tvUsername.text = addCustomerViewModel.getUserCustomerData().fullname
+                    displayObtainedData()
+                    updateMargins()
+                    binding.btnSave.text = getString(R.string.btn_sinkron)
+                    binding.accountCard.visibility = View.VISIBLE
+                    binding.lineCard.visibility = View.VISIBLE
+                    Log.d("CheckPion", "Observer")
+                    if (!isOrientationChanged) binding.checkBoxData.isChecked = false
+                    setMarginForCheckBox(5)
+                    binding.progressBar.visibility = View.GONE
+                    binding.btnSave.isClickable = true
+//                    addCustomerViewModel.setAddCustomerResult(null) >>> di ganti di validate
+                }
+                is AddCustomerViewModel.ResultState.RetryProcess -> {
+                    retryProcess = when (state.whichProcess) {
+                        "AdminEmployeeRole" -> {
+                            { addCustomerViewModel.syncDataForAdminEmployeeRole() }
+                        }
+                        "CustomerRelatedData" -> {
+                            { addCustomerViewModel.syncCustomerRelatedData(state.userRef) }
+                        }
+                        else -> { null }
+                    }
+                    //Toast.makeText(context, "Terjadi kesalahan, silahkan coba lagi nanti!!!", Toast.LENGTH_SHORT).show()
+                    shareReserveViewModel.showSnackBarToSynchronization("Proses Syncrhonization Data Gagal!!!")
+                    binding.progressBar.visibility = View.GONE
+                    binding.btnSave.isClickable = true
+//                    addCustomerViewModel.setAddCustomerResult(null) >>> diganti di listener
+                }
+                else -> {
+                    showToastChecking = true
+                }
+            }
+        }
+
+        Log.d("TextFocus", "A <> ${binding.etFullname.isFocused} || ${binding.etPhone.isFocused} || ${binding.genderDropdown.isFocused}")
+        if (isOrientationChanged) {
+            inputManualCheckOne = {
+                if (textErrorForFullname.isNotEmpty() && textErrorForFullname != "undefined") {
+                    isFullNameValid = false
+                    setInvalidInput(binding.wrapperFullname, textErrorForFullname, binding.etFullname, false)
+                } else {
+                    isFullNameValid = textErrorForFullname != "undefined"
+                    setValidInput(binding.wrapperFullname, binding.etFullname)
+                }
+
+                if (textErrorForFullname == "undefined" && textErrorForPhoneNumber == "undefined") binding.etFullname.requestFocus()
+                Log.d("TextFocus", "B <> ${binding.etFullname.isFocused} || ${binding.etPhone.isFocused} || ${binding.genderDropdown.isFocused}")
+            }
+
+            inputManualCheckTwo = {
+                if (textErrorForPhoneNumber.isNotEmpty() && textErrorForPhoneNumber != "undefined") {
+                    isPhoneNumberValid = false
+                    setInvalidInput(binding.wrapperPhone, textErrorForPhoneNumber, binding.etPhone, false)
+                } else {
+                    isPhoneNumberValid = textErrorForPhoneNumber != "undefined"
+                    setValidInput(binding.wrapperPhone, binding.etPhone)
+                }
+
+                if (textErrorForFullname == "undefined" && textErrorForPhoneNumber == "undefined") binding.etFullname.requestFocus()
+                Log.d("TextFocus", "C <> ${binding.etFullname.isFocused} || ${binding.etPhone.isFocused} || ${binding.genderDropdown.isFocused}")
+            }
+        }
+        setupGenderDropdown()
+        setupEditTextListeners()
+
+        shareReserveViewModel.snackBarMessage.observe(this) { showSnackBar(it)  }
+        // ????
+        Log.d("InitialCheckBox", "CheckBox: $checkBoxIsCheck")
+        //Log.d("InitialCheckBox", "ButtonStatus: $buttonStatus")
+        //Log.d("InitialCheckBox", "isUserManualInput: $isUserManualInput")
+        //Log.d("InitialCheckBox", "userInputGender: $userInputGender")
+        Log.d("InitialCheckBox", "========")
+        //Log.d("InitialCheckBox", "isSaveData: $isSaveData")
+        Log.d("InitialCheckBox", "isFullNameValid: $isFullNameValid")
+        Log.d("InitialCheckBox", "isPhoneNumberValid: $isPhoneNumberValid")
+        //Log.d("InitialCheckBox", "userInputName: $userInputName")
+        //Log.d("InitialCheckBox", "userPhoneNumber: $userPhoneNumber")
+        //Log.d("InitialCheckBox", "userCustomerData: ${userCustomerData?.userRef}")
+        //Log.d("InitialCheckBox", "userAdminData: ${userAdminData?.userRef}")
+        //Log.d("InitialCheckBox", "userRolesData: ${userRolesData?.role}")
+        //Log.d("InitialCheckBox", "userEmployeeData: ${userEmployeeData?.userRef}")
+        Log.d("InitialCheckBox", "========")
+        //Log.d("InitialCheckBox", "outletSelected: ${outletSelected?.outletName}")
+        Log.d("InitialCheckBox", "previousText: $previousText")
+
+    }
+
+    private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
+            }
+        }
+    }
+
+    private fun showToast(message: String) {
+        if (message != currentToastMessage) {
+            myCurrentToast?.cancel()
+            myCurrentToast = Toast.makeText(
+                context,
+                message,
+                Toast.LENGTH_SHORT
+            )
+            currentToastMessage = message
+            myCurrentToast?.show()
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (currentToastMessage == message) currentToastMessage = null
+            }, 2000)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState) // ????
+        outState.putBoolean("check_box_is_check", checkBoxIsCheck)
+        outState.putBoolean("is_full_name_valid", isFullNameValid)
+        outState.putBoolean("is_phone_number_valid", isPhoneNumberValid)
+        outState.putString("previous_text", previousText)
+        outState.putString("text_error_for_fullname", textErrorForFullname)
+        outState.putString("text_error_for_phone_number", textErrorForPhoneNumber)
+        outState.putBoolean("show_toast_checking", showToastChecking)
+        //outState.putBoolean("is_save_data", isSaveData)
+        //outState.putString("user_phone_number", userPhoneNumber)
+        //outState.putString("user_input_name", userInputName)
+        //outState.putString("user_input_gender", userInputGender)
+        //outState.putBoolean("is_user_manual_input", isUserManualInput)
+        //outState.putString("button_status", buttonStatus)
+        outState.putBoolean("is_updating_phone_text", isUpdatingPhoneText)
+        outState.putBoolean("is_orientation_changed", true)
+        outState.putBoolean("is_system_write_data", isSystemWriteData)
+        currentToastMessage?.let { outState.putString("current_toast_message", it) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        Log.d("CheckPion", "OnResume")
+        isOrientationChanged = false
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (requireActivity().isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        myCurrentToast?.cancel()
+        currentToastMessage = null
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -156,31 +464,146 @@ class AddNewCustomerFragment : DialogFragment() {
         return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
+    private fun updateMargins() {
+        val params = binding.cdAddNewCustomer.layoutParams as ViewGroup.MarginLayoutParams
+        val orientation = resources.configuration.orientation
+        val marginHorizontalInDp = if (addCustomerViewModel.getButtonStatus() == "Sync" && orientation == Configuration.ORIENTATION_PORTRAIT) 25 else 49
+
+        params.leftMargin = dpToPx(marginHorizontalInDp)
+        params.rightMargin = dpToPx(marginHorizontalInDp)
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            params.topMargin = dpToPx(20)
+            params.bottomMargin = dpToPx(20)
+            Log.d("FormulirBon", "updateMargins: PORTRAIT")
+        } else {
+            Log.d("CheckSavedData", "ButtonStatus: ${addCustomerViewModel.getButtonStatus()}")
+            if (addCustomerViewModel.getButtonStatus() == "Add") {
+                params.topMargin = dpToPx(150)
+                params.bottomMargin = dpToPx(55)
+            } else {
+                params.topMargin = dpToPx(265)
+                params.bottomMargin = dpToPx(90)
+            }
+            Log.d("FormulirBon", "updateMargins: LANDSCAPE")
+        }
+
+        binding.cdAddNewCustomer.layoutParams = params
+    }
+
+    // Function to update marginHorizontal programmatically
+//    private fun updateMarginBasedOnStatus() {
+//        val params = binding.cdAddNewCustomer.layoutParams as ViewGroup.MarginLayoutParams
+//        val orientation = resources.configuration.orientation
+//
+//        // Nilai margin dalam dp berdasarkan kondisi
+//        Log.d("MarginCard", "Before leftMargin: ${params.leftMargin}")
+//        val marginHorizontalInDp = if (buttonStatus == "Sync" && orientation == Configuration.ORIENTATION_PORTRAIT) 25 else 49
+//
+//        params.leftMargin = dpToPx(marginHorizontalInDp)
+//        params.rightMargin = dpToPx(marginHorizontalInDp)
+//        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+//            params.topMargin = dpToPx(20)
+//            params.bottomMargin = dpToPx(20)
+//            Log.d("FormulirBon", "updateMargins: PORTRAIT")
+//        } else {
+//            if (buttonStatus == "Add") {
+//                params.topMargin = dpToPx(150)
+//                params.bottomMargin = dpToPx(55)
+//            } else {
+//                params.topMargin = dpToPx(265)
+//                params.bottomMargin = dpToPx(90)
+//            }
+//            Log.d("FormulirBon", "updateMargins: LANDSCAPE")
+//        }
+//        Log.d("MarginCard", "ButtonStatus $buttonStatus || marginHorizontal: $marginHorizontalInDp")
+//
+//        binding.cdAddNewCustomer.layoutParams = params
+//        Log.d("MarginCard", "After leftMargin: ${params.leftMargin}")
+//    }
+
+    // Konversi dari dp ke pixel
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
     private fun showSnackBar(eventMessage: Event<String>) {
         val message = eventMessage.getContentIfNotHandled() ?: return
-        Snackbar.make(
-            binding.root,
-            message,
-            Snackbar.LENGTH_LONG
-        ).setAction("Undo") {
-            isUserManualInput = true
-            // Set the fullname
-            Log.d("TriggerUU", "====== UNDO ======")
-            when (message) {
-                "Kembalikan nama dan gander dari pengguna" -> {
-                    binding.etFullname.setText(addCustomerViewModel.userFullname.value?.getContentIfNotHandled())
-                    val userGender = addCustomerViewModel.userGender.value?.getContentIfNotHandled() ?: ""
-                    setUserCustomerGender(userGender)
-                }
-                "Kembalikan nama panjang dari pengguna" -> {
-                    binding.etFullname.setText(addCustomerViewModel.userFullname.value?.getContentIfNotHandled())
-                }
-                "Kembalikan nilai gander dari pengguna" -> {
-                    val userGender = addCustomerViewModel.userGender.value?.getContentIfNotHandled() ?: ""
-                    setUserCustomerGender(userGender)
+        val name = shareReserveViewModel.userFullname.value?.getContentIfNotHandled() ?: ""
+        val userGender = shareReserveViewModel.userGender.value?.getContentIfNotHandled() ?: ""
+        val text = if (message == "Kembalikan inputan pengguna ke nilai awal") {
+            if (name != binding.etFullname.text.toString().trim() && userGender != binding.genderDropdown.text.toString().trim()) {
+                "Kembalikan nama dan gander dari pengguna"
+            } else if (name != binding.etFullname.text.toString().trim()) {
+                "Kembalikan nama panjang dari pengguna"
+            } else if (userGender != binding.genderDropdown.text.toString().trim()) {
+                "Kembalikan nilai gander dari pengguna"
+            } else "???"
+        } else message
+        currentSnackbar = Snackbar.make(binding.root, text, Snackbar.LENGTH_LONG)
+
+        if (message == "Proses Syncrhonization Data Gagal!!!") {
+            currentSnackbar?.setAction("Try Again") {
+                retryProcess?.invoke()
+                retryProcess = null
+            }
+        } else if (message.isNotEmpty()) {
+            currentSnackbar?.setAction("Undo") {
+                addCustomerViewModel.setUserManualInput(true)
+                Log.d("TriggerUU", "====== UNDO ======")
+                when (text) {
+                    "Kembalikan nama dan gander dari pengguna" -> {
+                        isShowSnackbarReplacement = false
+                        binding.etFullname.setText(name)
+                        binding.etFullname.setSelection(name.length)
+                        setUserCustomerGender(userGender)
+                    }
+                    "Kembalikan nama panjang dari pengguna" -> {
+                        isShowSnackbarReplacement = false
+                        binding.etFullname.setText(name)
+                        binding.etFullname.setSelection(name.length)
+                    }
+                    "Kembalikan nilai gander dari pengguna" -> {
+                        isShowSnackbarReplacement = false
+                        setUserCustomerGender(userGender)
+                        resetInputForm(false)
+                    }
                 }
             }
-        }.show()
+        } else {
+            shareReserveViewModel.userFullname.value?.getContentIfNotHandled() ?: ""
+            shareReserveViewModel.userGender.value?.getContentIfNotHandled() ?: ""
+        }
+
+        if (message.isNotEmpty()) {
+            // Tambahkan margin bawah 30dp
+            currentSnackbar?.addCallback(getSnackbarCallback(message))
+            currentSnackbar?.view?.layoutParams = (currentSnackbar?.view?.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                setMargins(leftMargin, topMargin, rightMargin, bottomMargin + dpToPx(20))
+            }
+
+            currentSnackbar?.show()
+        }
+    }
+
+    private fun getSnackbarCallback(message: String): Snackbar.Callback {
+        return object : Snackbar.Callback() {
+            override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
+                super.onDismissed(transientBottomBar, event)
+                if (event != DISMISS_EVENT_ACTION && event != DISMISS_EVENT_MANUAL) {
+                    Log.d("Testing1", "Snackbar dismissed")
+                    if (message == "Proses Syncrhonization Data Gagal!!!") addCustomerViewModel.setAddCustomerResult(null)
+                }
+                if (message == "Kembalikan inputan pengguna ke nilai awal") {
+                    Log.d("InputName", "T1")
+                    shareReserveViewModel.showSnackBarToAll("", "", "")
+                }
+            }
+
+            override fun onShown(sb: Snackbar?) {
+                super.onShown(sb)
+                Log.d("Testing1", "Snackbar shown")
+            }
+        }
     }
 
     private fun setUserCustomerGender(gander: String) {
@@ -192,36 +615,46 @@ class AddNewCustomerFragment : DialogFragment() {
         if (genderIndex != -1) {
             setupDropdownOption(genderIndex)
         } else setupDropdownOption(0)
-
+        isSystemWriteData = false
     }
 
     private fun validateInputs() = isFullNameValid && isPhoneNumberValid
 
-    private fun validateSpecificInput() {
-        if (!isFullNameValid) isFullNameValid = validateFullName()
-        if (!isPhoneNumberValid) isPhoneNumberValid = validatePhoneNumber()
-    }
+//    private fun validateSpecificInput() {
+//        if (!isFullNameValid) isFullNameValid = validateFullName()
+//        if (!isPhoneNumberValid) isPhoneNumberValid = validatePhoneNumber()
+//    }
 
     // Method untuk setup AutoCompleteTextView dengan dropdown
     private fun setupGenderDropdown() {
-        val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, listGender)
-        binding.genderDropdown.setAdapter(adapter)
-        binding.genderDropdown.setText(listGender[0], false) // Set default ke "Laki-Laki"
+        // ????
+        lifecycleScope.launch(Dispatchers.Main) {
+            val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, listGender)
+            binding.genderDropdown.setAdapter(adapter)
+            setupDropdownOption(listGender.indexOf(addCustomerViewModel.getUserInputGander()))
 
-        // Listener to handle user selection
-        binding.genderDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedGender = listGender[position]
-            val currentGenderInViewModel = addCustomerViewModel.userGender.value?.peekContent()
+            // Listener to handle user selection
+            binding.genderDropdown.setOnItemClickListener { _, _, position, _ ->
+                val selectedGender = listGender[position]
+                //val currentGenderInViewModel = shareReserveViewModel.userGender.value?.peekContent()
+                val currentGenderInViewModel = addCustomerViewModel.getUserCustomerData().gender
 
-            // Check if gender is different and not empty, then mark as manual input
-            if (selectedGender.isNotEmpty() && !currentGenderInViewModel.isNullOrEmpty()) {
-                if (selectedGender != currentGenderInViewModel) {
-                    isUserManualInput = true
+                // Check if gender is different and not empty, then mark as manual input
+                if (selectedGender.isNotEmpty() && currentGenderInViewModel.isNotEmpty()) {
+                    if (selectedGender != currentGenderInViewModel && !isSystemWriteData) {
+                        Log.d("DrpDown", "selectedGender: $selectedGender || customerGander: $currentGenderInViewModel")
+                        addCustomerViewModel.setUserManualInput(true)
+                        Log.d("CheckPion", "A >> isOrientationChanged: $isOrientationChanged")
+                        if (addCustomerViewModel.getButtonStatus() == "Sync" && !isOrientationChanged) {
+                            resetInputForm(true)
+                            addCustomerViewModel.setAddCustomerResult(null)
+                        }
+                    }
                 }
-            }
 
-            // Setup the dropdown based on selected option
-            setupDropdownOption(position)
+                // Setup the dropdown based on selected option
+                setupDropdownOption(position)
+            }
         }
     }
 
@@ -231,7 +664,14 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.cvGender.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.grey_300))
                 binding.ivGender.setImageDrawable(AppCompatResources.getDrawable(binding.root.context, R.drawable.ic_questions))
                 binding.genderDropdown.setText(listGender[0], false)
-                userCustomerData?.gender = listGender[0]
+                addCustomerViewModel.setUserInputGander(listGender[0])
+                addCustomerViewModel.getUserCustomerData().apply {
+                    this.gender = listGender[0]
+                }.let {
+                    addCustomerViewModel.setUserCustomerData(
+                        it
+                    )
+                }
 
                 // Mengatur padding 1dp hanya pada sisi horizontal (kiri dan kanan)
                 val horizontalPaddingInDp = (1 * binding.root.resources.displayMetrics.density).toInt()
@@ -241,7 +681,15 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.cvGender.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.masculine_faded_blue))
                 binding.ivGender.setImageDrawable(AppCompatResources.getDrawable(binding.root.context, R.drawable.ic_male))
                 binding.genderDropdown.setText(listGender[1], false)
-                userCustomerData?.gender = listGender[1]
+                addCustomerViewModel.setUserInputGander(listGender[1])
+                addCustomerViewModel.getUserCustomerData().apply {
+                    this.gender = listGender[1]
+                }.let {
+                    Log.d("TriggerUU", "PP ${it.gender}")
+                    addCustomerViewModel.setUserCustomerData(
+                        it
+                    )
+                }
 
                 // Mengatur padding 1dp hanya pada sisi horizontal (kiri dan kanan)
                 val horizontalPaddingInDp = 0
@@ -251,136 +699,325 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.cvGender.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.feminime_pink))
                 binding.ivGender.setImageDrawable(AppCompatResources.getDrawable(binding.root.context, R.drawable.ic_female))
                 binding.genderDropdown.setText(listGender[2], false)
-                userCustomerData?.gender = listGender[2]
+                addCustomerViewModel.setUserInputGander(listGender[2])
+                addCustomerViewModel.getUserCustomerData().apply {
+                    this.gender = listGender[2]
+                }.let {
+                    Log.d("TriggerUU", "PP ${it.gender}")
+                    addCustomerViewModel.setUserCustomerData(
+                        it
+                    )
+                }
 
                 // Mengatur padding 1dp hanya pada sisi horizontal (kiri dan kanan)
                 val horizontalPaddingInDp = 0
                 binding.ivGender.setPadding(horizontalPaddingInDp, 0, horizontalPaddingInDp, 0)
             }
         }
-        Log.d("TriggerUU", "PP ${userCustomerData?.gender}")
     }
 
     // Method untuk setup TextWatcher untuk validasi input
     private fun setupEditTextListeners() {
         with(binding) {
+            // ???? => mosok text nomer e ra ke replace saat orientasi change?
             etPhone.setText(getString(R.string._62))
 
-            etFullname.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-                override fun afterTextChanged(s: Editable?) {
-                    // Get the new fullname entered by the user
-                    val newFullName = s?.toString()?.trim()
-
-                    // Get the current fullname from ViewModel (if exists)
-                    val currentFullName = addCustomerViewModel.userFullname.value?.peekContent()
-
-                    // Check if both newFullName and currentFullName are not null or empty
-                    if (!newFullName.isNullOrEmpty() && !currentFullName.isNullOrEmpty()) {
-                        // If the fullname is different, mark as manual input
-                        if (newFullName != currentFullName) {
-                            isUserManualInput = true
-                        }
-                    }
-
-                    // Validasi nama
-                    isFullNameValid = validateFullName()
-                }
-            })
-
-            etPhone.addTextChangedListener(object : TextWatcher {
+            textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                    // Jika sedang memperbarui teks, hentikan TextWatcher
-                    if (isUpdatingPhoneText) return
+                    // Get the new fullname entered by the user
+                    val newFullName = s?.toString()?.trim() ?: ""
 
-                    // Set flag ke true untuk menandakan pembaruan teks sedang berlangsung
+                    // Get the current fullname from ViewModel (if exists)
+                    //val currentFullName = shareReserveViewModel.userFullname.value?.peekContent()
+                    val currentFullName = addCustomerViewModel.getUserCustomerData().fullname
+
+                    // Check if both newFullName and currentFullName are not null or empty
+                    if (newFullName.isNotEmpty() && currentFullName.isNotEmpty()) {
+                        // If the fullname is different, mark as manual input
+                        if (newFullName != currentFullName && !isSystemWriteData) {
+                            addCustomerViewModel.setUserManualInput(true)
+                            Log.d("CheckPion", "B >> isOrientationChanged: $isOrientationChanged")
+                            if (addCustomerViewModel.getButtonStatus() == "Sync" && !isOrientationChanged) {
+                                resetInputForm(true)
+                                addCustomerViewModel.setAddCustomerResult(null)
+                            }
+                        }
+                    }
+                }
+
+                override fun afterTextChanged(s: Editable?) {
+                    // Validasi nama
+                    inputManualCheckOne?.invoke() ?: run {
+                        isFullNameValid = validateFullName()
+                    }
+                    inputManualCheckOne = null
+                    isSystemWriteData = false
+                }
+            }
+
+            textWatcher2 = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                    previousText = s.toString() // Simpan teks sebelum perubahan
+                }
+
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                    Log.d("CodeCountry", "previousText $previousText || isNull: ${s == null} || isUpdatingPhoneText $isUpdatingPhoneText")
+                    if (s == null || isUpdatingPhoneText) return
                     isUpdatingPhoneText = true
 
-                    val currentInput = s.toString().trim()
-                    Log.d("PhoneCHeck", "currentInput: $currentInput")
+                    try {
+                        var originalString = s.toString()
+                        var cursorPosition = etPhone.selectionStart // Simpan posisi kursor
+                        val formattedPhone: String
+                        var newCursorPosition: Int? = null
 
-                    // Jika input bukan format yang benar
-                    if (currentInput != "+62" && currentInput.startsWith("+62 ")) {
-                        val phoneNumber = s.toString().substringAfter(" ").trim()
-                        val formattedPhone = PhoneUtils.formatPhoneNumberCodeCountry(phoneNumber)
-
-                        // Cek jika format yang baru berbeda, baru setText
-                        if (formattedPhone != binding.etPhone.text.toString()) {
-                            binding.etPhone.setText(formattedPhone)
-                            // Pastikan kursor di posisi akhir
-                            binding.etPhone.setSelection(formattedPhone.length)
+                        if (cursorPosition == 1 && originalString.length > previousText.length) {
+                            val textAdded = originalString.substring(0, cursorPosition)
+                            originalString = previousText + textAdded
+                            cursorPosition = originalString.length
                         }
-                    } else if (currentInput == "+62") {
-                        // Jika input hanya +62, jangan format ulang
-                        etPhone.setText(getString(R.string._62))
-                        binding.etPhone.setSelection(binding.etPhone.text?.length ?: 0)
+
+                        Log.d("CodeCountry", "cursorPosition: $cursorPosition")
+                        // Deteksi kode negara pada `previousText`
+                        val previousCountryCode = previousText.findCountryCode() // Ambil kode negara sebelumnya
+                        val currentCountryCode = originalString.findCountryCode() // Ambil kode negara saat ini
+
+                        // 🔹 Cek apakah kode negara berubah atau spasi antara kode negara dan nomor hilang
+                        val isSpaceMissing = currentCountryCode.isNotEmpty() && !originalString.startsWith(previousCountryCode)
+                        Log.d("CodeCountry", "previousCountryCode: $previousCountryCode || currentCountryCode $currentCountryCode || isSpaceMissing $isSpaceMissing")
+                        Log.d("CodeCountry", "originalString: $originalString >>>> ${!originalString.startsWith(previousCountryCode)}")
+
+                        if (previousCountryCode != currentCountryCode || isSpaceMissing) {
+                            val shouldRestoreOnlySpace = originalString == currentCountryCode.trim()
+
+                            if (currentCountryCode.length > previousCountryCode.length && hasSpaceAfterCountryCode(originalString, currentCountryCode.trim())) {
+                                Log.d("CodeCountry", "A")
+                                // Temukan karakter ekstra yang ditambahkan di tengah kode negara
+                                val extraChar = getExtraCharBetweenCodes(previousCountryCode.trim(), currentCountryCode.trim())
+                                val strippedCode = originalString.removePrefix(currentCountryCode)
+
+                                // Contoh: "+672 234" => extraChar = '7', strippedCode = " 234"
+                                val restoredText = previousCountryCode + strippedCode + (extraChar ?: "")
+                                originalString = restoredText
+                                cursorPosition = originalString.length // Pindahkan kursor ke akhir teks
+                            } else {
+                                if (shouldRestoreOnlySpace) {
+                                    Log.d("CodeCountry", "B")
+                                    // Jika hanya kode negara yang tersisa, tambahkan kembali spasi
+                                    etPhone.setText(previousCountryCode)
+                                    etPhone.setSelection(previousCountryCode.length) // Kursor setelah spasi
+                                } else {
+                                    Log.d("CodeCountry", "C")
+                                    // Jika lebih dari kode negara yang berubah, pulihkan teks sebelumnya
+                                    etPhone.setText(previousText)
+                                    newCursorPosition = cursorPosition + 1
+                                    etPhone.setSelection(newCursorPosition.coerceIn(0, previousText.length))
+                                }
+
+                                isUpdatingPhoneText = false
+                                return
+                            }
+
+                        }
+
+                        // Calculate the new cursor position
+                        if (originalString.length < previousText.length) {
+                            Log.d("CodeCountry", "Z")
+                            val currentCursorChar = previousText.getOrNull(cursorPosition) // Karakter di posisi kursor
+                            val beforeCursorChar = previousText.getOrNull(cursorPosition - 1)
+                            Log.d("CodeCountry", "currentCursorChar: $currentCursorChar || beforeCursorChar: $beforeCursorChar || cursorPosition: $cursorPosition || originalString: $originalString || previousText: $previousText")
+                            var replaceNewCursorPosition = false
+                            // Pastikan posisi kursor tidak melompati tanda "-"
+                            if (currentCursorChar == '-' && originalString.length < previousText.length) {
+                                originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
+                                newCursorPosition = cursorPosition - 1
+                            } else if (beforeCursorChar == '-') {
+                                newCursorPosition = cursorPosition - 1
+                            } else {
+                                replaceNewCursorPosition = true
+                            }
+
+                            formattedPhone = formatPhoneNumberCodeCountry(originalString, "+62")
+
+                            if (replaceNewCursorPosition) {
+                                newCursorPosition = if (previousText.getOrNull(previousText.length - 2) == '-') {
+                                    cursorPosition
+                                } else {
+                                    cursorPosition + (formattedPhone.length - s.length)
+                                }
+                            }
+                            Log.d("CodeCountry", "formattedPhone: $formattedPhone || originalString: $originalString || cursorPosition: $cursorPosition || newCursorPosition: $newCursorPosition")
+                        } else {
+                            Log.d("CodeCountry", "K")
+                            formattedPhone = formatPhoneNumberCodeCountry(originalString, "+62")
+
+                            val beforeCursorChar = formattedPhone.getOrNull(cursorPosition - 1) // Karakter di posisi kursor
+                            Log.d("CodeCountry", "beforeCursorChar: $beforeCursorChar || cursorPosition: $cursorPosition || originalString: $originalString || previousText: $previousText")
+                            // Pastikan posisi kursor tidak melompati tanda "-"
+                            newCursorPosition = if (beforeCursorChar == '-' && originalString.length > previousText.length) {
+                                cursorPosition + 1
+                            } else {
+                                if (formattedPhone.getOrNull(formattedPhone.length - 2) == '-') {
+                                    cursorPosition
+                                } else {
+                                    cursorPosition + (formattedPhone.length - s.length)
+                                }
+                            }
+                            Log.d("CodeCountry", "formattedPhone: $formattedPhone || originalString: $originalString || cursorPosition: $cursorPosition || newCursorPosition: $newCursorPosition")
+                        }
+
+                        if (cursorPosition < previousCountryCode.length) newCursorPosition = previousCountryCode.length
+                        Log.d("CodeCountry", "Text to display: $formattedPhone")
+                        etPhone.setText(formattedPhone)
+                        if (newCursorPosition != null) {
+                            // Ensure the new cursor position is within the bounds of the new text
+                            val boundedCursorPosition = newCursorPosition.coerceIn(0, formattedPhone.length)
+
+                            // Set the cursor position
+                            etPhone.setSelection(boundedCursorPosition)
+                        }
+
+                        // Get the current fullname from ViewModel (if exists)
+                        //val currentFullName = shareReserveViewModel.userFullname.value?.peekContent()
+                        val currentPhone = addCustomerViewModel.getUserCustomerData().phone
+
+                        // Check if both newFullName and currentFullName are not null or empty
+                        if (formattedPhone.isNotEmpty() && currentPhone.isNotEmpty()) {
+                            // If the fullname is different, mark as manual input
+                            if (formattedPhone != currentPhone && !isSystemWriteData) {
+                                Log.d("CheckPion", "C >> isOrientationChanged: $isOrientationChanged")
+                                if (addCustomerViewModel.getButtonStatus() == "Sync" && !isOrientationChanged) {
+                                    resetInputForm(true)
+                                    addCustomerViewModel.setAddCustomerResult(null)
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("CodeCountry", "$e")
+                        e.printStackTrace()
                     }
 
-                    // Set flag kembali ke false setelah selesai memperbarui
                     isUpdatingPhoneText = false
                 }
 
                 override fun afterTextChanged(s: Editable?) {
                     if (!isUpdatingPhoneText) {
+                        // ???? => ketika di saved state harusnya malah kena reset kalok listener text changenya gak dihapus sebelum di destroy
                         // Ubah format nomor telepon menjadi +62 812-2545- jika valid
-                        isPhoneNumberValid = validatePhoneNumber()
+                        inputManualCheckTwo?.invoke() ?: run {
+                            isPhoneNumberValid = validatePhoneNumber()
+                        }
+                        inputManualCheckTwo = null
+                        isSystemWriteData = false
                     }
                 }
-            })
+            }
 
+            etFullname.addTextChangedListener(textWatcher1)
+            etPhone.addTextChangedListener(textWatcher2)
         }
+
     }
+
+    fun hasSpaceAfterCountryCode(originalString: String, countryCode: String): Boolean {
+        return originalString.startsWith(countryCode) &&
+                originalString.length > countryCode.length &&
+                originalString[countryCode.length] == ' '
+    }
+
+    fun getExtraCharBetweenCodes(previousCode: String, currentCode: String): Char? {
+        if (currentCode.length > previousCode.length) {
+            if (currentCode.startsWith(previousCode)) {
+                return currentCode[previousCode.length]
+            } else {
+                for (i in previousCode.indices) {
+                    if (previousCode[i] != currentCode[i]) {
+                        return currentCode[i]
+                    }
+                }
+            }
+        }
+        // jika previous lebih panjang dari current maka bukan extra char
+        return null
+    }
+
 
     private fun validateFullName(): Boolean {
         val fullName = binding.etFullname.text.toString().trim()
         return if (fullName.isEmpty()) {
-            setInvalidInput(binding.wrapperFullname, getString(R.string.fullname_cannot_be_empty), binding.etFullname, true)
+            textErrorForFullname = getString(R.string.fullname_cannot_be_empty)
+            setInvalidInput(binding.wrapperFullname, textErrorForFullname, binding.etFullname, true)
             false
         } else {
+            textErrorForFullname = ""
             setValidInput(binding.wrapperFullname, binding.etFullname)
-            userCustomerData?.fullname = fullName
-            Log.d("TriggerUU", "PP ${userCustomerData?.fullname}")
+            addCustomerViewModel.setUserInputName(fullName)
+            addCustomerViewModel.getUserCustomerData().apply {
+                this.fullname = fullName
+            }.let {
+                Log.d("TriggerUU", "PP ${it.fullname}")
+                addCustomerViewModel.setUserCustomerData(
+                    it
+                )
+            }
             true
         }
     }
 
     private fun validatePhoneNumber(): Boolean {
         val phone = binding.etPhone.text.toString().trim()
+        val countryCode = phone.findCountryCode()
+        // Nomor telepon setelah kode negara (hanya angka)
+        val numberAfterCode = phone.removePrefix(countryCode).replace("\\D".toRegex(), "")
+
         return when {
             phone == "+62" -> {
-                setInvalidInput(binding.wrapperPhone, getString(R.string.phone_number_cannot_be_empty), binding.etPhone, true)
+                textErrorForPhoneNumber = getString(R.string.phone_number_cannot_be_empty)
+                setInvalidInput(binding.wrapperPhone, textErrorForPhoneNumber, binding.etPhone, true)
                 false
             }
-            phone.length !in 16..20 -> {
-                val errorRes = if (phone.length < 16) R.string.phone_number_is_too_short else R.string.phone_number_is_too_long
-                setInvalidInput(binding.wrapperPhone, getString(errorRes), binding.etPhone, true)
+            numberAfterCode.length !in 5..13 -> {
+                val errorRes = if (numberAfterCode.length < 5) R.string.phone_number_is_too_short else R.string.phone_number_is_too_long
+                textErrorForPhoneNumber = getString(errorRes)
+                setInvalidInput(binding.wrapperPhone, textErrorForPhoneNumber, binding.etPhone, true)
                 false
             }
             else -> {
+                textErrorForPhoneNumber = ""
                 setValidInput(binding.wrapperPhone, binding.etPhone)
-                userPhoneNumber = phone
-                userCustomerData?.apply {
-                    this.phone = userPhoneNumber
-                    this.uid = userPhoneNumber
+                addCustomerViewModel.setUserPhoneNumber(phone)
+                addCustomerViewModel.getUserCustomerData().apply {
+                    this.phone = phone
+                    this.uid = phone
+                }.let {
+                    addCustomerViewModel.setUserCustomerData(
+                        it
+                    )
                 }
                 // if (isFullNameValid) checkAndAddCustomer()
-                if (!isFullNameValid) setInvalidInput(binding.wrapperFullname, getString(R.string.fullname_cannot_be_empty), binding.etFullname, false)
+                if (!isFullNameValid) {
+                    textErrorForFullname = getString(R.string.fullname_cannot_be_empty)
+                    setInvalidInput(binding.wrapperFullname, textErrorForFullname, binding.etFullname, false)
+                }
                 true
             }
         }
     }
 
     private fun setInvalidInput(wrapper: TextInputLayout, errorMessage: String, editText: EditText, setFocus: Boolean) {
-        isSaveData = false
+        addCustomerViewModel.setIsSaveData(false)
+        binding.progressBar.visibility = View.GONE
+        binding.btnSave.isClickable = true
         // Aktifkan error dan tampilkan pesan error
         wrapper.isErrorEnabled = true
         wrapper.error = errorMessage
 
+        binding.checkBoxData.isChecked = false
+        // ????
+//        if (buttonStatus == "Add") setMarginForCheckBox(-10)
+//        else setMarginForCheckBox(5)
         // Atur padding vertikal dari EditText ketika error
         setPaddingVertical(editText, 9f)
 
@@ -413,437 +1050,153 @@ class AddNewCustomerFragment : DialogFragment() {
         imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun checkAndAddCustomer() {
-        Log.d("TriggerUU", "====**********====")
-        Log.d("TriggerUU", "X0X")
-        Toast.makeText(context, "Memeriksa Nomor Telepon...", Toast.LENGTH_SHORT).show()
-        binding.progressBar.visibility = View.VISIBLE
-        if (buttonStatus == "Add") binding.btnSave.isClickable = false
-        db.collection("users").document(userPhoneNumber).get()
-            .addOnSuccessListener { document ->
-                when {
-                    document.exists() -> handleExistingUser(document)
-                    isSaveData -> checkCustomerExistenceAndAdd(userPhoneNumber)
-                    else -> resetInputForm()
-                }
-            }
-            .addOnFailureListener { exception ->
-                handleError(exception)
-            }
-    }
-
-    // Function to handle existing user and update their data if manual input is detected
-    private fun handleExistingUser(document: DocumentSnapshot) {
-        Log.d("TriggerUU", "X1X")
-        document.toObject(UserRolesData::class.java)?.let {
-            userRolesData = it
-        }
-
-        if (buttonStatus == "Add") {
-            Log.d("TriggerUU", "X1.1X")
-            setupUserCard(true)
-        } else if (buttonStatus == "Sync") {
-            when (userRolesData?.role) {
-                "admin", "employee", "pairAE" -> {
-                    Log.d("TriggerUU", "X1.2X")
-                    addNewCustomer()
-                }
-                "customer", "pairEC(-)", "pairEC(+)", "pairAC(-)", "pairAC(+)", "hybrid(-)", "hybrid(+)" -> {
-                    if (!isUserManualInput) {
-                        Log.d("TriggerUU", "X1.3X")
-                        addCustomerToOutlet()
-                    } else {
-                        Log.d("TriggerUU", "X1.4X")
-                        // Update fullname and gender using data from userCustomerData
-                        updateCustomerData(userRolesData?.customerRef)
-                    }
-                }
-            }
-        }
-    }
-
-    // New function to update fullname and gender in the customer document
-    private fun updateCustomerData(customerRef: String?) {
-        Log.d("TriggerUU", "X[:]X")
-        if (customerRef.isNullOrEmpty()) {
-            Log.e("UpdateCustomerData", "Customer reference is null or empty")
-            return
-        }
-
-        // Use fullname and gender from userCustomerData
-        val newFullName = userCustomerData?.fullname
-        val newGender = userCustomerData?.gender
-
-        Log.d("TriggerUU", "TT $newFullName $newGender")
-
-        // Create a map with the fields to be updated
-        val updates = mutableMapOf<String, Any>()
-        if (!newFullName.isNullOrEmpty()) updates["fullname"] = newFullName
-        if (!newGender.isNullOrEmpty()) updates["gender"] = newGender
-
-        // Update the customer document in Firestore
-        db.document(customerRef)
-            .update(updates)
-            .addOnSuccessListener {
-                Log.d("TriggerUU", "X[N1]X")
-                addCustomerToOutlet()
-            }
-            .addOnFailureListener { exception ->
-                Log.d("TriggerUU", "X[N2]X")
-                handleError(exception)
-            }
-    }
-
-    private fun checkCustomerExistenceAndAdd(phoneNumber: String) {
-        Log.d("TriggerUU", "X2X")
-        db.collection("customers").document(phoneNumber).get()
-            .addOnSuccessListener { customerDocument ->
-                if (!customerDocument.exists()) {
-                    Log.d("TriggerUU", "X2.1X")
-                    addNewCustomer()
-                } else {
-                    Log.d("TriggerUU", "X2.2X")
-
-                    if (buttonStatus == "Add") {
-                        customerDocument.toObject(UserCustomerData::class.java)?.apply {
-                            userRef = customerDocument.reference.path
-                            userCustomerData = this
-                        }
-                        Log.d("TriggerUU", "X2.2.1X")
-                        setupUserCard(false)
-                    } else if (buttonStatus == "Sync") {
-                        if (!isUserManualInput) {
-                            Log.d("TriggerUU", "X2.2.2X")
-                            addCustomerToOutlet()
-                        } else {
-                            Log.d("TriggerUU", "X2.2.3X")
-                            // Update fullname and gender using data from userCustomerData
-                            updateCustomerData("customers/$phoneNumber")
-                        }
-                    }
-                }
-            }
-            .addOnFailureListener { exception ->
-                handleError(exception)
-            }
-    }
-
-    private fun setupUserCard(haveAnAccount: Boolean) {
-        Log.d("TriggerUU", "X4X")
-
-        // setValidInput(binding.wrapperPhone, binding.etPhone)
-        if (haveAnAccount) {
-            Log.d("TriggerUU", "X4.1X")
-            when (userRolesData?.role) {
-                "admin" -> {
-                    Log.d("TriggerUU", "X4.1.1X")
-                    userRolesData?.adminRef?.let { getDataReference(it, "admin") }
-                }
-                "employee", "pairAE" -> {
-                    Log.d("TriggerUU", "X4.1.2X")
-                    userRolesData?.employeeRef?.let { getDataReference(it, "employee") }
-                }
-                else -> {
-                    Log.d("TriggerUU", "X4.1.3X")
-                    userRolesData?.customerRef?.let { getDataReference(it, "customer")  }
-                }
-            }
-        } else {
-            Log.d("TriggerUU", "X4.2X")
-            setupCustomerData()
-        }
-    }
-
-    private fun resetInputForm() {
+    private fun resetInputForm(replacingInput: Boolean) {
         Log.d("TriggerUU", "X-PX")
-        buttonStatus = "Add"
-        updatePaddingBasedOnStatus()
+        addCustomerViewModel.setButtonStatus("Add")
+        updateMargins()
         binding.accountCard.visibility = View.GONE
         binding.lineCard.visibility = View.GONE
         binding.btnSave.text = getString(R.string.btn_add)
-        binding.progressBar.visibility = View.GONE
-        // setValidInput(binding.wrapperPhone, binding.etPhone)
-        binding.btnSave.isClickable = true
-    }
+        addCustomerViewModel.resetObtainedData(binding.genderDropdown.text.toString().trim())
+        currentSnackbar?.dismiss()
 
-    // Function to update paddingHorizontal programmatically
-    private fun updatePaddingBasedOnStatus() {
-        val wrapperAddNewCustomer = binding.wrapperAddNewCustomer
+        if (replacingInput && isShowSnackbarReplacement) {
+            val userReplacedName = shareReserveViewModel.userFullname.value?.peekContent() ?: ""
+            val userReplacedGender = shareReserveViewModel.userGender.value?.peekContent() ?: ""
 
-        // Nilai padding dalam pixel berdasarkan kondisi
-        val paddingHorizontalInDp = if (buttonStatus == "Sync") 25 else 45
-        val paddingVerticalInDp = 30 // sesuai dengan XML
+            val textInputName = binding.etFullname.text.toString().trim()
+            val textInputGender = binding.genderDropdown.text.toString().trim()
+            if ((userReplacedName != textInputName || userReplacedGender != textInputGender) && userReplacedName.isNotEmpty() && userReplacedGender.isNotEmpty()) {
+                isShowSnackbarReplacement = false
+                // Toast.makeText(context, "Kembalikan Nama: $userReplacedName dan Gander: $userReplacedGender", Toast.LENGTH_SHORT).show()
 
-        // Konversi dp ke pixel
-        val density = wrapperAddNewCustomer.resources.displayMetrics.density
-        val paddingHorizontalInPx = (paddingHorizontalInDp * density).toInt()
-        val paddingVerticalInPx = (paddingVerticalInDp * density).toInt()
-
-        // Set padding (left, top, right, bottom)
-        wrapperAddNewCustomer.setPadding(
-            paddingHorizontalInPx,
-            paddingVerticalInPx,
-            paddingHorizontalInPx,
-            paddingVerticalInPx
-        )
-    }
-
-
-    // Function getDataReference berdasarkan contoh kode getDataCustomerReference
-    private fun getDataReference(reference: String, role: String) {
-        Log.d("TriggerUU", "X5X")
-        db.document(reference).get()
-            .addOnSuccessListener { document ->
-                document.takeIf { it.exists() }?.let {
-                    when (role) {
-                        "admin" -> {
-                            Log.d("TriggerUU", "X5.1X")
-                            it.toObject(UserAdminData::class.java)?.apply {
-                                userRef = it.reference.path
-                                userAdminData = this
-                            }
-                        }
-                        "employee" -> {
-                            Log.d("TriggerUU", "X5.2X")
-                            it.toObject(Employee::class.java)?.apply {
-                                userRef = it.reference.path
-                                userEmployeeData = this
-                            }
-                        }
-                        else -> {
-                            Log.d("TriggerUU", "X5.3X")
-                            it.toObject(UserCustomerData::class.java)?.apply {
-                                userRef = it.reference.path
-                                userCustomerData = this
-                            }
-                        }
-                    }
-
-                    setupCustomerData()
-                }
-            }
-            .addOnFailureListener { exception ->
-                Toast.makeText(context, "Error accessing userRef: ${exception.message}", Toast.LENGTH_LONG).show()
-            }
-    }
-
-    private fun setupCustomerData() {
-        Log.d("TriggerUU", "X6X")
-        outletSelected?.let { outlet ->
-            val customerAlreadyExists1 =
-                outlet.listCustomers?.any { it.uidCustomer == userCustomerData?.uid } == true
-            val customerAlreadyExists2 = outlet.listCustomers?.any { it.uidCustomer == userPhoneNumber } == true
-
-            if (customerAlreadyExists1 || customerAlreadyExists2) {
-                Log.d("TriggerUU", "X6.1X")
-                setInvalidInput(binding.wrapperPhone, getString(R.string.exist_customer), binding.etPhone, true)
+                shareReserveViewModel.showSnackBarToAll(
+                    userReplacedName,
+                    userReplacedGender,
+                    "Kembalikan inputan pengguna ke nilai awal")
             } else {
-                Log.d("TriggerUU", "X6.2X")
-                userInputName = binding.etFullname.text.toString().trim()
-                userInputGender = binding.genderDropdown.text.toString().trim()
-
-                when (userRolesData?.role) {
-                    "admin" -> {
-                        Log.d("TriggerUU", "X6.2.1X")
-                        userCustomerData?.apply {
-                            uid = userAdminData?.uid ?: userPhoneNumber
-                            photoProfile = userAdminData?.imageCompanyProfile.orEmpty()
-                            fullname = if (userAdminData?.ownerName?.contains("Owner", ignoreCase = true) == true) {
-                                userInputName
-                            } else { userAdminData?.ownerName.toString() }
-                        }
-                        binding.tvInformation.text = getString(R.string.owner_barber, userAdminData?.barbershopName)
-                    }
-                    "employee", "pairAE" -> {
-                        Log.d("TriggerUU", "X6.2.2X")
-                        userCustomerData?.apply {
-                            uid = userEmployeeData?.uid ?: userPhoneNumber
-                            photoProfile = userEmployeeData?.photoProfile.orEmpty()
-                            gender = userEmployeeData?.gender.orEmpty()
-                            fullname = userEmployeeData?.fullname ?: userInputName
-                        }
-                        binding.tvInformation.text = getString(R.string.employee_barber, userEmployeeData?.listPlacement?.firstOrNull())
-                    }
-                    else -> {
-                        Log.d("TriggerUU", "X6.2.3X")
-                        // Harusnya ketika terdapat data customer tanpa akun role bernilai string kosong
-                        binding.tvInformation.text = getString(R.string.user_customer_information)
-                    }
-                }
-
-                userCustomerData?.photoProfile?.takeIf { it.isNotEmpty() }?.let {
-                    Glide.with(context)
-                        .load(it)
-                        .placeholder(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                        .into(binding.ivPhotoProfile)
-                }
-
-                binding.tvUsername.text = userCustomerData?.fullname.orEmpty()
-
-                displayObtainedData()
-
-                // Status Button
-                buttonStatus = "Sync"
-                updatePaddingBasedOnStatus()
-                binding.btnSave.text = getString(R.string.btn_sinkron)
-
-                binding.accountCard.visibility = View.VISIBLE
-                binding.lineCard.visibility = View.VISIBLE
+                Log.d("InputName", "userReplacedName: $userReplacedName || textInputName: $textInputName || userReplacedGender: $userReplacedGender || textInputGender: $textInputGender")
+                shareReserveViewModel.showSnackBarToAll("", "", "")
             }
+        } else {
+            Log.d("InputName", "T2")
+            shareReserveViewModel.showSnackBarToAll("", "", "")
         }
 
+        binding.checkBoxData.isChecked = false
+        setMarginForCheckBox(-10)
+        // setValidInput(binding.wrapperPhone, binding.etPhone)
+        addCustomerViewModel.setIsSaveData(false)
         binding.progressBar.visibility = View.GONE
         binding.btnSave.isClickable = true
+    }
+
+    private fun setMarginForCheckBox(margintop: Int) {
+        val layoutParams = binding.llCheckBoxData.layoutParams as ViewGroup.MarginLayoutParams
+        layoutParams.topMargin = dpToPx(margintop)
+        binding.llCheckBoxData.layoutParams = layoutParams
     }
 
     private fun displayObtainedData() {
         Log.d("TriggerUU", "X!!X")
-        if (userInputName != userCustomerData?.fullname && userInputGender != userCustomerData?.gender) {
+        val userFullname = addCustomerViewModel.getUserCustomerData().fullname
+        val userGender = addCustomerViewModel.getUserCustomerData().gender
+        if ((addCustomerViewModel.getUserInputName() != userFullname && userFullname.isNotEmpty()) && (addCustomerViewModel.getUserInputGander() != userGender && userGender.isNotEmpty())) {
             Log.d("TriggerUU", "X!A!X")
-            isUserManualInput = false
-            binding.etFullname.setText(userCustomerData?.fullname)
-
-            val userGender = userCustomerData?.gender ?: ""
-            setUserCustomerGender(userGender)
+            isSystemWriteData = true
+            addCustomerViewModel.setUserManualInput(false)
 
             // SnackBar
-            addCustomerViewModel.showSnackBarToAll(
-                userInputName,
-                userInputGender,
+            shareReserveViewModel.showSnackBarToAll(
+                addCustomerViewModel.getUserInputName(),
+                addCustomerViewModel.getUserInputGander(),
                 "Kembalikan nama dan gander dari pengguna"
             )
-        } else if (userInputName != userCustomerData?.fullname) {
+            binding.etFullname.setText(userFullname)
+            binding.etFullname.setSelection(userFullname.length) // Set cursor di akhir nama
+            setUserCustomerGender(userGender)
+        } else if (addCustomerViewModel.getUserInputName() != userFullname && userFullname.isNotEmpty()) {
             Log.d("TriggerUU", "X!B!X")
-            isUserManualInput = false
-            binding.etFullname.setText(userCustomerData?.fullname)
+            isSystemWriteData = true
+            addCustomerViewModel.setUserManualInput(false)
 
             // SnackBar
-            addCustomerViewModel.showSnackBarToAll(
-                userInputName,
-                userInputGender,
+            shareReserveViewModel.showSnackBarToAll(
+                addCustomerViewModel.getUserInputName(),
+                addCustomerViewModel.getUserInputGander(),
                 "Kembalikan nama panjang dari pengguna"
             )
-        } else if (userInputGender != userCustomerData?.gender) {
+            binding.etFullname.setText(userFullname)
+            binding.etFullname.setSelection(userFullname.length) // Set cursor di akhir nama
+        } else if (addCustomerViewModel.getUserInputGander() != userGender && userGender.isNotEmpty()) {
             Log.d("TriggerUU", "X!C!X")
-            isUserManualInput = false
-            val userGender = userCustomerData?.gender ?: ""
-            setUserCustomerGender(userGender)
+            isSystemWriteData = true
+            addCustomerViewModel.setUserManualInput(false)
 
-            addCustomerViewModel.showSnackBarToAll(
-                userInputName,
-                userInputGender,
+            shareReserveViewModel.showSnackBarToAll(
+                addCustomerViewModel.getUserInputName(),
+                addCustomerViewModel.getUserInputGander(),
                 "Kembalikan nilai gander dari pengguna"
             )
+            setUserCustomerGender(userGender)
+        } else {
+            Log.d("InputName", "T3")
+            shareReserveViewModel.showSnackBarToAll("", "", "")
         }
-    }
-
-    private fun addNewCustomer() {
-        Log.d("TriggerUU", "X7X")
-        binding.progressBar.visibility = View.VISIBLE
-        userCustomerData?.let { userData ->
-            db.collection("customers").document(userData.uid).set(userData)
-                .addOnSuccessListener {
-                    if (userAdminData?.uid?.isNotEmpty() == true
-                        || userEmployeeData?.uid != "----------------") {
-                        Log.d("TriggerUU", "X7.1X")
-                        updateRoleInUsersCollection()
-                    }
-                    else {
-                        Log.d("TriggerUU", "X7.2X")
-                        addCustomerToOutlet()
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    handleError(exception)
-                }
-        }
-    }
-
-    private fun updateRoleInUsersCollection() {
-        Log.d("TriggerUU", "X8X")
-        userRolesData?.apply {
-            // Menentukan nilai role baru berdasarkan kondisi
-            role = when (role) {
-                "admin" -> "pairAC(-)"
-                "employee" -> "pairEC(-)"
-                "pairAE" -> "hybrid(-)"
-                else -> "customer" // Tidak ada perubahan jika tidak sesuai dengan kondisi di atas
-            }
-
-            // Memperbarui customer_ref dan customer_provider
-            customerRef = "customers/${userCustomerData?.uid}"
-            customerProvider = "none"
-            uid = userPhoneNumber
-        }
-
-        // Mengirimkan perubahan ke Firestore
-        userRolesData?.let {
-            db.collection("users").document(userPhoneNumber).set(it)
-                .addOnSuccessListener { addCustomerToOutlet() }
-                .addOnFailureListener { exception ->
-                    handleError(exception)
-                }
-        }
-    }
-
-    private fun addCustomerToOutlet() {
-        Log.d("TriggerUU", "X9X")
-        outletSelected?.let { outlet ->
-            val newCustomer = userCustomerData?.uid?.let {
-                Customer(
-                    lastReserve = Timestamp.now(),
-                    uidCustomer = it
-                )
-            }
-
-            newCustomer?.let { data ->
-                outlet.listCustomers = outlet.listCustomers?.apply { add(data) } ?: mutableListOf(data)
-                updateOutletListCustomers(outlet)
-            }
-        }
-    }
-
-    private fun updateOutletListCustomers(outlet: Outlet) {
-        Log.d("TriggerUU", "X10X")
-        val outletRef = db.document(outlet.rootRef)
-            .collection("outlets")
-            .document(outlet.uid)
-
-        outletRef.update("list_customers", outlet.listCustomers)
-            .addOnSuccessListener {
-                val lastCustomer = outlet.listCustomers?.lastOrNull()
-                lastCustomer?.let { finalizeCustomerAddition(it) }
-            }
-            .addOnFailureListener { exception ->
-                handleError(exception)
-            }
     }
 
     private fun finalizeCustomerAddition(newCustomer: Customer) {
         Log.d("TriggerUU", "X__X")
+        Log.d("BtnSaveChecking", "Button Save Clicked 3")
+        addCustomerViewModel.setIsSaveData(false)
         binding.progressBar.visibility = View.GONE
-        userCustomerData?.lastReserve = newCustomer.lastReserve
-        Toast.makeText(context, "Pelanggan baru berhasil ditambahkan", Toast.LENGTH_SHORT).show()
-        setFragmentResult("customer_result_data", bundleOf(
-            "customer_data" to userCustomerData,
-            "dismiss_dialog" to true
-//            "new_customer" to newCustomer,
-        ))
+        binding.btnSave.isClickable = true
+        addCustomerViewModel.getUserCustomerData().apply {
+            this.lastReserve = newCustomer.lastReserve
+        }.let {
+            addCustomerViewModel.setUserCustomerData(
+                it
+            )
+
+            Log.d("BtnSaveChecking", "Button Save Clicked 4")
+            Toast.makeText(context, "Pelanggan baru berhasil ditambahkan", Toast.LENGTH_SHORT).show()
+            setFragmentResult("customer_result_data", bundleOf(
+                "customer_data" to it,
+                "dismiss_dialog" to true
+    //            "new_customer" to newCustomer,
+            ))
+        }
 
         dismiss()
         parentFragmentManager.popBackStack()
     }
 
-    private fun handleError(exception: Exception) {
+    private fun handleError(message: String) {
+        addCustomerViewModel.setIsSaveData(false)
         binding.progressBar.visibility = View.GONE
-        if (exception.message.equals("Failed to get document because the client is offline.")) {
-            Toast.makeText(
-                context,
-                "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
-                Toast.LENGTH_LONG
-            ).show()
-        } else Toast.makeText(context, "Error : ${exception.message}", Toast.LENGTH_LONG).show()
+        binding.btnSave.isClickable = true
+        if (message == "Failed to get document because the client is offline.") {
+            showToast("Koneksi internet tidak tersedia. Periksa koneksi Anda.")
+        } else { showToast("Error: $message") }
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        customerAddResultListener = null
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding.etFullname.removeTextChangedListener(textWatcher1)
+        binding.etPhone.removeTextChangedListener(textWatcher2)
+
+        // ????
+        currentSnackbar?.dismiss()
+        lifecycleListener?.let {
+            viewLifecycleOwner.lifecycle.removeObserver(it)
+        }
+
+        _binding = null
     }
 
     companion object {
@@ -855,7 +1208,7 @@ class AddNewCustomerFragment : DialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment AddNewCustomerFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
         @JvmStatic
         fun newInstance(outlet: Outlet, param2: String? = null) =
             AddNewCustomerFragment().apply {
@@ -864,5 +1217,8 @@ class AddNewCustomerFragment : DialogFragment() {
                     putString(ARG_PARAM2, param2)
                 }
             }
+
+        @JvmStatic
+        fun newInstance() = AddNewCustomerFragment()
     }
 }

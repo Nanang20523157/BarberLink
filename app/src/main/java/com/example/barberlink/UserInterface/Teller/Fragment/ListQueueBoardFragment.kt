@@ -12,13 +12,15 @@ import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListQueueBoardAdapter
-import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Teller.ViewModel.QueueTrackerViewModel
 import com.example.barberlink.databinding.FragmentListQueueBoardBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -36,21 +38,21 @@ private const val ARG_PARAM3 = "param3"
 class ListQueueBoardFragment : DialogFragment() {
     private var _binding: FragmentListQueueBoardBinding? = null
     private lateinit var context: Context
-    private var capsterList: ArrayList<Employee>? = null
+    private val queueBoardViewModel: QueueTrackerViewModel by activityViewModels()
+    //private var capsterList: ArrayList<Employee>? = null
     private lateinit var currentQueue: Map<String, String>
-    private var outlet: Outlet? = null
+    //private var outlet: Outlet? = null
     private var isSameDate: Boolean = true
+    private var isFirstLoad: Boolean = true
     private lateinit var queueAdapter: ItemListQueueBoardAdapter
 
     private val binding get() = _binding!!
-    private var param1: String? = null
-    private var param2: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            capsterList = it.getParcelableArrayList(ARG_PARAM1)
-            outlet = it.getParcelable(ARG_PARAM2)
+//            capsterList = it.getParcelableArrayList(ARG_PARAM1)
+//            outlet = it.getParcelable(ARG_PARAM2)
             isSameDate = it.getBoolean(ARG_PARAM3)
         }
 
@@ -69,25 +71,27 @@ class ListQueueBoardFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        queueAdapter = ItemListQueueBoardAdapter()
-        outlet?.let {
-            // Ambil currentQueue dari outlet
-            currentQueue = if (isSameDate) {
-                it.currentQueue?.toList() // Ubah ke List<Pair<K, V>>
-                    ?.sortedBy { (_, value) -> value.toIntOrNull() } // Urutkan berdasarkan nilai (value) sebagai Int
-                    ?.toMap() // Kembalikan ke Map
-                    ?: emptyMap() // Jika null, gunakan Map kosong
-            } else {
-                emptyMap()
-            }
-
-            // Set currentQueue ke adapter
-            queueAdapter.setCurrentQueue(currentQueue)
-        }
-
+        queueAdapter = ItemListQueueBoardAdapter(4)
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
         queueAdapter.setShimmer(true)
+        queueBoardViewModel.outletSelected.observe(viewLifecycleOwner) { outlet ->
+            outlet?.let {
+                // Ambil currentQueue dari outlet
+                currentQueue = if (isSameDate) {
+                    it.currentQueue?.toList() // Ubah ke List<Pair<K, V>>
+                        ?.sortedBy { (_, value) -> value.toIntOrNull() } // Urutkan berdasarkan nilai (value) sebagai Int
+                        ?.toMap() // Kembalikan ke Map
+                        ?: emptyMap() // Jika null, gunakan Map kosong
+                } else {
+                    emptyMap()
+                }
+
+                // Set currentQueue ke adapter
+                queueAdapter.setCurrentQueue(currentQueue)
+                if (!isFirstLoad) queueAdapter.notifyDataSetChanged()
+            }
+        }
 
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -117,42 +121,49 @@ class ListQueueBoardFragment : DialogFragment() {
             }
         }
 
-        // Menggunakan coroutine untuk menunda eksekusi submitList
-        capsterList?.let { originalCapsterList ->
-            val layoutParams = binding.rvListQueue.layoutParams
-            layoutParams.height = if (originalCapsterList.size > 3) {
-                resources.getDimensionPixelSize(R.dimen.recycler_height_large) // 315dp dalam pixels
-            } else {
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            }
-            binding.rvListQueue.layoutParams = layoutParams
+        queueBoardViewModel.capsterList.observe(viewLifecycleOwner) { capsterList ->
+            // Menggunakan coroutine untuk menunda eksekusi submitList
+            capsterList?.let { originalCapsterList ->
+                val layoutParams = binding.rvListQueue.layoutParams
+                layoutParams.height = if (originalCapsterList.size > 3) {
+                    resources.getDimensionPixelSize(R.dimen.recycler_height_large) // 315dp dalam pixels
+                } else {
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                }
+                binding.rvListQueue.layoutParams = layoutParams
 
-            lifecycleScope.launch {
-                // Hitung mundur 800 ms
-                delay(500)
+                lifecycleScope.launch {
+                    // Hitung mundur 800 ms
+                    if (isFirstLoad) delay(500)
 
-                // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
-                val sortedKeys = currentQueue
-                    .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
-                    .keys
-                    .toList()
+                    // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
+                    val sortedKeys = currentQueue
+                        .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
+                        .keys
+                        .toList()
 
-                // Urutkan capsterList berdasarkan urutan di sortedKeys
-                val sortedCapsterList = originalCapsterList
-                    .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
-                    .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
+                    // Urutkan capsterList berdasarkan urutan di sortedKeys
+                    val sortedCapsterList = originalCapsterList
+                        .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
+                        .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
 
-                // Tambahkan capsterList yang tidak ada di currentQueue
-                val remainingCapsters = originalCapsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
+                    // Tambahkan capsterList yang tidak ada di currentQueue
+                    val remainingCapsters = originalCapsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
 
-                // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
-                val finalCapsterList = sortedCapsterList + remainingCapsters
+                    // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
+                    val finalCapsterList = sortedCapsterList + remainingCapsters
 
-                // Submit data ke adapter setelah delay
-                queueAdapter.submitList(finalCapsterList)
+                    // Submit data ke adapter setelah delay
+                    queueAdapter.submitList(finalCapsterList)
 
-                // Matikan shimmer setelah data di-submit
-                queueAdapter.setShimmer(false)
+                    // Matikan shimmer setelah data di-submit
+                    if (isFirstLoad) {
+                        queueAdapter.setShimmer(false)
+                        isFirstLoad = false
+                    } else {
+                        queueAdapter.notifyDataSetChanged()
+                    }
+                }
             }
         }
 
@@ -168,6 +179,7 @@ class ListQueueBoardFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        queueAdapter.stopAllShimmerEffects()
         _binding = null
     }
 
@@ -181,11 +193,19 @@ class ListQueueBoardFragment : DialogFragment() {
          * @return A new instance of fragment ListQueueBoardFragment.
          */
         @JvmStatic
-        fun newInstance(capsterList: ArrayList<Employee>, outlet: Outlet, isSameDate: Boolean) =
+        fun newInstance(capsterList: ArrayList<UserEmployeeData>, outlet: Outlet, isSameDate: Boolean) =
             ListQueueBoardFragment().apply {
                 arguments = Bundle().apply {
                     putParcelableArrayList(ARG_PARAM1, capsterList)
                     putParcelable(ARG_PARAM2, outlet)
+                    putBoolean(ARG_PARAM3, isSameDate)
+                }
+            }
+
+        @JvmStatic
+        fun newInstance(isSameDate: Boolean) =
+            ListQueueBoardFragment().apply {
+                arguments = Bundle().apply {
                     putBoolean(ARG_PARAM3, isSameDate)
                 }
             }

@@ -3,21 +3,42 @@ package com.example.barberlink.Adapter
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Product
+import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListProductAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutProductCardBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(ProductDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList2 = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+        if (shimmerViewList2.isNotEmpty()) {
+            shimmerViewList2.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList2.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+    }
 
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
@@ -41,6 +62,9 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val product = getItem(position)
             (holder as ItemViewHolder).bind(product)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Product()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -91,20 +115,43 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutProductCardBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(product: Product) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            shimmerViewList2.add(binding.shimmerViewContainer2)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+            if (!binding.shimmerViewContainer2.isShimmerStarted) {
+                binding.shimmerViewContainer2.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListProductAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(product: Product) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+            if (shimmerViewList2.isNotEmpty()) shimmerViewList2.clear()
+
             with (binding) {
                 tNamaProdukMenu.text = product.productName
                 tHargaProdukMenu.text = NumberUtils.numberToCurrency(product.productPrice.toDouble())
                 tvProdukMenu.text = product.productName
 
-                Glide.with(root.context)
-                    .load(product.imgProduct)
-                    .into(ivProduk)
+                // Use Glide to load the image
+                if (product.imgProduct.isNotEmpty()) {
+                    Glide.with(root.context)
+                        .load(product.imgProduct)
+                        .placeholder(
+                            ContextCompat.getDrawable(root.context, R.drawable.mystery_box))
+                        .error(ContextCompat.getDrawable(root.context, R.drawable.mystery_box))
+                        .into(ivProduct)
+                } else {
+                    // Jika photoProfile kosong atau null, atur gambar default
+                    ivProduct.setImageResource(R.drawable.mystery_box)
+                }
             }
         }
     }

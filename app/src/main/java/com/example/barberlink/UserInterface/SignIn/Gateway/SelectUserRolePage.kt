@@ -35,17 +35,18 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySelectUserRolePageBinding.inflate(layoutInflater)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
 //        BarberLinkApp.sessionManager.clearActivePage()
 
@@ -139,8 +140,10 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
                 } else if (destination == LoginAdminPage::class.java) {
                     if (view.id == R.id.btnPegawai) {
                         intent.putExtra(LOGIN_TYPE_KEY, "Login as Employee")
+                        intent.putExtra(ORIGIN_PAGE_KEY, "SelectUserRolePage")
                     } else if (view.id == R.id.btnAdminOwner) {
                         intent.putExtra(LOGIN_TYPE_KEY, "Login as Admin")
+                        intent.putExtra(ORIGIN_PAGE_KEY, "SelectUserRolePage")
                     }
                 }
 
@@ -180,15 +183,10 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         currentView?.isClickable = true
     }
 
-    override fun onPause() {
-        Log.d("CheckLifecycle", "==================== ON PAUSE SELECT-ROLE =====================")
-        super.onPause()
-        Log.d("WinWinWin", "SelectUserRolePage: onPause")
-    }
-
     companion object {
         const val ACTION_GET_DATA = "action_get_data"
         const val LOGIN_TYPE_KEY = "login_type_key"
+        const val ORIGIN_PAGE_KEY = "origin_page_key"
     }
 
 

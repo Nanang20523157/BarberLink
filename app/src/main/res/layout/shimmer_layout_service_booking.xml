@@ -169,8 +169,9 @@
 
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:id="@+id/llFeeCapsterInfo"
-                    android:layout_width="143.5dp"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:maxWidth="143.5dp"
                     android:orientation="horizontal"
                     android:background="@drawable/background_shimmer_fee_capster"
                     app:layout_constraintTop_toTopOf="parent"

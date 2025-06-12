@@ -35,6 +35,7 @@ class SplashScreen : AppCompatActivity() {
         logoAnimator.cancel()
         if (sessionAdmin || sessionTeller || sessionCapster) {
             val intent = Intent(this@SplashScreen, LandingPage::class.java)
+            intent.putExtra(ORIGIN_PAGE_KEY, "splash_screen") // Menambahkan kunci dan nilai ke Intent
             startActivity(intent)
             finish()
         } else {
@@ -171,6 +172,10 @@ class SplashScreen : AppCompatActivity() {
                 decorView.systemUiVisibility = 0
             }
         }
+    }
+
+    companion object {
+        const val ORIGIN_PAGE_KEY = "origin_page_key"
     }
 
 }

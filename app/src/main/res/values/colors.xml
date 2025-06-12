@@ -90,7 +90,8 @@
     <color name="alpha_pink">#CCFC7293</color>
     <color name="alpha_yellow">#80F7EE3E</color>
     <color name="alpha_magenta">#F2DA0063</color>
-
+    <color name="grey_dark_input_prefix">#7A7878</color>
+    <color name="grey_default_material_layout">#991D1B20</color>
 
 
 </resources>

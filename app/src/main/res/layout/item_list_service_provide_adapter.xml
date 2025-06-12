@@ -39,8 +39,11 @@
 
             <TextView
                 android:id="@+id/tvTitleLayanan"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:ellipsize="marquee"
+                android:singleLine="true"
+                android:marqueeRepeatLimit="marquee_forever"
                 tools:text="Haircut"
                 android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
                 android:textColor="@android:color/black"
@@ -50,8 +53,9 @@
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:minWidth="150dp"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
+                android:gravity="center"
                 android:padding="5dp"
                 android:background="@drawable/background_dot_service"
                 android:layout_marginTop="3.5dp">
@@ -93,7 +97,7 @@
                     android:id="@+id/tvHargaLayanan"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    tools:text="Rp 30.000"
+                    tools:text="Rp 300.000"
                     android:layout_marginStart="3dp"
                     android:layout_marginEnd="5dp"
                     android:textSize="11.2sp"

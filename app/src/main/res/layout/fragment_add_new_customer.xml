@@ -23,8 +23,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:paddingVertical="20dp"
-            android:paddingHorizontal="45dp"
             android:clipChildren="false"
             android:clipToPadding="false">
 
@@ -36,7 +34,9 @@
                 android:layout_gravity="center"
                 app:cardCornerRadius="35dp"
                 app:cardElevation="10dp"
-                android:layout_marginHorizontal="4dp">
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="20dp"
+                android:layout_marginHorizontal="49dp">
 
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="match_parent"
@@ -136,7 +136,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_below="@id/tvSectionTitle"
-                        android:text="Gender:"
+                        android:text="@string/label_text_gender"
                         android:textSize="12sp"
                         android:gravity="start"
                         android:layout_gravity="start"
@@ -177,8 +177,8 @@
                                 android:layout_height="match_parent"
                                 android:paddingStart="15dp"
                                 android:paddingEnd="0dp"
-                                android:textSize="15sp"
-                                android:hint="Select Gender"
+                                android:textSize="14.5sp"
+                                android:hint="@string/hint_text_select_gender"
                                 android:inputType="none"
                                 android:cursorVisible="false"/>
 
@@ -325,16 +325,45 @@
                         android:elevation="0dp"
                         app:cardBackgroundColor="@color/charcoal_grey_background"/>
 
+                    <LinearLayout
+                        android:id="@+id/llCheckBoxData"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="-10dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_gravity="center_horizontal">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="@string/input_data_customer_is_correct"
+                            android:layout_marginTop="-0.5dp"
+                            android:fontFamily="@font/arial_medium"
+                            android:textSize="13.5sp"
+                            android:layout_gravity="center" />
+
+                        <CheckBox
+                            android:id="@+id/checkBoxData"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="-8dp"
+                            android:textSize="12sp"
+                            style="@style/Widget.App.CheckBox"/>
+
+                    </LinearLayout>
+
                     <!-- Finish Button -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSave"
                         android:layout_width="match_parent"
                         android:layout_height="45dp"
+                        android:layout_marginTop="-3dp"
                         android:layout_marginBottom="50dp"
-                        android:layout_marginTop="25dp"
                         android:layout_marginHorizontal="20dp"
                         android:backgroundTint="@color/black"
-                        android:text="Tambahkan"
+                        android:text="@string/btn_add"
                         android:textStyle="bold"
                         android:textColor="@color/green_lime_wf" />
 

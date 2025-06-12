@@ -1,8 +1,11 @@
 package com.example.barberlink.UserInterface.SignIn.Login
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.Toast
@@ -38,44 +41,51 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
     // private val outletsList = mutableListOf<Outlet>()
     // private var filteredResult: List<Outlet> = emptyList()
-    private var isFirstLoad = true
+    private var isFirstLoad: Boolean = true
     private var keyword: String = ""
     private var loginType: String = ""
+    private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
+    private var currentToastMessage: String? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: FormAccessCodeFragment
     private lateinit var outletAdapter: ItemListDestinationAdapter
     private lateinit var outletListener: ListenerRegistration
     private var shouldClearBackStack = true
     private val outletsMutex = Mutex()
+    private var isRecreated: Boolean = false
+    private var myCurrentToast: Toast? = null
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         val backStackCount = savedInstanceState?.getInt("back_stack_count", 0) ?: 0
         if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
-        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
         shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         super.onCreate(savedInstanceState)
         binding = ActivitySelectOutletDestinationBinding.inflate(layoutInflater)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         fragmentManager = supportFragmentManager
         if (savedInstanceState != null) {
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             keyword = savedInstanceState.getString("keyword", "") ?: ""
             loginType = savedInstanceState.getString("login_type", "") ?: ""
+            skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
+            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             // filteredResult = savedInstanceState.getParcelableArray("filtered_result")?.mapNotNull { it as Outlet } ?: emptyList()
             // val outlets = savedInstanceState.getParcelableArrayList<Outlet>("outlets_list")
 //            outlets?.let {
@@ -98,6 +108,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 isShimmerVisible = true
             }
             if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) getAllOutletsData()
+            // if (savedInstanceState == null || isShimmerVisible || isFirstLoad) getAllOutletsData()
             if (savedInstanceState != null) {
                 val filteredResult = selectOutletViewModel.filteredOutletList.value ?: emptyList()
                 outletAdapter.submitList(filteredResult)
@@ -105,7 +116,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 outletAdapter.setShimmer(false)
                 isShimmerVisible = false
 
-                if (!isFirstLoad) listenToOutletsData()
+                if (!isFirstLoad) listenToOutletsData(skippedProcess = true)
             }
 
             searchid.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -162,6 +173,23 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
     }
 
+    private fun showToast(message: String) {
+        if (message != currentToastMessage) {
+            myCurrentToast?.cancel()
+            myCurrentToast = Toast.makeText(
+                this@SelectOutletDestination,
+                message ,
+                Toast.LENGTH_SHORT
+            )
+            currentToastMessage = message
+            myCurrentToast?.show()
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (currentToastMessage == message) currentToastMessage = null
+            }, 2000)
+        }
+    }
+
     fun getSelectOutletBinding(): ActivitySelectOutletDestinationBinding {
         // Setelah binding selesai, tambahkan kode di sini
         return binding
@@ -174,52 +202,64 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
         // outState.putParcelableArrayList("outlets_list", ArrayList(outletsList)) // Simpan sebagai ArrayList<Outlet>
         // outState.putParcelableArray("filtered_result", filteredResult.toTypedArray()) // Simpan sebagai ArrayList<Outlet>
+        outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putString("keyword", keyword)
         outState.putString("login_type", loginType)
+        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
-//    @RequiresApi(Build.VERSION_CODES.S)
-//    override fun onResume() {
-//        super.onResume()
-//        // Set sudut dinamis sesuai perangkat
-//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-//    }
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        // WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        if (!isRecreated) {
+            if (!::outletListener.isInitialized && !isFirstLoad) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                showToast("Sesi telah berakhir silahkan masuk kembali")
+            }
+        }
+        isRecreated = false
+    }
 
-    private fun listenToOutletsData() {
+    private fun listenToOutletsData(skippedProcess: Boolean = false) {
+        this.skippedProcess = skippedProcess
+        if (::outletListener.isInitialized) {
+            outletListener.remove()
+        }
+
         outletListener = db.collectionGroup("outlets")
             .addSnapshotListener { documents, exception ->
                 if (exception != null) {
-                    Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
-                    isFirstLoad = false
+                    showToast("Error listening to outlets data: ${exception.message}")
+                    this@SelectOutletDestination.isFirstLoad = false
+                    this@SelectOutletDestination.skippedProcess = false
                     return@addSnapshotListener
                 }
 
                 documents?.let {
                     lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad) {
+                        if (!this@SelectOutletDestination.isFirstLoad && !this@SelectOutletDestination.skippedProcess) {
                             val outlets = it.mapNotNull { doc ->
-                                // Get the outlet object from the document
                                 val outlet = doc.toObject(Outlet::class.java)
-                                // Assign the document reference path to outletReference
                                 outlet.outletReference = doc.reference.path
-                                outlet // Return the modified outlet
+                                if (!outlet.hiddenOutlet) outlet else null // Filter hanya outlet yang tidak tersembunyi
                             }
 
-                            // Use mutex to ensure thread safety when modifying outletsList
                             withContext(Dispatchers.Main) {
                                 outletsMutex.withLock {
                                     selectOutletViewModel.setOutletList(outlets.toMutableList())
-                                    // outletsList.clear()
-                                    // outletsList.addAll(outlets)
                                     selectOutletViewModel.triggerFilteringDataOutlet(false)
                                 }
                             }
-
-                            // filterOutlets(keyword, false)
                         } else {
-                            isFirstLoad = false
+                            this@SelectOutletDestination.isFirstLoad = false
+                            this@SelectOutletDestination.skippedProcess = false
                         }
                     }
                 }
@@ -232,19 +272,14 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             .addOnSuccessListener { snapshot ->
                 lifecycleScope.launch(Dispatchers.Default) {
                     val outlets = snapshot.mapNotNull { doc ->
-                        // Get the outlet object from the document
                         val outlet = doc.toObject(Outlet::class.java)
-                        // Assign the document reference path to outletReference
                         outlet.outletReference = doc.reference.path
-                        outlet // Return the modified outlet
+                        if (!outlet.hiddenOutlet) outlet else null // Filter hanya outlet yang tidak tersembunyi
                     }
 
-                    // Use mutex to ensure thread safety when modifying outletsList
                     withContext(Dispatchers.Main) {
                         outletsMutex.withLock {
                             selectOutletViewModel.setOutletList(outlets.toMutableList())
-                            // outletsList.clear()
-                            // outletsList.addAll(outlets)
                         }
                     }
 
@@ -253,9 +288,10 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             }
             .addOnFailureListener { exception ->
                 displayAllData()
-                Toast.makeText(this, "Error getting outlets: ${exception.message}", Toast.LENGTH_SHORT).show()
+                showToast("Error getting outlets: ${exception.message}")
             }
     }
+
 
     private fun displayAllData() {
         // filterOutlets(keyword, shimmerState)  // Update UI with the data
@@ -366,8 +402,18 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        myCurrentToast?.cancel()
+        currentToastMessage = null
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        outletAdapter.stopAllShimmerEffects()
 
         selectOutletViewModel.clearState()
         if (::outletListener.isInitialized) outletListener.remove()

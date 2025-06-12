@@ -1,16 +1,21 @@
 package com.example.barberlink.UserInterface.Admin
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.Spanned
 import android.util.Log
 import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateInterpolator
 import android.view.animation.AnimationUtils
+import android.view.animation.DecelerateInterpolator
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -18,15 +23,21 @@ import androidx.annotation.RequiresApi
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.text.HtmlCompat
+import androidx.core.view.marginBottom
+import androidx.core.view.marginEnd
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
 import com.demogorgorn.monthpicker.MonthPickerDialog
+import com.example.barberlink.Adapter.ItemAnalyticsProductAdapter
 import com.example.barberlink.Adapter.ItemDateCalendarAdapter
+import com.example.barberlink.DataClass.AppointmentData
 import com.example.barberlink.DataClass.DailyCapital
-import com.example.barberlink.DataClass.Expenditure
+import com.example.barberlink.DataClass.ExpenditureData
+import com.example.barberlink.DataClass.ManualIncomeData
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.UserAdminData
@@ -37,12 +48,15 @@ import com.example.barberlink.Interface.NavigationCallback
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.ViewModel.DashboardViewModel
 import com.example.barberlink.UserInterface.BaseActivity
+import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.DateComparisonUtils.isSameMonth
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityDashboardAdminPageBinding
 import com.google.android.gms.tasks.Tasks
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.Filter
@@ -60,27 +74,36 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalendarAdapter.OnItemClicked {
     private lateinit var binding: ActivityDashboardAdminPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val dashboardViewModel: DashboardViewModel by viewModels()
+    private val normalizedOutletName get() = outletName.trim().replace("\\s".toRegex(), "").lowercase()
+    private val selectedDates get() = dashboardViewModel.calendarList2.value?.filter { it.isSelected }?.map { it.data } ?: emptyList()
     private lateinit var outletListener: ListenerRegistration
     private lateinit var barbershopListener: ListenerRegistration
+    private lateinit var productListener: ListenerRegistration
     private var capitalListener: ListenerRegistration? = null
     private var expenditureListener: ListenerRegistration? = null
     private var reservationListener: ListenerRegistration? = null
+    private var appointmentListener: ListenerRegistration? = null
+    private var manualReportListener: ListenerRegistration? = null
     private var salesListener: ListenerRegistration? = null
 
     private lateinit var calendarAdapter: ItemDateCalendarAdapter
-    private lateinit var userAdminData: UserAdminData
-    private lateinit var outletsList: ArrayList<Outlet>
+    private lateinit var productAdapter: ItemAnalyticsProductAdapter
+    //private lateinit var userAdminData: UserAdminData
+    // private lateinit var outletsList: ArrayList<Outlet>
     private lateinit var timeStampFilter: Timestamp
+    private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
-    private var outletName: String = "All"
+    private var outletName: String = "Semua"
     private var isDaily: Boolean = false
     private var todayDate: String = ""
+    private var currentToastMessage: String? = null
     // private val calendarList2 = ArrayList<CalendarDateModel>()
     private lateinit var calendar: Calendar
     private var currentYear: Int = 0
@@ -89,7 +112,9 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     private var minYear: Int = 0
     private var isNavigating = false
     private var isFirstLoad: Boolean = true
-    private var remainingListeners = AtomicInteger(6)
+    private var updateListener: Boolean = false
+    private var isProcessingFABAnimation: Boolean = false
+    private var remainingListeners = AtomicInteger(9)
     private var currentView: View? = null
 
     private lateinit var builder: MonthPickerDialog.Builder
@@ -120,10 +145,15 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     // private val expenditureList = mutableListOf<Expenditure>()
 
     private val outletsListMutex = Mutex()
-    private val reservationMutex = Mutex()
-    private val salesMutex = Mutex()
-    private val capitalMutex = Mutex()
-    private val expenditureMutex = Mutex()
+    private val productListMutex = Mutex()
+    private val reservationListMutex = Mutex()
+    private val appointmentListMutex = Mutex()
+    private val manualReportListMutex = Mutex()
+    private val productSalesListMutex = Mutex()
+    private val capitalListMutex = Mutex()
+    private val expenditureListMutex = Mutex()
+    private var isRecreated: Boolean = false
+    private var myCurrentToast: Toast? = null
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -131,6 +161,12 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardAdminPageBinding.inflate(layoutInflater)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
@@ -180,11 +216,6 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
@@ -198,10 +229,31 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         if (savedInstanceState != null) {
             // Restore data from savedInstanceState
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
+            updateListener = savedInstanceState.getBoolean("update_listener", false)
+            // userAdminData = savedInstanceState.getParcelable("user_admin_data") ?: UserAdminData()
+            skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
-            outletName = savedInstanceState.getString("outlet_name", "All")
+            outletName = savedInstanceState.getString("outlet_name", "Semua")
             isDaily = savedInstanceState.getBoolean("is_daily", false)
             timeStampFilter = Timestamp(Date(savedInstanceState.getLong("timestamp_filter")))
+            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
+        } else {
+            // Mengambil argumen dari Safe Args
+            val args = DashboardAdminPageArgs.fromBundle(intent.extras ?: Bundle())
+
+            lifecycleScope.launch(Dispatchers.Default) {
+                outletsListMutex.withLock {
+                    val outletsList = args.outletList.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
+                    withContext(Dispatchers.Main) { dashboardViewModel.setOutletsList(outletsList) }
+                }
+                productListMutex.withLock {
+                    val productList = args.productList.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
+                    withContext(Dispatchers.Main) { dashboardViewModel.setProductList(productList) }
+                }
+            }
+
+            args.userAdminData.let { dashboardViewModel.setUserAdminData(it, false) }
+
         }
 
         init(savedInstanceState == null)
@@ -211,49 +263,65 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             tvYear.setOnClickListener(this@DashboardAdminPage)
             switchExpand.setOnClickListener(this@DashboardAdminPage)
             btnResetDate.setOnClickListener(this@DashboardAdminPage)
-            fabAddNotesReport.setOnClickListener(this@DashboardAdminPage)
+            fabAddManualReport.setOnClickListener(this@DashboardAdminPage)
+            fabCashflow.setOnClickListener(this@DashboardAdminPage)
 
             // swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setProgressViewOffset(false, 0, (64 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-                showShimmer(true)
-                getAllData()
+                if (dashboardViewModel.userAdminData.value?.uid?.isNotEmpty() == true) {
+                    showShimmer(true)
+                    getAllData()
+                } else {
+                    swipeRefreshLayout.isRefreshing = false
+                }
             })
+
+            val nestedScrollView = binding.mainContent
+            nestedScrollView.setOnScrollChangeListener { v, _, scrollY, _, oldScrollY ->
+                if (isProcessingFABAnimation) return@setOnScrollChangeListener
+                if (scrollY > oldScrollY) {
+                    isProcessingFABAnimation = true
+                    // Pengguna menggulir ke bawah
+                    hideFabToRight(fabAddManualReport)
+                    hideFab(fabCashflow)
+                } else if (scrollY < oldScrollY) {
+                    isProcessingFABAnimation = true
+                    // Pengguna menggulir ke atas
+                    showFab(fabCashflow)
+                    showFabFromLeft(fabAddManualReport)
+                }
+            }
         }
+
+        dashboardViewModel.outletsList.observe(this) { outletList ->
+            if (outletList.isNotEmpty()) setupAutoCompleteTextView(outletList)
+        }
+
+        //if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) getAllData()
+        dashboardViewModel.userAdminData.observe(this) { userAdminData ->
+            if (userAdminData != null && userAdminData.uid.isNotEmpty()) {
+                if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) { getAllData() }
+            }
+        }
+
+        dashboardViewModel.displayAdminData.observe(this) { display ->
+            if (display == true) { displayAllData() }
+        }
+
+        dashboardViewModel.displayCounterProduct.observe(this) { display ->
+            if (display == true) {
+                productAdapter.submitList(dashboardViewModel.productList.value)
+
+                if (!isRecreated) showShimmer(false)
+                else showShimmer(isShimmerVisible)
+                if (!isShimmerVisible) productAdapter.notifyDataSetChanged()
+                if (isFirstLoad && !updateListener) setupListeners()
+                if (updateListener) setupListeners(skippedProcess = true)
+            }
+        }
+
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
-
-        // Mengambil argumen dari Safe Args
-        val args = DashboardAdminPageArgs.fromBundle(intent.extras ?: Bundle())
-
-        args.outletList.let {
-            lifecycleScope.launch(Dispatchers.Default) {
-                outletsListMutex.withLock {
-                    outletsList = it.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
-                }
-                withContext(Dispatchers.Main) {
-                    setupAutoCompleteTextView()
-                }
-            }
-        }
-
-        args.userAdminData.let {
-            userAdminData = it
-            if (userAdminData.uid.isNotEmpty()) {
-                binding.acOutletName.setText(outletName, false)
-
-                val text = getString(R.string.hey_dear)
-                val htmlText = String.format(text, userAdminData.ownerName)
-                val formattedText: Spanned =
-                    HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
-                binding.realLayoutHeader.userName.text = formattedText
-
-                if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) getAllData()
-            }
-            if (userAdminData.imageCompanyProfile.isNotEmpty()) {
-                loadImageWithGlide(userAdminData.imageCompanyProfile)
-            }
-        }
-
         if (savedInstanceState != null) {
             binding.apply {
                 updateCardCornerRadius(calendarCardView, isDaily)
@@ -263,10 +331,26 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 // DisplayAllData
                 displayAllData()
 
-                if (!isFirstLoad) setupListeners()
+                if (!isFirstLoad && !updateListener) setupListeners(skippedProcess = true)
             }
         }
+    }
 
+    private fun showToast(message: String) {
+        if (message != currentToastMessage) {
+            myCurrentToast?.cancel()
+            myCurrentToast = Toast.makeText(
+                this@DashboardAdminPage,
+                message ,
+                Toast.LENGTH_SHORT
+            )
+            currentToastMessage = message
+            myCurrentToast?.show()
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (currentToastMessage == message) currentToastMessage = null
+            }, 2000)
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -275,10 +359,14 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
         // Simpan data penting
         outState.putBoolean("is_first_load", isFirstLoad)
+        outState.putBoolean("update_listener", updateListener)
+        //outState.putParcelable("user_admin_data", userAdminData)
+        outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putString("outlet_name", outletName)
         outState.putBoolean("is_daily", isDaily)
         outState.putLong("timestamp_filter", timeStampFilter.toDate().time)
+        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun init(isSavedInstanceStateNull: Boolean) {
@@ -286,8 +374,14 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         maxYear = calendar.get(Calendar.YEAR)
         minYear = maxYear - 4
         todayDate = formatTimestampToDate(Timestamp.now())
-        // Inisialisasi kalender untuk mendapatkan tahun dan bulan saat ini
 
+        binding.realLayoutReport.wholePaymentCash.isSelected = true
+        binding.realLayoutReport.wholeCashlessPayment.isSelected = true
+        productAdapter = ItemAnalyticsProductAdapter()
+        //binding.rvListProductSales.layoutManager = GridLayoutManager(this, 2, GridLayoutManager.VERTICAL, false)
+        binding.rvListProductSales.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
+        binding.rvListProductSales.adapter = productAdapter
+        // Inisialisasi kalender untuk mendapatkan tahun dan bulan saat ini
         val themedContext = ContextThemeWrapper(this@DashboardAdminPage, R.style.MonthPickerDialogStyle)
         builder = MonthPickerDialog.Builder(
             themedContext,
@@ -300,6 +394,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 if (!isSameMonth(calendar.time, timeStampFilter.toDate())) {
                     setUpCalendar()
                     showShimmer(true)
+                    updateListener = true
                     getAllData()
                 }
             },
@@ -313,6 +408,54 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         binding.realLayoutHeader.userName.isSelected = true
     }
 
+    private fun hideFab(fab: ExtendedFloatingActionButton) {
+        fab.animate()
+            .translationY(fab.height.toFloat() + fab.marginBottom.toFloat())
+            .alpha(0f)
+            .setDuration(300)
+            .setInterpolator(AccelerateInterpolator())
+            .withEndAction {
+                isProcessingFABAnimation = false
+            }
+            .start()
+    }
+
+    private fun showFab(fab: ExtendedFloatingActionButton) {
+        fab.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(300)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                isProcessingFABAnimation = false
+            }
+            .start()
+    }
+
+    private fun hideFabToRight(fab: FloatingActionButton) {
+        fab.animate()
+            .translationX(fab.width.toFloat() + fab.marginEnd.toFloat())
+            .alpha(0f)
+            .setDuration(300)
+            .setInterpolator(AccelerateInterpolator())
+            .withEndAction {
+                isProcessingFABAnimation = false
+            }
+            .start()
+    }
+
+    private fun showFabFromLeft(fab: FloatingActionButton) {
+        fab.animate()
+            .translationX(0f)
+            .alpha(1f)
+            .setDuration(300)
+            .setInterpolator(DecelerateInterpolator())
+            .withEndAction {
+                isProcessingFABAnimation = false
+            }
+            .start()
+    }
+
     override fun onClick(v: View?) {
         with(binding) {
             when (v?.id) {
@@ -320,12 +463,14 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                     calendar.add(Calendar.MONTH, 1)
                     setUpCalendar()
                     showShimmer(true)
+                    updateListener = true
                     getAllData()
                 }
                 R.id.ivPrevMonth -> {
                     calendar.add(Calendar.MONTH, -1)
                     setUpCalendar()
                     showShimmer(true)
+                    updateListener = true
                     getAllData()
                 }
                 R.id.tvYear -> {
@@ -355,8 +500,11 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                     showShimmer(true)
                     calculateDataAsync()
                 }
-                R.id.fabAddNotesReport -> {
-                    Toast.makeText(this@DashboardAdminPage, "Add notes feature is under development...", Toast.LENGTH_SHORT).show()
+                R.id.fabAddManualReport -> {
+                    showToast("Add notes feature is under development...")
+                }
+                R.id.fabCashflow -> {
+                    showToast("Cashflow feature is under development...")
                 }
             }
         }
@@ -455,12 +603,13 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         }
     }
 
-    private fun setupAutoCompleteTextView() {
+    private fun setupAutoCompleteTextView(outletsList: List<Outlet>) {
         lifecycleScope.launch(Dispatchers.Default) {
             val outletNames = outletsListMutex.withLock {
                 outletsList.map { it.outletName }.toMutableList()
             }
-            outletNames.add(0, "All")
+            outletNames.add(0, "Semua")
+            outletNames.add("Lainnya")
 
             withContext(Dispatchers.Main) {
                 // Buat adapter pada thread utama karena berinteraksi dengan UI
@@ -474,6 +623,8 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                     showShimmer(true)
                     calculateDataAsync()
                 }
+
+                binding.acOutletName.setText(outletName, false)
             }
         }
 
@@ -495,7 +646,9 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
     private fun showShimmer(show: Boolean) {
         isShimmerVisible = show
-        binding.fabAddNotesReport.isClickable = !show
+        binding.fabAddManualReport.isClickable = !show
+        binding.fabCashflow.isClickable = !show
+        productAdapter.setShimmer(show)
         if (show) {
             binding.shimmerLayoutHeader.root.visibility = View.VISIBLE
             binding.shimmerLayoutReport.root.visibility = View.VISIBLE
@@ -507,86 +660,180 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             binding.realLayoutHeader.root.visibility = View.VISIBLE
             binding.realLayoutReport.root.visibility = View.VISIBLE
         }
-
     }
 
-    private fun resetReservationVariables() {
-        dashboardViewModel.resetReservationVariables()
-    }
-
-    private fun resetSalesVariables() {
-        dashboardViewModel.resetSalesVariables()
-    }
-
-    private fun resetDailyCapitalVariables() {
-        dashboardViewModel.resetCapitalVariables()
-    }
-
-    private fun resetExpenditureVariables() {
-        dashboardViewModel.resetExpenditureVariables()
+    private suspend fun resetVariabel(reset: Boolean, clear: Boolean) {
+        withContext(Dispatchers.Main) {
+            reservationListMutex.withLock {
+                // reservationList.clear()
+                if (clear) dashboardViewModel.clearReservationList()
+                if (reset) dashboardViewModel.resetReservationVariables()
+            }
+            appointmentListMutex.withLock {
+                // appointmentList.clear()
+                if (clear) dashboardViewModel.clearAppointmentList()
+                if (reset) dashboardViewModel.resetAppointmentVariables()
+            }
+            productSalesListMutex.withLock {
+                // productSalesList.clear()
+                if (clear) dashboardViewModel.clearProductSalesList()
+                if (reset) dashboardViewModel.resetSalesVariables()
+            }
+            manualReportListMutex.withLock {
+                // productList.clear()
+                if (clear) dashboardViewModel.clearManualReportList()
+                if (reset) dashboardViewModel.resetManualReportVariables()
+            }
+            capitalListMutex.withLock {
+                // dailyCapitalList.clear()
+                if (clear) dashboardViewModel.clearDailyCapitalList()
+                if (reset) dashboardViewModel.resetCapitalVariables()
+            }
+            expenditureListMutex.withLock {
+                // expenditureList.clear()
+                if (clear) dashboardViewModel.clearExpenditureList()
+                if (reset) dashboardViewModel.resetExpenditureVariables()
+            }
+        }
     }
 
     private fun listenToBarbershopData() {
-        barbershopListener = db.collection("barbershops")
-            .document(userAdminData.uid)
-            .addSnapshotListener { document, exception ->
-                exception?.let {
-                    Toast.makeText(this, "Error listening to barbershop data: ${it.message}", Toast.LENGTH_SHORT).show()
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    return@addSnapshotListener
-                }
-                document?.takeIf { it.exists() }?.let {
-                    if (!isFirstLoad) {
-                        userAdminData = it.toObject(UserAdminData::class.java).apply {
-                            this?.userRef = it.reference.path
-                        } ?: UserAdminData()
-                        if (userAdminData.imageCompanyProfile.isNotEmpty()) {
-                            loadImageWithGlide(userAdminData.imageCompanyProfile)
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            if (::barbershopListener.isInitialized) {
+                barbershopListener.remove()
+            }
+            var decrementGlobalListener = false
+
+            barbershopListener = db.collection("barbershops")
+                .document(userAdminData.uid)
+                .addSnapshotListener { document, exception ->
+                    exception?.let {
+                        showToast("Error listening to barbershop data: ${it.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    document?.takeIf { it.exists() }?.let {
+                        if (!isFirstLoad && !skippedProcess) {
+                            val userData = it.toObject(UserAdminData::class.java).apply {
+                                this?.userRef = it.reference.path
+                            } ?: UserAdminData()
+
+                            dashboardViewModel.setUserAdminData(userData, true)
+                        }
+
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
                         }
                     }
-
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 }
-            }
+        }
     }
 
     private fun listenToOutletsData() {
-        outletListener = db.collection("barbershops")
-            .document(userAdminData.uid)
-            .collection("outlets")
-            .addSnapshotListener { documents, exception ->
-                if (exception != null) {
-                    Toast.makeText(this, "Error listening to outlets data: ${exception.message}", Toast.LENGTH_SHORT).show()
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad) {
-                            val outlets = it.mapNotNull { doc ->
-                                val outlet = doc.toObject(Outlet::class.java)
-                                outlet.outletReference = doc.reference.path
-                                outlet
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
+            var decrementGlobalListener = false
+
+            outletListener = db.collection("barbershops")
+                .document(userAdminData.uid)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    if (exception != null) {
+                        showToast("Error listening to outlets data: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            if (!isFirstLoad && !skippedProcess) {
+                                outletsListMutex.withLock {
+                                    val outlets = it.mapNotNull { doc ->
+                                        val outlet = doc.toObject(Outlet::class.java)
+                                        outlet.outletReference = doc.reference.path
+                                        outlet
+                                    }
+                                    dashboardViewModel.setOutletsList(outlets)
+                                }
                             }
-                            outletsListMutex.withLock {
-                                outletsList.clear()
-                                outletsList.addAll(outlets)
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
                             }
                         }
-
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                     }
                 }
+        }
+    }
+
+    private fun listenToProductsData() {
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            if (::productListener.isInitialized) {
+                productListener.remove()
             }
+            var decrementGlobalListener = false
+
+            productListener = db.collection("barbershops")
+                .document(userAdminData.uid)
+                .collection("products")
+                .addSnapshotListener { documents, exception ->
+                    if (exception != null) {
+                        showToast("Error listening to products data: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            if (!isFirstLoad && !skippedProcess) {
+                                productListMutex.withLock {
+                                    val products = it.mapNotNull { doc ->
+                                        val product = doc.toObject(Product::class.java)
+                                        product.dataRef = doc.reference.path
+                                        product
+                                    }
+
+                                    // Menjalankan setProductList secara async dan menunggu hasilnya sebelum lanjut
+                                    val setProductJob = async { dashboardViewModel.setProductList(products) }
+                                    setProductJob.await() // Tunggu hingga setProductList selesai
+
+                                    withContext(Dispatchers.Main) {
+                                        displayAllData()
+                                    }
+
+                                }
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     private fun listenToData(
         collectionPath: String,
         refField: String,
         dateField: String,
+        userAdminData: UserAdminData,
         processFunction: (document: DocumentSnapshot, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) -> Unit,
         resetFunction: () -> Unit,
-        dataMutex: Mutex
+        dataMutex: Mutex,
+        decrementFlag: AtomicBoolean
     ): ListenerRegistration {
         val query = if (collectionPath.contains("/")) {
             db.collection(collectionPath)
@@ -596,7 +843,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             db.collectionGroup(collectionPath)
                 .where(
                     Filter.and(
-                        Filter.equalTo(refField, "barbershops/${userAdminData.uid}"),
+                        Filter.equalTo(refField, userAdminData.userRef),
                         Filter.greaterThanOrEqualTo(dateField, startOfMonth),
                         Filter.lessThan(dateField, startOfNextMonth)
                     )
@@ -605,20 +852,23 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
         return query.addSnapshotListener { result, exception ->
             if (exception != null) {
-                Toast.makeText(this, "Error listening to $collectionPath data: ${exception.message}", Toast.LENGTH_SHORT).show()
-                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                showToast("Error listening to $collectionPath data: ${exception.message}")
+                if (!decrementFlag.get()) {
+                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                    decrementFlag.set(true)
+                }
                 return@addSnapshotListener
             }
 
             if (result != null) {
                 lifecycleScope.launch(Dispatchers.Default) {
                     // Lock the mutex to safely reset shared variables
-                    if (!isFirstLoad) {
+                    if (!isFirstLoad && !skippedProcess) {
                         dataMutex.withLock {
                             resetFunction()
 
-                            val normalizedOutletName = outletName.trim().replace("\\s".toRegex(), "").lowercase()
-                            val selectedDates = dashboardViewModel.calendarList2.value?.filter { it.isSelected }?.map { it.data } ?: emptyList()
+                            val normalizedOutletName = this@DashboardAdminPage.normalizedOutletName
+                            val selectedDates = this@DashboardAdminPage.selectedDates
 
                             // Pindahkan iterasi dan proses ke dalam ViewModel
                             dashboardViewModel.processDocumentsConcurrently(
@@ -633,7 +883,25 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                             }
                         }
 
+                        if (!decrementFlag.get()) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementFlag.set(true)
+                        }
+                    }
+                }
+            } else {
+                lifecycleScope.launch(Dispatchers.Default) {
+                    dataMutex.withLock {
+                        resetFunction()
+
+                        withContext(Dispatchers.Main) {
+                            displayAllData()
+                        }
+                    }
+
+                    if (!decrementFlag.get()) {
                         if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                        decrementFlag.set(true)
                     }
                 }
             }
@@ -641,267 +909,324 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     }
 
     private fun listenToReservationsData() {
-        reservationListener?.remove()
-        reservationListener = listenToData(
-            collectionPath = "reservations",
-            refField = "barbershop_ref",
-            dateField = "timestamp_to_booking",
-            processFunction = { document, normalizedOutletName, selectedDates, addList ->
-                val reservation = document.toObject(Reservation::class.java)?.apply {
-                    reserveRef = document.reference.path
-                }
-                reservation?.let { dashboardViewModel.processReservationDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
-            },
-            resetFunction = {
-                // reservationList.clear()
-                dashboardViewModel.clearReservationList()
-                resetReservationVariables()
-            },
-            dataMutex = reservationMutex
-        )
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            reservationListener?.remove()
+            val isReservationDecremented = AtomicBoolean(false)
+
+            reservationListener = listenToData(
+                collectionPath = "${userAdminData.userRef}/reservations",
+//            refField = "barbershop_ref",
+                refField = "",
+                dateField = "timestamp_to_booking",
+                userAdminData = userAdminData,
+                processFunction = { document, normalizedOutletName, selectedDates, addList ->
+                    val reservation = document.toObject(Reservation::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }
+                    reservation?.let { dashboardViewModel.processReservationDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
+                },
+                resetFunction = {
+                    // reservationList.clear()
+                    dashboardViewModel.clearReservationList()
+                    dashboardViewModel.resetReservationVariables()
+                },
+                dataMutex = reservationListMutex,
+                decrementFlag = isReservationDecremented
+            )
+        }
+    }
+
+    private fun listenToAppointmentsData() {
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            appointmentListener?.remove()
+            val isAppointmentDecremented = AtomicBoolean(false)
+
+            appointmentListener = listenToData(
+                collectionPath = "${userAdminData.userRef}/appointments",
+                refField = "",
+                dateField = "timestamp_to_booking",
+                userAdminData = userAdminData,
+                processFunction = { document, normalizedOutletName, selectedDates, addList ->
+                    val appointment = document.toObject(AppointmentData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }
+                    appointment?.let { dashboardViewModel.processAppointmentDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
+                },
+                resetFunction = {
+                    // appointmentList.clear()
+                    dashboardViewModel.clearAppointmentList()
+                    dashboardViewModel.resetAppointmentVariables()
+                },
+                dataMutex = appointmentListMutex,
+                decrementFlag = isAppointmentDecremented
+            )
+        }
     }
 
     private fun listenToSalesData() {
-        salesListener?.remove()
-        salesListener = listenToData(
-            collectionPath = "barbershops/${userAdminData.uid}/sales", // Perhatikan format path untuk koleksi biasa
-            refField = "", // Tidak digunakan untuk koleksi biasa
-            dateField = "timestamp_created", // Gunakan field timestamp yang sesuai untuk sales
-            processFunction = { document, normalizedOutletName, selectedDates, addList ->
-                val sale = document.toObject(ProductSales::class.java)
-                sale?.let { dashboardViewModel.processSalesDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
-            },
-            resetFunction = {
-                // productSalesList.clear()
-                dashboardViewModel.clearProductSalesList()
-                resetSalesVariables()
-            },
-            dataMutex = salesMutex
-        )
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            salesListener?.remove()
+            val isSalesDecremented = AtomicBoolean(false)
+
+            salesListener = listenToData(
+                collectionPath = "${userAdminData.userRef}/sales", // Perhatikan format path untuk koleksi biasa
+                refField = "", // Tidak digunakan untuk koleksi biasa
+                dateField = "timestamp_created", // Gunakan field timestamp yang sesuai untuk sales
+                userAdminData = userAdminData,
+                processFunction = { document, normalizedOutletName, selectedDates, addList ->
+                    val sale = document.toObject(ProductSales::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }
+                    sale?.let { dashboardViewModel.processSalesDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
+                },
+                resetFunction = {
+                    // productSalesList.clear()
+                    dashboardViewModel.clearProductSalesList()
+                    dashboardViewModel.resetSalesVariables()
+                },
+                dataMutex = productSalesListMutex,
+                decrementFlag = isSalesDecremented
+            )
+        }
+    }
+
+    private fun listenToManualReportData() {
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            manualReportListener?.remove()
+            val isManualReportDecremented = AtomicBoolean(false)
+
+            manualReportListener = listenToData(
+                collectionPath = "${userAdminData.userRef}/manual_report",
+                refField = "",
+                dateField = "timestamp_created", // Gunakan field timestamp yang sesuai untuk manual report
+                userAdminData = userAdminData,
+                processFunction = { document, normalizedOutletName, selectedDates, addList ->
+                    val manualReport = document.toObject(ManualIncomeData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }
+                    manualReport?.let { dashboardViewModel.processManualReportDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
+                },
+                resetFunction = {
+                    // manualReportList.clear()
+                    dashboardViewModel.clearManualReportList()
+                    dashboardViewModel.resetManualReportVariables()
+                },
+                dataMutex = manualReportListMutex,
+                decrementFlag = isManualReportDecremented
+            )
+        }
     }
 
     private fun listenToDailyCapitalData() {
-        capitalListener?.remove()
-        capitalListener = listenToData(
-            collectionPath = "daily_capital",
-            refField = "root_ref",
-            dateField = "created_on", // Gunakan field timestamp yang sesuai untuk daily capital
-            processFunction = { document, normalizedOutletName, selectedDates, addList ->
-                val dailyCapital = document.toObject(DailyCapital::class.java)
-                dailyCapital?.let { dashboardViewModel.processDailyCapitalDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
-            },
-            resetFunction = {
-                // dailyCapitalList.clear()
-                dashboardViewModel.clearDailyCapitalList()
-                resetDailyCapitalVariables()
-            },
-            dataMutex = capitalMutex
-        )
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            capitalListener?.remove()
+            val isCapitalDecremented = AtomicBoolean(false)
+
+            capitalListener = listenToData(
+                collectionPath = "${userAdminData.userRef}/daily_capital",
+                refField = "",
+                dateField = "timestamp_created", // Gunakan field timestamp yang sesuai untuk daily capital
+                userAdminData = userAdminData,
+                processFunction = { document, normalizedOutletName, selectedDates, addList ->
+                    val dailyCapital = document.toObject(DailyCapital::class.java)
+                    dailyCapital?.let { dashboardViewModel.processDailyCapitalDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
+                },
+                resetFunction = {
+                    // dailyCapitalList.clear()
+                    dashboardViewModel.clearDailyCapitalList()
+                    dashboardViewModel.resetCapitalVariables()
+                },
+                dataMutex = capitalListMutex,
+                decrementFlag = isCapitalDecremented
+            )
+        }
     }
 
     private fun listenToExpenditureData() {
-        expenditureListener?.remove()
-        expenditureListener = listenToData(
-            collectionPath = "expenditure",
-            refField = "root_ref",
-            dateField = "created_on", // Gunakan field timestamp yang sesuai untuk expenditure
-            processFunction = { document, normalizedOutletName, selectedDates, addList ->
-                val expenditure = document.toObject(Expenditure::class.java)
-                expenditure?.let { dashboardViewModel.processExpenditureDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
-            },
-            resetFunction = {
-                // expenditureList.clear()
-                dashboardViewModel.clearExpenditureList()
-                resetExpenditureVariables()
-            },
-            dataMutex = expenditureMutex
-        )
+        dashboardViewModel.userAdminData.value?.let { userAdminData ->
+            expenditureListener?.remove()
+            val isExpenditureDecremented = AtomicBoolean(false)
+
+            expenditureListener = listenToData(
+                collectionPath = "${userAdminData.userRef}/expenditure",
+                refField = "",
+                dateField = "timestamp_created", // Gunakan field timestamp yang sesuai untuk expenditure
+                userAdminData = userAdminData,
+                processFunction = { document, normalizedOutletName, selectedDates, addList ->
+                    val expenditureData = document.toObject(ExpenditureData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }
+                    expenditureData?.let { dashboardViewModel.processExpenditureDataAsync(isDaily, it, normalizedOutletName, selectedDates, addList) }
+                },
+                resetFunction = {
+                    // expenditureList.clear()
+                    dashboardViewModel.clearExpenditureList()
+                    dashboardViewModel.resetExpenditureVariables()
+                },
+                dataMutex = expenditureListMutex,
+                decrementFlag = isExpenditureDecremented
+            )
+        }
     }
 
     private fun getAllData() {
-        val tasks = listOf(
-            db.collectionGroup("reservations").where(
-                Filter.and(
-                    Filter.equalTo("barbershop_ref", "barbershops/${userAdminData.uid}"),
-                    Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfMonth),
-                    Filter.lessThan("timestamp_to_booking", startOfNextMonth)
+        lifecycleScope.launch(Dispatchers.IO) {
+            delay(500)
+            dashboardViewModel.userAdminData.value?.let { userAdminData ->
+                val tasks = listOf(
+                    db.collection("${userAdminData.userRef}/reservations")
+                        .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfMonth)
+                        .whereLessThan("timestamp_to_booking", startOfNextMonth)
+                        .get(),
+
+                    db.collection("${userAdminData.userRef}/appointments")
+                        .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfMonth)
+                        .whereLessThan("timestamp_to_booking", startOfNextMonth)
+                        .get(),
+
+                    db.collection("${userAdminData.userRef}/sales")
+                        .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                        .whereLessThan("timestamp_created", startOfNextMonth)
+                        .get(),
+
+                    db.collection("${userAdminData.userRef}/manual_report")
+                        .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                        .whereLessThan("timestamp_created", startOfNextMonth)
+                        .get(),
+
+                    db.collection("${userAdminData.userRef}/daily_capital")
+                        .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                        .whereLessThan("timestamp_created", startOfNextMonth)
+                        .get(),
+
+                    db.collection("${userAdminData.userRef}/expenditure")
+                        .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                        .whereLessThan("timestamp_created", startOfNextMonth)
+                        .get()
                 )
-            ).get(),
 
-            db.collection("barbershops/${userAdminData.uid}/sales")
-                .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-                .whereLessThan("timestamp_created", startOfNextMonth)
-                .get(),
+                Tasks.whenAllSuccess<QuerySnapshot>(tasks)
+                    .addOnSuccessListener { results ->
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            resetVariabel(reset = true, clear = true)
 
-            db.collectionGroup("daily_capital").where(
-                Filter.and(
-                    Filter.equalTo("root_ref", "barbershops/${userAdminData.uid}"),
-                    Filter.greaterThanOrEqualTo("created_on", startOfMonth),
-                    Filter.lessThan("created_on", startOfNextMonth)
-                )
-            ).get(),
+                            val normalizedOutletName = this@DashboardAdminPage.normalizedOutletName
+                            val selectedDates = this@DashboardAdminPage.selectedDates
 
-            db.collectionGroup("expenditure").where(
-                Filter.and(
-                    Filter.equalTo("root_ref", "barbershops/${userAdminData.uid}"),
-                    Filter.greaterThanOrEqualTo("created_on", startOfMonth),
-                    Filter.lessThan("created_on", startOfNextMonth)
-                )
-            ).get()
-        )
-
-        Tasks.whenAllSuccess<QuerySnapshot>(tasks)
-            .addOnSuccessListener { results ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    reservationMutex.withLock {
-                        // reservationList.clear()
-                        dashboardViewModel.clearReservationList()
-                        resetReservationVariables()
-                    }
-                    salesMutex.withLock {
-                        // productSalesList.clear()
-                        dashboardViewModel.clearProductSalesList()
-                        resetSalesVariables()
-                    }
-                    capitalMutex.withLock {
-                        // dailyCapitalList.clear()
-                        dashboardViewModel.clearDailyCapitalList()
-                        resetDailyCapitalVariables()
-                    }
-                    expenditureMutex.withLock {
-                        // expenditureList.clear()
-                        dashboardViewModel.clearExpenditureList()
-                        resetExpenditureVariables()
-                    }
-
-                    val normalizedOutletName = outletName.trim().replace("\\s".toRegex(), "").lowercase()
-                    val selectedDates = dashboardViewModel.calendarList2.value?.filter { it.isSelected }?.map { it.data } ?: emptyList()
-
-                    val reservationsResult = results[0]
-                    val salesResult = results[1]
-                    val dailyCapitalResult = results[2]
-                    val expenditureResult = results[3]
-                    // Proses setiap hasil secara paralel
-                    val jobs = listOf(
-                        async {
-                            reservationsResult?.let { result ->
-                                reservationMutex.withLock {
-                                    dashboardViewModel.iterateReservationData(isDaily, result, normalizedOutletName, selectedDates, true)
-//                                    result.documents.forEach { document ->
-//                                        document.toObject(Reservation::class.java)?.apply {
-//                                            reserveRef = document.reference.path
-//                                        }?.let { processReservationDataAsync(it, normalizedOutletName, selectedDates, true) }
-//                                    }
+                            val reservationsResult = results[0]
+                            val appointmentsResult = results[1]
+                            val salesResult = results[2]
+                            val manualReportResult = results[3]
+                            val dailyCapitalResult = results[4]
+                            val expenditureResult = results[5]
+                            // Proses setiap hasil secara paralel
+                            val jobs = listOf(
+                                async {
+                                    reservationsResult?.let { result ->
+                                        reservationListMutex.withLock {
+                                            dashboardViewModel.iterateReservationData(isDaily, result, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
+                                },
+                                async {
+                                    appointmentsResult?.let { result ->
+                                        appointmentListMutex.withLock {
+                                            dashboardViewModel.iterateAppointmentData(isDaily, result, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
+                                },
+                                async {
+                                    salesResult?.let { result ->
+                                        productSalesListMutex.withLock {
+                                            dashboardViewModel.iterateSalesData(isDaily, result, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
+                                },
+                                async {
+                                    manualReportResult?.let { result ->
+                                        manualReportListMutex.withLock {
+                                            dashboardViewModel.iterateManualReportData(isDaily, result, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
+                                },
+                                async {
+                                    dailyCapitalResult?.let { result ->
+                                        capitalListMutex.withLock {
+                                            dashboardViewModel.iterateDailyCapitalData(isDaily, result, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
+                                },
+                                async {
+                                    expenditureResult?.let { result ->
+                                        expenditureListMutex.withLock {
+                                            dashboardViewModel.iterateExpenditureData(isDaily, result, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
                                 }
+                            )
+
+                            // Menunggu semua pekerjaan selesai
+                            awaitAll(*jobs.toTypedArray())
+
+                            withContext(Dispatchers.Main) {
+                                Log.d("getAllData", "Data processing completed, updating UI")
+                                displayAllData()
+                                binding.swipeRefreshLayout.isRefreshing = false
                             }
-                        },
-                        async {
-                            salesResult?.let { result ->
-                                salesMutex.withLock {
-                                    dashboardViewModel.iterateSalesData(isDaily, result, normalizedOutletName, selectedDates, true)
-//                                    result.documents.forEach { document ->
-//                                        document.toObject(ProductSales::class.java)
-//                                            ?.let { processSalesDataAsync(it, normalizedOutletName, selectedDates, true) }
-//                                    }
-                                }
-                            }
-                        },
-                        async {
-                            dailyCapitalResult?.let { result ->
-                                capitalMutex.withLock {
-                                    dashboardViewModel.iterateDailyCapitalData(isDaily, result, normalizedOutletName, selectedDates, true)
-//                                    result.documents.forEach { document ->
-//                                        document.toObject(DailyCapital::class.java)
-//                                            ?.let { processDailyCapitalDataAsync(it, normalizedOutletName, selectedDates, true) }
-//                                    }
-                                }
-                            }
-                        },
-                        async {
-                            expenditureResult?.let { result ->
-                                expenditureMutex.withLock {
-                                    dashboardViewModel.iterateExpenditureData(isDaily, result, normalizedOutletName, selectedDates, true)
-//                                    result.documents.forEach { document ->
-//                                        document.toObject(Expenditure::class.java)
-//                                            ?.let { processExpenditureDataAsync(it, normalizedOutletName, selectedDates, true) }
-//                                    }
-                                }
-                            }
+
                         }
-                    )
-
-                    // Menunggu semua pekerjaan selesai
-                    awaitAll(*jobs.toTypedArray())
-
-                    withContext(Dispatchers.Main) {
-                        Log.d("getAllData", "Data processing completed, updating UI")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("FirestoreError", "Error fetching data: ${e.message}")
                         displayAllData()
                         binding.swipeRefreshLayout.isRefreshing = false
+                        showToast("Error fetching data: ${e.message}")
                     }
-
-                }
             }
-            .addOnFailureListener { e ->
-                Log.e("FirestoreError", "Error fetching data: ${e.message}")
-                displayAllData()
-                binding.swipeRefreshLayout.isRefreshing = false
-                Toast.makeText(this@DashboardAdminPage, "Error fetching data: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-
+        }
     }
 
     private fun calculateDataAsync() {
-        val selectedDates = dashboardViewModel.calendarList2.value?.filter { it.isSelected }?.map { it.data } ?: emptyList()
-        val normalizedOutletName = outletName.trim().replace("\\s".toRegex(), "").lowercase()
-
-        resetReservationVariables()
-        resetSalesVariables()
-        resetDailyCapitalVariables()
-        resetExpenditureVariables()
-        // Logging data sebelum memulai coroutine
-//        dailyCapitalList.forEach {
-//            Log.d("calculateDataAsync", "data ${dailyCapitalList.size}: ${it.uid}")
-//        }
-
         lifecycleScope.launch(Dispatchers.Default) {
+            resetVariabel(reset = true, clear = false)
+
+            val normalizedOutletName = this@DashboardAdminPage.normalizedOutletName
+            val selectedDates = this@DashboardAdminPage.selectedDates
+
             val jobs = mutableListOf<Deferred<Unit>>() // Menggunakan daftar untuk menyimpan Deferred
 
             jobs.add(async {
-                reservationMutex.withLock {
-//                    val reservations = dashboardViewModel.reservationList.value ?: emptyList()
-//                    reservations.forEach { reservation ->
-//                        processReservationDataAsync(reservation, normalizedOutletName, selectedDates, false)
-//                    }
+                reservationListMutex.withLock {
                     dashboardViewModel.iterateReservationData(isDaily, null, normalizedOutletName, selectedDates, false)
                 }
             })
 
             jobs.add(async {
-                salesMutex.withLock {
-//                    val sales = dashboardViewModel.productSalesList.value ?: emptyList()
-//                    sales.forEach { sale ->
-//                        processSalesDataAsync(sale, normalizedOutletName, selectedDates, false)
-//                    }
+                appointmentListMutex.withLock {
+                    dashboardViewModel.iterateAppointmentData(isDaily, null, normalizedOutletName, selectedDates, false)
+                }
+            })
+
+            jobs.add(async {
+                productSalesListMutex.withLock {
                     dashboardViewModel.iterateSalesData(isDaily, null, normalizedOutletName, selectedDates, false)
                 }
             })
 
             jobs.add(async {
-                capitalMutex.withLock {
-//                    val dailyCapitals = dashboardViewModel.dailyCapitalList.value ?: emptyList()
-//                    dailyCapitals.forEach { dailyCapital ->
-//                        processDailyCapitalDataAsync(dailyCapital, normalizedOutletName, selectedDates, false)
-//                    }
+                manualReportListMutex.withLock {
+                    dashboardViewModel.iterateManualReportData(isDaily, null, normalizedOutletName, selectedDates, false)
+                }
+            })
+
+            jobs.add(async {
+                capitalListMutex.withLock {
                     dashboardViewModel.iterateDailyCapitalData(isDaily, null, normalizedOutletName, selectedDates, false)
                 }
             })
 
             jobs.add(async {
-                expenditureMutex.withLock {
-//                    val expenditures = dashboardViewModel.expenditureList.value ?: emptyList()
-//                    expenditures.forEach { expenditure ->
-//                        processExpenditureDataAsync(expenditure, normalizedOutletName, selectedDates, false)
-//                    }
+                expenditureListMutex.withLock {
                     dashboardViewModel.iterateExpenditureData(isDaily, null, normalizedOutletName, selectedDates, false)
                 }
             })
@@ -915,18 +1240,54 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         }
     }
 
-
     private fun displayAllData() {
         // Display the data in the UI
         with(binding) {
-            realLayoutReport.wholeServiceRevenue.text = NumberUtils.numberToCurrency(dashboardViewModel.amountServiceRevenue.value?.toDouble() ?: 0.0)
-            realLayoutReport.wholeProductRevenue.text = NumberUtils.numberToCurrency(dashboardViewModel.amountProductRevenue.value?.toDouble() ?: 0.0)
+            dashboardViewModel.userAdminData.value?.let { userAdminData ->
+                if (userAdminData.uid.isNotEmpty()) {
+                    val text = getString(R.string.hey_dear)
+                    val htmlText = String.format(text, userAdminData.ownerName)
+                    val formattedText: Spanned =
+                        HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                    binding.realLayoutHeader.userName.text = formattedText
+                }
+                if (userAdminData.imageCompanyProfile.isNotEmpty()) {
+                    loadImageWithGlide(userAdminData.imageCompanyProfile)
+                }
+            }
+            val amountReserveRevenue = dashboardViewModel.amountReserveRevenue.value?.toDouble() ?: 0.0
+            val amountSalesRevenue = dashboardViewModel.amountSalesRevenue.value?.toDouble() ?: 0.0
+            val amountAppointmentRevenue = dashboardViewModel.amountAppointmentRevenue.value?.toDouble() ?: 0.0
+            val amountManualServiceRevenue = dashboardViewModel.amountManualServiceRevenue.value?.toDouble() ?: 0.0
+            val amountManualProductRevenue = dashboardViewModel.amountManualProductRevenue.value?.toDouble() ?: 0.0
+            val amountManualOtherRevenue = dashboardViewModel.amountManualOtherRevenue.value?.toDouble() ?: 0.0
+
+            val amountServiceRevenue = amountReserveRevenue + amountAppointmentRevenue + amountManualServiceRevenue
+            val amountProductRevenue = amountSalesRevenue + amountManualProductRevenue
+
+            realLayoutReport.wholeServiceRevenue.text = NumberUtils.numberToCurrency(amountServiceRevenue)
+            realLayoutReport.wholeProductRevenue.text = NumberUtils.numberToCurrency(amountProductRevenue)
+            realLayoutReport.wholeIncomeOther.text = NumberUtils.numberToCurrency(amountManualOtherRevenue)
             realLayoutReport.wholeCapital.text = NumberUtils.numberToCurrency(dashboardViewModel.amountOfCapital.value?.toDouble() ?: 0.0)
             realLayoutReport.wholeExpenditure.text = NumberUtils.numberToCurrency(dashboardViewModel.amountOfExpenditure.value?.toDouble() ?: 0.0)
-            val amountOfIncomeBarber = dashboardViewModel.amountServiceRevenue.value?.plus(dashboardViewModel.amountProductRevenue.value ?: 0) ?: 0
-            realLayoutReport.wholeIncome.text = NumberUtils.numberToCurrency(amountOfIncomeBarber.toDouble())
+            val amountOfIncomeBarber = amountServiceRevenue + amountProductRevenue + amountManualOtherRevenue
+            realLayoutReport.wholeIncome.text = NumberUtils.numberToCurrency(amountOfIncomeBarber)
+
+            val amountOfReserveCashPayment = dashboardViewModel.amountOfReserveCashPayment.value?.toDouble() ?: 0.0
+            val amountOfSalesCashPayment = dashboardViewModel.amountOfSalesCashPayment.value?.toDouble() ?: 0.0
+            val amountOfAppointmentCashPayment = dashboardViewModel.amountOfAppointmentCashPayment.value?.toDouble() ?: 0.0
+            val amountOfManualCashPayment = dashboardViewModel.amountOfManualCashPayment.value?.toDouble() ?: 0.0
+            val amountOfCashPayment = amountOfReserveCashPayment + amountOfSalesCashPayment + amountOfAppointmentCashPayment + amountOfManualCashPayment
+            realLayoutReport.wholePaymentCash.text = NumberUtils.numberToCurrency(amountOfCashPayment)
+
+            val amountOfReserveCashlessPayment = dashboardViewModel.amountOfReserveCashlessPayment.value?.toDouble() ?: 0.0
+            val amountOfSalesCashlessPayment = dashboardViewModel.amountOfSalesCashlessPayment.value?.toDouble() ?: 0.0
+            val amountOfAppointmentCashlessPayment = dashboardViewModel.amountOfAppointmentCashlessPayment.value?.toDouble() ?: 0.0
+            val amountOfManualCashlessPayment = dashboardViewModel.amountOfManualCashlessPayment.value?.toDouble() ?: 0.0
+            val amountOfCashlessPayment = amountOfReserveCashlessPayment + amountOfSalesCashlessPayment + amountOfAppointmentCashlessPayment + amountOfManualCashlessPayment
+            realLayoutReport.wholeCashlessPayment.text = NumberUtils.numberToCurrency(amountOfCashlessPayment)
             val cashFlowBarbershop = amountOfIncomeBarber - (dashboardViewModel.amountOfExpenditure.value ?: 0)
-            val formattedValue = NumberUtils.numberToCurrency(cashFlowBarbershop.toDouble())
+            val formattedValue = NumberUtils.numberToCurrency(cashFlowBarbershop)
 
             if (cashFlowBarbershop >= 0) {
                 realLayoutReport.differenceValue.text = getString(R.string.difference_amount_template, formattedValue)
@@ -937,12 +1298,17 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             }
 //            val amountOfProfitBarber = cashFlowBarbershop - amountOfCapital
             realLayoutHeader.wholeProfitBarber.text = NumberUtils.numberToCurrency(
-                cashFlowBarbershop.toDouble()
+                cashFlowBarbershop
             )
-            val shareProfitForEmployee = dashboardViewModel.shareProfitService.value?.plus(dashboardViewModel.shareProfitProduct.value ?: 0) ?: 0
-            realLayoutHeader.shareProfitBarber.text = getString(R.string.negatif_nominal_template, NumberUtils.numberToCurrency(shareProfitForEmployee.toDouble()))
 
-            realLayoutReport.tvComplatedQueueValue.text = dashboardViewModel.numberOfCompletedQueue.value.toString()
+            val shareProfitReserve = dashboardViewModel.shareProfitReserve.value?.toDouble() ?: 0.0
+            val shareProfitSales = dashboardViewModel.shareProfitSales.value?.toDouble() ?: 0.0
+            val shareProfitAppointment = dashboardViewModel.shareProfitAppointment.value?.toDouble() ?: 0.0
+            val shareProfitManualReport = dashboardViewModel.shareProfitManualReport.value?.toDouble() ?: 0.0
+            val shareProfitForEmployee = shareProfitReserve + shareProfitSales + shareProfitAppointment + shareProfitManualReport
+            realLayoutHeader.shareProfitBarber.text = getString(R.string.negatif_nominal_template, NumberUtils.numberToCurrency(shareProfitForEmployee))
+
+            realLayoutReport.tvCompletedQueueValue.text = dashboardViewModel.numberOfCompletedQueue.value.toString()
             realLayoutReport.tvWaitingQueueValue.text = dashboardViewModel.numberOfWaitingQueue.value.toString()
             realLayoutReport.tvCancelQueueValue.text = dashboardViewModel.numberOfCanceledQueue.value.toString()
 
@@ -954,25 +1320,31 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             realLayoutReport.shippingOrderCounting.text = dashboardViewModel.numberOfOrdersShipped.value.toString()
         }
 
-        showShimmer(false)
-        if (isFirstLoad) setupListeners()
+        dashboardViewModel.setDisplayCounterProduct(true)
         Log.d("calculateDataAsync", "====================================")
     }
 
-    private fun setupListeners() {
+    private fun setupListeners(skippedProcess: Boolean = false) {
+        this.skippedProcess = skippedProcess
+        if (skippedProcess) remainingListeners.set(9)
         listenToReservationsData()
+        listenToAppointmentsData()
         listenToSalesData()
+        listenToManualReportData()
         listenToDailyCapitalData()
         listenToExpenditureData()
         listenToBarbershopData()
         listenToOutletsData()
+        listenToProductsData()
 
         // Tambahkan logika sinkronisasi di sini
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
                 delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
             }
-            isFirstLoad = false
+            this@DashboardAdminPage.isFirstLoad = false
+            this@DashboardAdminPage.updateListener = false
+            this@DashboardAdminPage.skippedProcess = false
             Log.d("FirstLoopEdited", "First Load DAP = false")
         }
     }
@@ -999,10 +1371,13 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
         if (::outletListener.isInitialized) outletListener.remove()
         if (::barbershopListener.isInitialized) barbershopListener.remove()
+        if (::productListener.isInitialized) productListener.remove()
         capitalListener?.remove()
         expenditureListener?.remove()
         reservationListener?.remove()
+        appointmentListener?.remove()
         salesListener?.remove()
+        manualReportListener?.remove()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -1014,11 +1389,25 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
+        if (!isRecreated) {
+            if ((!::outletListener.isInitialized || !::barbershopListener.isInitialized) && !isFirstLoad) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                showToast("Sesi telah berakhir silahkan masuk kembali")
+            }
+        }
+        isRecreated = false
     }
 
-    override fun onPause() {
-        Log.d("CheckLifecycle", "==================== ON PAUSE DAHSBOARD =====================")
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        myCurrentToast?.cancel()
+        currentToastMessage = null
     }
 
     override fun onItemClick(date: CalendarDateModel, index: Int) {

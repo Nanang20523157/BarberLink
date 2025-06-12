@@ -14,8 +14,8 @@ import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.Adapter.ItemListPickUserAdapter
-import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.VegaLayoutManager
@@ -34,14 +34,15 @@ import java.util.Locale
 
 class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemClicked, PinInputFragment.OnClearBackStackListener {
     private lateinit var binding: ActivitySelectAccountPageBinding
-    private val employeeList = mutableListOf<Employee>()
+    private val userEmployeeDataList = mutableListOf<UserEmployeeData>()
     // private val filteredList = mutableListOf<Employee>()
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: PinInputFragment
     private lateinit var outletSelected: Outlet
     private lateinit var employeeAdapter: ItemListPickUserAdapter
     private lateinit var employeeListener: ListenerRegistration
-    private var isFirstLoad = true
+    private val handler = Handler(Looper.getMainLooper())
+    private var isFirstLoad: Boolean = true
     private var keyword: String = ""
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private var shouldClearBackStack = true
@@ -51,31 +52,32 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     override fun onCreate(savedInstanceState: Bundle?) {
         val backStackCount = savedInstanceState?.getInt("back_stack_count", 0) ?: 0
         if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
-        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
         shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         super.onCreate(savedInstanceState)
         binding = ActivitySelectAccountPageBinding.inflate(layoutInflater)
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        WindowInsetsHandler.applyWindowInsets(binding.root)
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
-        setContentView(binding.root)
         val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
             val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
             binding.mainContent.startAnimation(fadeInAnimation)
         }
 
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        WindowInsetsHandler.applyWindowInsets(binding.root)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        setContentView(binding.root)
+
         fragmentManager = supportFragmentManager
         @Suppress("DEPRECATION")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableArrayListExtra(FormAccessCodeFragment.EMPLOYEE_DATA_KEY, Employee::class.java)?.let {
+            intent.getParcelableArrayListExtra(FormAccessCodeFragment.EMPLOYEE_DATA_KEY, UserEmployeeData::class.java)?.let {
                 lifecycleScope.launch(Dispatchers.Default) {
                     employeeMutex.withLock {
-                        employeeList.clear()
-                        employeeList.addAll(it)
+                        userEmployeeDataList.clear()
+                        userEmployeeDataList.addAll(it)
                     }
                 }
             }
@@ -83,11 +85,11 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                 outletSelected = it
             }
         } else {
-            intent.getParcelableArrayListExtra<Employee>(FormAccessCodeFragment.EMPLOYEE_DATA_KEY)?.let {
+            intent.getParcelableArrayListExtra<UserEmployeeData>(FormAccessCodeFragment.EMPLOYEE_DATA_KEY)?.let {
                 lifecycleScope.launch(Dispatchers.Default) {
                     employeeMutex.withLock {
-                        employeeList.clear()
-                        employeeList.addAll(it)
+                        userEmployeeDataList.clear()
+                        userEmployeeDataList.addAll(it)
                     }
                 }
             }
@@ -104,10 +106,10 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             rvEmployeeList.layoutManager = VegaLayoutManager()
             rvEmployeeList.adapter = employeeAdapter
             employeeAdapter.setShimmer(true)
-            Handler(Looper.getMainLooper()).postDelayed({
+            handler.postDelayed({
                 filterEmployee("", true)
                 listenToEmployeesData()
-            }, 500)
+            }, 600)
 
             searchid.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?): Boolean {
@@ -148,6 +150,10 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         outletSelected.let { outlet ->
             val employeeUidList = outlet.listEmployees
 
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
+            }
+
             employeeListener = db.collectionGroup("employees")
                 .whereEqualTo("root_ref", outlet.rootRef)
                 .addSnapshotListener { documents, exception ->
@@ -161,14 +167,14 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                         lifecycleScope.launch(Dispatchers.Default) {
                             if (!isFirstLoad) {
                                 val newEmployeesList = snapshot.documents.mapNotNull { document ->
-                                    document.toObject(Employee::class.java)?.apply {
+                                    document.toObject(UserEmployeeData::class.java)?.apply {
                                         userRef = document.reference.path
                                         outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
                                     }?.takeIf { it.uid in employeeUidList }
                                 }
 
                                 employeeMutex.withLock {
-                                    employeeList.apply {
+                                    userEmployeeDataList.apply {
                                         clear()
                                         addAll(newEmployeesList)
                                     }
@@ -189,9 +195,9 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
             val filteredResult = employeeMutex.withLock {
                 if (lowerCaseQuery.isEmpty()) {
-                    employeeList.toList()
+                    userEmployeeDataList.toList()
                 } else {
-                    employeeList.filter { employee ->
+                    userEmployeeDataList.filter { employee ->
                         employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
                                 employee.username.lowercase(Locale.getDefault()).contains(lowerCaseQuery) ||
                                 employee.role.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
@@ -219,14 +225,14 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onItemClickListener(employee: Employee) {
+    override fun onItemClickListener(userEmployeeData: UserEmployeeData) {
         StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
         shouldClearBackStack = false
         if (supportFragmentManager.findFragmentByTag("PinInputFragment") != null) {
             // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
             return
         }
-        dialogFragment = PinInputFragment.newInstance(employee, outletSelected)
+        dialogFragment = PinInputFragment.newInstance(userEmployeeData, outletSelected)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
         // For a polished look, specify a transition animation.
@@ -275,6 +281,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     override fun onDestroy() {
         super.onDestroy()
 
+        handler.removeCallbacksAndMessages(null)
         if (::employeeListener.isInitialized) employeeListener.remove()
     }
 

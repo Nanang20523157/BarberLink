@@ -3,9 +3,6 @@ package com.example.barberlink.UserInterface.SignIn.Login
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.text.Editable
@@ -15,40 +12,53 @@ import android.util.Patterns
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import com.example.barberlink.DataClass.Employee
+import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
-import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
-import com.example.barberlink.UserInterface.SignUp.SignUpSuccess
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
 import com.example.barberlink.databinding.ActivityLoginAdminPageBinding
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestore
-import java.io.IOException
+import kotlinx.coroutines.launch
 
 class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLoginAdminPageBinding
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private lateinit var userAdminData: UserAdminData
-    private lateinit var employeeData: Employee
+    private lateinit var userEmployeeData: UserEmployeeData
     private var isEmailValid: Boolean = false
     private var isPasswordValid: Boolean = false
+    private var textErrorForEmail: String = "undefined"
+    private var textErrorForPassword: String = "undefined"
+    private var isRecreated: Boolean = false
+    private var originPageFrom: String? = null
+
     private var isNavigating = false
     private var currentView: View? = null
     private var loginType: String = ""
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private lateinit var textWatcher1: TextWatcher
+    private lateinit var textWatcher2: TextWatcher
+    private var inputManualCheckOne: (() -> Unit)? = null
+    private var inputManualCheckTwo: (() -> Unit)? = null
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,16 +66,17 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivityLoginAdminPageBinding.inflate(layoutInflater)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
+
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Mengatur warna status bar
 //        window.statusBarColor = ContextCompat.getColor(this, R.color.black_line_and_ornamen)
@@ -74,7 +85,12 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 //
 //        windowInsetsController?.isAppearanceLightStatusBars = false
 
+        originPageFrom = intent.getStringExtra("origin_page_key").toString()
         loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
+        isEmailValid = savedInstanceState?.getBoolean("is_email_valid", false) ?: false
+        isPasswordValid = savedInstanceState?.getBoolean("is_password_valid", false) ?: false
+        textErrorForEmail = savedInstanceState?.getString("text_error_for_email", "undefined") ?: "undefined"
+        textErrorForPassword = savedInstanceState?.getString("text_error_for_password", "undefined") ?: "undefined"
         @Suppress("DEPRECATION")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
@@ -101,39 +117,77 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             binding.btnSignUp.visibility = View.VISIBLE
         }
 
+        if (isRecreated) {
+            inputManualCheckOne = {
+                if (textErrorForEmail.isNotEmpty() && textErrorForEmail != "undefined") {
+                    isEmailValid = false
+                    setInputState(false, textErrorForEmail, binding.emailCustomError, binding.signInEmail, binding.signInEmailLayout)
+                } else {
+                    isEmailValid = textErrorForEmail != "undefined"
+                    setInputState(true, getString(R.string.required), binding.emailCustomError, binding.signInEmail, binding.signInEmailLayout)
+                }
+
+                if (textErrorForEmail == "undefined" && textErrorForPassword == "undefined") binding.signInEmail.requestFocus()
+            }
+
+            inputManualCheckTwo = {
+                if (textErrorForPassword.isNotEmpty() && textErrorForPassword != "undefined") {
+                    isPasswordValid = false
+                    setInputState(false, textErrorForPassword, binding.passwordCustomError, binding.signInPassword, binding.signInPasswordLayout)
+                } else {
+                    isPasswordValid = textErrorForPassword != "undefined"
+                    setInputState(true, getString(R.string.required), binding.passwordCustomError, binding.signInPassword, binding.signInPasswordLayout)
+                }
+
+                if (textErrorForEmail == "undefined" && textErrorForPassword == "undefined") binding.signInEmail.requestFocus()
+            }
+        }
         setupEditTextListeners()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("is_email_valid", isEmailValid)
+        outState.putBoolean("is_password_valid", isPasswordValid)
+        outState.putString("text_error_for_email", textErrorForEmail)
+        outState.putString("text_error_for_password", textErrorForPassword)
     }
 
     private fun setupEditTextListeners() {
         with(binding) {
-            signInEmail.addTextChangedListener(object : TextWatcher {
+            textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
-                        isEmailValid = validateEmailInput()
+                        inputManualCheckOne?.invoke() ?: run {
+                            isEmailValid = validateEmailInput()
+                        }
+                        inputManualCheckOne = null
                     }
                 }
-            })
+            }
 
-            signInPassword.addTextChangedListener(object : TextWatcher {
+            textWatcher2 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
-                        isPasswordValid = validatePasswordInput()
+                        inputManualCheckTwo?.invoke() ?: run {
+                            isPasswordValid = validatePasswordInput()
+                        }
+                        inputManualCheckTwo = null
                     }
                 }
-            })
+            }
+
+            signInEmail.addTextChangedListener(textWatcher1)
+            signInPassword.addTextChangedListener(textWatcher2)
         }
     }
 
@@ -142,21 +196,40 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         when(v?.id) {
             R.id.btnLogin -> {
                 if (validateInputs()) {
-                    performLogin()
+                    checkNetworkConnection {
+                        performLogin()
+                    }
                 } else {
+                    Toast.makeText(this, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
                     if (!isEmailValid) {
-                        isEmailValid = validateEmailInput()
-                        // setFocus(binding.signInEmail)
+//                        isEmailValid = validateEmailInput()
+                         setFocus(binding.signInEmail)
                     } else if (!isPasswordValid) {
-                        isPasswordValid = validatePasswordInput()
-                        // setFocus(binding.signInPassword)
+//                        isPasswordValid = validatePasswordInput()
+                         setFocus(binding.signInPassword)
                     }
                 }
             }
             R.id.btnSignUp -> {
                 if (loginType == "Login as Admin") {
-                    navigatePage(this, SignUpStepOne::class.java, null, binding.btnSignUp)
+                    Log.d("OriginPage", "origin page: $originPageFrom")
+                    if (originPageFrom == "SelectUserRolePage") {
+                        navigatePage(this, SignUpStepOne::class.java, null, binding.btnSignUp)
+                    } else {
+                        onBackPressed()
+                    }
                 }
+            }
+        }
+    }
+
+    private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
             }
         }
     }
@@ -165,78 +238,81 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         return isEmailValid && isPasswordValid
     }
 
-    private fun isConnectedToInternet(): Boolean {
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = connectivityManager.activeNetwork ?: return false
-        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return when {
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-            else -> false
-        }
-    }
+//    private fun isConnectedToInternet(): Boolean {
+//        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+//        val network = connectivityManager.activeNetwork ?: return false
+//        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
+//        return when {
+//            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
+//            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
+//            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
+//            else -> false
+//        }
+//    }
 
     // Kelas untuk cek internet dengan ping
-    private class InternetCheck(private val onInternetChecked: (Boolean) -> Unit) : AsyncTask<Void, Void, Boolean>() {
-        override fun doInBackground(vararg params: Void?): Boolean {
-            return try {
-                Log.d("InternetCheck", "Checking internet connection...1")
-                val ipAddr = java.net.InetAddress.getByName("8.8.8.8") // Ping ke Google DNS
-                ipAddr.isReachable(3000) // Timeout 3 detik
-            } catch (e: IOException) {
-                Log.d("InternetCheck", "Checking internet connection...2")
-                false
-            }
-        }
-
-        override fun onPostExecute(result: Boolean) {
-            Log.d("InternetCheck", "Internet check result: $result")
-            onInternetChecked(result)
-        }
-    }
+//    private class InternetCheck(private val onInternetChecked: (Boolean) -> Unit) : AsyncTask<Void, Void, Boolean>() {
+//        override fun doInBackground(vararg params: Void?): Boolean {
+//            return try {
+//                Log.d("InternetCheck", "Checking internet connection...1")
+//                val ipAddr = java.net.InetAddress.getByName("8.8.8.8") // Ping ke Google DNS
+//                ipAddr.isReachable(3000) // Timeout 3 detik
+//            } catch (e: IOException) {
+//                Log.d("InternetCheck", "Checking internet connection...2")
+//                false
+//            }
+//        }
+//
+//        override fun onPostExecute(result: Boolean) {
+//            Log.d("InternetCheck", "Internet check result: $result")
+//            onInternetChecked(result)
+//        }
+//    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun performLogin() {
         val email = binding.signInEmail.text.toString().trim()
         val password = binding.signInPassword.text.toString().trim()
 
-        if (!isConnectedToInternet()) {
-            Toast.makeText(
-                this,
-                "Tidak ada koneksi internet. Harap periksa koneksi Anda dan coba lagi.",
-                Toast.LENGTH_SHORT
-            ).show()
+        if (!NetworkMonitor.isOnline.value) {
+            val errMessage = NetworkMonitor.errorMessage.value
+            NetworkMonitor.showToast(errMessage, true)
+//            Toast.makeText(
+//                this,
+//                "Koneksi internet tidak tersedia. Periksa koneksi Anda.",
+//                Toast.LENGTH_SHORT
+//            ).show()
             return
         }
 
         binding.progressBar.visibility = View.VISIBLE
-        // Cek apakah koneksi internet benar-benar dapat mengakses server
-        InternetCheck { internet ->
-            if (internet) {
-                // Lanjutkan login jika ada internet
-                auth.signInWithEmailAndPassword(email, password)
-                    .addOnCompleteListener(this) { task ->
-                        if (task.isSuccessful) {
-                            val user = auth.currentUser
-                            if (loginType == "Login as Employee")
-                                user?.let { fetchUserEmployeeData(it.uid) }
-                            else if (loginType == "Login as Admin") {
-                                user?.let { fetchUserAdminData(it.uid) }
-                            }
-                        } else {
-                            handleLoginError(task.exception)
-                        }
+        // Lanjutkan login jika ada internet
+        auth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    if (loginType == "Login as Employee")
+                        user?.let { fetchUserEmployeeData(it.uid) }
+                    else if (loginType == "Login as Admin") {
+                        user?.let { fetchUserAdminData(it.uid) }
                     }
-            } else {
-                binding.progressBar.visibility = View.GONE
-                Toast.makeText(
-                    this,
-                    "Koneksi internet tidak stabil. Harap periksa koneksi Anda dan coba lagi.",
-                    Toast.LENGTH_SHORT
-                ).show()
+                } else {
+                    handleLoginError(task.exception)
+                }
             }
-        }.execute() // Pastikan untuk mengeksekusi AsyncTask
+        // Cek apakah koneksi internet benar-benar dapat mengakses server
+//        InternetCheck { internet ->
+//            if (internet) {
+//
+//            } else {
+//                binding.progressBar.visibility = View.GONE
+//                Toast.makeText(
+//                    this,
+//                    "Koneksi internet tidak stabil. Periksa koneksi Anda.",
+//                    Toast.LENGTH_SHORT
+//                ).show()
+//            }
+//        }.execute() // Pastikan untuk mengeksekusi AsyncTask
     }
 
 
@@ -292,14 +368,14 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                 if (!querySnapshot.isEmpty) {
                     val document = querySnapshot.documents.firstOrNull()
                     if (document != null) {
-                        employeeData = document.toObject(Employee::class.java)?.apply {
+                        userEmployeeData = document.toObject(UserEmployeeData::class.java)?.apply {
                             userRef = document.reference.path
                             outletRef = ""
-                        } ?: Employee()
+                        } ?: UserEmployeeData()
 
-                        if (employeeData.uid != "----------------") {
+                        if (userEmployeeData.uid != "----------------") {
                             sessionManager.setSessionCapster(true)
-                            sessionManager.setDataCapsterRef(employeeData.userRef)
+                            sessionManager.setDataCapsterRef(userEmployeeData.userRef)
                             // Lakukan sesuatu dengan employeeData
                             // AutoLogoutManager.startAutoLogout(this, "Employee", 60000) // 1 menit
                             navigatePage(this, HomePageCapster::class.java, userId, binding.btnLogin)
@@ -384,16 +460,14 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     startActivity(intentToSelectUserRoles)
 
                     if (loginType == "Login as Admin") intent.putExtra(ADMIN_DATA_KEY, userAdminData)
-                    else intent.putExtra(EMPLOYEE_DATA_KEY, employeeData)
+                    else intent.putExtra(EMPLOYEE_DATA_KEY, userEmployeeData)
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
                     finish()
-                } ?: also {
+                } ?: run {
                     if (destination == SignUpStepOne::class.java) {
-//                    intent.apply {
-//                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
-//                    }
-                        intent.putExtra("origin_page_from", "LoginAdminPage")
+                        intent.putExtra(ORIGIN_PAGE_KEY, "LoginAdminPage")
+                        intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     }
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
@@ -416,18 +490,24 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         with (binding) {
             val email = signInEmail.text.toString().trim()
             return if (email.isEmpty()) {
-                emailCustomError.text = getString(R.string.empty_text_email_address)
-                signInEmailLayout.error = ""
-                setFocus(signInEmail)
+                textErrorForEmail = getString(R.string.empty_text_email_address)
+                setInputState(false, textErrorForEmail, emailCustomError, signInEmail, signInEmailLayout)
+//                emailCustomError.text = getString(R.string.empty_text_email_address)
+//                signInEmailLayout.error = ""
+//                setFocus(signInEmail)
                 false
             } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                emailCustomError.text = getString(R.string.invalid_text_email_address)
-                signInEmailLayout.error = ""
-                setFocus(signInEmail)
+                textErrorForEmail = getString(R.string.invalid_text_email_address)
+                setInputState(false, textErrorForEmail, emailCustomError, signInEmail, signInEmailLayout)
+//                emailCustomError.text = getString(R.string.invalid_text_email_address)
+//                signInEmailLayout.error = ""
+//                setFocus(signInEmail)
                 false
             } else {
-                emailCustomError.text = getString(R.string.required)
-                signInEmailLayout.error = null
+                textErrorForEmail = ""
+                setInputState(true, getString(R.string.required), emailCustomError, signInEmail, signInEmailLayout)
+//                emailCustomError.text = getString(R.string.required)
+//                signInEmailLayout.error = null
                 true
             }
         }
@@ -437,21 +517,33 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         with (binding) {
             val password = signInPassword.text.toString().trim()
             return if (password.isEmpty()) {
-                passwordCustomError.text = getString(R.string.password_required)
-                signInPasswordLayout.error = ""
-                setFocus(signInPassword)
+                textErrorForPassword = getString(R.string.password_required)
+                setInputState(false, textErrorForPassword, passwordCustomError, signInPassword, signInPasswordLayout)
+//                passwordCustomError.text = getString(R.string.password_required)
+//                signInPasswordLayout.error = ""
+//                setFocus(signInPassword)
                 false
             } else if (password.length < 8) {
-                passwordCustomError.text = getString(R.string.password_less_than_8)
-                signInPasswordLayout.error = ""
-                setFocus(signInPassword)
+                textErrorForPassword = getString(R.string.password_less_than_8)
+                setInputState(false, textErrorForPassword, passwordCustomError, signInPassword, signInPasswordLayout)
+//                passwordCustomError.text = getString(R.string.password_less_than_8)
+//                signInPasswordLayout.error = ""
+//                setFocus(signInPassword)
                 false
             } else {
-                passwordCustomError.text = getString(R.string.required)
-                signInPasswordLayout.error = null
+                textErrorForPassword = ""
+                setInputState(true, getString(R.string.required), passwordCustomError, signInPassword, signInPasswordLayout)
+//                passwordCustomError.text = getString(R.string.required)
+//                signInPasswordLayout.error = null
                 true
             }
         }
+    }
+
+    private fun setInputState(isValid: Boolean, message: String, textViewError: TextView, editText: TextInputEditText, wrapperLayout: TextInputLayout) {
+        textViewError.text = message
+        wrapperLayout.error = if (message == getString(R.string.required)) null else ""
+        if (!isValid) setFocus(editText)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -460,6 +552,12 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             super.onBackPressed()
             overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        binding.signInEmail.removeTextChangedListener(textWatcher1)
+        binding.signInPassword.removeTextChangedListener(textWatcher2)
     }
 
     private fun setFocus(editText: TextInputEditText) {
@@ -471,6 +569,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     companion object {
         const val ADMIN_DATA_KEY = "ADMIN_DATA_KEY"
         const val EMPLOYEE_DATA_KEY = "EMPLOYEE_DATA_KEY"
+        const val ORIGIN_PAGE_KEY = "origin_page_key"
     }
 
 }

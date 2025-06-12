@@ -19,17 +19,23 @@
 
         <TextView
             android:id="@+id/tvPackageTitle"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             tools:text="Paket Spesialis"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
             android:textColor="@android:color/black"
             android:textSize="13.5sp"
             android:textStyle="bold"
+            android:ellipsize="marquee"
+            android:singleLine="true"
+            android:marqueeRepeatLimit="marquee_forever"
             android:layout_marginTop="8dp"
             android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            app:layout_constraintHorizontal_bias="0"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/llRating"/>
 
         <TextView
             android:id="@+id/tvDescription"
@@ -213,4 +219,5 @@
             app:layout_constraintTop_toTopOf="@id/linearLayout" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
 </com.google.android.material.card.MaterialCardView>

@@ -34,14 +34,15 @@
 
             <TextView
                 android:id="@+id/tvProdukMenu"
-                android:layout_width="130dp"
+                android:layout_width="115dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
                 android:gravity="center"
-                android:layout_marginHorizontal="9dp"
+                android:layout_marginHorizontal="16.5dp"
                 android:fontFamily="@font/poppins_blackitalic"
                 android:lineSpacingExtra="-20sp"
-                android:background="@drawable/shimmer_corner_empat_dp_300"
+                android:layout_marginTop="0.5dp"
+                android:background="@drawable/shimmer_corner_delapan_dp_300"
                 android:textAlignment="center"
                 android:textColor="#A7A7AC"
                 android:textSize="37sp" />
@@ -54,7 +55,7 @@
                 android:layout_marginStart="29dp"
                 android:cropToPadding="false"
                 android:padding="15dp"
-                android:background="@drawable/shimmer_corner_empat_dp_300"
+                android:background="@drawable/shimmer_corner_delapan_dp_300"
                 android:scaleType="fitCenter"
                 android:contentDescription="@string/preview_image_product_desc" />
 
@@ -91,7 +92,7 @@
     </com.facebook.shimmer.ShimmerFrameLayout>
 
     <com.facebook.shimmer.ShimmerFrameLayout
-        android:id="@+id/shimmer_view_container3"
+        android:id="@+id/shimmer_view_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:shimmer_auto_start="true"

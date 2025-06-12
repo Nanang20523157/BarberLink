@@ -20,13 +20,17 @@ import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
 import com.example.barberlink.databinding.ItemListNumberQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListNumberQueueBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListCollapseQueueAdapter(
     private val itemClicked: OnItemClicked,
-    private val lifecycleOwner: LifecycleOwner
+    private val lifecycleOwner: LifecycleOwner,
+    private val callbackToast: DisplayThisToastMessage
 ) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()), LifecycleObserver {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
-    private val shimmerItemCount = 4
+    private var shimmerItemCount = 4
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var blockAllUserClickAction: Boolean = false
@@ -38,14 +42,23 @@ class ItemListCollapseQueueAdapter(
         lifecycleOwner.lifecycle.addObserver(this)
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    fun onDestroy() {
-        isDestroyed = true
-        handler.removeCallbacksAndMessages(null) // Hentikan semua callback
+    interface DisplayThisToastMessage {
+        fun displayThisToast(message: String)
+    }
+
+    fun stopAllShimmerEffects() {
+        shimmerViewList.forEach {
+            it.stopShimmer()
+        }
+        shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
     }
 
     fun setlastScrollPosition(position: Int) {
         this.lastScrollPosition = position
+    }
+
+    fun setShimmerItemCount(size: Int) {
+        this.shimmerItemCount = size
     }
 
     interface OnItemClicked {
@@ -82,6 +95,7 @@ class ItemListCollapseQueueAdapter(
             // Call bind for ShimmerViewHolder
             (holder as ShimmerViewHolder).bind(Reservation()) // Pass a dummy Reservation if needed
         }
+        Log.d("CheckListQueue", "@@@")
     }
 
     override fun getItemCount(): Int {
@@ -92,6 +106,7 @@ class ItemListCollapseQueueAdapter(
         if (isShimmer == shimmer) return
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+        Log.d("TagScroll", "adapter isShimmer: $isShimmer")
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             var step = "one"
@@ -101,7 +116,9 @@ class ItemListCollapseQueueAdapter(
                 step = "two"
             }
             lastScrollPosition++
-            Log.v("RecyclerView", "product step: $step")
+            Log.v("TagScroll", "product step: $step")
+        } else {
+            Log.d("TagScroll", "lastScrollPosition: $lastScrollPosition")
         }
 
         isShimmer = shimmer
@@ -116,8 +133,9 @@ class ItemListCollapseQueueAdapter(
             }
 
             // Validasi posisi target
+            Log.d("TagScroll", "positionToScroll: $positionToScroll || itemCount: $itemCount")
             if (positionToScroll in 0 until itemCount) {
-                Log.d("TagScroll", "adapter: $lastScrollPosition")
+                Log.d("TagScroll", "adapter Queue: $lastScrollPosition")
                 layoutManager?.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
@@ -159,7 +177,7 @@ class ItemListCollapseQueueAdapter(
 
     }
 
-    fun waitForRecyclerView(action: () -> Unit) {
+    private fun waitForRecyclerView(action: () -> Unit) {
         val checkInterval = 50L
 
         handler.post(object : Runnable {
@@ -181,6 +199,10 @@ class ItemListCollapseQueueAdapter(
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(reservation: Reservation) {
+            shimmerViewList.add(binding.shimmerTvQueueNumber)
+            if (!binding.shimmerTvQueueNumber.isShimmerStarted) {
+                binding.shimmerTvQueueNumber.startShimmer()
+            }
             // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
             val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
             binding.tvQueueNumberPrefix.text = binding.root.context.getString(R.string.template_number_prefix, formattedNumber)
@@ -192,6 +214,8 @@ class ItemListCollapseQueueAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(reservation: Reservation) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with(binding) {
                 binding.tvCurrentQueueNumber.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
@@ -224,7 +248,7 @@ class ItemListCollapseQueueAdapter(
                 cvQueueNumber.setOnClickListener {
                     if (!blockAllUserClickAction) {
                         itemClicked.onItemClickListener(reservation, root, adapterPosition)
-                    }
+                    } else callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!")
                 }
             }
         }
@@ -274,6 +298,12 @@ class ItemListCollapseQueueAdapter(
 //                )
             }
         }
+    }
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+    fun onDestroy() {
+        isDestroyed = true
+        handler.removeCallbacksAndMessages(null) // Hentikan semua callback
     }
 
     companion object {

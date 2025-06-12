@@ -1,9 +1,13 @@
 
 package com.example.barberlink.UserInterface
 
+import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -22,8 +26,9 @@ import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Interface.DrawerController
 import com.example.barberlink.Interface.NavigationCallback
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Admin.ApproveOrRejectBonPage
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
-import com.example.barberlink.UserInterface.SignUp.SignUpSuccess
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
 import com.example.barberlink.databinding.ActivityMainBinding
 import com.google.android.material.navigation.NavigationView
 
@@ -36,6 +41,11 @@ class MainActivity : BaseActivity(), DrawerController
     private lateinit var navController: NavController
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navView: NavigationView
+    private var isNavigating = false
+    private var currentView: View? = null
+    private var pendingNavigation: (() -> Unit)? = null
+    private var currentToastMessage: String? = null
+    private var myCurrentToast: Toast? = null
 //    private var isDialogCapitalShow: Boolean = false
 //    private var originFromSuccesPage: Boolean = false
 
@@ -44,7 +54,7 @@ class MainActivity : BaseActivity(), DrawerController
         val backStackCount = savedInstanceState?.getInt("back_stack_count", 0) ?: 0
         Log.d("BackStackCount", "BackStackCount: $backStackCount")
         if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
-        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
 
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -62,6 +72,7 @@ class MainActivity : BaseActivity(), DrawerController
             }
         })
 
+        if (savedInstanceState != null) currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         userAdminData = UserAdminData()
 
         drawerLayout = binding.drawerLayout
@@ -90,6 +101,7 @@ class MainActivity : BaseActivity(), DrawerController
             putParcelable(ADMIN_BUNDLE_KEY, userAdminData)
         }
         navController.setGraph(R.navigation.mobile_navigation, bundle)
+        Log.d("CheckShimmer", "MainActivity >> userAdminData: $userAdminData")
 
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
@@ -117,8 +129,12 @@ class MainActivity : BaseActivity(), DrawerController
 
             override fun onDrawerClosed(drawerView: View) {
                 // Saat drawer tertutup
-                Log.d("MainActivity", "onDrawerClosed")
+                Log.d("NavigationCorner", "onDrawerClosed")
                 StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this@MainActivity, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+                // Jalankan aksi yang tertunda setelah drawer tertutup
+                pendingNavigation?.invoke()
+                pendingNavigation = null
             }
 
             override fun onDrawerStateChanged(newState: Int) {
@@ -145,10 +161,28 @@ class MainActivity : BaseActivity(), DrawerController
 
     }
 
+    private fun showToast(message: String) {
+        if (message != currentToastMessage) {
+            myCurrentToast?.cancel()
+            myCurrentToast = Toast.makeText(
+                this@MainActivity,
+                message ,
+                Toast.LENGTH_SHORT
+            )
+            currentToastMessage = message
+            myCurrentToast?.show()
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (currentToastMessage == message) currentToastMessage = null
+            }, 2000)
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         Log.d("BackStackCount", "BackStackCount P: ${supportFragmentManager.backStackEntryCount}")
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     fun getMainBinding(): ActivityMainBinding {
@@ -174,31 +208,48 @@ class MainActivity : BaseActivity(), DrawerController
 //        }
 //    }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun setupDrawerSelectedItemMenu() {
         // Tambahkan Listener untuk Drawer Menu
         navView.setNavigationItemSelectedListener { menuItem ->
-            when (menuItem.itemId) {
-                R.id.nav_product -> {
-                    // Logika untuk menu "Produk" di sini
-                    Toast.makeText(
-                        this@MainActivity,
-                        "${menuItem.title} - This feature is under development",
-                        Toast.LENGTH_SHORT
-                    ).show()
+            var toastNavigation = false
+            pendingNavigation = when (menuItem.itemId) {
+                R.id.nav_kasbon -> {
+                    toastNavigation = true
+                    {
+                        navigatePage(this@MainActivity, ApproveOrRejectBonPage::class.java)
+                    }
                 }
                 else -> {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "${menuItem.title} - This feature is under development",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    { showToast("${menuItem.title} - This feature is under development") }
                 }
             }
 
-
+            if (toastNavigation) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Memuat Halaman...",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
             // Tutup drawer
             drawerLayout.closeDrawer(GravityCompat.START)
             true
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun navigatePage(context: Context, destination: Class<*>, view: View? = null) {
+        Log.d("NavigationCorner", "Intent")
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root,this, false) {
+            view?.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
         }
     }
 
@@ -250,13 +301,23 @@ class MainActivity : BaseActivity(), DrawerController
     override fun onResume() {
         Log.d("CheckLifecycle", "==================== ON RESUME MAIN-ACTIVITY =====================")
         super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) {
+            Log.d("NavigationCorner", "Navigating 1")
+            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        }
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
     }
 
-    override fun onPause() {
-        Log.d("CheckLifecycle", "==================== ON PAUSE MAIN-ACTIVITY  =====================")
-//        Log.d("AutoLogout", "Activity OnPause Role: Admin >< activePage: ${BarberLinkApp.sessionManager.getActivePage()}")
-        Log.d("BackStackCount", "BackStackCount: ${supportFragmentManager.backStackEntryCount}")
-        super.onPause()
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        myCurrentToast?.cancel()
+        currentToastMessage = null
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
