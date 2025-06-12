@@ -9,11 +9,13 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListExpandQueueAdapter
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.databinding.FragmentListQueueBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -21,7 +23,7 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -33,13 +35,15 @@ private const val ARG_PARAM2 = "param2"
  */
 class ListQueueFragment : BottomSheetDialogFragment() {
     private var _binding: FragmentListQueueBinding? = null
+    private val listQueueViewModel: QueueControlViewModel by activityViewModels()
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
-    // TODO: Rename and change types of parameters
-    private var reservations: List<Reservation>? = null
-    private var currentIndex: Int? = null
+    // TNODO: Rename and change types of parameters
+    // private var reservations: List<Reservation>? = null
+    //private var currentIndex: Int? = null
     private var param2: String? = null
+    private var isFirstLoad: Boolean = true
     private lateinit var context: Context
     private lateinit var queueAdapter: ItemListExpandQueueAdapter
     private lateinit var behavior: BottomSheetBehavior<View>
@@ -69,10 +73,10 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            reservations = it.getParcelableArrayList(ARG_PARAM1)
-            currentIndex = it.getInt(ARG_PARAM2)
-        }
+//        arguments?.let {
+//            reservations = it.getParcelableArrayList(ARG_PARAM1)
+//            currentIndex = it.getInt(ARG_PARAM2)
+//        }
 
         context = requireContext()
     }
@@ -134,27 +138,32 @@ class ListQueueFragment : BottomSheetDialogFragment() {
             bottomSheet?.let {
                 behavior = BottomSheetBehavior.from(it)
                 // Setup corner adjustments based on slide offset
-                setupBottomSheetCorners(it)
+                setupBottomSheetCorners()
             }
         }
 
-
-        // Menggunakan coroutine untuk menunda eksekusi submitList
-        reservations?.let {
-            lifecycleScope.launch {
-                // Hitung mundur 800 ms
-                delay(500)
-                // Submit data ke adapter setelah delay
-                queueAdapter.submitList(it)
-                // Matikan shimmer setelah data di-submit
-                queueAdapter.setlastScrollPosition(currentIndex ?: 0)
-                queueAdapter.setShimmer(false)
-
+        listQueueViewModel.reservationList.observe(viewLifecycleOwner) { reservations ->
+            // Menggunakan coroutine untuk menunda eksekusi submitList
+            reservations?.let {
+                lifecycleScope.launch {
+                    // Hitung mundur 800 ms
+                    if (isFirstLoad) delay(600)
+                    // Submit data ke adapter setelah delay
+                    queueAdapter.submitList(it)
+                    // Matikan shimmer setelah data di-submit
+                    // queueAdapter.setlastScrollPosition(currentIndex ?: 0)
+                    if (isFirstLoad) {
+                        queueAdapter.setShimmer(false)
+                        isFirstLoad = false
+                    } else {
+                        queueAdapter.notifyDataSetChanged()
+                    }
+                }
             }
         }
     }
 
-    private fun setupBottomSheetCorners(bottomSheet: View) {
+    private fun setupBottomSheetCorners() {
         // Get screen height
         val maxRadius = resources.getDimension(R.dimen.start_corner_radius) // e.g., 24dp
 
@@ -190,6 +199,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        queueAdapter.stopAllShimmerEffects()
         _binding = null
     }
 
@@ -202,7 +212,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment ListQueueFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
         @JvmStatic
         fun newInstance(listReservation: ArrayList<Reservation>, currentIndex: Int) =
             ListQueueFragment().apply {
@@ -211,5 +221,8 @@ class ListQueueFragment : BottomSheetDialogFragment() {
                     putInt(ARG_PARAM2, currentIndex)
                 }
             }
+
+        @JvmStatic
+        fun newInstance() = ListQueueFragment()
     }
 }

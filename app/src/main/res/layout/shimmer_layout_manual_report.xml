@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/shimmer_view_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="4dp"
+    android:paddingHorizontal="16dp"
+    android:paddingBottom="3dp"
+    app:shimmer_auto_start="true"
+    app:shimmer_base_alpha="0.7"
+    app:shimmer_direction="left_to_right"
+    app:shimmer_duration="500"
+    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+    app:shimmer_repeat_delay="500"
+    app:shimmer_shape="linear"
+    app:shimmer_tilt="0">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvBlueBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:cardCornerRadius="15dp"
+            app:cardElevation="0.5dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:elevation="7dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:orientation="vertical">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cvMainInfoEmployee"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="13dp"
+                app:cardElevation="0.5dp"
+                android:backgroundTint="@color/light_grey_horizons_background">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="20dp"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:layout_gravity="center">
+
+                    <TextView
+                        android:id="@+id/tvDate"
+                        android:layout_width="30dp"
+                        android:layout_height="40dp"
+                        android:text="15"
+                        android:fontFamily="@font/poppins_black"
+                        android:textSize="25sp"
+                        android:layout_marginStart="10dp"
+                        android:textAlignment="textStart"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"/>
+
+                    <TextView
+                        android:id="@+id/tvMonthAndYear"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="09.2020"
+                        android:fontFamily="@font/poppins_black"
+                        android:textSize="11sp"
+                        android:layout_marginStart="7dp"
+                        android:layout_marginTop="-1dp"
+                        android:textAlignment="textStart"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        app:layout_constraintTop_toTopOf="@id/tvDate"
+                        app:layout_constraintStart_toEndOf="@id/tvDate"/>
+
+                    <TextView
+                        android:id="@+id/tvDays"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="Kamis"
+                        android:fontFamily="@font/poppins_regular"
+                        android:textSize="10sp"
+                        android:layout_marginTop="2dp"
+                        android:layout_marginStart="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="1dp"
+                        android:textAlignment="textStart"
+                        android:singleLine="true"
+                        android:background="@drawable/shimmer_corner_lima_dp_300"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textColor="@color/grey_300"
+                        app:layout_constraintTop_toBottomOf="@id/tvMonthAndYear"
+                        app:layout_constraintStart_toEndOf="@id/tvDate"/>
+
+                    <TextView
+                        android:id="@+id/tvManualReportCategory"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginEnd="2.5dp"
+                        tools:text="Penjualan Produk"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_tiga_dp_300"
+                        app:layout_constraintTop_toBottomOf="@id/tvDays"
+                        app:layout_constraintStart_toStartOf="@id/tvDate"/>
+
+                    <TextView
+                        android:id="@+id/tvInformation"
+                        android:layout_width="0dp"
+                        android:layout_height="14dp"
+                        android:ellipsize="marquee"
+                        android:maxLines="1"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textSize="11sp"
+                        android:layout_marginTop="-5dp"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:layout_marginBottom="5dp"
+                        android:justificationMode="inter_word"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_tiga_dp_300"
+                        app:layout_constraintVertical_bias="0"
+                        app:layout_constraintTop_toTopOf="@id/tvManualReportCategory"
+                        app:layout_constraintStart_toEndOf="@id/tvManualReportCategory"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent"/>
+
+                    <TextView
+                        android:id="@+id/tvInformation1"
+                        android:layout_width="0dp"
+                        android:layout_height="14dp"
+                        android:ellipsize="marquee"
+                        android:maxLines="1"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textSize="11sp"
+                        android:layout_marginTop="1.5dp"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:layout_marginBottom="5dp"
+                        android:justificationMode="inter_word"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_tiga_dp_300"
+                        app:layout_constraintTop_toBottomOf="@id/tvInformation"
+                        app:layout_constraintStart_toEndOf="@id/tvManualReportCategory"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                    <TextView
+                        android:id="@+id/tvInformation2"
+                        android:layout_width="0dp"
+                        android:layout_height="14dp"
+                        android:ellipsize="marquee"
+                        android:maxLines="1"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textSize="11sp"
+                        android:layout_marginTop="1.5dp"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:layout_marginBottom="5dp"
+                        android:justificationMode="inter_word"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_tiga_dp_300"
+                        app:layout_constraintTop_toBottomOf="@id/tvInformation1"
+                        app:layout_constraintStart_toEndOf="@id/tvManualReportCategory"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent"/>
+
+                    <!-- Price -->
+                    <TextView
+                        android:id="@+id/nominalManualReport"
+                        android:layout_width="150dp"
+                        android:layout_height="wrap_content"
+                        android:text="Rp 1.000.000"
+                        android:textStyle="bold"
+                        android:textSize="16sp"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginEnd="15dp"
+                        android:textAlignment="textEnd"
+                        android:singleLine="true"
+                        android:ellipsize="marquee"
+                        android:marqueeRepeatLimit="marquee_forever"
+                        android:textColor="@color/grey_300"
+                        android:background="@drawable/shimmer_corner_tiga_dp_300"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"/>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Dibuat Oleh:"
+                    android:layout_marginStart="20dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:fontFamily="@font/arial_regular"
+                    android:textSize="11sp"
+                    android:background="@drawable/shimmer_corner_tiga_dp_300"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginTop="-4dp"
+                    android:textColor="@color/grey_300" />
+
+                <TextView
+                    android:id="@+id/tvCreatedBy"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:fontFamily="@font/arial_bolditalic"
+                    android:textSize="11sp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="3dp"
+                    android:layout_marginTop="-4dp"
+                    android:layout_marginEnd="15dp"
+                    android:background="@drawable/shimmer_corner_tiga_dp_300"
+                    android:textColor="@color/grey_300" />
+
+                <ImageButton
+                    android:id="@+id/btnEdit"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:src="@drawable/ic_pen"
+                    android:contentDescription="@string/btn_edit_manual_report_desc"
+                    android:layout_gravity="center_vertical"
+                    app:tint="@color/grey_300"
+                    android:padding="10dp"
+                    android:layout_marginTop="-3dp"
+                    android:layout_marginEnd="6dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnView"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:src="@drawable/ic_view"
+                    android:contentDescription="@string/btn_view_manual_report_desc"
+                    android:layout_gravity="center_vertical"
+                    app:tint="@color/grey_300"
+                    android:padding="10dp"
+                    android:layout_marginTop="-3dp"
+                    android:layout_marginEnd="6dp"/>
+
+                <ImageButton
+                    android:id="@+id/btnDelete"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:src="@drawable/ic_rubbish_bin"
+                    android:contentDescription="@string/btn_remove_manual_report_desc"
+                    android:layout_gravity="center_vertical"
+                    app:tint="@color/grey_300"
+                    android:padding="10dp"
+                    android:layout_marginTop="-3dp"
+                    android:layout_marginEnd="25dp"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</com.facebook.shimmer.ShimmerFrameLayout>
+

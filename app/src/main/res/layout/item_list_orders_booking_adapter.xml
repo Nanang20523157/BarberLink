@@ -115,6 +115,8 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="-5dp"
                             android:maxLines="2"
+                            android:ellipsize="marquee"
+                            android:marqueeRepeatLimit="marquee_forever"
                             android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
                             android:textColor="@android:color/black"
                             android:textSize="13sp"
@@ -130,9 +132,7 @@
                             android:ellipsize="end"
                             tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor"
                             android:textColor="@color/black"
-                            android:textSize="10.5sp"
-                            app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
-                            app:layout_constraintTop_toBottomOf="@id/llRating" />
+                            android:textSize="10.5sp" />
                     </LinearLayout>
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
@@ -148,14 +148,16 @@
 
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:id="@+id/llFeeCapsterInfo"
-                    android:layout_width="143.5dp"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:maxWidth="143.5dp"
                     android:orientation="horizontal"
                     android:background="@drawable/background_grey_fee_capster"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
-                    android:layout_marginHorizontal="15dp"
+                    android:layout_marginStart="14.5dp"
+                    android:layout_marginEnd="15dp"
                     app:layout_constraintHorizontal_bias="1"
                     android:layout_marginTop="7dp">
 
@@ -300,6 +302,7 @@
                         android:layout_height="33dp"
                         android:visibility="gone"
                         android:gravity="center"
+                        android:paddingTop="6dp"
                         android:text="@string/btn_select"
                         android:textColor="@color/green_lime_wf"
                         android:textSize="9sp"
@@ -313,17 +316,18 @@
                 <!-- Price -->
                 <TextView
                     android:id="@+id/price"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:minWidth="50dp"
+                    android:maxWidth="55dp"
                     android:layout_alignParentBottom="true"
                     android:layout_alignParentEnd="true"
                     android:layout_marginTop="-3dp"
-                    tools:text="Rp 150.000"
+                    tools:text="Rp 300.000"
                     android:textStyle="bold"
                     android:textSize="11.5sp"
-                    android:textAlignment="textStart"
-                    android:layout_marginEnd="20dp"
+                    android:textAlignment="textEnd"
+                    android:layout_marginEnd="18dp"
                     android:singleLine="true"
                     android:ellipsize="marquee"
                     android:marqueeRepeatLimit="marquee_forever"

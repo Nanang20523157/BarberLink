@@ -11,14 +11,16 @@ import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.webkit.WebSettings
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
-import com.example.barberlink.UserInterface.SignUp.SignUpStepOne
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
 import com.example.barberlink.Utils.SvgUtils.loadSVGFromResource
 import com.example.barberlink.databinding.ActivityLandingPageBinding
 import kotlinx.coroutines.launch
@@ -34,11 +36,6 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivityLandingPageBinding.inflate(layoutInflater)
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
-        setContentView(binding.root)
         val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (isRecreated) {
             binding.backgroundStatusBar.alpha = 1f
@@ -47,6 +44,21 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
             binding.containerDetail.alpha = 1f
         } else {
             animateLandingPage()
+        }
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        setContentView(binding.root)
+        if (intent.getStringExtra(ORIGIN_PAGE_KEY) == "splash_screen") {
+            Log.d("NetworkMonitorIO", "LandingPage: ${NetworkMonitor.errorMessage.value}")
+            if (!NetworkMonitor.isOnline.value) {
+                if (NetworkMonitor.errorMessage.value == "Koneksi internet tidak stabil. Periksa koneksi Anda.") {
+                    Toast.makeText(this, "Koneksi internet tidak stabil. Periksa koneksi Anda.", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Aplikasi offline", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         // Enable JavaScript
@@ -112,7 +124,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
                 isNavigating = true
                 val intent = Intent(context, destination)
                 if (destination == SignUpStepOne::class.java) {
-                    intent.putExtra("origin_page_from", "LandingPage")
+                    intent.putExtra(ORIGIN_PAGE_KEY, "LandingPage")
                 }
                 Log.d("WinWinWin", "LandingPage: navigation")
                 startActivity(intent)
@@ -129,11 +141,6 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
-    }
-
-    override fun onPause() {
-        super.onPause()
-        Log.d("WinWinWin", "LandingPage: onPause")
     }
 
     private fun animateLandingPage() {
@@ -176,5 +183,13 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
 
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        NetworkMonitor.cancelToast()
+    }
+
+    companion object {
+        const val ORIGIN_PAGE_KEY = "origin_page_key"
+    }
 
 }

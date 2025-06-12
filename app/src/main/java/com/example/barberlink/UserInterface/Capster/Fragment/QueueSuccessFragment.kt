@@ -1,6 +1,7 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
@@ -13,9 +14,14 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.databinding.FragmentQueueSuccessBinding
+import kotlinx.coroutines.launch
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -30,7 +36,7 @@ private const val ARG_PARAM5 = "param5"
  */
 class QueueSuccessFragment : DialogFragment() {
     private var _binding: FragmentQueueSuccessBinding? = null
-    // TODO: Rename and change types of parameters
+    // TNODO: Rename and change types of parameters
     private var param1: String? = null
     private var param2: String? = null
 
@@ -41,6 +47,7 @@ class QueueSuccessFragment : DialogFragment() {
     private var message: String? = ""
     private var isHandled = false
     private lateinit var context: Context
+    private var lifecycleListener: DefaultLifecycleObserver? = null
 
     private val binding get() = _binding!!
 
@@ -97,10 +104,27 @@ class QueueSuccessFragment : DialogFragment() {
         }
 
         binding.btnDone.setOnClickListener {
-            Log.d("TagDissmiss", "onDismiss: 72")
-            dismiss() // Tutup fragment setelahnya
-            parentFragmentManager.popBackStack() // Hapus fragment
+            checkNetworkConnection {
+                Log.d("TagDissmiss", "onDismiss: 72")
+                dismiss() // Tutup fragment setelahnya
+                parentFragmentManager.popBackStack() // Hapus fragment
+            }
         }
+
+        // Panggil fungsi pertama kali
+        updateMargins()
+
+        // Deteksi perubahan orientasi layar
+        val listener = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                updateMargins()
+            }
+        }
+
+        viewLifecycleOwner.lifecycle.addObserver(listener)
+
+        // Simpan listener agar bisa dihapus nanti jika perlu
+        this.lifecycleListener = listener
 
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -130,12 +154,45 @@ class QueueSuccessFragment : DialogFragment() {
         }
     }
 
+    private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
+            }
+        }
+    }
+
     private fun isTouchOnForm(event: MotionEvent): Boolean {
         val location = IntArray(2)
         binding.cdQueueSuccess.getLocationOnScreen(location)
         val rect = Rect(location[0], location[1], location[0] + binding.cdQueueSuccess.width, location[1] + binding.cdQueueSuccess.height)
 
         return rect.contains(event.rawX.toInt(), event.rawY.toInt())
+    }
+
+    private fun updateMargins() {
+        val params = binding.cdQueueSuccess.layoutParams as ViewGroup.MarginLayoutParams
+        val orientation = resources.configuration.orientation
+
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            params.topMargin = dpToPx(30)
+            params.bottomMargin = dpToPx(30)
+            Log.d("FormulirBon", "updateMargins: PORTRAIT")
+        } else {
+            params.topMargin = dpToPx(80)
+            params.bottomMargin = dpToPx(40)
+            Log.d("FormulirBon", "updateMargins: LANDSCAPE")
+        }
+
+        binding.cdQueueSuccess.layoutParams = params
+    }
+
+    // Konversi dari dp ke pixel
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
     }
 
     private fun handleDoneAction() {
@@ -164,8 +221,15 @@ class QueueSuccessFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        handleDoneAction()
         _binding = null
+        lifecycleListener?.let {
+            viewLifecycleOwner.lifecycle.removeObserver(it)
+        }
+
+        if (requireActivity().isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        handleDoneAction()
     }
 
     companion object {
@@ -177,7 +241,7 @@ class QueueSuccessFragment : DialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment QueueSuccessFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
         @JvmStatic
         fun newInstance(monayCashBackAmount: String, paymentMethod: String, newIndex: Int, previousStatus: String, message: String) =
             QueueSuccessFragment().apply {

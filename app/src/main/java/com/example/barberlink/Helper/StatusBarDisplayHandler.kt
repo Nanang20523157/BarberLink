@@ -64,9 +64,12 @@ object StatusBarDisplayHandler {
 
         // Tambahkan ke root view
         val decorView = activity.window.decorView as ViewGroup
-        var curvedView = decorView.getChildAt(decorView.childCount - 1)
+        // Cari apakah sudah ada curvedView sebelumnya
+        val existingCurvedView = decorView.findViewWithTag<View>("curvedView")
 
         if (addStatusBar) {
+            // Hapus curvedView yang ada jika ditemukan
+            existingCurvedView?.let { decorView.removeView(it) }
             // Langkah 1: Set nilai awal corner
             val windowManager = activity.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             var radius = windowManager.currentWindowMetrics.windowInsets.getRoundedCorner(
@@ -76,19 +79,22 @@ object StatusBarDisplayHandler {
             if (radius != -999f) radius -= 5f // Kurangi radius agar tidak terlalu besar
             else radius = 50f // Default radius jika tidak tersedia
 
-            // Tambahkan latar belakang melengkung
-            curvedView = View(activity).apply {
+            // Buat view baru dengan tag unik
+            val curvedView = View(activity).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     getStatusBarHeight(activity)
                 )
                 background = createCurvedBackground(statusBarColor, radius)
+                tag = "curvedView" // Tag untuk identifikasi
             }
 
             decorView.addView(curvedView)
         } else {
-            (curvedView as View).background =
-                createCurvedBackground(statusBarColor, 0f)
+            // Jika addStatusBar = false dan curvedView ada, ubah background-nya
+            existingCurvedView?.let {
+                it.background = createCurvedBackground(statusBarColor, 0f)
+            }
         }
     }
 
@@ -107,7 +113,7 @@ object StatusBarDisplayHandler {
     }
 
     // Fungsi untuk mendapatkan tinggi status bar
-    fun getStatusBarHeight(context: Context): Int {
+    private fun getStatusBarHeight(context: Context): Int {
         val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
         return if (resourceId > 0) context.resources.getDimensionPixelSize(resourceId) else 0
     }

@@ -1,7 +1,10 @@
 package com.example.barberlink.Utils
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
+import java.time.ZoneId
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
@@ -62,6 +65,12 @@ object GetDateUtils {
         val formattedTime = timeFormat.format(date)
 
         return "$day, $formattedDate ($formattedTime)"
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun Timestamp.toUtcMidnightMillis(): Long {
+        val localDate = this.toDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+        return localDate.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
     }
 
 }

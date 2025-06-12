@@ -1,0 +1,573 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rlRecordInstallment"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="center"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    android:orientation="vertical">
+
+    <!--    <androidx.core.widget.NestedScrollView-->
+    <com.example.barberlink.CustomView.CustomNestedScrollView
+        android:id="@+id/nvBackgroundScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/background_scrim"
+        android:clickable="true"
+        android:focusable="true">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cdRecordInstallment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="30dp"
+                android:layout_marginBottom="30dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                app:cardCornerRadius="30dp">
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:paddingVertical="20dp"
+                    android:paddingHorizontal="25dp">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:id="@+id/wrapperQueueTrackerStatistics"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_below="@id/tvTitle"
+                        android:layout_marginTop="35dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        android:layout_marginHorizontal="15dp">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/cvDateFilterLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="0dp"
+                            android:backgroundTint="@color/light_grey_horizons_background"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintStart_toStartOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvDateFilterLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/tgl_label"
+                                android:layout_gravity="center"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="25dp"/>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:id="@+id/cvDateFilterValue"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:layout_marginStart="15dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="0dp"
+                            android:backgroundTint="@color/light_grey_horizons_background"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintStart_toEndOf="@id/cvDateFilterLabel"
+                            app:layout_constraintEnd_toEndOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvDateFilterValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                tools:text="05 September 2024"
+                                android:textSize="14.5sp"
+                                android:textStyle="bold"
+                                android:paddingVertical="10dp"
+                                android:paddingHorizontal="25dp"/>
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <TextView
+                        android:id="@+id/tvHeader"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_form_payment_bon"
+                        android:textSize="22.5sp"
+                        android:fontFamily="@font/arial_bold"
+                        android:textColor="@color/black_font_color"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="14dp" />
+
+                    <TextView
+                        android:id="@+id/tvBonsAndReceivables"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_debts_and_receivables"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:layout_marginTop="3dp"
+                        android:layout_alignParentTop="true"
+                        android:layout_alignParentStart="true"
+                        android:layout_marginHorizontal="10dp"/>
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/wrapperNominalBon"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="11dp"
+                            app:hintEnabled="true"
+                            app:hintTextColor="@color/black"
+                            android:textColorHint="#b0b0b0"
+                            android:hint="@string/nominal_loans_hint"
+                            app:placeholderText="@string/nominal_loans_hint"
+                            app:placeholderTextColor="#b0b0b0"
+                            app:errorEnabled="false"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            app:boxCornerRadiusBottomStart="9dp"
+                            app:boxCornerRadiusBottomEnd="9dp"
+                            app:boxCornerRadiusTopEnd="9dp"
+                            app:boxCornerRadiusTopStart="9dp"
+                            app:boxBackgroundColor="#00FFFFFF"
+                            app:boxBackgroundMode="outline"
+                            app:prefixText="Rp"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:prefixTextAppearance="@style/PrefixTextAppearance">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etBonAmount"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:drawableTint="@android:color/transparent"
+                                android:drawableStart="@drawable/ic_money"
+                                android:drawablePadding="10dp"
+                                android:inputType="number|numberDecimal"
+                                android:text="@string/text_0"
+                                android:textSize="23sp"
+                                android:focusable="false"
+                                android:enabled="false"
+                                android:textColor="@color/grey_dark_input_prefix"/>
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </RelativeLayout>
+
+                    <RelativeLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="match_parent"
+                            android:layout_marginTop="-12dp"
+                            android:layout_height="2dp"
+                            android:layout_marginHorizontal="15dp"
+                            android:layout_alignStart="@id/wrapperNominalInstallment"
+                            android:layout_alignEnd="@id/wrapperNominalInstallment"
+                            android:layout_below="@id/wrapperNominalInstallment"
+                            android:layout_centerHorizontal="true"
+                            android:elevation="0dp"
+                            app:cardBackgroundColor="@color/charcoal_grey_background"/>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/wrapperNominalInstallment"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="11dp"
+                            app:hintEnabled="true"
+                            app:hintTextColor="@color/black"
+                            android:textColorHint="#b0b0b0"
+                            android:hint="@string/hint_installment_bon"
+                            app:placeholderText="Nominal Angsuran"
+                            app:placeholderTextColor="#b0b0b0"
+                            app:errorEnabled="true"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            app:boxCornerRadiusBottomStart="9dp"
+                            app:boxCornerRadiusBottomEnd="9dp"
+                            app:boxCornerRadiusTopEnd="9dp"
+                            app:boxCornerRadiusTopStart="9dp"
+                            app:boxBackgroundColor="#00FFFFFF"
+                            app:boxBackgroundMode="outline"
+                            app:prefixText="Rp"
+                            app:prefixTextColor="@color/black"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:prefixTextAppearance="@style/PrefixTextAppearance">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etNominalInstallment"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:drawableTint="@android:color/transparent"
+                                android:drawableStart="@drawable/ic_money"
+                                android:drawablePadding="10dp"
+                                android:inputType="number|numberDecimal"
+                                android:text="@string/text_0"
+                                android:textSize="23sp"
+                                android:textColor="@color/black"/>
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </RelativeLayout>
+
+                    <!-- Information Text -->
+                    <LinearLayout
+                        android:id="@+id/llInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="-6dp"
+                        android:layout_marginHorizontal="15dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone"
+                        android:gravity="center">
+
+                        <ImageView
+                            android:id="@+id/ivInfo"
+                            android:layout_width="15dp"
+                            android:layout_height="15dp"
+                            android:layout_marginStart="-1.5dp"
+                            android:layout_marginTop="0.5dp"
+                            android:src="@drawable/ic_error"/>
+
+                        <TextView
+                            android:id="@+id/tvInfo"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="2dp"
+                            android:layout_marginTop="0.4dp"
+                            android:fontFamily="@font/opensans_regular"
+                            android:text="@string/data_secure"
+                            android:textColor="@color/red"
+                            android:textSize="10sp" />
+
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tvRemainingBonLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_remaining_bon"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginHorizontal="20dp"/>
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/cvRemainingBon"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="20dp"
+                        android:layout_marginTop="1dp"
+                        android:elevation="18dp"
+                        app:cardCornerRadius="7.61dp"
+                        android:outlineAmbientShadowColor="@color/black"
+                        android:outlineSpotShadowColor="@color/black"
+                        app:layout_constraintTop_toTopOf="@id/tvQuantityOtherIncome"
+                        app:layout_constraintStart_toEndOf="@id/tvQuantityOtherIncome"
+                        app:layout_constraintBottom_toBottomOf="@id/tvQuantityOtherIncome"
+                        app:layout_constraintEnd_toEndOf="parent">
+
+                        <!-- AutoCompleteTextView for Dropdown -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/inputLayoutRemainingBon"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="center"
+                            android:layout_marginVertical="5dp"
+                            app:hintEnabled="false"
+                            android:backgroundTint="@android:color/transparent"
+                            app:errorEnabled="false"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            app:boxStrokeWidth="0dp"
+                            app:boxCornerRadiusBottomEnd="7.61dp"
+                            app:boxCornerRadiusBottomStart="7.61dp"
+                            app:boxCornerRadiusTopEnd="7.61dp"
+                            app:boxCornerRadiusTopStart="7.61dp"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:prefixText="Rp"
+                            android:paddingVertical="7dp"
+                            app:prefixTextAppearance="@style/PrefixTextAppearance">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etNominalRemainingBon"
+                                android:layout_width="wrap_content"
+                                android:layout_height="match_parent"
+                                android:layout_gravity="center"
+                                android:gravity="center"
+                                android:drawableTint="@android:color/transparent"
+                                android:drawableStart="@drawable/ic_money"
+                                android:drawablePadding="8dp"
+                                android:padding="0dp"
+                                android:inputType="number|numberDecimal"
+                                android:text="0"
+                                android:textSize="23sp"
+                                android:focusable="false"
+                                android:enabled="false"
+                                android:textColor="@color/black"/>
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                    </androidx.cardview.widget.CardView>
+
+                    <TextView
+                        android:id="@+id/tvApplicantSubjectLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_applicant_subject"
+                        android:textSize="14.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:layout_gravity="center"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginHorizontal="20dp"/>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cvApplicantSubject"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardCornerRadius="15dp"
+                        android:layout_marginHorizontal="15dp"
+                        android:layout_marginTop="1dp"
+                        app:cardElevation="0dp"
+                        android:backgroundTint="@color/white">
+
+                        <RelativeLayout
+                            android:id="@+id/rlApplicantSubject"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="4dp"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginBottom="4dp"
+                            android:paddingVertical="20dp"
+                            android:paddingHorizontal="20dp"
+                            android:background="@drawable/background_user_notes">
+
+                            <de.hdodenhof.circleimageview.CircleImageView
+                                android:id="@+id/ivPhotoProfile"
+                                android:layout_width="43dp"
+                                android:layout_height="43dp"
+                                android:layout_marginStart="3dp"
+                                android:src="@drawable/placeholder_user_profile" />
+
+                            <TextView
+                                android:id="@+id/tvNama"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_toEndOf="@id/ivPhotoProfile"
+                                android:layout_marginStart="15dp"
+                                android:layout_marginTop="0dp"
+                                android:fontFamily="@font/outfit_medium"
+                                android:text="@string/user_author"
+                                android:textColor="#000000"
+                                android:textSize="17sp" />
+
+                            <TextView
+                                android:id="@+id/tvBonLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_toEndOf="@id/ivPhotoProfile"
+                                android:layout_below="@id/tvNama"
+                                android:layout_marginStart="15dp"
+                                android:layout_marginTop="3dp"
+                                android:fontFamily="@font/outfit_regular"
+                                android:text="@string/label_total_debt"
+                                android:textColor="#808080"
+                                android:textSize="11sp" />
+
+                            <TextView
+                                android:id="@+id/tvBonValue"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_toEndOf="@id/tvBonLabel"
+                                android:layout_alignTop="@id/tvBonLabel"
+                                android:layout_marginStart="2dp"
+                                android:layout_marginTop="0.5dp"
+                                android:singleLine="true"
+                                android:ellipsize="marquee"
+                                android:marqueeRepeatLimit="marquee_forever"
+                                android:fontFamily="@font/outfit_regular"
+                                android:text="@string/rp_200_000"
+                                android:textColor="#808080"
+                                android:textSize="11sp" />
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!--            <com.google.android.material.textfield.TextInputLayout-->
+                    <!--                android:id="@+id/wrapperTypeOfReturn"-->
+                    <!--                android:layout_width="match_parent"-->
+                    <!--                android:layout_height="wrap_content"-->
+                    <!--                android:layout_marginHorizontal="27dp"-->
+                    <!--                app:hintEnabled="true"-->
+                    <!--                app:hintTextColor="@color/black"-->
+                    <!--                android:textColorHint="#b0b0b0"-->
+                    <!--                android:hint="@string/hint_outlet_name"-->
+                    <!--                app:placeholderText="Nama Outlet"-->
+                    <!--                app:placeholderTextColor="#b0b0b0"-->
+                    <!--                app:errorEnabled="false"-->
+                    <!--                app:boxStrokeErrorColor="@color/red"-->
+                    <!--                app:boxBackgroundColor="@color/white"-->
+                    <!--                app:errorIconDrawable="@drawable/ic_error"-->
+                    <!--                app:errorIconTint="@color/red"-->
+                    <!--                app:errorTextColor="@color/red"-->
+                    <!--                app:boxStrokeColor="@color/green_lime_wf"-->
+                    <!--                android:layout_marginTop="0dp"-->
+                    <!--                app:endIconMode="dropdown_menu">-->
+
+                    <!--                <AutoCompleteTextView-->
+                    <!--                    android:id="@+id/etTypeOfReturn"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="44dp"-->
+                    <!--                    android:inputType="text"-->
+                    <!--                    android:drawablePadding="5.5dp"-->
+                    <!--                    android:textSize="12.5sp"-->
+                    <!--                    android:paddingHorizontal="15dp"-->
+                    <!--                    android:drawableStart="@drawable/ic_shop"-->
+                    <!--                    app:endIconMode="dropdown_menu"/>-->
+
+                    <!--                <TextView-->
+                    <!--                    android:id="@+id/typePaymentError"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="wrap_content"-->
+                    <!--                    android:visibility="gone"-->
+                    <!--                    android:text="@string/required"-->
+                    <!--                    android:textColor="@color/red"-->
+                    <!--                    android:textSize="11sp"-->
+                    <!--                    android:layout_marginTop="-17.2dp"-->
+                    <!--                    android:letterSpacing="0.03333333"-->
+                    <!--                    android:layout_marginStart="6dp" />-->
+
+                    <!--            </com.google.android.material.textfield.TextInputLayout>-->
+
+                    <!--            <com.google.android.material.textfield.TextInputLayout-->
+                    <!--                android:id="@+id/wrapperNominalBon"-->
+                    <!--                android:layout_width="match_parent"-->
+                    <!--                android:layout_height="wrap_content"-->
+                    <!--                android:layout_marginHorizontal="27dp"-->
+                    <!--                app:hintEnabled="true"-->
+                    <!--                app:hintTextColor="@color/black"-->
+                    <!--                android:textColorHint="#b0b0b0"-->
+                    <!--                android:hint="@string/hint_amount_of_capital"-->
+                    <!--                app:placeholderText="Nama Barbershop"-->
+                    <!--                app:placeholderTextColor="#b0b0b0"-->
+                    <!--                app:errorEnabled="false"-->
+                    <!--                app:boxStrokeErrorColor="@color/red"-->
+                    <!--                app:boxBackgroundColor="@color/white"-->
+                    <!--                app:errorIconDrawable="@drawable/ic_error"-->
+                    <!--                app:errorIconTint="@color/red"-->
+                    <!--                app:errorTextColor="@color/red"-->
+                    <!--                app:boxStrokeColor="@color/green_lime_wf"-->
+                    <!--                android:layout_marginTop="1dp">-->
+
+                    <!--                <com.google.android.material.textfield.TextInputEditText-->
+                    <!--                    android:id="@+id/etNominalBon"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="44dp"-->
+                    <!--                    android:drawableStart="@drawable/ic_money"-->
+                    <!--                    android:inputType="number"-->
+                    <!--                    android:drawablePadding="3.5dp"-->
+                    <!--                    android:textSize="12.5sp"-->
+                    <!--                    android:paddingHorizontal="15dp" />-->
+
+                    <!--                <TextView-->
+                    <!--                    android:id="@+id/capitalCustomError"-->
+                    <!--                    android:layout_width="match_parent"-->
+                    <!--                    android:layout_height="wrap_content"-->
+                    <!--                    android:visibility="gone"-->
+                    <!--                    android:text="@string/required"-->
+                    <!--                    android:textColor="@color/red"-->
+                    <!--                    android:textSize="11sp"-->
+                    <!--                    android:layout_marginTop="-17.2dp"-->
+                    <!--                    android:letterSpacing="0.03333333"-->
+                    <!--                    android:layout_marginStart="6dp" />-->
+
+                    <!--            </com.google.android.material.textfield.TextInputLayout>-->
+
+                    <!-- Finish Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSave"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="30dp"
+                        android:layout_marginBottom="30dp"
+                        android:layout_marginHorizontal="70dp"
+                        android:paddingVertical="0dp"
+                        android:gravity="center"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/black"
+                        android:text="@string/btn_save"
+                        android:textColor="@color/green_lime_wf" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="5dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                android:visibility="gone"
+                android:layout_gravity="center"
+                app:cardCornerRadius="30dp">
+
+                <ProgressBar
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_margin="5dp"
+                    android:elevation="20dp"
+                    android:indeterminateTint="@color/sky_blue" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </FrameLayout>
+
+    </com.example.barberlink.CustomView.CustomNestedScrollView>
+
+
+</RelativeLayout>

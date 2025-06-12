@@ -9,16 +9,28 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListEmployeeAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeCardBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+    }
 
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
@@ -42,6 +54,9 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val employee = getItem(position)
             (holder as ItemViewHolder).bind(employee)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(UserEmployeeData()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -92,18 +107,27 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutEmployeeCardBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(userEmployeeData: UserEmployeeData) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListEmployeeAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(employee: Employee) {
+        fun bind(userEmployeeData: UserEmployeeData) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with(binding) {
-                tvName.text = employee.fullname
-                tvRating.text = employee.employeeRating.toString()
+                tvName.text = userEmployeeData.fullname
+                tvRating.text = userEmployeeData.employeeRating.toString()
 
                 // Set status and modify margins based on availability
-                if (employee.availabilityStatus) {
+                if (userEmployeeData.availabilityStatus) {
                     tvStatus.text = root.context.getString(R.string.enter_text)
                     tvStatus.setTextColor(ContextCompat.getColor(root.context, R.color.green_btn))
 
@@ -130,9 +154,9 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
                 }
 
                 // Use Glide to load the image
-                if (employee.photoProfile.isNotEmpty()) {
+                if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
-                        .load(employee.photoProfile)
+                        .load(userEmployeeData.photoProfile)
                         .placeholder(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
@@ -151,12 +175,12 @@ class ItemListEmployeeAdapter : ListAdapter<Employee, RecyclerView.ViewHolder>(E
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class EmployeeDiffCallback : DiffUtil.ItemCallback<Employee>() {
-        override fun areItemsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+    class EmployeeDiffCallback : DiffUtil.ItemCallback<UserEmployeeData>() {
+        override fun areItemsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+        override fun areContentsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem == newItem
         }
     }

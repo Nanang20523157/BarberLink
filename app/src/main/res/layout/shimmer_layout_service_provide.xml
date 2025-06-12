@@ -63,6 +63,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:minWidth="150dp"
                     android:gravity="center_vertical"
                     android:paddingHorizontal="4.5dp"
                     android:paddingVertical="3dp"

@@ -4,7 +4,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -15,12 +14,30 @@ import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListPackageBundlingAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPackageBundlingBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
+class ItemListPackageBundlingAdapter(
+    private val callbackToast: DisplayThisToastMessage,
+) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
+    interface DisplayThisToastMessage {
+        fun displayThisToast(message: String)
+    }
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+    }
 
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
@@ -44,6 +61,9 @@ class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val packageBundling = getItem(position)
             (holder as ItemViewHolder).bind(packageBundling)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(BundlingPackage()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -89,13 +109,23 @@ class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutPackageBundlingBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(packageBundling: BundlingPackage) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListPackageBundlingAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(packageBundling: BundlingPackage) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with (binding) {
+                tvPackageTitle.isSelected = true
                 tvFeeCapsterInfo.isSelected = true
                 tvPackageTitle.text = packageBundling.packageName
                 tvDescription.text = packageBundling.packageDesc
@@ -103,7 +133,9 @@ class ItemListPackageBundlingAdapter : ListAdapter<BundlingPackage, RecyclerView
                 tvHargaPaket.text = NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
 
                 btnDeletePackage.setOnClickListener {
-                    Toast.makeText(it.context, "Delete feature is under development...", Toast.LENGTH_SHORT).show()
+                    callbackToast.displayThisToast(
+                        "Delete feature is under development..."
+                    )
                 }
                 
                 val serviceCount = packageBundling.listItemDetails?.size ?: 0

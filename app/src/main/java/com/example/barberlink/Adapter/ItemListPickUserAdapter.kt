@@ -10,20 +10,21 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.barberlink.DataClass.Employee
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListPickUserAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPickUserBinding
 
 class ItemListPickUserAdapter(
     private val itemClicked: OnItemClicked
-) : ListAdapter<Employee, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
     private var isShimmer = true
     private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
     interface OnItemClicked {
-        fun onItemClickListener(employee: Employee)
+        fun onItemClickListener(userEmployeeData: UserEmployeeData)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -95,23 +96,23 @@ class ItemListPickUserAdapter(
     inner class ItemViewHolder(private val binding: ItemListPickUserAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(employee: Employee) {
+        fun bind(userEmployeeData: UserEmployeeData) {
             val reviewCount = 2134
 
             with(binding) {
-                tvEmployeeName.text = employee.fullname
-                val username = employee.username.ifEmpty { "---" }
+                tvEmployeeName.text = userEmployeeData.fullname
+                val username = userEmployeeData.username.ifEmpty { "---" }
                 tvUsername.text = root.context.getString(R.string.username_template, username)
-                tvRating.text = employee.employeeRating.toString()
+                tvRating.text = userEmployeeData.employeeRating.toString()
                 tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
 
-                Log.d("Gender", "Gender: ${employee.gender}")
-                setUserGender(employee.gender)
-                setUserRole(employee.role)
+                Log.d("Gender", "Gender: ${userEmployeeData.gender}")
+                setUserGender(userEmployeeData.gender)
+                setUserRole(userEmployeeData.role)
 
-                if (employee.photoProfile.isNotEmpty()) {
+                if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
-                        .load(employee.photoProfile)
+                        .load(userEmployeeData.photoProfile)
                         .placeholder(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
@@ -122,7 +123,7 @@ class ItemListPickUserAdapter(
                 }
 
                 cvMainInfoEmployee.setOnClickListener {
-                    itemClicked.onItemClickListener(employee)
+                    itemClicked.onItemClickListener(userEmployeeData)
                 }
             }
 
@@ -262,12 +263,12 @@ class ItemListPickUserAdapter(
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class EmployeeDiffCallback : DiffUtil.ItemCallback<Employee>() {
-        override fun areItemsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+    class EmployeeDiffCallback : DiffUtil.ItemCallback<UserEmployeeData>() {
+        override fun areItemsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Employee, newItem: Employee): Boolean {
+        override fun areContentsTheSame(oldItem: UserEmployeeData, newItem: UserEmployeeData): Boolean {
             return oldItem == newItem
         }
     }

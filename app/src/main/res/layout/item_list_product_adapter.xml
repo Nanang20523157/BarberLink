@@ -29,19 +29,19 @@
             android:layout_marginTop="3dp"
             android:fontFamily="@font/poppins_blackitalic"
             android:lineSpacingExtra="-13sp"
-            tools:text="Hair Pomade"
-            android:textAlignment="center"
             android:textColor="#A7A7AC"
+            android:textAlignment="center"
+            tools:text="Hair Pomade"
             android:textSize="26sp" />
 
         <ImageView
-            android:id="@+id/ivProduk"
+            android:id="@+id/ivProduct"
             android:layout_width="150dp"
             android:layout_height="140dp"
             android:cropToPadding="false"
             android:padding="15dp"
             android:scaleType="fitCenter"
-            tools:src="@drawable/hair_powder"
+            tools:src="@drawable/mystery_box2"
             android:contentDescription="@string/preview_image_product_desc" />
 
     </com.google.android.material.card.MaterialCardView>

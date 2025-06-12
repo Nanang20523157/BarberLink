@@ -15,11 +15,14 @@ import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListPackageBookingAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPackageBundlingBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListPackageBookingAdapter(
     private val itemClicked: OnItemClicked,
     private val disableCounting: Boolean,
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var capsterRef: String = ""
     private var isShimmer = true
     private val shimmerItemCount = 3
@@ -27,6 +30,7 @@ class ItemListPackageBookingAdapter(
     private var lastScrollPosition = 0
 
     fun setCapsterRef(capsterRef: String) {
+        Log.d("ScanAll", "A3")
         this.capsterRef = capsterRef
     }
 
@@ -35,11 +39,22 @@ class ItemListPackageBookingAdapter(
 
     }
 
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+    }
+
     override fun getItemViewType(position: Int): Int {
+        Log.d("ScanAll", "B3")
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        Log.d("ScanAll", "C3")
         val inflater = LayoutInflater.from(parent.context)
         if (recyclerView == null) {
             recyclerView = parent as RecyclerView
@@ -54,17 +69,23 @@ class ItemListPackageBookingAdapter(
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        Log.d("ScanAll", "D3")
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val packageBundling = getItem(position)
             (holder as ItemViewHolder).bind(packageBundling)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(BundlingPackage()) // Pass a dummy Reservation if needed
         }
     }
 
     override fun getItemCount(): Int {
+        Log.d("ScanAll", "E3")
         return if (isShimmer) shimmerItemCount else super.getItemCount()
     }
 
     fun setShimmer(shimmer: Boolean) {
+        Log.d("ScanAll", "F3")
         if (isShimmer == shimmer) return
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
@@ -99,13 +120,23 @@ class ItemListPackageBookingAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutPackageBundlingBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(packageBundling: BundlingPackage) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListPackageBookingAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(packageBundling: BundlingPackage) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+            Log.d("ScanAll", "G3")
             with (binding) {
+                tvPackageTitle.isSelected = true
                 tvFeeCapsterInfo.isSelected = true
                 tvPackageTitle.text = packageBundling.packageName
                 tvDescription.text = packageBundling.packageDesc

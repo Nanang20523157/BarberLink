@@ -54,11 +54,11 @@
             android:name="outletList"
             app:argType="com.example.barberlink.DataClass.Outlet[]" />
         <argument
-            android:name="employeeList"
-            app:argType="com.example.barberlink.DataClass.Employee[]" />
-        <argument
             android:name="userAdminData"
             app:argType="com.example.barberlink.DataClass.UserAdminData" />
+        <argument
+            android:name="productList"
+            app:argType="com.example.barberlink.DataClass.Product[]" />
     </activity>
     <activity
         android:id="@+id/manageOutletPage"
@@ -70,7 +70,7 @@
             app:argType="com.example.barberlink.DataClass.Outlet[]" />
         <argument
             android:name="employeeList"
-            app:argType="com.example.barberlink.DataClass.Employee[]" />
+            app:argType="com.example.barberlink.DataClass.UserEmployeeData[]" />
         <argument
             android:name="userAdminData"
             app:argType="com.example.barberlink.DataClass.UserAdminData" />

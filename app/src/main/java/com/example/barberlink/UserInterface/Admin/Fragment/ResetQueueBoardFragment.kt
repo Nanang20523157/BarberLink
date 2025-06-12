@@ -12,12 +12,15 @@ import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListQueueBoardAdapter
-import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Network.NetworkMonitor
+import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
 import com.example.barberlink.databinding.FragmentResetQueueBoardBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -33,11 +36,13 @@ private const val ARG_PARAM2 = "param2"
  */
 class ResetQueueBoardFragment : DialogFragment() {
     private var _binding: FragmentResetQueueBoardBinding? = null
+    private val resetQueueViewModel: ManageOutletViewModel by activityViewModels()
     private lateinit var context: Context
-    private var capsterList: ArrayList<Employee>? = null
+    //private var capsterList: ArrayList<Employee>? = null
     private lateinit var currentQueue: Map<String, String>
-    private var outlet: Outlet? = null
+    //private var outlet: Outlet? = null
     private lateinit var queueAdapter: ItemListQueueBoardAdapter
+    private var isFirstLoad: Boolean = true
 
     private val binding get() = _binding!!
     private var param1: String? = null
@@ -52,10 +57,10 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            capsterList = it.getParcelableArrayList(ARG_PARAM1)
-            outlet = it.getParcelable(ARG_PARAM2)
-        }
+//        arguments?.let {
+//            capsterList = it.getParcelableArrayList(ARG_PARAM1)
+//            outlet = it.getParcelable(ARG_PARAM2)
+//        }
 
         context = requireContext()
     }
@@ -87,21 +92,23 @@ class ResetQueueBoardFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        queueAdapter = ItemListQueueBoardAdapter()
-        outlet?.let {
-            // Ambil currentQueue dari outlet
-            currentQueue = it.currentQueue?.toList() // Ubah ke List<Pair<K, V>>
-                ?.sortedBy { (_, value) -> value.toIntOrNull() } // Urutkan berdasarkan nilai (value) sebagai Int
-                ?.toMap() // Kembalikan ke Map
-                ?: emptyMap()
-
-            // Set currentQueue ke adapter
-            queueAdapter.setCurrentQueue(currentQueue)
-        }
-
+        queueAdapter = ItemListQueueBoardAdapter(3)
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
         queueAdapter.setShimmer(true)
+        resetQueueViewModel.outletSelected.observe(viewLifecycleOwner) { outlet ->
+            outlet?.let {
+                // Ambil currentQueue dari outlet
+                currentQueue = it.currentQueue?.toList() // Ubah ke List<Pair<K, V>>
+                    ?.sortedBy { (_, value) -> value.toIntOrNull() } // Urutkan berdasarkan nilai (value) sebagai Int
+                    ?.toMap() // Kembalikan ke Map
+                    ?: emptyMap() // Jika null, gunakan Map kosong
+
+                // Set currentQueue ke adapter
+                queueAdapter.setCurrentQueue(currentQueue)
+                if (!isFirstLoad) queueAdapter.notifyDataSetChanged()
+            }
+        }
 
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -133,45 +140,54 @@ class ResetQueueBoardFragment : DialogFragment() {
             }
         }
 
-        // Menggunakan coroutine untuk menunda eksekusi submitList
-        capsterList?.let { originalCapsterList ->
-            lifecycleScope.launch {
-                // Hitung mundur 800 ms
-                delay(500)
+        resetQueueViewModel.capsterList.observe(viewLifecycleOwner) { capsterList ->
+            // Menggunakan coroutine untuk menunda eksekusi submitList
+            capsterList?.let { originalCapsterList ->
+                lifecycleScope.launch {
+                    // Hitung mundur 800 ms
+                    if (isFirstLoad) delay(500)
 
-                // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
-                val sortedKeys = currentQueue
-                    .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
-                    .keys
-                    .toList()
+                    // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
+                    val sortedKeys = currentQueue
+                        .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
+                        .keys
+                        .toList()
 
-                // Urutkan capsterList berdasarkan urutan di sortedKeys
-                val sortedCapsterList = originalCapsterList
-                    .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
-                    .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
+                    // Urutkan capsterList berdasarkan urutan di sortedKeys
+                    val sortedCapsterList = originalCapsterList
+                        .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
+                        .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
 
-                // Tambahkan capsterList yang tidak ada di currentQueue
-                val remainingCapsters = originalCapsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
+                    // Tambahkan capsterList yang tidak ada di currentQueue
+                    val remainingCapsters = originalCapsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
 
-                // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
-                val finalCapsterList = sortedCapsterList + remainingCapsters
+                    // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
+                    val finalCapsterList = sortedCapsterList + remainingCapsters
 
-                // Submit data ke adapter setelah delay
-                queueAdapter.submitList(finalCapsterList)
+                    // Submit data ke adapter setelah delay
+                    queueAdapter.submitList(finalCapsterList)
 
-                // Matikan shimmer setelah data di-submit
-                queueAdapter.setShimmer(false)
+                    // Matikan shimmer setelah data di-submit
+                    if (isFirstLoad) {
+                        queueAdapter.setShimmer(false)
+                        isFirstLoad = false
+                    } else {
+                        queueAdapter.notifyDataSetChanged()
+                    }
+                }
             }
         }
 
         binding.btnYes.setOnClickListener{
-            setFragmentResult("action_result_user", bundleOf(
-                "switch_non_active" to true,
-                "dismiss_dialog" to true
-            ))
+            checkNetworkConnection {
+                setFragmentResult("action_result_user", bundleOf(
+                    "switch_non_active" to true,
+                    "dismiss_dialog" to true
+                ))
 
-            dismiss()
-            parentFragmentManager.popBackStack()
+                dismiss()
+                parentFragmentManager.popBackStack()
+            }
         }
 
         binding.btnNo.setOnClickListener {
@@ -186,6 +202,17 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     }
 
+    private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
+            }
+        }
+    }
+
     private fun isTouchOnForm(event: MotionEvent): Boolean {
         val location = IntArray(2)
         binding.cdResetQueueBoard.getLocationOnScreen(location)
@@ -196,7 +223,14 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        queueAdapter.stopAllShimmerEffects()
         _binding = null
+
+        if (requireActivity().isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        resetQueueViewModel.setOutletSelected(null)
+        resetQueueViewModel.clearAllDataCapster()
     }
 
     companion object {
@@ -209,12 +243,15 @@ class ResetQueueBoardFragment : DialogFragment() {
          * @return A new instance of fragment ResetQueueBoardFragment.
          */
         @JvmStatic
-        fun newInstance(capsterList: ArrayList<Employee>, outlet: Outlet) =
+        fun newInstance(capsterList: ArrayList<UserEmployeeData>, outlet: Outlet) =
             ResetQueueBoardFragment().apply {
                 arguments = Bundle().apply {
                     putParcelableArrayList(ARG_PARAM1, capsterList)
                     putParcelable(ARG_PARAM2, outlet)
                 }
             }
+
+        @JvmStatic
+        fun newInstance() = ResetQueueBoardFragment()
     }
 }

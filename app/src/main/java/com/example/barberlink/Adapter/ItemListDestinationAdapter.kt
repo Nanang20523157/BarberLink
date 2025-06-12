@@ -14,10 +14,13 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListSelectOutletAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutSelectOutletCardBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListDestinationAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(DestinationDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
     private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
@@ -25,6 +28,15 @@ class ItemListDestinationAdapter(
 
     interface OnItemClicked {
         fun onItemClickListener(outlet: Outlet)
+    }
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -49,6 +61,9 @@ class ItemListDestinationAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val outlet = getItem(position)
             (holder as ItemViewHolder).bind(outlet)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Outlet()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -91,13 +106,22 @@ class ItemListDestinationAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutSelectOutletCardBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(outlet: Outlet) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListSelectOutletAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(outlet: Outlet) {
             val reviewCount = 2134
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
                 tvOutletName.text = outlet.outletName

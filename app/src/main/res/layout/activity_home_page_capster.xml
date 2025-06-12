@@ -66,6 +66,64 @@
 
                     </FrameLayout>
 
+                    <ImageView
+                        android:id="@+id/dashedLine"
+                        android:layout_width="match_parent"
+                        android:layout_height="4dp"
+                        android:layout_marginTop="-31dp"
+                        android:layout_marginHorizontal="37dp"
+                        android:layout_below="@id/frameLayoutReport"
+                        android:src="@drawable/dashed_line_horizontal"/>
+
+                    <LinearLayout
+                        android:id="@+id/llProductSales"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="13dp"
+                        android:layout_marginHorizontal="27dp"
+                        android:layout_below="@id/dashedLine">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            app:cardElevation="1dp"
+                            app:cardCornerRadius="11dp"
+                            android:layout_marginHorizontal="7dp"
+                            app:cardBackgroundColor="@color/light_grey_horizons_background">
+
+                            <TextView
+                                android:id="@+id/tvProductSales"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_product_selling"
+                                android:paddingHorizontal="2dp"
+                                android:paddingVertical="20dp"
+                                android:textStyle="bold"
+                                android:textSize="18sp"
+                                android:gravity="center"
+                                android:textColor="@color/black" />
+
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvListProductSales"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="5dp"
+                            android:paddingHorizontal="2.8dp"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            android:nestedScrollingEnabled="false"
+                            android:overScrollMode="never"
+                            android:orientation="vertical"
+                            app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+                            app:spanCount="1"
+                            tools:itemCount="10"
+                            tools:listitem="@layout/item_analytics_product_adapter" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </androidx.core.widget.NestedScrollView>
@@ -114,5 +172,21 @@
         app:fabCustomSize="50dp"
         app:maxImageSize="33dp"
         android:contentDescription="@string/fab_to_code_access" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddManualReport"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start|bottom"
+        android:layout_marginHorizontal="25dp"
+        android:layout_marginBottom="25dp"
+        android:src="@drawable/ic_manual_report"
+        android:scaleType="fitXY"
+        android:padding="0dp"
+        app:fabCustomSize="56dp"
+        app:maxImageSize="32dp"
+        app:tint="@android:color/black"
+        android:tint="@color/silver_grey"
+        android:contentDescription="@string/floating_button_add_manual_report"/>
 
 </FrameLayout>

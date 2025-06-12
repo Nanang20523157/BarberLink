@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:backgroundTint="@color/white">
+
+                <!-- Drag Handle -->
+                <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+                    android:id="@+id/drag_handle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-10dp"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Back Button -->
+                <ImageView
+                    android:id="@+id/ivBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="@string/icon_back_button_desc"
+                    android:src="@drawable/ic_back"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    android:layout_marginTop="25dp"
+                    android:layout_marginStart="22dp" />
+
+                <!-- Title -->
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Edit Pesanan/Pilih Item"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    android:layout_marginTop="25dp" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <RelativeLayout
+                android:id="@+id/rlBundlings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:clipChildren="false"
+                android:layout_marginTop="22dp"
+                android:layout_marginStart="-16dp"
+                android:layout_marginEnd="-16dp">
+
+                <TextView
+                    android:id="@+id/tvLabelPaketBundling"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_list_paket_bundling"
+                    android:layout_marginStart="27.5dp"
+                    android:visibility="visible"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/black_font_color"
+                    android:layout_gravity="center"/>
+
+                <!-- RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvListPaketBundling"
+                    android:layout_width="match_parent"
+                    android:layout_height="168dp"
+                    android:layout_below="@id/tvLabelPaketBundling"
+                    tools:itemCount="3"
+                    tools:listitem="@layout/item_list_package_booking_adapter"
+                    android:orientation="horizontal"
+                    android:visibility="visible"
+                    android:clipToPadding="false"
+                    android:clipChildren="false"
+                    android:paddingHorizontal="18dp"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    android:nestedScrollingEnabled="false"/>
+
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/tvLabelService"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_list_service"
+                android:layout_marginTop="1dp"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:textColor="@color/black_font_color"
+                android:layout_gravity="center"/>
+
+            <FrameLayout
+                android:id="@+id/layananContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:layout_marginStart="-13dp"
+                android:layout_marginEnd="-13dp">
+
+                <!-- RecyclerView -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvListServices"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="336dp"
+                    android:layout_marginTop="4dp"
+                    android:paddingBottom="180dp"
+                    android:paddingStart="1dp"
+                    android:paddingEnd="8.5dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    android:orientation="vertical"
+                    app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+                    app:spanCount="2"
+                    tools:itemCount="4"
+                    tools:listitem="@layout/item_list_service_booking_adapter" />
+
+                <TextView
+                    android:id="@+id/tvEmptyLayanan"
+                    android:layout_width="match_parent"
+                    android:layout_height="300dp"
+                    android:text="@string/no_data"
+                    android:textSize="13sp"
+                    android:gravity="center"
+                    android:paddingBottom="20dp"
+                    android:fontFamily="@font/arial_regular"
+                    android:textColor="@color/black_font_color"
+                    android:layout_marginTop="10dp"
+                    android:visibility="gone"/>
+
+            </FrameLayout>
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomFloatArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="30dp"
+        android:elevation="10dp"
+        android:background="@drawable/background_bottom_float_area2"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <ImageView
+            android:id="@+id/ivPaymentMethodIcon"
+            android:layout_width="32.5dp"
+            android:layout_height="32.5dp"
+            android:layout_marginStart="40dp"
+            android:src="@drawable/dollars"
+            android:layout_marginBottom="20dp"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnSaveChange"
+            android:contentDescription="@string/icon_payment_desc" />
+
+        <!--    activity_review_order_page.xml has more than 80 views, bad for performance    -->
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="3dp"
+            app:layout_constraintTop_toTopOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintBottom_toBottomOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintStart_toEndOf="@id/ivPaymentMethodIcon">
+
+            <TextView
+                android:id="@+id/tvPaymentMethod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="UANG CASH"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black"
+                android:layout_marginStart="0.7dp"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvPaymentAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Rp 255.000"
+                android:textSize="15.5sp"
+                android:layout_marginTop="1dp"
+                android:layout_marginStart="-0.4dp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ivSelectPaymentMethod"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/ic_circle_bullet"
+            app:layout_constraintTop_toTopOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintBottom_toBottomOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintEnd_toEndOf="@id/btnSaveChange"
+            app:tint="@color/charcoal_grey_background"
+            android:layout_marginTop="7dp"
+            android:layout_marginEnd="5dp"
+            android:contentDescription="@string/icon_more_desc" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnSaveChange"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="35dp"
+            android:layout_marginVertical="20dp"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="1dp"
+            android:backgroundTint="@color/black_font_color"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="47dp"
+                android:text="@string/btn_save_changes"
+                android:textSize="14sp"
+                android:textColor="@color/green_lime_wf"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="-2dp"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Scrim Overlay -->
+<!--    <FrameLayout-->
+<!--        android:id="@+id/scrimOverlay"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="match_parent"-->
+<!--        android:background="@drawable/background_scrim"-->
+<!--        android:visibility="visible"-->
+<!--        android:gravity="center"-->
+<!--        android:elevation="11dp"-->
+<!--        android:clickable="true"-->
+<!--        android:focusable="true">-->
+
+<!--        <com.google.android.material.card.MaterialCardView-->
+<!--            android:id="@+id/progressBar"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginHorizontal="5dp"-->
+<!--            android:backgroundTint="@color/light_grey_horizons_background"-->
+<!--            app:cardElevation="7dp"-->
+<!--            android:layout_marginTop="-30dp"-->
+<!--            android:layout_gravity="center"-->
+<!--            app:cardCornerRadius="30dp">-->
+
+<!--            <ProgressBar-->
+<!--                android:layout_width="35dp"-->
+<!--                android:layout_height="35dp"-->
+<!--                android:layout_margin="5dp"-->
+<!--                android:elevation="20dp"-->
+<!--                android:indeterminateTint="@color/sky_blue" />-->
+
+<!--        </com.google.android.material.card.MaterialCardView>-->
+
+<!--    </FrameLayout>-->
+
+</FrameLayout>

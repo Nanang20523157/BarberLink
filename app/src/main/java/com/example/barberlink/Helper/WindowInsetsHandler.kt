@@ -125,15 +125,14 @@ object WindowInsetsHandler {
                 animator.cancel()
             }
             animator = ValueAnimator.ofFloat(radius, 0f).apply {
-                duration = 20
+                duration = 250
                 startDelay = 800 // Penundaan sebelum animasi dimulai
                 addUpdateListener { animation ->
-                    val curvedView = decorView.getChildAt(decorView.childCount - 1)
-                    val initialColor = if (curvedView != null) {
-                        (curvedView.background as? ShapeDrawable)?.paint?.color ?: context.window.statusBarColor
-                    } else {
-                        context.window.statusBarColor
-                    }
+                    // Cari apakah sudah ada curvedView sebelumnya
+                    val existingCurvedView = decorView.findViewWithTag<View>("curvedView")
+                    val initialColor = (existingCurvedView?.background as? ShapeDrawable)?.paint?.color
+                        ?: context.window.statusBarColor
+
                     val animatedRadius = animation.animatedValue as Float
                     view.apply {
                         outlineProvider = object : ViewOutlineProvider() {
@@ -144,8 +143,11 @@ object WindowInsetsHandler {
                         clipToOutline = animatedRadius > 0f
                         invalidateOutline() // Memastikan outline diperbarui
                     }
-                    (curvedView as View).background =
-                        StatusBarDisplayHandler.createCurvedBackground(initialColor, animatedRadius)
+
+                    existingCurvedView?.let { curvedView ->
+                        curvedView.background =
+                            StatusBarDisplayHandler.createCurvedBackground(initialColor, animatedRadius)
+                    }
                 }
             }
         } else {
@@ -153,14 +155,13 @@ object WindowInsetsHandler {
                 animator.cancel()
             }
             animator = ValueAnimator.ofFloat(0f, radius).apply {
-                duration = 20
+                duration = 250
                 addUpdateListener { animation ->
-                    val curvedView = decorView.getChildAt(decorView.childCount - 1)
-                    val initialColor = if (curvedView != null) {
-                        (curvedView.background as? ShapeDrawable)?.paint?.color ?: context.window.statusBarColor
-                    } else {
-                        context.window.statusBarColor
-                    }
+                    // Cari apakah sudah ada curvedView sebelumnya
+                    val existingCurvedView = decorView.findViewWithTag<View>("curvedView")
+                    val initialColor = (existingCurvedView?.background as? ShapeDrawable)?.paint?.color
+                        ?: context.window.statusBarColor
+
                     val animatedRadius = animation.animatedValue as Float
                     view.apply {
                         outlineProvider = object : ViewOutlineProvider() {
@@ -171,8 +172,11 @@ object WindowInsetsHandler {
                         clipToOutline = animatedRadius > 0f
                         invalidateOutline() // Memastikan outline diperbarui
                     }
-                    (curvedView as View).background =
-                        StatusBarDisplayHandler.createCurvedBackground(initialColor, animatedRadius)
+
+                    existingCurvedView?.let { curvedView ->
+                        curvedView.background =
+                            StatusBarDisplayHandler.createCurvedBackground(initialColor, animatedRadius)
+                    }
                 }
             }
             Log.d("WinWinWin", "Insert: SetDynamicWindowAllCorner radius: 0")

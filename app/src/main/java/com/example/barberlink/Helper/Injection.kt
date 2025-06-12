@@ -1,13 +1,13 @@
 package com.example.barberlink.Helper
 
-import com.example.barberlink.UserInterface.Teller.Factory.ViewModelFactory
+import com.example.barberlink.Factory.ShareDataViewModelFactory
 
 object Injection {
-    private var viewModelFactory: ViewModelFactory? = null
+    private var viewModelFactory: ShareDataViewModelFactory? = null
 
-    fun provideViewModelFactory(): ViewModelFactory {
+    fun provideViewModelFactory(): ShareDataViewModelFactory {
         if (viewModelFactory == null) {
-            viewModelFactory = ViewModelFactory()
+            viewModelFactory = ShareDataViewModelFactory()
         }
         return viewModelFactory!!
     }

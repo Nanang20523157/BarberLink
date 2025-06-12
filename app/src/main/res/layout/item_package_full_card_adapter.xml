@@ -190,6 +190,7 @@
                 android:layout_height="33dp"
                 android:visibility="invisible"
                 android:gravity="center"
+                android:paddingTop="6dp"
                 android:text="@string/btn_select"
                 android:textColor="@color/green_lime_wf"
                 android:textSize="9sp"

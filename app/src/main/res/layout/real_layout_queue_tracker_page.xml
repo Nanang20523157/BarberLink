@@ -86,6 +86,7 @@
                         app:boxCornerRadiusBottomStart="7.61dp"
                         app:boxCornerRadiusTopEnd="7.61dp"
                         app:boxCornerRadiusTopStart="7.61dp"
+                        app:endIconTint="@color/grey_default_material_layout"
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
                         app:endIconMode="dropdown_menu">
 
@@ -211,7 +212,7 @@
         </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cvComplateQueue"
+            android:id="@+id/cvCompleteQueue"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_margin="4dp"

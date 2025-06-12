@@ -5,46 +5,70 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
+import kotlinx.parcelize.RawValue
 
 @Parcelize
 data class Reservation(
-    @get:PropertyName("applicant_capster_ref") @set:PropertyName("applicant_capster_ref") var applicantCapsterRef: String = "",
-    @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
+//    @get:PropertyName("applicant_capster_ref") @set:PropertyName("applicant_capster_ref") var applicantCapsterRef: String = "",
+    @get:PropertyName("share_profit_capster_ref") @set:PropertyName("share_profit_capster_ref") var shareProfitCapsterRef: String = "",
+//    @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
+    @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("best_deals_ref") @set:PropertyName("best_deals_ref") var bestDealsRef: List<String> = listOf(),
-    @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo = CapsterInfo(),
-    @get:PropertyName("customer_info") @set:PropertyName("customer_info") var customerInfo: CustomerInfo = CustomerInfo(),
+    @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo? = null,
+    @get:PropertyName("data_creator") @set:PropertyName("data_creator") var dataCreator: @RawValue DataCreator<UserData>? = null,
     @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
-    @get:PropertyName("order_info") @set:PropertyName("order_info") var orderInfo: List<OrderInfo>? = null,
+    @get:PropertyName("item_info") @set:PropertyName("item_info") var itemInfo: List<ItemInfo>? = null,
     @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
-    @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
+    // Category Type
+    @get:PropertyName("order_category") @set:PropertyName("order_category") var orderCategory: String = "",
+//    @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
+    @get:PropertyName("outlet_identifier") @set:PropertyName("outlet_identifier") var outletIdentifier: String = "",
+    @get:PropertyName("location_point") @set:PropertyName("location_point") var locationPoint: LocationPoint? = null,
     @get:PropertyName("payment_detail") @set:PropertyName("payment_detail") var paymentDetail: PaymentDetail = PaymentDetail(),
     @get:PropertyName("queue_number") @set:PropertyName("queue_number") var queueNumber: String = "",
+    // Transaction Status
     @get:PropertyName("queue_status") @set:PropertyName("queue_status") var queueStatus: String = "",
     @get:PropertyName("timestamp_completed") @set:PropertyName("timestamp_completed") var timestampCompleted: Timestamp? = null,
     @get:PropertyName("timestamp_created") @set:PropertyName("timestamp_created") var timestampCreated: Timestamp = Timestamp.now(),
     @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_booking") var timestampToBooking: Timestamp? = null,
     // @get:PropertyName("is_requeue") @set:PropertyName("is_requeue") var isRequeue: Boolean = false,
-    @get:PropertyName("dont_adjust_fee") @set:PropertyName("dont_adjust_fee") var dontAdjustFee: Boolean = false,
+//    @get:PropertyName("dont_adjust_fee") @set:PropertyName("dont_adjust_fee") var dontAdjustFee: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
-    @get:Exclude @set:Exclude var reserveRef: String = ""
+    @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
 
     // Deep copy function
     fun deepCopy(
-        copyCustomerDetail: Boolean,
-        copyCustomerWithAppointment: Boolean,
-        copyCustomerWithReservation: Boolean
+        copyCreatorDetail: Boolean,
+        copyCreatorWithReminder: Boolean,
+        copyCreatorWithNotification: Boolean,
+        copyCapsterDetail: Boolean
     ): Reservation {
         return Reservation(
-            applicantCapsterRef = this.applicantCapsterRef,
-            barbershopRef = this.barbershopRef,
+//            applicantCapsterRef = this.applicantCapsterRef,
+            shareProfitCapsterRef = this.shareProfitCapsterRef,
+            rootRef = this.rootRef,
             bestDealsRef = this.bestDealsRef.toList(), // Copy list to ensure it's a new instance
-            capsterInfo = this.capsterInfo.deepCopy(), // Copy CapsterInfo object
-            customerInfo = this.customerInfo.deepCopy(copyCustomerDetail, copyCustomerWithAppointment, copyCustomerWithReservation), // Deep copy CustomerInfo
+            capsterInfo = if (copyCapsterDetail) {
+                if (this.capsterInfo != null) {
+                    this.capsterInfo?.deepCopy()
+                } else {
+                    CapsterInfo()
+                }
+            } else {
+                this.capsterInfo
+            }, // Copy CapsterInfo object
+            dataCreator = if (copyCreatorDetail) {
+                this.dataCreator?.deepCopyCustomer(copyWithReminder = copyCreatorWithReminder, copyWithNotification = copyCreatorWithNotification)
+            } else {
+                this.dataCreator
+            }, // Deep copy BuyerInfo
             notes = this.notes,
-            orderInfo = this.orderInfo?.map { it.deepCopy() }, // Copy list of OrderInfo objects
+            itemInfo = this.itemInfo?.map { it.deepCopy() }, // Copy list of OrderInfo objects
             orderType = this.orderType,
-            outletLocation = this.outletLocation,
+            orderCategory = this.orderCategory,
+            outletIdentifier = this.outletIdentifier,
+            locationPoint = this.locationPoint?.deepCopy(),
             paymentDetail = this.paymentDetail.deepCopy(), // Copy PaymentDetail object
             queueNumber = this.queueNumber,
             queueStatus = this.queueStatus,
@@ -53,7 +77,7 @@ data class Reservation(
             timestampToBooking = this.timestampToBooking,
             // isRequeue = this.isRequeue,
             uid = this.uid,
-            reserveRef = this.reserveRef
+            dataRef = this.dataRef
         )
     }
 }
@@ -74,45 +98,47 @@ data class CapsterInfo(
     }
 }
 
-@Parcelize
-data class CustomerInfo(
-    @get:PropertyName("customer_name") @set:PropertyName("customer_name") var customerName: String = "",
-    @get:PropertyName("customer_phone") @set:PropertyName("customer_phone") var customerPhone: String = "",
-    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = "",
-    @get:Exclude @set:Exclude var customerDetail: UserCustomerData? = null // Exclude this from Firestore
-) : Parcelable {
-    // Deep copy function for CustomerInfo
-    fun deepCopy(
-        copyCustomerDetail: Boolean,
-        copyCustomerWithAppointment: Boolean,
-        copyCustomerWithReservation: Boolean
-    ): CustomerInfo {
-        return CustomerInfo(
-            customerName = this.customerName,
-            customerPhone = this.customerPhone,
-            customerRef = this.customerRef,
-            customerDetail = if (copyCustomerDetail) {
-                this.customerDetail?.deepCopy(copyCustomerWithAppointment, copyCustomerWithReservation) // Deep copy if requested
-            } else {
-                this.customerDetail // Copy reference only
-            }
-        )
-    }
-}
+//@Parcelize
+//data class CustomerInfo(
+//    @get:PropertyName("customer_name") @set:PropertyName("customer_name") var customerName: String = "",
+//    @get:PropertyName("customer_phone") @set:PropertyName("customer_phone") var customerPhone: String = "",
+//    @get:PropertyName("customer_ref") @set:PropertyName("customer_ref") var customerRef: String = "",
+//    @get:Exclude @set:Exclude var customerDetail: UserCustomerData? = null // Exclude this from Firestore
+//) : Parcelable {
+//    // Deep copy function for CustomerInfo
+//    fun deepCopy(
+//        copyCustomerDetail: Boolean,
+//        copyCustomerWith: Boolean,
+//        copyCustomerWithReservation: Boolean
+//    ): CustomerInfo {
+//        return CustomerInfo(
+//            customerName = this.customerName,
+//            customerPhone = this.customerPhone,
+//            customerRef = this.customerRef,
+//            customerDetail = if (copyCustomerDetail) {
+//                this.customerDetail?.deepCopy(copyCustomerWith, copyCustomerWithReservation) // Deep copy if requested
+//            } else {
+//                this.customerDetail // Copy reference only
+//            }
+//        )
+//    }
+//}
 
 
 @Parcelize
-data class OrderInfo(
-    @get:PropertyName("order_quantity") @set:PropertyName("order_quantity") var orderQuantity: Int = 0,
-    @get:PropertyName("order_ref") @set:PropertyName("order_ref") var orderRef: String = "",
+data class ItemInfo(
+    @get:PropertyName("item_quantity") @set:PropertyName("item_quantity") var itemQuantity: Int = 0,
+    @get:PropertyName("item_ref") @set:PropertyName("item_ref") var itemRef: String = "",
     @get:PropertyName("non_package") @set:PropertyName("non_package") var nonPackage: Boolean = true,
+    @get:PropertyName("sum_of_price") @set:PropertyName("sum_of_price") var sumOfPrice: Int = 0,
 ) : Parcelable {
     // Deep copy function for OrderInfo
-    fun deepCopy(): OrderInfo {
-        return OrderInfo(
-            orderQuantity = this.orderQuantity,
-            orderRef = this.orderRef,
-            nonPackage = this.nonPackage
+    fun deepCopy(): ItemInfo {
+        return ItemInfo(
+            itemQuantity = this.itemQuantity,
+            itemRef = this.itemRef,
+            nonPackage = this.nonPackage,
+            sumOfPrice = this.sumOfPrice
         )
     }
 }
@@ -126,6 +152,10 @@ data class PaymentDetail(
     @get:PropertyName("payment_status") @set:PropertyName("payment_status") var paymentStatus: Boolean = false,
     @get:PropertyName("promo_used") @set:PropertyName("promo_used") var promoUsed: Int = 0,
     @get:PropertyName("subtotal_items") @set:PropertyName("subtotal_items") var subtotalItems: Int = 0,
+    @get:PropertyName("system_costs") @set:PropertyName("system_costs") var systemCosts: Int = 0,
+    @get:PropertyName("tax_amount") @set:PropertyName("tax_amount") var taxAmount: Int = 0,
+    @get:PropertyName("delivery_cost") @set:PropertyName("delivery_cost") var deliveryCost: Int = 0,
+    @get:PropertyName("discount_amount") @set:PropertyName("discount_amount") var discountAmount: Int = 0,
 //    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
 ) : Parcelable {
     // Deep copy function for PaymentDetail
@@ -137,7 +167,11 @@ data class PaymentDetail(
             paymentMethod = this.paymentMethod,
             paymentStatus = this.paymentStatus,
             promoUsed = this.promoUsed,
-            subtotalItems = this.subtotalItems
+            subtotalItems = this.subtotalItems,
+            systemCosts = this.systemCosts,
+            taxAmount = this.taxAmount,
+            deliveryCost = this.deliveryCost,
+            discountAmount = this.discountAmount,
         )
     }
 }

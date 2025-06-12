@@ -1,0 +1,2483 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    tools:context=".UserInterface.Admin.EmployeePaySlipPage">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/main_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:elevation="3dp"
+            android:fillViewport="true"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!--            <LinearLayout-->
+                <!--                android:id="@+id/backgroundStatusBar"-->
+                <!--                android:layout_width="match_parent"-->
+                <!--                android:layout_height="25dp"-->
+                <!--                android:alpha="1"-->
+                <!--                android:background="@color/white"-->
+                <!--                android:orientation="horizontal" />-->
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <androidx.core.widget.NestedScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fillViewport="true">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            android:paddingTop="10dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingBottom="16dp">
+
+                            <!-- Back Button -->
+                            <ImageView
+                                android:id="@+id/ivBack"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_alignParentStart="true"
+                                android:layout_marginStart="10dp"
+                                android:src="@drawable/ic_back"
+                                android:contentDescription="@string/icon_back_button_desc" />
+
+                            <!-- Title -->
+                            <TextView
+                                android:id="@+id/tvTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_centerHorizontal="true"
+                                android:text="@string/toolbar_employee_pay_slip"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textColor="#000000" />
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/wrapperDate"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="gone"
+                                android:layout_below="@id/tvTitle"
+                                android:layout_alignBottom="@id/wrapperSingleDate"
+                                android:paddingTop="17dp">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvDateLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="4dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/cvDateValue">
+
+                                    <TextView
+                                        android:id="@+id/tvDateLabel"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="match_parent"
+                                        android:text="@string/tgl_label"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvDateValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvDateLabel"
+                                    app:layout_constraintEnd_toStartOf="@id/cvMonthValue">
+
+                                    <TextView
+                                        android:id="@+id/tvDateValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="match_parent"
+                                        tools:text="05"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvMonthValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvDateValue"
+                                    app:layout_constraintEnd_toStartOf="@id/cvYearValue">
+
+                                    <TextView
+                                        android:id="@+id/tvMonthValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="match_parent"
+                                        tools:text="Desember"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvYearValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginEnd="4dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvMonthValue"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <TextView
+                                        android:id="@+id/tvYearValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="match_parent"
+                                        tools:text="2020"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/wrapperSingleDate"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="visible"
+                                android:layout_below="@id/tvTitle"
+                                android:paddingTop="17dp">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvSingleDateLabel"
+                                    android:layout_width="0dp"
+                                    android:layout_height="0dp"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="4dp"
+                                    android:layout_marginEnd="10dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/cvSwitchModeScreen"
+                                    app:layout_constraintBottom_toBottomOf="@id/cvSwitchModeScreen">
+
+                                    <TextView
+                                        android:id="@+id/tvSingleDateLabel"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        tools:text="@string/template_text_month_in_pay_slip"
+                                        android:textSize="16sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvSwitchModeScreen"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvSingleDateLabel"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <LinearLayout
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="match_parent"
+                                        android:orientation="horizontal">
+
+                                        <ImageView
+                                            android:layout_width="22dp"
+                                            android:layout_height="22dp"
+                                            android:layout_gravity="center"
+                                            android:layout_marginStart="14dp"
+                                            android:layout_marginTop="0.5dp"
+                                            android:layout_marginEnd="6dp"
+                                            android:src="@drawable/ic_view"
+                                            android:contentDescription="@string/btn_view_icon_desc"
+                                            app:tint="#454A53" />
+
+                                        <TextView
+                                            android:id="@+id/tvModeScreen"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="match_parent"
+                                            android:text="@string/switch_text_view"
+                                            android:textSize="14.5sp"
+                                            android:textStyle="bold"
+                                            android:layout_marginTop="-0.5dp"
+                                            android:layout_marginEnd="-7dp"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"/>
+
+                                        <com.google.android.material.materialswitch.MaterialSwitch
+                                            android:id="@+id/switchModeScreen"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:scaleX="0.48"
+                                            android:scaleY="0.48"
+                                            android:checked="false"
+                                            style="@style/Widget.App.Switch"
+                                            android:paddingTop="2.5dp"
+                                            android:layout_marginEnd="4dp"/>
+
+                                    </LinearLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <TextView
+                                android:id="@+id/tvLabelEmployeeInformation"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/employee_information_label"
+                                android:layout_marginStart="10dp"
+                                android:layout_marginTop="10dp"
+                                android:layout_below="@id/wrapperSingleDate"
+                                android:textSize="17sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/black_font_color"
+                                android:layout_gravity="center"/>
+
+                            <FrameLayout
+                                android:id="@+id/containerInjectLayoutTop"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:clipChildren="false"
+                                android:clipToPadding="false"
+                                android:layout_marginStart="-15dp"
+                                android:layout_marginEnd="-15dp"
+                                android:layout_marginTop="3dp"
+                                android:layout_marginBottom="6dp"
+                                android:layout_below="@id/tvLabelEmployeeInformation">
+
+                                <include
+                                    android:id="@+id/shimmerLayoutEmployee"
+                                    layout="@layout/shimmer_layout_pick_user" />
+
+                                <include
+                                    android:id="@+id/realLayoutEmployee"
+                                    layout="@layout/item_list_pick_user_adapter" />
+
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tvLabelPaySlip"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="Rincian Slip Gaji"
+                                android:layout_marginTop="2dp"
+                                android:layout_below="@id/containerInjectLayoutTop"
+                                android:textSize="17sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/black_font_color"
+                                android:gravity="center_horizontal"
+                                android:layout_gravity="center"/>
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/wrapperIncomeLabel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="5dp"
+                                android:layout_below="@id/tvLabelPaySlip"
+                                android:clipChildren="false"
+                                android:clipToPadding="false">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvNumberIncome"
+                                    android:layout_width="49dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/cvIncomeLabel">
+
+                                    <TextView
+                                        android:id="@+id/tvNumberIncome"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/number_label_text"
+                                        android:gravity="center"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvIncomeLabel"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="3dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toStartOf="@id/cvQuantityIncome">
+
+                                    <TextView
+                                        android:id="@+id/tvIncomeLabel"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/income_label_text"
+                                        android:gravity="center"
+                                        android:singleLine="true"
+                                        android:ellipsize="marquee"
+                                        android:marqueeRepeatLimit="marquee_forever"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="20dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvQuantityIncome"
+                                    android:layout_width="60dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="3dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvIncomeLabel"
+                                    app:layout_constraintEnd_toStartOf="@id/cvNominalIncome">
+
+                                    <TextView
+                                        android:id="@+id/tvQuantityIncome"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/quantity_label_text"
+                                        android:gravity="center"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvNominalIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="3dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvQuantityIncome"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <TextView
+                                        android:id="@+id/tvNominalIncome"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/nominal_label_text"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:layout_gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvBasicSalary"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvIncomeLabel"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberBasicSalary"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberBasicSalary"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_01"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvBasicSalary"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/basic_salary_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberBasicSalary"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityBasicSalary"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvBasicSalary"
+                                    app:layout_constraintTop_toTopOf="@id/cvBasicSalary"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityBasicSalary"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/_1000x"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalBasicSalary"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityBasicSalary"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityBasicSalary"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityBasicSalary"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutBasicSalary"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalBasicSalary"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/_10_000_000jt"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvServiceIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvBasicSalary"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberServiceIncome"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberServiceIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_02"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvServiceIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/service_income_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberServiceIncome"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityServiceIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvServiceIncome"
+                                    app:layout_constraintTop_toTopOf="@id/cvServiceIncome"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityServiceIncome"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/_1000x"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalServiceIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityServiceIncome"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityServiceIncome"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityServiceIncome"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutServiceIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalServiceIncome"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/_10_000_000jt"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvProductIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvServiceIncome"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberProductIncome"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberProductIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_03"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvProductIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/selling_product_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberProductIncome"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityProductIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvProductIncome"
+                                    app:layout_constraintTop_toTopOf="@id/cvProductIncome"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityProductIncome"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/_1000x"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalProductIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityProductIncome"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityProductIncome"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityProductIncome"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutProductIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalProductIncome"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/_10_000_000jt"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvOtherIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvProductIncome"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberOtherIncome"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberOtherIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_04"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvOtherIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/manual_report_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberOtherIncome"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityOtherIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvOtherIncome"
+                                    app:layout_constraintTop_toTopOf="@id/cvOtherIncome"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityOtherIncome"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/_1000x"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalOtherIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityOtherIncome"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityOtherIncome"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityOtherIncome"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutOtherIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalOtherIncome"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/_10_000_000jt"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvTHRIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvOtherIncome"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberTHRIncome"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberTHRIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_05"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvTHRIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/thr_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberTHRIncome"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityTHRIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvTHRIncome"
+                                    app:layout_constraintTop_toTopOf="@id/cvTHRIncome"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityTHRIncome"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/triple_dash"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalTHRIncome"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityTHRIncome"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityTHRIncome"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityTHRIncome"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutTHRIncome"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalTHRIncome"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvSeverancePay"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvTHRIncome"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberSeverancePay"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberSeverancePay"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_06"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvSeverancePay"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/severance_pay_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberSeverancePay"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantitySeverancePay"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvSeverancePay"
+                                    app:layout_constraintTop_toTopOf="@id/cvSeverancePay"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantitySeverancePay"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/triple_dash"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalSeverancePay"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantitySeverancePay"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantitySeverancePay"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantitySeverancePay"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutSeverancePay"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalSeverancePay"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvAdditionalHolidayReplacement"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvSeverancePay"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
+                                    app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberAdditionalHolidayReplacement"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberAdditionalHolidayReplacement"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_07"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvAdditionalHolidayReplacement"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/additional_holiday_replacement"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberAdditionalHolidayReplacement"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityAdditionalHolidayReplacement"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvAdditionalHolidayReplacement"
+                                    app:layout_constraintTop_toTopOf="@id/cvAdditionalHolidayReplacement"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityAdditionalHolidayReplacement"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/triple_dash"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalAdditionalHolidayReplacement"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityAdditionalHolidayReplacement"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityAdditionalHolidayReplacement"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityAdditionalHolidayReplacement"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutAdditionalHolidayReplacement"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalAdditionalHolidayReplacement"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvSubTotalIncome"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvQuantityAdditionalHolidayReplacement"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvSubTotalIncomeLabel"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/subtotal_title"
+                                            android:textSize="16sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:layout_marginStart="5dp"
+                                            android:paddingVertical="15dp"
+                                            android:paddingHorizontal="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <TextView
+                                            android:id="@+id/tvSubTotalIncomeValue"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/rp_plus_200_000_000"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:textColor="@color/green_btn"
+                                            android:paddingVertical="15dp"
+                                            android:paddingHorizontal="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/tvSubTotalIncomeLabel"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <ImageView
+                                android:id="@+id/dashedLine"
+                                android:layout_width="match_parent"
+                                android:layout_height="4dp"
+                                android:layout_marginTop="13dp"
+                                android:layout_marginHorizontal="7dp"
+                                android:layout_below="@id/wrapperIncomeLabel"
+                                android:src="@drawable/dashed_line_horizontal"/>
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/wrapperExpenseLabel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@id/dashedLine"
+                                android:layout_marginTop="10dp"
+                                android:clipChildren="false"
+                                android:clipToPadding="false">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvNumberExpense"
+                                    android:layout_width="49dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/cvExpenseLabel">
+
+                                    <TextView
+                                        android:id="@+id/tvNumberExpense"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/number_label_text"
+                                        android:gravity="center"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvExpenseLabel"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="3dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvNumberExpense"
+                                    app:layout_constraintEnd_toStartOf="@id/cvQuantityExpense">
+
+                                    <TextView
+                                        android:id="@+id/tvExpenseLabel"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/expense_label_text"
+                                        android:gravity="center"
+                                        android:singleLine="true"
+                                        android:ellipsize="marquee"
+                                        android:marqueeRepeatLimit="marquee_forever"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="20dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvQuantityExpense"
+                                    android:layout_width="60dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="3dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvExpenseLabel"
+                                    app:layout_constraintEnd_toStartOf="@id/cvNominalExpense">
+
+                                    <TextView
+                                        android:id="@+id/tvQuantityExpense"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/quantity_label_text"
+                                        android:gravity="center"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvNominalExpense"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="3dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/disable_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvQuantityExpense"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <TextView
+                                        android:id="@+id/tvNominalExpense"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/nominal_label_text"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:gravity="center"
+                                        android:layout_gravity="center"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvEmployeeBon"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvExpenseLabel"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberExpense"
+                                    app:layout_constraintEnd_toEndOf="@id/cvExpenseLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberEmployeeBon"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberEmployeeBon"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_01"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvEmployeeBon"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/employee_bon_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberEmployeeBon"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityEmployeeBon"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvEmployeeBon"
+                                    app:layout_constraintTop_toTopOf="@id/cvEmployeeBon"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityEmployeeBon"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/triple_dash"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalEmployeeBon"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityEmployeeBon"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityEmployeeBon"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityEmployeeBon"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutEmployeeBon"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalEmployeeBon"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvMoneyLoan"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvEmployeeBon"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberExpense"
+                                    app:layout_constraintEnd_toEndOf="@id/cvExpenseLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberMoneyLoan"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberMoneyLoan"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_02"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvMoneyLoan"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/money_loan_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberMoneyLoan"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantityMoneyLoan"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvMoneyLoan"
+                                    app:layout_constraintTop_toTopOf="@id/cvMoneyLoan"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantityMoneyLoan"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/triple_dash"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalMoneyLoan"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityMoneyLoan"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityMoneyLoan"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityMoneyLoan"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutMoneyLoan"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalMoneyLoan"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvSalaryDeductionOfHoliday"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginHorizontal="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvMoneyLoan"
+                                    app:layout_constraintStart_toStartOf="@id/cvNumberExpense"
+                                    app:layout_constraintEnd_toEndOf="@id/cvExpenseLabel">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvNumberSalaryDeductionOfHoliday"
+                                            android:layout_width="49dp"
+                                            android:layout_height="wrap_content"
+                                            app:cardCornerRadius="8dp"
+                                            app:cardElevation="0dp"
+                                            android:backgroundTint="@color/disable_grey_background"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:id="@+id/tvNumberSalaryDeductionOfHoliday"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/_03"
+                                                android:gravity="center"
+                                                android:textSize="14.5sp"
+                                                android:textStyle="bold"
+                                                android:paddingVertical="10dp"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <TextView
+                                            android:id="@+id/tvSalaryDeductionOfHoliday"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:text="@string/salary_deduction_of_holiday_title"
+                                            android:gravity="start|center_vertical"
+                                            android:paddingHorizontal="10dp"
+                                            android:singleLine="true"
+                                            android:ellipsize="marquee"
+                                            android:marqueeRepeatLimit="marquee_forever"
+                                            android:textStyle="bold"
+                                            android:textSize="15sp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberSalaryDeductionOfHoliday"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvQuantitySalaryDeductionOfHoliday"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintStart_toEndOf="@id/cvSalaryDeductionOfHoliday"
+                                    app:layout_constraintTop_toTopOf="@id/cvSalaryDeductionOfHoliday"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvQuantitySalaryDeductionOfHoliday"
+                                            android:layout_width="60dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/triple_dash"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:paddingVertical="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/cvNominalSalaryDeductionOfHoliday"
+                                            android:layout_width="0dp"
+                                            android:layout_height="0dp"
+                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginEnd="2.5dp"
+                                            android:layout_marginVertical="2.5dp"
+                                            android:elevation="18dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:outlineAmbientShadowColor="@color/black"
+                                            android:outlineSpotShadowColor="@color/black"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantitySalaryDeductionOfHoliday"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantitySalaryDeductionOfHoliday"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantitySalaryDeductionOfHoliday"
+                                            app:layout_constraintEnd_toEndOf="parent">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/inputLayoutSalaryDeductionOfHoliday"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                android:backgroundTint="@android:color/transparent"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/green_lime_wf"
+                                                app:boxStrokeWidth="0dp"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp"
+                                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                app:prefixText="Rp"
+                                                android:paddingVertical="7dp"
+                                                app:prefixTextAppearance="@style/PrefixTextAppearance3">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etNominalSalaryDeductionOfHoliday"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:drawableTint="@android:color/transparent"
+                                                    android:drawableStart="@drawable/ic_money"
+                                                    android:drawablePadding="-2dp"
+                                                    android:padding="0dp"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="15sp"
+                                                    android:focusable="false"
+                                                    android:enabled="false"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvSubTotalExpense"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    app:layout_constraintTop_toBottomOf="@id/cvQuantitySalaryDeductionOfHoliday"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <androidx.constraintlayout.widget.ConstraintLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:background="@drawable/background_filter_date_report">
+
+                                        <TextView
+                                            android:id="@+id/tvSubTotalExpenseLabel"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/subtotal_title"
+                                            android:textSize="16sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:layout_marginStart="5dp"
+                                            android:paddingVertical="15dp"
+                                            android:paddingHorizontal="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                        <TextView
+                                            android:id="@+id/tvSubTotalExpenseValue"
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/rp_minus_20_000_000"
+                                            android:textSize="15sp"
+                                            android:textStyle="bold"
+                                            android:gravity="center"
+                                            android:textColor="@color/magenta"
+                                            android:paddingVertical="15dp"
+                                            android:paddingHorizontal="10dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/tvSubTotalExpenseLabel"
+                                            app:layout_constraintEnd_toEndOf="parent"
+                                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="250dp"
+                                android:layout_below="@id/wrapperExpenseLabel"/>
+
+                        </RelativeLayout>
+
+                    </androidx.core.widget.NestedScrollView>
+
+                </FrameLayout>
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomFloatArea"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"
+        android:gravity="center"
+        android:paddingTop="25dp"
+        android:elevation="10dp"
+        android:background="@drawable/background_bottom_float_area"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+<!--        <TextView-->
+<!--            android:id="@+id/accumulateEmployeeSalaryLabel"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:textColor="@color/black"-->
+<!--            android:text="Akumulasi Gaji Karyawan"-->
+<!--            android:textSize="15sp"-->
+<!--            android:layout_marginStart="10dp"-->
+<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
+<!--            app:layout_constraintTop_toTopOf="parent" />-->
+
+<!--        <TextView-->
+<!--            android:id="@+id/accumulateEmployeeSalaryValue"-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:textColor="@color/black"-->
+<!--            android:text="Rp 20.000.000"-->
+<!--            android:layout_marginTop="2dp"-->
+<!--            android:textSize="23sp"-->
+<!--            android:textStyle="bold"-->
+<!--            android:layout_marginHorizontal="10dp"-->
+<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
+<!--            app:layout_constraintTop_toBottomOf="@id/accumulateEmployeeSalaryLabel"-->
+<!--            app:layout_constraintEnd_toEndOf="@id/btnSave"/>-->
+
+<!--        <TextView-->
+<!--            android:id="@+id/moneyLoanLongTempLabel"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:textColor="@color/black"-->
+<!--            android:text="Pinjaman Jangka Panjang"-->
+<!--            android:textSize="15sp"-->
+<!--            android:layout_marginTop="4dp"-->
+<!--            android:layout_marginStart="10dp"-->
+<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
+<!--            app:layout_constraintTop_toBottomOf="@id/accumulateEmployeeSalaryValue" />-->
+
+<!--        <TextView-->
+<!--            android:id="@+id/moneyLoanLongTempValue"-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:textColor="@color/alpha_magenta"-->
+<!--            android:text="Rp 20.000.000"-->
+<!--            android:layout_marginTop="2dp"-->
+<!--            android:textSize="23sp"-->
+<!--            android:textStyle="bold"-->
+<!--            android:layout_marginHorizontal="10dp"-->
+<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
+<!--            app:layout_constraintTop_toBottomOf="@id/moneyLoanLongTempLabel"-->
+<!--            app:layout_constraintEnd_toEndOf="@id/btnSave"/>-->
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvAccumulateEmployeeSalary"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="15dp"
+            android:layout_marginHorizontal="2dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="@id/btnSave"
+            app:layout_constraintEnd_toEndOf="@id/btnSave">
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/accumulateEmployeeSalaryLabel"
+                    android:layout_width="130dp"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="1.5dp"
+                    android:layout_marginVertical="1.3dp"
+                    android:paddingHorizontal="15dp"
+                    android:background="@drawable/background_income_from_service"
+                    android:gravity="center"
+                    android:text="Akumulasi Gaji Karyawan"
+                    android:textColor="@color/black"
+                    android:textSize="11sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/accumulateEmployeeSalaryValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="20dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:layout_gravity="center"
+                    tools:text="@string/rp_13_900_000"
+                    android:textColor="@color/black"
+                    android:textStyle="bold"
+                    android:textSize="21sp" />
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </androidx.cardview.widget.CardView>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cvMoneyLoanLongTerm"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="15dp"
+            android:layout_marginHorizontal="2dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="1dp"
+            app:cardBackgroundColor="@color/light_grey_horizons_background"
+            app:layout_constraintTop_toBottomOf="@id/cvAccumulateEmployeeSalary"
+            app:layout_constraintStart_toStartOf="@id/btnSave"
+            app:layout_constraintEnd_toEndOf="@id/btnSave">
+
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/MoneyLoanLongTermLabel"
+                    android:layout_width="130dp"
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:layout_marginStart="1.5dp"
+                    android:layout_marginVertical="1.3dp"
+                    android:paddingHorizontal="15dp"
+                    android:background="@drawable/background_income_from_service"
+                    android:gravity="center"
+                    android:text="Pinjaman Jangka Panjang"
+                    android:textColor="@color/black"
+                    android:textSize="11sp"
+                    android:textStyle="bold"/>
+
+                <TextView
+                    android:id="@+id/MoneyLoanLongTermValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="20dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:marqueeRepeatLimit="marquee_forever"
+                    android:layout_gravity="center"
+                    tools:text="@string/rp_13_900_000"
+                    android:textColor="@color/alpha_magenta"
+                    android:textStyle="bold"
+                    android:textSize="21sp" />
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+        </androidx.cardview.widget.CardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="30dp"
+            android:layout_marginVertical="20dp"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="1dp"
+            android:backgroundTint="@color/black_font_color"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="47dp"
+                android:text="@string/btn_save_changes"
+                android:textSize="14sp"
+                android:textColor="@color/green_lime_wf"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="-2dp"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="5dp"
+        android:backgroundTint="@color/light_grey_horizons_background"
+        app:cardElevation="7dp"
+        android:visibility="gone"
+        android:layout_marginTop="-30dp"
+        android:layout_gravity="center"
+        app:cardCornerRadius="30dp">
+
+        <ProgressBar
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:layout_margin="5dp"
+            android:elevation="20dp"
+            android:indeterminateTint="@color/sky_blue" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

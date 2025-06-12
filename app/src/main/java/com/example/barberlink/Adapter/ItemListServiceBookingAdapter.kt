@@ -15,11 +15,14 @@ import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListServiceBookingAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutServiceBookingBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListServiceBookingAdapter(
     private val itemClicked: OnItemClicked,
     private val disableCounting: Boolean,
 ) : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var capsterRef: String = ""
     private var isShimmer = true
     private val shimmerItemCount = 4
@@ -33,6 +36,15 @@ class ItemListServiceBookingAdapter(
     interface OnItemClicked {
         fun onItemClickListener(service: Service, index: Int, addCount: Boolean)
 
+    }
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -57,6 +69,9 @@ class ItemListServiceBookingAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val service = getItem(position)
             (holder as ItemViewHolder).bind(service)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Service()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -99,13 +114,23 @@ class ItemListServiceBookingAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutServiceBookingBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(service: Service) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListServiceBookingAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(service: Service) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with (binding) {
+                tvServiceName.isSelected = true
                 tvFeeCapsterInfo.isSelected = true
                 price.isSelected = true
                 tvServiceName.text = service.serviceName

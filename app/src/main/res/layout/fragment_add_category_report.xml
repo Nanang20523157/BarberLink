@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rlCapitalInput"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="center"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    android:orientation="vertical">
+
+    <!--    <androidx.core.widget.NestedScrollView-->
+    <com.example.barberlink.CustomView.CustomNestedScrollView
+        android:id="@+id/nvBackgroundScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/background_scrim"
+        android:clickable="true"
+        android:focusable="true">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cdAddCategoryReport"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginVertical="30dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                app:cardCornerRadius="28dp">
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:clipToPadding="false"
+                    android:clipChildren="false">
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardElevation="0dp"
+                        app:cardCornerRadius="30dp"
+                        app:strokeWidth="0dp"
+                        app:strokeColor="@android:color/transparent"
+                        android:backgroundTint="@color/light_grey_horizons_background">
+
+                        <ImageView
+                            android:layout_width="match_parent"
+                            android:layout_height="300dp"
+                            android:scaleType="fitXY"
+                            android:src="@drawable/black_yellow_image_barbershop"/>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="10dp"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginHorizontal="28dp"
+                        android:backgroundTint="@color/light_grey_horizons_background">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/label_add_new_category"
+                            android:textStyle="bold"
+                            android:textSize="18sp"
+                            android:paddingVertical="10dp"
+                            android:textColor="@color/dark_grey_font_color"
+                            android:gravity="center"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"/>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:cardElevation="1dp"
+                        app:cardCornerRadius="12dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginHorizontal="28dp"
+                        android:backgroundTint="@color/light_grey_horizons_background">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingBottom="7dp">
+
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="18dp">
+
+                                <androidx.cardview.widget.CardView
+                                    android:layout_width="match_parent"
+                                    android:layout_marginTop="-12dp"
+                                    android:layout_height="2dp"
+                                    android:layout_marginHorizontal="15dp"
+                                    android:layout_alignStart="@id/wrapperNominalInstallment"
+                                    android:layout_alignEnd="@id/wrapperNominalInstallment"
+                                    android:layout_below="@id/wrapperNominalInstallment"
+                                    android:layout_centerHorizontal="true"
+                                    android:elevation="0dp"
+                                    app:cardBackgroundColor="@color/charcoal_grey_background"/>
+
+                                <com.google.android.material.textfield.TextInputLayout
+                                    android:id="@+id/wrapperNominalInstallment"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginHorizontal="15dp"
+                                    app:hintEnabled="true"
+                                    app:hintTextColor="@color/black"
+                                    android:textColorHint="#b0b0b0"
+                                    android:hint="Nama Categori"
+                                    app:placeholderText="Nama Categori"
+                                    app:placeholderTextColor="#b0b0b0"
+                                    app:errorEnabled="true"
+                                    app:boxStrokeErrorColor="@color/red"
+                                    app:errorIconDrawable="@drawable/ic_error"
+                                    app:errorIconTint="@color/red"
+                                    app:errorTextColor="@color/red"
+                                    app:boxStrokeColor="@color/green_lime_wf"
+                                    app:boxCornerRadiusBottomStart="9dp"
+                                    app:boxCornerRadiusBottomEnd="9dp"
+                                    app:boxCornerRadiusTopEnd="9dp"
+                                    app:boxCornerRadiusTopStart="9dp"
+                                    app:boxBackgroundColor="#FFFFFF"
+                                    app:boxBackgroundMode="outline"
+                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                                    <com.google.android.material.textfield.TextInputEditText
+                                        android:id="@+id/etNominalInstallment"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:inputType="text"
+                                        android:textSize="17sp"
+                                        android:text="Membership"
+                                        android:textColor="@color/black"/>
+
+                                </com.google.android.material.textfield.TextInputLayout>
+
+                            </RelativeLayout>
+
+                            <!-- Information Text -->
+                            <LinearLayout
+                                android:id="@+id/llInfo"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="-6dp"
+                                android:layout_marginHorizontal="15dp"
+                                android:orientation="horizontal"
+                                android:visibility="gone"
+                                android:gravity="center">
+
+                                <ImageView
+                                    android:id="@+id/ivInfo"
+                                    android:layout_width="15dp"
+                                    android:layout_height="15dp"
+                                    android:layout_marginStart="-1.5dp"
+                                    android:layout_marginTop="0.5dp"
+                                    android:src="@drawable/ic_error"/>
+
+                                <TextView
+                                    android:id="@+id/tvInfo"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="2dp"
+                                    android:layout_marginTop="0.4dp"
+                                    android:fontFamily="@font/opensans_regular"
+                                    android:text="@string/data_secure"
+                                    android:textColor="@color/red"
+                                    android:textSize="10sp" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Finish Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSave"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:layout_marginTop="25dp"
+                        android:layout_marginBottom="40dp"
+                        android:layout_marginHorizontal="70dp"
+                        android:paddingVertical="0dp"
+                        android:gravity="center"
+                        android:textStyle="bold"
+                        android:backgroundTint="@color/black"
+                        android:text="@string/btn_save"
+                        android:textColor="@color/green_lime_wf" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="5dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                app:cardElevation="10dp"
+                android:visibility="gone"
+                android:layout_gravity="center"
+                app:cardCornerRadius="30dp">
+
+                <ProgressBar
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_margin="5dp"
+                    android:elevation="20dp"
+                    android:indeterminateTint="@color/sky_blue" />
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </FrameLayout>
+
+    </com.example.barberlink.CustomView.CustomNestedScrollView>
+
+
+</RelativeLayout>

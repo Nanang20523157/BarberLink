@@ -20,6 +20,11 @@
         <item name="android:textColor">@color/black</item>
     </style>
 
+    <style name="PrefixTextAppearance3" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/black</item>
+    </style>
+
     <style name="MyTransparentFragmentStyle" parent="Theme.AppCompat.DayNight.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
 <!--        <item name="android:backgroundDimAmount">0.32</item>-->
@@ -96,6 +101,10 @@
     <style name="dialog_animation_fade">
         <item name="android:windowEnterAnimation">@anim/fade_in_dialog</item>
         <item name="android:windowExitAnimation">@anim/fade_out_dialog</item>
+    </style>
+
+    <style name="RoundedSquare">
+        <item name="cornerSize">10%</item>
     </style>
 
 </resources>

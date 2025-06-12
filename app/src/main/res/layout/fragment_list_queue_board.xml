@@ -62,7 +62,7 @@
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvListQueue"
                     android:layout_width="match_parent"
-                    android:layout_height="210dp"
+                    android:layout_height="325dp"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="12dp"
                     android:layout_marginBottom="60dp"
@@ -70,8 +70,6 @@
                     android:visibility="visible"
                     tools:listitem="@layout/item_list_current_queue_adapter"
                     android:orientation="vertical"
-                    android:clipToPadding="false"
-                    android:clipChildren="false"
                     android:scrollbars="vertical"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                     android:nestedScrollingEnabled="true"/>

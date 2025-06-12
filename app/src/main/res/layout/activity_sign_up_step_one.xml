@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:clipToPadding="false"
     android:clipChildren="false"
-    tools:context=".UserInterface.SignUp.SignUpStepOne">
+    tools:context=".UserInterface.SignUp.Page.SignUpStepOne">
 
     <androidx.core.widget.NestedScrollView
         android:id="@+id/main_content"

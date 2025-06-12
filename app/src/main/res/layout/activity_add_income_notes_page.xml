@@ -1,0 +1,2136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    tools:context=".UserInterface.Admin.AddIncomeNotesPage">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/main_content"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:elevation="3dp"
+            android:fillViewport="true"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <!--            <LinearLayout-->
+                <!--                android:id="@+id/backgroundStatusBar"-->
+                <!--                android:layout_width="match_parent"-->
+                <!--                android:layout_height="25dp"-->
+                <!--                android:alpha="1"-->
+                <!--                android:background="@color/white"-->
+                <!--                android:orientation="horizontal" />-->
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <androidx.core.widget.NestedScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:fillViewport="true">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"
+                            android:paddingTop="10dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingBottom="16dp">
+
+                            <!-- Back Button -->
+                            <ImageView
+                                android:id="@+id/ivBack"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_alignParentStart="true"
+                                android:layout_marginStart="10dp"
+                                android:src="@drawable/ic_back"
+                                android:contentDescription="@string/icon_back_button_desc" />
+
+                            <!-- Title -->
+                            <TextView
+                                android:id="@+id/tvTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_centerHorizontal="true"
+                                android:text="@string/toolbar_new_income_report"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textColor="#000000" />
+
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/wrapperPickDate"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_below="@id/tvTitle"
+                                android:layout_marginBottom="5dp"
+                                android:paddingTop="17dp">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvDateLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginStart="4dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/charcoal_grey_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintEnd_toStartOf="@id/cvDateValue">
+
+                                    <TextView
+                                        android:id="@+id/tvDateLabel"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/tgl_label"
+                                        android:textColor="@color/green_lime_wf"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvDateValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvDateLabel"
+                                    app:layout_constraintEnd_toStartOf="@id/cvMonthValue">
+
+                                    <TextView
+                                        android:id="@+id/tvDateValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        tools:text="05"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvMonthValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvDateValue"
+                                    app:layout_constraintEnd_toStartOf="@id/cvYearValue">
+
+                                    <TextView
+                                        android:id="@+id/tvMonthValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        tools:text="Desember"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvYearValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="5dp"
+                                    android:layout_marginEnd="4dp"
+                                    app:cardCornerRadius="8dp"
+                                    app:cardElevation="0dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    app:layout_constraintHorizontal_chainStyle="spread_inside"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:layout_constraintStart_toEndOf="@id/cvMonthValue"
+                                    app:layout_constraintEnd_toEndOf="parent">
+
+                                    <TextView
+                                        android:id="@+id/tvYearValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        tools:text="2020"
+                                        android:textSize="14.5sp"
+                                        android:textStyle="bold"
+                                        android:paddingVertical="10dp"
+                                        android:paddingHorizontal="25dp"/>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvOuterSelectOutlet"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="13dp"
+                                android:layout_marginHorizontal="4dp"
+                                app:cardElevation="0.5dp"
+                                app:cardCornerRadius="12dp"
+                                android:backgroundTint="@color/light_grey_horizons_background"
+                                android:layout_below="@id/wrapperPickDate">
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvInnerSelectOutlet"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="40dp"
+                                    android:layout_margin="7dp"
+                                    android:elevation="18dp"
+                                    app:cardCornerRadius="7.61dp"
+                                    android:outlineAmbientShadowColor="@color/black"
+                                    android:outlineSpotShadowColor="@color/black">
+
+                                    <!-- AutoCompleteTextView for Dropdown -->
+                                    <com.google.android.material.textfield.TextInputLayout
+                                        android:id="@+id/wrapperSelectOutlet"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        app:hintEnabled="false"
+                                        app:errorEnabled="true"
+                                        app:boxStrokeErrorColor="@color/red"
+                                        app:boxBackgroundColor="@color/white"
+                                        app:errorIconDrawable="@drawable/ic_error"
+                                        app:errorIconTint="@color/red"
+                                        app:errorTextColor="@color/red"
+                                        android:backgroundTint="@android:color/transparent"
+                                        app:boxStrokeColor="@android:color/transparent"
+                                        android:layout_alignParentStart="true"
+                                        app:boxStrokeWidth="0dp"
+                                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                        app:endIconMode="dropdown_menu">
+
+                                        <AutoCompleteTextView
+                                            android:id="@+id/acSelectOutlet"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:paddingStart="15dp"
+                                            android:paddingEnd="0dp"
+                                            android:textSize="15sp"
+                                            android:hint="@string/hint_select_outlet"
+                                            android:inputType="text"/>
+
+                                    </com.google.android.material.textfield.TextInputLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:id="@+id/outletCustomError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="visible"
+                                android:text="@string/required"
+                                android:textColor="@color/red"
+                                android:textSize="10sp"
+                                android:paddingEnd="0dp"
+                                android:layout_below="@id/cvOuterSelectOutlet"
+                                android:layout_marginHorizontal="12.5dp"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginBottom="5dp"
+                                android:letterSpacing="0.03333333" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvOuterIncomeType"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:layout_marginHorizontal="4dp"
+                                app:cardElevation="0.5dp"
+                                app:cardCornerRadius="12dp"
+                                android:backgroundTint="@color/light_grey_horizons_background"
+                                android:layout_below="@id/outletCustomError">
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvInnerIncomeType"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="40dp"
+                                    android:layout_margin="7dp"
+                                    android:elevation="18dp"
+                                    app:cardCornerRadius="7.61dp"
+                                    android:outlineAmbientShadowColor="@color/black"
+                                    android:outlineSpotShadowColor="@color/black">
+
+                                    <!-- AutoCompleteTextView for Dropdown -->
+                                    <com.google.android.material.textfield.TextInputLayout
+                                        android:id="@+id/wrapperIncomeType"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        app:hintEnabled="false"
+                                        app:errorEnabled="true"
+                                        app:boxStrokeErrorColor="@color/red"
+                                        app:boxBackgroundColor="@color/white"
+                                        app:errorIconDrawable="@drawable/ic_error"
+                                        app:errorIconTint="@color/red"
+                                        app:errorTextColor="@color/red"
+                                        android:backgroundTint="@android:color/transparent"
+                                        app:boxStrokeColor="@android:color/transparent"
+                                        android:layout_alignParentStart="true"
+                                        app:boxStrokeWidth="0dp"
+                                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                        app:endIconMode="dropdown_menu">
+
+                                        <AutoCompleteTextView
+                                            android:id="@+id/acIncomeType"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:paddingStart="15dp"
+                                            android:paddingEnd="0dp"
+                                            android:textSize="15sp"
+                                            android:hint="@string/hint_income_type"
+                                            android:inputType="text"/>
+
+                                    </com.google.android.material.textfield.TextInputLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:id="@+id/incomeTypeCustomError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="visible"
+                                android:text="@string/required"
+                                android:textColor="@color/red"
+                                android:textSize="10sp"
+                                android:paddingEnd="0dp"
+                                android:layout_below="@id/cvOuterIncomeType"
+                                android:layout_marginHorizontal="12.5dp"
+                                android:layout_marginBottom="5dp"
+                                android:layout_marginTop="2dp"
+                                android:letterSpacing="0.03333333" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvOuterIncomeCategory"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginHorizontal="4dp"
+                                android:layout_marginTop="2dp"
+                                app:cardElevation="0.5dp"
+                                app:cardCornerRadius="12dp"
+                                android:layout_below="@id/incomeTypeCustomError"
+                                android:backgroundTint="@color/light_grey_horizons_background">
+
+                                <RelativeLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content">
+
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/cvInnerIncomeCategory"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="40dp"
+                                        android:layout_margin="7dp"
+                                        android:layout_alignParentStart="true"
+                                        android:layout_toStartOf="@id/cvOuterAddIncomeCategory"
+                                        android:elevation="18dp"
+                                        app:cardCornerRadius="7.61dp"
+                                        android:outlineAmbientShadowColor="@color/black"
+                                        android:outlineSpotShadowColor="@color/black">
+
+                                        <!-- AutoCompleteTextView for Dropdown -->
+                                        <com.google.android.material.textfield.TextInputLayout
+                                            android:id="@+id/wrapperIncomeCategory"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            app:hintEnabled="false"
+                                            app:errorEnabled="true"
+                                            app:boxStrokeErrorColor="@color/red"
+                                            app:boxBackgroundColor="@color/white"
+                                            app:errorIconDrawable="@drawable/ic_error"
+                                            app:errorIconTint="@color/red"
+                                            app:errorTextColor="@color/red"
+                                            android:backgroundTint="@android:color/transparent"
+                                            app:boxStrokeColor="@android:color/transparent"
+                                            android:layout_alignParentStart="true"
+                                            app:boxStrokeWidth="0dp"
+                                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                            app:endIconMode="dropdown_menu">
+
+                                            <AutoCompleteTextView
+                                                android:id="@+id/acIncomeCategory"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                android:paddingStart="15dp"
+                                                android:paddingEnd="0dp"
+                                                android:textSize="15sp"
+                                                android:hint="@string/label_other_category_income"
+                                                android:inputType="text"/>
+
+                                        </com.google.android.material.textfield.TextInputLayout>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                    <com.google.android.material.card.MaterialCardView
+                                        android:id="@+id/cvOuterAddIncomeCategory"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="match_parent"
+                                        android:layout_alignParentTop="true"
+                                        app:cardElevation="0.5dp"
+                                        app:cardCornerRadius="12dp"
+                                        android:layout_alignParentEnd="true"
+                                        android:backgroundTint="@color/light_grey_horizons_background">
+
+                                        <androidx.cardview.widget.CardView
+                                            android:id="@+id/btnAddIncomeCategory"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="40dp"
+                                            app:cardCornerRadius="7.61dp"
+                                            android:elevation="18dp"
+                                            android:layout_margin="7dp"
+                                            android:backgroundTint="@color/charcoal_grey_background">
+
+                                            <ImageView
+                                                android:layout_width="30dp"
+                                                android:layout_height="30dp"
+                                                android:layout_marginVertical="7dp"
+                                                android:layout_marginHorizontal="13dp"
+                                                android:src="@drawable/ic_plus"
+                                                android:layout_gravity="center"
+                                                app:tint="@color/green_lime_wf"
+                                                android:contentDescription="@string/button_add_new_customer_desc" />
+
+                                        </androidx.cardview.widget.CardView>
+
+                                    </com.google.android.material.card.MaterialCardView>
+
+                                </RelativeLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <TextView
+                                android:id="@+id/incomeCategoryCustomError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:visibility="visible"
+                                android:text="@string/required"
+                                android:textColor="@color/red"
+                                android:textSize="10sp"
+                                android:paddingEnd="0dp"
+                                android:layout_below="@id/cvOuterIncomeCategory"
+                                android:layout_marginHorizontal="12.5dp"
+                                android:layout_marginTop="2dp"
+                                android:letterSpacing="0.03333333" />
+
+                            <ImageView
+                                android:id="@+id/ivManualReport"
+                                android:layout_width="400dp"
+                                android:layout_height="400dp"
+                                android:layout_below="@id/incomeCategoryCustomError"
+                                android:layout_marginBottom="153dp"
+                                android:layout_centerHorizontal="true"
+                                android:layout_centerVertical="true"
+                                android:src="@drawable/manual_report_folder"/>
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvOuterNominalIncome"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginHorizontal="4dp"
+                                app:cardElevation="0.5dp"
+                                app:cardCornerRadius="12dp"
+                                android:backgroundTint="@color/light_grey_horizons_background"
+                                android:visibility="gone"
+                                android:layout_below="@id/incomeCategoryCustomError"
+                                android:clipChildren="false"
+                                android:clipToPadding="false">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:paddingBottom="15dp"
+                                    android:clipChildren="false"
+                                    android:clipToPadding="false">
+
+                                    <TextView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/label_nominal_income"
+                                        android:textStyle="bold"
+                                        android:textSize="16sp"
+                                        android:textColor="@color/dark_grey_font_color"
+                                        android:layout_marginTop="15dp"
+                                        android:gravity="center"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintStart_toStartOf="parent"/>
+
+                                    <com.google.android.material.card.MaterialCardView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        app:cardElevation="0.5dp"
+                                        app:cardCornerRadius="12dp"
+                                        android:layout_marginTop="10dp"
+                                        android:layout_marginHorizontal="15dp"
+                                        android:backgroundTint="@color/light_grey_horizons_background"
+                                        android:layout_below="@id/cvOuterShareProfitFormated">
+
+                                        <LinearLayout
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:orientation="vertical"
+                                            android:paddingBottom="7dp">
+
+                                            <RelativeLayout
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:layout_marginTop="18dp">
+
+                                                <androidx.cardview.widget.CardView
+                                                    android:layout_width="match_parent"
+                                                    android:layout_marginTop="-12dp"
+                                                    android:layout_height="2dp"
+                                                    android:layout_marginHorizontal="15dp"
+                                                    android:layout_alignStart="@id/wrapperNominalInstallment"
+                                                    android:layout_alignEnd="@id/wrapperNominalInstallment"
+                                                    android:layout_below="@id/wrapperNominalInstallment"
+                                                    android:layout_centerHorizontal="true"
+                                                    android:elevation="0dp"
+                                                    app:cardBackgroundColor="@color/charcoal_grey_background"/>
+
+                                                <com.google.android.material.textfield.TextInputLayout
+                                                    android:id="@+id/wrapperNominalInstallment"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="wrap_content"
+                                                    android:layout_marginHorizontal="15dp"
+                                                    app:hintEnabled="true"
+                                                    app:hintTextColor="@color/black"
+                                                    android:textColorHint="#b0b0b0"
+                                                    android:hint="@string/hint_nominal_income"
+                                                    app:placeholderText="Nominal Pemasukan"
+                                                    app:placeholderTextColor="#b0b0b0"
+                                                    app:errorEnabled="true"
+                                                    app:boxStrokeErrorColor="@color/red"
+                                                    app:errorIconDrawable="@drawable/ic_error"
+                                                    app:errorIconTint="@color/red"
+                                                    app:errorTextColor="@color/red"
+                                                    app:boxStrokeColor="@color/green_lime_wf"
+                                                    app:boxCornerRadiusBottomStart="9dp"
+                                                    app:boxCornerRadiusBottomEnd="9dp"
+                                                    app:boxCornerRadiusTopEnd="9dp"
+                                                    app:boxCornerRadiusTopStart="9dp"
+                                                    app:boxBackgroundColor="#FFFFFF"
+                                                    app:boxBackgroundMode="outline"
+                                                    app:prefixText="Rp"
+                                                    app:prefixTextColor="@color/black"
+                                                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                                    app:prefixTextAppearance="@style/PrefixTextAppearance">
+
+                                                    <com.google.android.material.textfield.TextInputEditText
+                                                        android:id="@+id/etNominalInstallment"
+                                                        android:layout_width="match_parent"
+                                                        android:layout_height="wrap_content"
+                                                        android:drawableTint="@android:color/transparent"
+                                                        android:drawableStart="@drawable/ic_money"
+                                                        android:drawablePadding="10dp"
+                                                        android:inputType="number|numberDecimal"
+                                                        android:text="@string/text_0"
+                                                        android:textSize="23sp"
+                                                        android:textColor="@color/black"/>
+
+                                                </com.google.android.material.textfield.TextInputLayout>
+
+                                            </RelativeLayout>
+
+                                            <!-- Information Text -->
+                                            <LinearLayout
+                                                android:id="@+id/llInfo"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:layout_marginTop="-6dp"
+                                                android:layout_marginHorizontal="15dp"
+                                                android:orientation="horizontal"
+                                                android:visibility="gone"
+                                                android:gravity="center">
+
+                                                <ImageView
+                                                    android:id="@+id/ivInfo"
+                                                    android:layout_width="15dp"
+                                                    android:layout_height="15dp"
+                                                    android:layout_marginStart="-1.5dp"
+                                                    android:layout_marginTop="0.5dp"
+                                                    android:src="@drawable/ic_error"/>
+
+                                                <TextView
+                                                    android:id="@+id/tvInfo"
+                                                    android:layout_width="wrap_content"
+                                                    android:layout_height="wrap_content"
+                                                    android:layout_marginStart="2dp"
+                                                    android:layout_marginTop="0.4dp"
+                                                    android:fontFamily="@font/opensans_regular"
+                                                    android:text="@string/data_secure"
+                                                    android:textColor="@color/red"
+                                                    android:textSize="10sp" />
+
+                                            </LinearLayout>
+
+                                        </LinearLayout>
+
+                                    </com.google.android.material.card.MaterialCardView>
+
+                                </LinearLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <LinearLayout
+                                android:id="@+id/DetailItemUserSelected"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:layout_marginTop="10dp"
+                                android:visibility="gone"
+                                android:layout_below="@id/cvOuterNominalIncome">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvDetailItemUserSelected"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    app:cardElevation="0.5dp"
+                                    app:cardCornerRadius="12dp"
+                                    android:layout_marginStart="4dp"
+                                    android:layout_marginEnd="4dp"
+                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                    android:clipChildren="false"
+                                    android:clipToPadding="false">
+
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal">
+
+                                        <TextView
+                                            android:layout_width="0dp"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/label_list_item_user_selected"
+                                            android:textStyle="bold"
+                                            android:textSize="17sp"
+                                            android:layout_weight="1"
+                                            android:textColor="@color/dark_grey_font_color"
+                                            android:layout_marginTop="15dp"
+                                            android:layout_marginStart="20dp"
+                                            android:layout_marginBottom="15dp"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toStartOf="parent"/>
+
+                                        <com.google.android.material.button.MaterialButton
+                                            android:id="@+id/btnKodePromo"
+                                            android:layout_width="65dp"
+                                            android:layout_height="31.5dp"
+                                            android:paddingHorizontal="0dp"
+                                            android:paddingVertical="3dp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginEnd="20dp"
+                                            android:backgroundTint="@color/black"
+                                            android:text="@string/btn_select"
+                                            android:textSize="9sp"
+                                            android:gravity="center"
+                                            android:layout_gravity="center"
+                                            android:textColor="@color/green_lime_wf"
+                                            android:textStyle="bold" />
+
+                                    </LinearLayout>
+
+                                </com.google.android.material.card.MaterialCardView>
+
+                                <FrameLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content">
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="vertical">
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvBundlingLabel"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginTop="5dp"
+                                            android:layout_marginHorizontal="6dp"
+                                            app:cardElevation="0.5dp"
+                                            app:cardCornerRadius="6dp"
+                                            android:visibility="gone"
+                                            android:backgroundTint="@color/light_grey_horizons_background"
+                                            android:clipChildren="false"
+                                            android:clipToPadding="false">
+
+                                            <LinearLayout
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:orientation="horizontal"
+                                                android:paddingVertical="4dp">
+
+                                                <TextView
+                                                    android:layout_width="0dp"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/label_list_paket_bundling2"
+                                                    android:textStyle="bold"
+                                                    android:textSize="15dp"
+                                                    android:layout_weight="1"
+                                                    android:textColor="@color/black"
+                                                    android:layout_marginStart="15dp"/>
+
+                                                <TextView
+                                                    android:layout_width="wrap_content"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/short_number_of_total_items_template2"
+                                                    android:textSize="12dp"
+                                                    android:textColor="@color/black"
+                                                    android:layout_gravity="center"
+                                                    android:layout_marginEnd="20dp"/>
+
+                                            </LinearLayout>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <!-- RecyclerView -->
+                                        <androidx.recyclerview.widget.RecyclerView
+                                            android:id="@+id/rvListBundling"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            tools:itemCount="4"
+                                            android:layout_marginTop="2dp"
+                                            tools:listitem="@layout/item_list_detail_item_bundling_adapter"
+                                            android:orientation="vertical"
+                                            android:visibility="gone"
+                                            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                            android:clipToPadding="false"
+                                            android:clipChildren="false"
+                                            android:nestedScrollingEnabled="false"/>
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvServicesLabel"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginTop="5dp"
+                                            android:layout_marginHorizontal="6dp"
+                                            app:cardElevation="0.5dp"
+                                            app:cardCornerRadius="6dp"
+                                            android:visibility="gone"
+                                            android:backgroundTint="@color/light_grey_horizons_background"
+                                            android:clipChildren="false"
+                                            android:clipToPadding="false">
+
+                                            <LinearLayout
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:orientation="horizontal"
+                                                android:paddingVertical="4dp">
+
+                                                <TextView
+                                                    android:layout_width="0dp"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/label_list_service"
+                                                    android:textStyle="bold"
+                                                    android:textSize="15dp"
+                                                    android:layout_weight="1"
+                                                    android:textColor="@color/black"
+                                                    android:layout_marginStart="15dp"/>
+
+                                                <TextView
+                                                    android:layout_width="wrap_content"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/short_number_of_total_items_template2"
+                                                    android:textSize="12dp"
+                                                    android:textColor="@color/black"
+                                                    android:layout_gravity="center"
+                                                    android:layout_marginEnd="20dp"/>
+
+                                            </LinearLayout>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <!-- RecyclerView -->
+                                        <androidx.recyclerview.widget.RecyclerView
+                                            android:id="@+id/rvListServices"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            tools:itemCount="4"
+                                            android:layout_marginTop="2dp"
+                                            tools:listitem="@layout/item_list_detail_item_service_adapter"
+                                            android:orientation="vertical"
+                                            android:visibility="gone"
+                                            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                            android:clipToPadding="false"
+                                            android:clipChildren="false"
+                                            android:nestedScrollingEnabled="false"/>
+
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/cvProductLabel"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginTop="5dp"
+                                            android:layout_marginHorizontal="6dp"
+                                            app:cardElevation="0.5dp"
+                                            app:cardCornerRadius="6dp"
+                                            android:visibility="gone"
+                                            android:backgroundTint="@color/light_grey_horizons_background"
+                                            android:clipChildren="false"
+                                            android:clipToPadding="false">
+
+                                            <LinearLayout
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:orientation="horizontal"
+                                                android:paddingVertical="4dp">
+
+                                                <TextView
+                                                    android:layout_width="0dp"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/label_list_product2"
+                                                    android:textStyle="bold"
+                                                    android:textSize="15dp"
+                                                    android:layout_weight="1"
+                                                    android:textColor="@color/black"
+                                                    android:layout_marginStart="15dp"/>
+
+                                                <TextView
+                                                    android:layout_width="wrap_content"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/short_number_of_total_items_template2"
+                                                    android:textSize="12dp"
+                                                    android:textColor="@color/black"
+                                                    android:layout_gravity="center"
+                                                    android:layout_marginEnd="20dp"/>
+
+                                            </LinearLayout>
+
+                                        </com.google.android.material.card.MaterialCardView>
+
+                                        <!-- RecyclerView -->
+                                        <androidx.recyclerview.widget.RecyclerView
+                                            android:id="@+id/rvListProduct"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            tools:itemCount="4"
+                                            android:layout_marginTop="2dp"
+                                            tools:listitem="@layout/item_list_detail_item_product_adapter"
+                                            android:orientation="vertical"
+                                            android:visibility="gone"
+                                            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                            android:clipToPadding="false"
+                                            android:clipChildren="false"
+                                            android:nestedScrollingEnabled="false"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <TextView
+                                        android:id="@+id/tvEmptyDetailItem"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="200dp"
+                                        android:textAlignment="center"
+                                        android:minLines="3"
+                                        android:ellipsize="end"
+                                        android:gravity="center"
+                                        android:paddingBottom="15dp"
+                                        android:text="@string/text_empty_list_item_user_selected"
+                                        android:textSize="12sp"
+                                        android:layout_marginHorizontal="20dp"
+                                        android:fontFamily="@font/arial_medium"
+                                        android:textColor="@color/black_font_color"/>
+
+                                </FrameLayout>
+
+                            </LinearLayout>
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvOuterShareProfitFormated"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginHorizontal="4dp"
+                                app:cardElevation="0.5dp"
+                                app:cardCornerRadius="12dp"
+                                android:backgroundTint="@color/light_grey_horizons_background"
+                                android:visibility="gone"
+                                android:layout_below="@id/DetailItemUserSelected"
+                                android:clipChildren="false"
+                                android:clipToPadding="false">
+
+                                <androidx.constraintlayout.widget.ConstraintLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginBottom="20dp">
+
+                                    <TextView
+                                        android:id="@+id/tvShareProfitFormated"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/label_share_profit_formated"
+                                        android:textStyle="bold"
+                                        android:textSize="17sp"
+                                        android:textColor="@color/dark_grey_font_color"
+                                        android:layout_marginTop="15dp"
+                                        android:layout_marginStart="20dp"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintStart_toStartOf="parent"/>
+
+                                    <LinearLayout
+                                        android:id="@+id/llSwitchOpenState"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginEnd="9dp"
+                                        android:layout_marginTop="4dp"
+                                        app:layout_constraintTop_toTopOf="@id/tvShareProfitFormated"
+                                        app:layout_constraintBottom_toBottomOf="@id/tvShareProfitFormated"
+                                        app:layout_constraintEnd_toEndOf="parent">
+
+                                        <TextView
+                                            android:id="@+id/tvOpenStateLabel"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            tools:text="Share Profit"
+                                            android:textSize="11.5sp"
+                                            android:layout_gravity="center_vertical"
+                                            android:textColor="@color/platinum_grey_background"
+                                            android:layout_marginEnd="-9dp"
+                                            android:layout_marginTop="-0.5dp"
+                                            android:textStyle="bold" />
+
+                                        <com.google.android.material.materialswitch.MaterialSwitch
+                                            android:id="@+id/switch2"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:checked="false"
+                                            android:scaleX="0.40"
+                                            style="@style/Widget.App.Switch"
+                                            android:scaleY="0.40" />
+
+                                    </LinearLayout>
+
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/cvInnerShareProfitFormated"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="40dp"
+                                        android:elevation="18dp"
+                                        app:cardCornerRadius="7.61dp"
+                                        android:layout_marginTop="9dp"
+                                        android:layout_marginHorizontal="15dp"
+                                        android:backgroundTint="@color/white"
+                                        app:layout_constraintTop_toBottomOf="@id/tvShareProfitFormated"
+                                        app:layout_constraintStart_toStartOf="parent"
+                                        app:layout_constraintEnd_toEndOf="parent">
+
+                                        <LinearLayout
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:orientation="horizontal"
+                                            android:clipToPadding="false"
+                                            android:clipChildren="false">
+
+                                            <FrameLayout
+                                                android:layout_width="0dp"
+                                                android:layout_height="match_parent"
+                                                android:layout_weight="1"
+                                                android:clipToPadding="false"
+                                                android:clipChildren="false">
+
+                                                <com.google.android.material.card.MaterialCardView
+                                                    android:id="@+id/cvPercentageFormat"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    app:cardCornerRadius="7.61dp"
+                                                    app:cardElevation="1dp"
+                                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                                    android:layout_marginEnd="-5dp"
+                                                    android:visibility="invisible"/>
+
+                                                <TextView
+                                                    android:id="@+id/tvPercentageFormat"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:elevation="10dp"
+                                                    android:text="@string/text_percentage_format_user_select"
+                                                    android:textColor="@color/grey_300"
+                                                    android:textSize="15dp"
+                                                    android:textStyle="bold"
+                                                    android:gravity="center"/>
+
+                                            </FrameLayout>
+
+                                            <FrameLayout
+                                                android:layout_width="0dp"
+                                                android:layout_height="match_parent"
+                                                android:layout_weight="1"
+                                                android:clipToPadding="false"
+                                                android:clipChildren="false">
+
+                                                <com.google.android.material.card.MaterialCardView
+                                                    android:id="@+id/cvNominalFormat"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    app:cardCornerRadius="7.61dp"
+                                                    app:cardElevation="1dp"
+                                                    android:backgroundTint="@color/light_grey_horizons_background"
+                                                    android:layout_marginStart="-5dp"
+                                                    android:visibility="invisible"/>
+
+                                                <TextView
+                                                    android:id="@+id/tvNominalFormat"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:elevation="10dp"
+                                                    android:text="@string/text_nominal_format_user_select"
+                                                    android:textColor="@color/silver_grey"
+                                                    android:textSize="15dp"
+                                                    android:textStyle="bold"
+                                                    android:gravity="center"/>
+
+                                            </FrameLayout>
+
+                                            <com.google.android.material.card.MaterialCardView
+                                                android:id="@+id/cvAutoFormatBySystem"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                app:cardCornerRadius="7.61dp"
+                                                app:cardElevation="1dp"
+                                                android:backgroundTint="@color/light_grey_horizons_background"
+                                                android:layout_marginStart="-5dp"
+                                                android:visibility="visible">
+
+                                                <TextView
+                                                    android:id="@+id/tvAutoFormatBySystem"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:elevation="10dp"
+                                                    android:text="@string/text_auto_by_system"
+                                                    android:textColor="@color/orange_role"
+                                                    android:textSize="15dp"
+                                                    android:textStyle="bold"
+                                                    android:gravity="center"/>
+
+                                            </com.google.android.material.card.MaterialCardView>
+
+                                        </LinearLayout>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                    <TextView
+                                        android:id="@+id/tvPercentageInputLabel"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/label_persentase_input"
+                                        android:textSize="12sp"
+                                        android:textStyle="bold"
+                                        android:visibility="visible"
+                                        android:layout_marginTop="5dp"
+                                        android:layout_marginStart="3dp"
+                                        app:layout_constraintTop_toBottomOf="@id/cvInnerShareProfitFormated"
+                                        app:layout_constraintStart_toStartOf="@id/cvInnerShareProfitFormated"/>
+
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/cvPercentageInputShareProfit"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="43dp"
+                                        android:layout_marginTop="2dp"
+                                        android:layout_marginStart="15dp"
+                                        android:layout_marginEnd="15dp"
+                                        android:layout_marginBottom="20dp"
+                                        android:visibility="visible"
+                                        android:elevation="18dp"
+                                        app:cardCornerRadius="7.61dp"
+                                        android:backgroundTint="@color/light_grey_horizons_background"
+                                        android:outlineAmbientShadowColor="@color/black"
+                                        android:outlineSpotShadowColor="@color/black"
+                                        app:layout_constraintTop_toBottomOf="@id/tvPercentageInputLabel"
+                                        app:layout_constraintStart_toStartOf="parent">
+
+                                        <LinearLayout
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="match_parent"
+                                            android:orientation="horizontal"
+                                            android:background="@drawable/background_filter_date_report">
+
+                                            <!-- AutoCompleteTextView for Dropdown -->
+                                            <com.google.android.material.textfield.TextInputLayout
+                                                android:id="@+id/tilPercentageShareProfit"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="match_parent"
+                                                app:hintEnabled="false"
+                                                app:errorEnabled="true"
+                                                app:boxStrokeErrorColor="@color/red"
+                                                app:errorIconDrawable="@drawable/ic_error"
+                                                app:errorIconTint="@color/red"
+                                                app:errorTextColor="@color/red"
+                                                app:boxStrokeColor="@color/black"
+                                                app:boxBackgroundColor="#FFFFFF"
+                                                app:boxBackgroundMode="outline"
+                                                android:backgroundTint="@android:color/transparent"
+                                                android:layout_below="@id/tvSearchDropdownLabel"
+                                                android:layout_alignParentStart="true"
+                                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                                app:boxCornerRadiusBottomStart="7.61dp"
+                                                app:boxCornerRadiusTopEnd="7.61dp"
+                                                app:boxCornerRadiusTopStart="7.61dp">
+
+                                                <com.google.android.material.textfield.TextInputEditText
+                                                    android:id="@+id/etPercentageShareProfit"
+                                                    android:layout_width="match_parent"
+                                                    android:layout_height="match_parent"
+                                                    android:paddingTop="6dp"
+                                                    android:paddingBottom="7.5dp"
+                                                    android:gravity="center"
+                                                    android:inputType="number|numberDecimal"
+                                                    android:text="@string/text_0"
+                                                    android:textSize="20sp"
+                                                    android:textColor="@color/black"/>
+
+                                            </com.google.android.material.textfield.TextInputLayout>
+
+                                            <TextView
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/text_percentage_simbol"
+                                                android:textStyle="bold"
+                                                android:textSize="25sp"
+                                                android:layout_gravity="center"
+                                                android:textColor="@color/dark_grey_font_color"
+                                                android:layout_marginStart="7dp"
+                                                android:layout_marginEnd="12dp" />
+
+                                        </LinearLayout>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                    <TextView
+                                        android:id="@+id/tvNominalInputLabel"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/label_input_nominal_share_profit"
+                                        android:textStyle="bold"
+                                        android:textSize="12sp"
+                                        android:visibility="visible"
+                                        android:layout_marginTop="5dp"
+                                        android:layout_marginStart="18dp"
+                                        app:layout_constraintTop_toBottomOf="@id/cvInnerShareProfitFormated"
+                                        app:layout_constraintStart_toEndOf="@id/cvPercentageInputShareProfit"/>
+
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/cvNominalInputShareProfit"
+                                        android:layout_width="0dp"
+                                        android:layout_height="43dp"
+                                        android:layout_marginTop="2dp"
+                                        android:layout_marginStart="-3dp"
+                                        android:layout_marginEnd="15dp"
+                                        android:layout_marginBottom="20dp"
+                                        android:elevation="18dp"
+                                        android:visibility="visible"
+                                        app:cardCornerRadius="7.61dp"
+                                        android:backgroundTint="@color/light_grey_horizons_background"
+                                        android:outlineAmbientShadowColor="@color/black"
+                                        android:outlineSpotShadowColor="@color/black"
+                                        app:layout_constraintTop_toBottomOf="@id/tvNominalInputLabel"
+                                        app:layout_constraintStart_toStartOf="@id/tvNominalInputLabel"
+                                        app:layout_constraintEnd_toEndOf="parent">
+
+                                        <!-- AutoCompleteTextView for Dropdown -->
+                                        <com.google.android.material.textfield.TextInputLayout
+                                            android:id="@+id/tilNominalShareProfit"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            app:hintEnabled="false"
+                                            app:errorEnabled="true"
+                                            app:boxStrokeErrorColor="@color/red"
+                                            app:errorIconDrawable="@drawable/ic_error"
+                                            app:errorIconTint="@color/red"
+                                            app:errorTextColor="@color/red"
+                                            app:boxStrokeColor="@color/black"
+                                            app:boxBackgroundColor="#FFFFFF"
+                                            app:boxBackgroundMode="outline"
+                                            app:prefixText="Rp"
+                                            app:prefixTextColor="@color/grey_dark_input_prefix"
+                                            app:prefixTextAppearance="@style/PrefixTextAppearance2"
+                                            android:backgroundTint="@android:color/transparent"
+                                            android:layout_below="@id/tvSearchDropdownLabel"
+                                            android:layout_alignParentStart="true"
+                                            app:boxCornerRadiusBottomEnd="7.61dp"
+                                            app:boxCornerRadiusBottomStart="7.61dp"
+                                            app:boxCornerRadiusTopEnd="7.61dp"
+                                            app:boxCornerRadiusTopStart="7.61dp">
+
+                                            <com.google.android.material.textfield.TextInputEditText
+                                                android:id="@+id/etNominalShareProfit"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                android:drawableTint="@android:color/transparent"
+                                                android:drawableStart="@drawable/ic_money"
+                                                android:drawablePadding="5dp"
+                                                android:paddingTop="6dp"
+                                                android:paddingBottom="7.5dp"
+                                                android:inputType="number|numberDecimal"
+                                                android:text="@string/text_0"
+                                                android:textSize="20sp"
+                                                android:focusable="false"
+                                                android:enabled="false"
+                                                android:textColor="@color/grey_dark_input_prefix"/>
+
+                                        </com.google.android.material.textfield.TextInputLayout>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                    <TextView
+                                        android:id="@+id/shareProfitCustomError"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:visibility="visible"
+                                        android:text="@string/required"
+                                        android:textColor="@color/red"
+                                        android:textSize="10sp"
+                                        android:paddingEnd="0dp"
+                                        android:layout_marginHorizontal="23dp"
+                                        android:layout_marginTop="3dp"
+                                        android:layout_marginBottom="5dp"
+                                        android:letterSpacing="0.03333333"
+                                        app:layout_constraintTop_toBottomOf="@id/cvNominalInputShareProfit"
+                                        app:layout_constraintStart_toStartOf="@id/cvInnerShareProfitFormated"
+                                        app:layout_constraintEnd_toEndOf="@id/cvInnerShareProfitFormated"/>
+
+                                    <androidx.cardview.widget.CardView
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="10dp"
+                                        android:layout_marginStart="15dp"
+                                        android:layout_marginEnd="15dp"
+                                        android:layout_marginBottom="20dp"
+                                        android:visibility="visible"
+                                        android:elevation="18dp"
+                                        app:cardCornerRadius="8dp"
+                                        android:backgroundTint="@color/light_grey_horizons_background"
+                                        android:outlineAmbientShadowColor="@color/black"
+                                        android:outlineSpotShadowColor="@color/black"
+                                        app:layout_constraintTop_toBottomOf="@id/shareProfitCustomError"
+                                        app:layout_constraintStart_toStartOf="parent"
+                                        app:layout_constraintEnd_toEndOf="parent">
+
+                                        <TextView
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/text_information_for_barbershop_about_share_profit"
+                                            android:textSize="11.5sp"
+                                            android:gravity="center"
+                                            android:paddingHorizontal="11dp"
+                                            android:paddingVertical="10dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background"
+                                            android:background="@drawable/background_filter_date_report"/>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <FrameLayout
+                                android:id="@+id/flSelectCapster"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginHorizontal="4dp"
+                                android:visibility="gone"
+                                android:layout_below="@id/cvOuterShareProfitFormated"
+                                android:clipToPadding="false"
+                                android:clipChildren="false">
+
+                                <com.google.android.material.card.MaterialCardView
+                                    android:id="@+id/cvBaseSelectCapster"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    app:cardCornerRadius="12dp"
+                                    app:cardElevation="0.5dp"
+                                    app:cardBackgroundColor="@color/light_grey_horizons_background"/>
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:elevation="7dp"
+                                    android:clipToPadding="false"
+                                    android:clipChildren="false"
+                                    android:orientation="vertical">
+
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/cvInnerSelectCapster"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="40dp"
+                                        android:layout_margin="7dp"
+                                        android:elevation="18dp"
+                                        app:cardCornerRadius="7.61dp"
+                                        android:outlineAmbientShadowColor="@color/black"
+                                        android:outlineSpotShadowColor="@color/black">
+
+                                        <!-- AutoCompleteTextView for Dropdown -->
+                                        <com.google.android.material.textfield.TextInputLayout
+                                            android:id="@+id/wrapperSelectCapster"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            app:hintEnabled="false"
+                                            app:errorEnabled="true"
+                                            app:boxStrokeErrorColor="@color/red"
+                                            app:boxBackgroundColor="@color/white"
+                                            app:errorIconDrawable="@drawable/ic_error"
+                                            app:errorIconTint="@color/red"
+                                            app:errorTextColor="@color/red"
+                                            android:backgroundTint="@android:color/transparent"
+                                            app:boxStrokeColor="@android:color/transparent"
+                                            android:layout_alignParentStart="true"
+                                            app:boxStrokeWidth="0dp"
+                                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                            app:endIconMode="dropdown_menu">
+
+                                            <AutoCompleteTextView
+                                                android:id="@+id/acSelectCapster"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                android:paddingStart="15dp"
+                                                android:paddingEnd="0dp"
+                                                android:textSize="15sp"
+                                                android:hint="Pilih Capster"
+                                                android:inputType="text"/>
+
+                                        </com.google.android.material.textfield.TextInputLayout>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                    <com.google.android.material.card.MaterialCardView
+                                        android:id="@+id/cvMainInfoEmployee"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        app:cardCornerRadius="12dp"
+                                        app:cardElevation="0.5dp"
+                                        android:visibility="visible"
+                                        android:backgroundTint="@color/light_grey_horizons_background">
+
+                                        <androidx.constraintlayout.widget.ConstraintLayout
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:paddingHorizontal="10dp"
+                                            android:paddingVertical="25dp"
+                                            android:clipToPadding="false"
+                                            android:clipChildren="false"
+                                            android:layout_gravity="center">
+
+                                            <de.hdodenhof.circleimageview.CircleImageView
+                                                android:id="@+id/ivCapsterSelectedPP"
+                                                android:layout_width="55dp"
+                                                android:layout_height="55dp"
+                                                android:layout_gravity="center_vertical"
+                                                android:layout_marginStart="13dp"
+                                                android:layout_marginEnd="16dp"
+                                                android:scaleType="centerCrop"
+                                                android:contentDescription="@string/user_profile_placeholder_desc"
+                                                android:src="@drawable/placeholder_user_profile"
+                                                app:layout_constraintBottom_toBottomOf="parent"
+                                                app:layout_constraintEnd_toStartOf="@id/tvEmployeeName"
+                                                app:layout_constraintHorizontal_bias="0.0"
+                                                app:layout_constraintStart_toStartOf="parent"
+                                                app:layout_constraintTop_toTopOf="parent" />
+
+                                            <TextView
+                                                android:id="@+id/tvEmployeeName"
+                                                android:layout_width="0dp"
+                                                android:layout_height="wrap_content"
+                                                tools:text="Nanang Kurniawan Hermawan"
+                                                android:textColor="@color/black_font_color"
+                                                android:ellipsize="end"
+                                                android:fontFamily="@font/arial_bold"
+                                                android:maxLines="1"
+                                                android:textSize="15.5sp"
+                                                android:layout_marginTop="-3.5dp"
+                                                android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                                                android:textStyle="bold"
+                                                android:layout_marginEnd="10dp"
+                                                app:layout_constraintTop_toTopOf="@id/llGender"
+                                                app:layout_constraintStart_toEndOf="@id/ivCapsterSelectedPP"
+                                                app:layout_constraintEnd_toStartOf="@id/llGender" />
+
+                                            <TextView
+                                                android:id="@+id/tvUsername"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/username_template"
+                                                android:fontFamily="@font/arial_medium"
+                                                android:textSize="9.5sp"
+                                                android:layout_marginTop="-2dp"
+                                                android:layout_marginStart="0.5dp"
+                                                android:textColor="@color/platinum_grey_background"
+                                                app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                                                app:layout_constraintTop_toBottomOf="@id/tvEmployeeName"/>
+
+                                            <LinearLayout
+                                                android:id="@+id/llRating"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:orientation="horizontal"
+                                                android:layout_marginTop="7dp"
+                                                app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                                                app:layout_constraintTop_toBottomOf="@id/tvUsername">
+
+                                                <ImageView
+                                                    android:id="@+id/ivStarOne"
+                                                    android:layout_width="12dp"
+                                                    android:layout_height="12dp"
+                                                    android:layout_marginEnd="4dp"
+                                                    android:src="@drawable/full_star"
+                                                    android:contentDescription="@string/star_image_desc"/>
+
+                                                <ImageView
+                                                    android:id="@+id/ivStarTwo"
+                                                    android:layout_width="12dp"
+                                                    android:layout_height="12dp"
+                                                    android:layout_marginEnd="4dp"
+                                                    android:src="@drawable/full_star"
+                                                    android:contentDescription="@string/star_image_desc"/>
+
+                                                <ImageView
+                                                    android:id="@+id/ivStarThree"
+                                                    android:layout_width="12dp"
+                                                    android:layout_height="12dp"
+                                                    android:layout_marginEnd="4dp"
+                                                    android:src="@drawable/full_star"
+                                                    android:contentDescription="@string/star_image_desc"/>
+
+                                                <ImageView
+                                                    android:id="@+id/ivStarFour"
+                                                    android:layout_width="12dp"
+                                                    android:layout_height="12dp"
+                                                    android:layout_marginEnd="4dp"
+                                                    android:src="@drawable/full_star"
+                                                    android:contentDescription="@string/star_image_desc"/>
+
+                                                <ImageView
+                                                    android:id="@+id/ivStarFive"
+                                                    android:layout_width="12dp"
+                                                    android:layout_height="12dp"
+                                                    android:layout_marginEnd="6dp"
+                                                    android:src="@drawable/full_star"
+                                                    android:contentDescription="@string/star_image_desc"/>
+
+                                                <TextView
+                                                    android:id="@+id/tvRating"
+                                                    android:layout_width="wrap_content"
+                                                    android:layout_height="wrap_content"
+                                                    android:text="@string/five_star_rating"
+                                                    android:textSize="11sp"
+                                                    android:layout_marginTop="-1.8dp"
+                                                    android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
+
+                                            </LinearLayout>
+
+                                            <TextView
+                                                android:id="@+id/tvReviewsAmount"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/number_of_reviews_placeholder"
+                                                android:fontFamily="@font/arial_medium"
+                                                android:textSize="10.5sp"
+                                                android:layout_marginTop="2.5dp"
+                                                android:layout_marginStart="2dp"
+                                                android:textColor="@color/black_font_color"
+                                                android:textAppearance="@style/TextAppearance.AppCompat.Small"
+                                                app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
+                                                app:layout_constraintTop_toBottomOf="@id/llRating"/>
+
+                                            <LinearLayout
+                                                android:id="@+id/llGender"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:orientation="horizontal"
+                                                android:paddingVertical="2dp"
+                                                android:gravity="center"
+                                                android:background="@drawable/gender_feminime_background"
+                                                android:paddingHorizontal="4dp"
+                                                android:layout_marginEnd="17dp"
+                                                app:layout_constraintEnd_toEndOf="parent"
+                                                app:layout_constraintTop_toTopOf="parent">
+
+                                                <ImageView
+                                                    android:id="@+id/ivGender"
+                                                    android:layout_width="12.5dp"
+                                                    android:layout_height="12.5dp"
+                                                    android:src="@drawable/ic_female"
+                                                    android:contentDescription="@string/icon_gender_ilustration" />
+
+                                                <TextView
+                                                    android:id="@+id/tvGender"
+                                                    android:layout_width="wrap_content"
+                                                    android:layout_height="wrap_content"
+                                                    tools:text="perempuan"
+                                                    android:fontFamily="@font/arial_bold"
+                                                    android:textColor="@color/black_font_color"
+                                                    android:textSize="10sp"
+                                                    android:layout_marginStart="2dp"
+                                                    android:layout_marginEnd="3dp"
+                                                    android:gravity="center"
+                                                    android:layout_gravity="center_vertical"/>
+
+                                            </LinearLayout>
+
+                                            <TextView
+                                                android:id="@+id/tvRole"
+                                                android:layout_width="110dp"
+                                                android:layout_height="30dp"
+                                                android:layout_gravity="bottom"
+                                                android:layout_marginEnd="17dp"
+                                                android:layout_marginTop="15dp"
+                                                android:background="@drawable/role_background_employee"
+                                                android:fontFamily="@font/arial_bold"
+                                                android:gravity="center"
+                                                android:textColor="@color/magenta"
+                                                android:textSize="12sp"
+                                                app:layout_constraintBottom_toBottomOf="parent"
+                                                app:layout_constraintEnd_toEndOf="parent"
+                                                app:layout_constraintTop_toBottomOf="@id/llGender"
+                                                app:layout_constraintVertical_bias="1"
+                                                tools:text=" Administrator " />
+
+                                        </androidx.constraintlayout.widget.ConstraintLayout>
+
+                                    </com.google.android.material.card.MaterialCardView>
+
+                                </LinearLayout>
+
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/selectCapsterCustomError"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/required"
+                                android:textColor="@color/red"
+                                android:textSize="10sp"
+                                android:paddingEnd="0dp"
+                                android:visibility="gone"
+                                android:layout_below="@id/flSelectCapster"
+                                android:layout_marginHorizontal="12.5dp"
+                                android:layout_marginTop="2dp"
+                                android:letterSpacing="0.03333333" />
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvNotesWriter"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginHorizontal="4dp"
+                                app:cardElevation="0.5dp"
+                                app:cardCornerRadius="18dp"
+                                android:backgroundTint="@color/light_grey_horizons_background"
+                                android:visibility="gone"
+                                android:layout_below="@id/selectCapsterCustomError"
+                                android:clipChildren="false"
+                                android:clipToPadding="false">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="vertical"
+                                    android:paddingBottom="15dp"
+                                    android:clipChildren="false"
+                                    android:clipToPadding="false">
+
+                                    <TextView
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/label_writer_notes"
+                                        android:textStyle="bold"
+                                        android:textSize="16sp"
+                                        android:textColor="@color/dark_grey_font_color"
+                                        android:layout_marginTop="16.5dp"
+                                        android:gravity="center"
+                                        app:layout_constraintTop_toTopOf="parent"
+                                        app:layout_constraintStart_toStartOf="parent"/>
+
+                                    <com.google.android.material.card.MaterialCardView
+                                        android:id="@+id/cvWriterIdentity"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        app:cardCornerRadius="15dp"
+                                        android:layout_marginHorizontal="18dp"
+                                        android:layout_marginTop="10dp"
+                                        app:cardElevation="1dp"
+                                        android:backgroundTint="@color/white">
+
+                                        <RelativeLayout
+                                            android:layout_width="match_parent"
+                                            android:layout_height="wrap_content"
+                                            android:layout_marginHorizontal="4dp"
+                                            android:layout_marginTop="4dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:paddingVertical="20dp"
+                                            android:paddingHorizontal="20dp"
+                                            android:background="@drawable/background_user_notes">
+
+                                            <de.hdodenhof.circleimageview.CircleImageView
+                                                android:id="@+id/ivWritterPhotoProfile"
+                                                android:layout_width="43dp"
+                                                android:layout_height="43dp"
+                                                android:layout_marginStart="3dp"
+                                                android:src="@drawable/placeholder_user_profile" />
+
+                                            <TextView
+                                                android:id="@+id/tvNama"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:layout_toEndOf="@id/ivWritterPhotoProfile"
+                                                android:layout_marginStart="15dp"
+                                                android:layout_marginTop="0dp"
+                                                android:fontFamily="@font/outfit_medium"
+                                                android:text="@string/user_author"
+                                                android:textColor="#000000"
+                                                android:textSize="17sp" />
+
+                                            <TextView
+                                                android:id="@+id/tvWriterRolesLabel"
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:layout_toEndOf="@id/ivWritterPhotoProfile"
+                                                android:layout_below="@id/tvNama"
+                                                android:layout_marginStart="15dp"
+                                                android:layout_marginTop="3dp"
+                                                android:fontFamily="@font/outfit_regular"
+                                                android:text="@string/label_user_jobs"
+                                                android:textColor="#808080"
+                                                android:textSize="13sp" />
+
+                                            <TextView
+                                                android:id="@+id/tvWriterRolesValue"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="wrap_content"
+                                                android:layout_toEndOf="@id/tvWriterRolesLabel"
+                                                android:layout_alignTop="@id/tvWriterRolesLabel"
+                                                android:layout_marginStart="3dp"
+                                                android:singleLine="true"
+                                                android:ellipsize="marquee"
+                                                android:marqueeRepeatLimit="marquee_forever"
+                                                android:fontFamily="@font/outfit_regular"
+                                                tools:text="Capster"
+                                                android:textColor="@color/green_lime_wf"
+                                                android:textSize="13sp" />
+
+                                        </RelativeLayout>
+
+                                    </com.google.android.material.card.MaterialCardView>
+
+                                    <androidx.cardview.widget.CardView
+                                        android:id="@+id/cvInputNotesWriter"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="43dp"
+                                        android:layout_marginTop="7dp"
+                                        android:layout_marginStart="19.5dp"
+                                        android:layout_marginEnd="19.5dp"
+                                        android:layout_marginBottom="10dp"
+                                        app:cardElevation="1dp"
+                                        android:visibility="visible"
+                                        app:cardCornerRadius="7.61dp"
+                                        android:backgroundTint="@color/light_grey_horizons_background"
+                                        android:outlineAmbientShadowColor="@color/black"
+                                        android:outlineSpotShadowColor="@color/black">
+
+                                        <!-- AutoCompleteTextView for Dropdown -->
+                                        <com.google.android.material.textfield.TextInputLayout
+                                            android:id="@+id/tilInputNotesWriter"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            app:hintEnabled="false"
+                                            app:errorEnabled="true"
+                                            app:boxStrokeErrorColor="@color/red"
+                                            app:errorIconDrawable="@drawable/ic_error"
+                                            app:errorIconTint="@color/red"
+                                            app:errorTextColor="@color/red"
+                                            app:boxStrokeColor="@color/black"
+                                            app:boxBackgroundColor="#FFFFFF"
+                                            app:boxBackgroundMode="outline"
+                                            android:layout_alignParentStart="true"
+                                            app:boxCornerRadiusBottomEnd="7.61dp"
+                                            app:boxCornerRadiusBottomStart="7.61dp"
+                                            app:boxCornerRadiusTopEnd="7.61dp"
+                                            app:boxCornerRadiusTopStart="7.61dp">
+
+                                            <com.google.android.material.textfield.TextInputEditText
+                                                android:id="@+id/etInputNotesWriter"
+                                                android:layout_width="match_parent"
+                                                android:layout_height="match_parent"
+                                                android:inputType="text|textMultiLine"
+                                                android:hint="@string/hint_writer_notes"
+                                                android:textSize="14sp"
+                                                android:padding="5dp"/>
+
+                                        </com.google.android.material.textfield.TextInputLayout>
+
+                                    </androidx.cardview.widget.CardView>
+
+                                </LinearLayout>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/cvDetailOfBill"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                app:cardCornerRadius="22dp"
+                                app:cardElevation="0.5dp"
+                                android:layout_marginTop="13dp"
+                                android:visibility="gone"
+                                android:layout_below="@id/cvNotesWriter"
+                                android:layout_marginHorizontal="4dp"
+                                android:layout_marginBottom="153dp"
+                                android:backgroundTint="@color/light_grey_horizons_background">
+
+                                <TextView
+                                    android:id="@+id/tvLabelPaymentDetails"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/label_summary_income"
+                                    android:textSize="17sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginTop="21dp"
+                                    android:layout_gravity="center_horizontal"
+                                    android:textColor="@color/black_font_color"/>
+
+                                <androidx.appcompat.widget.LinearLayoutCompat
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="58dp"
+                                    android:layout_marginHorizontal="30dp"
+                                    android:orientation="vertical"
+                                    android:gravity="center_horizontal"
+                                    android:paddingTop="27dp"
+                                    android:paddingBottom="18dp"
+                                    android:layout_marginBottom="37dp"
+                                    android:background="@drawable/background_complete_details_bill">
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llNumberOfItem"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelNumberOfItem"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/label_number_of_items"
+                                            android:layout_weight="1"
+                                            android:textSize="12sp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvNumberOfItem"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            android:text="@string/short_number_of_total_items_template"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/black_font_color"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llSubtotalPrice"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="-3dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelSubtotalPrice"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/label_subtotal_items"
+                                            android:layout_weight="1"
+                                            android:textSize="12sp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvSubTotalPrice"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            tools:text="Rp 70.000"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/black_font_color"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llDeliveryCost"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="-3dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelDeliveryCost"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/text_delivery_cost"
+                                            android:textSize="12sp"
+                                            android:layout_weight="1"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvDeliveryCost"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            tools:text="Rp 10.000"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/black_font_color"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llSystemCost"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="-3dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelSystemCost"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/text_system_cost"
+                                            android:layout_weight="1"
+                                            android:textSize="12sp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvSystemCost"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            android:text="-"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/black_font_color"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llFeeCapster"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="-3dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelFeeCapster"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/label_fee_capster"
+                                            android:textSize="12sp"
+                                            android:layout_weight="1"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvFeeCapster"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            tools:text="-Rp 10.000"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/red"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llDiscounts"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="-3dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelDiscounts"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/text_discount_price"
+                                            android:textSize="12sp"
+                                            android:layout_weight="1"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvDiscounts"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            tools:text="-Rp 10.000"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/red"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:id="@+id/llTaxAmount"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="-3dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:id="@+id/labelTacxAmount"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/ppn_label_services"
+                                            android:layout_weight="1"
+                                            android:textSize="12sp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/platinum_grey_background" />
+
+                                        <TextView
+                                            android:id="@+id/tvPPNCost"
+                                            android:layout_width="113dp"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:maxLines="1"
+                                            android:ellipsize="end"
+                                            android:text="-"
+                                            android:textSize="12sp"
+                                            android:layout_marginTop="1dp"
+                                            android:layout_marginBottom="4dp"
+                                            android:fontFamily="@font/arial_medium"
+                                            android:textColor="@color/black_font_color"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                    <androidx.appcompat.widget.LinearLayoutCompat
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:orientation="horizontal"
+                                        android:layout_marginTop="4.2dp"
+                                        android:layout_marginHorizontal="25dp">
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:text="@string/label_total_price"
+                                            android:textSize="13.2sp"
+                                            android:layout_weight="1"
+                                            android:textStyle="bold"
+                                            android:layout_marginEnd="30dp"
+                                            android:textAlignment="textEnd"
+                                            android:textColor="@color/black" />
+
+                                        <TextView
+                                            android:id="@+id/tvTotalPriceOrders"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:textAlignment="textEnd"
+                                            android:ellipsize="end"
+                                            tools:text="Rp 60.000"
+                                            android:textSize="13.2sp"
+                                            android:fontFamily="@font/arial_bold"
+                                            android:textColor="@color/black"/>
+
+                                    </androidx.appcompat.widget.LinearLayoutCompat>
+
+                                </androidx.appcompat.widget.LinearLayoutCompat>
+
+                            </com.google.android.material.card.MaterialCardView>
+
+                        </RelativeLayout>
+
+                    </androidx.core.widget.NestedScrollView>
+
+                </FrameLayout>
+
+
+            </LinearLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomFloatArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="30dp"
+        android:elevation="10dp"
+        android:background="@drawable/background_bottom_float_area"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <ImageView
+            android:id="@+id/ivPaymentMethodIcon"
+            android:layout_width="32.5dp"
+            android:layout_height="32.5dp"
+            android:layout_marginStart="40dp"
+            android:src="@drawable/dollars"
+            android:layout_marginBottom="20dp"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/btnSaveReport"
+            android:contentDescription="@string/icon_payment_desc" />
+
+        <!--    activity_review_order_page.xml has more than 80 views, bad for performance    -->
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="3dp"
+            app:layout_constraintTop_toTopOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintBottom_toBottomOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintStart_toEndOf="@id/ivPaymentMethodIcon">
+
+            <TextView
+                android:id="@+id/tvPaymentMethod"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="UANG CASH"
+                android:fontFamily="@font/arial_medium"
+                android:textColor="@color/black"
+                android:layout_marginStart="0.7dp"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/tvPaymentAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="@string/triple_dash"
+                android:textSize="15.5sp"
+                android:layout_marginTop="1dp"
+                android:layout_marginStart="-0.4dp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ivSelectPaymentMethod"
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/ic_circle_bullet"
+            app:layout_constraintTop_toTopOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintBottom_toBottomOf="@id/ivPaymentMethodIcon"
+            app:layout_constraintEnd_toEndOf="@id/btnSaveReport"
+            app:tint="@color/charcoal_grey_background"
+            android:layout_marginTop="7dp"
+            android:layout_marginEnd="5dp"
+            android:contentDescription="@string/icon_more_desc" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnSaveReport"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="35dp"
+            android:layout_marginVertical="20dp"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="1dp"
+            android:backgroundTint="@color/black_font_color"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="47dp"
+                android:text="@string/btn_text_save_report"
+                android:textSize="14sp"
+                android:textColor="@color/green_lime_wf"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="-2dp"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>
+

@@ -22,15 +22,15 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
-import com.example.barberlink.DataClass.Employee
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.databinding.FragmentPinInputBinding
 
-// TODO: Rename parameter arguments, choose names that match
+// TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
@@ -45,9 +45,11 @@ class PinInputFragment : DialogFragment() {
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
     private lateinit var context: Context
     private val binding get() = _binding!!
-    // TODO: Rename and change types of parameters
-    private var userEmployeeData: Employee? = null
+    private val handler = Handler(Looper.getMainLooper())
+    // TNODO: Rename and change types of parameters
+    private var userEmployeeData: UserEmployeeData? = null
     private var outletSelected: Outlet? = null
+    private lateinit var textWatcher: TextWatcher
 
     // Interface yang akan diimplementasikan oleh Activity
     interface OnClearBackStackListener {
@@ -164,7 +166,7 @@ class PinInputFragment : DialogFragment() {
                 }
             }
 
-            addTextChangedListener(object : TextWatcher {
+            textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(
                     s: CharSequence?,
                     start: Int,
@@ -187,7 +189,7 @@ class PinInputFragment : DialogFragment() {
                                 )
                             )
                             binding.progressBar.visibility = View.VISIBLE
-                            Handler(Looper.getMainLooper()).postDelayed({
+                            handler.postDelayed({
                                 binding.progressBar.visibility = View.GONE
                                 sessionManager.setSessionCapster(true)
                                 userEmployeeData?.userRef?.let { sessionManager.setDataCapsterRef(it) }
@@ -206,8 +208,9 @@ class PinInputFragment : DialogFragment() {
                         }
                     }
                 }
-            })
+            }
 
+            addTextChangedListener(textWatcher)
             // requestFocus()
             setFocus(this)
         }
@@ -241,6 +244,9 @@ class PinInputFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        binding.pinView.removeTextChangedListener(textWatcher)
+        handler.removeCallbacksAndMessages(null)
+
         _binding = null
     }
 
@@ -255,12 +261,12 @@ class PinInputFragment : DialogFragment() {
          * @param param2 Parameter 2.
          * @return A new instance of fragment PinInputFragment.
          */
-        // TODO: Rename and change types and number of parameters
+        // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(employee: Employee, outletSelected: Outlet) =
+        fun newInstance(userEmployeeData: UserEmployeeData, outletSelected: Outlet) =
             PinInputFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, employee)
+                    putParcelable(ARG_PARAM1, userEmployeeData)
                     putParcelable(ARG_PARAM2, outletSelected)
                 }
             }
