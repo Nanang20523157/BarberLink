@@ -22,10 +22,12 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.example.barberlink.Adapter.ItemListCapsterAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
@@ -96,7 +98,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private var isShimmerBoardVisible: Boolean = false
     private var firstCurrentQueue: String = "00"
     private var currentToastMessage: String? = null
-    // private lateinit var outletSelected: Outlet
 
     private var todayDate: String = ""
     private lateinit var startOfDay: Timestamp
@@ -182,12 +183,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
         super.onCreate(savedInstanceState)
         binding = ActivityQueueTrackerPageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            Log.d("CheckShimmer", "Animate First Load QTP >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        } else { Log.d("CheckShimmer", "Orientation Change QTP >>> isRecreated: true") }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -210,6 +205,12 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            Log.d("CheckShimmer", "Animate First Load QTP >>> isRecreated: false")
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        } else { Log.d("CheckShimmer", "Orientation Change QTP >>> isRecreated: true") }
 
         fragmentManager = supportFragmentManager
         sessionTeller = sessionManager.getSessionTeller()
@@ -245,6 +246,20 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             fabRandomCapster.setOnClickListener(this@QueueTrackerPage)
             cvDateLabel.setOnClickListener(this@QueueTrackerPage)
             fabQueueBoard.setOnClickListener(this@QueueTrackerPage)
+
+            // Atur warna SwipeRefreshLayout agar sesuai dengan ProgressBar
+            swipeRefreshLayout.setColorSchemeColors(
+                ContextCompat.getColor(this@QueueTrackerPage, R.color.sky_blue)
+            )
+            swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
+            swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
+                if (dataTellerRef.isNotEmpty()) {
+                    showShimmer(shimmerBoard = true, shimmerList = true)
+                    getSpecificOutletData(true)
+                } else {
+                    binding.swipeRefreshLayout.isRefreshing = false
+                }
+            })
         }
 
         queueTrackerViewModel.calculateDataReservation.observe(this) { isAllData ->
@@ -371,11 +386,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             }
         } else {
             Log.d("CheckShimmer", "Enter QTP Else")
-//            queueTrackerViewModel.outletSelected.value?.let {
-//                updateActiveDevices(1, it).addOnFailureListener { err ->
-//                    Log.d("EnterQTP", "Error updating active devices: ${err.message}")
-//                }
-//            }
             // setupAutoCompleteTextView()
             queueTrackerViewModel.setReSetupDropdownCapster(true)
             Log.d("EnterQTP", "preDisplayQueueBoard OrientationChange = $isShimmerBoardVisible")
@@ -420,6 +430,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         lifecycleScope.launch {
             binding.realLayout.apply {
                 val displayCapsterList: (Boolean, Boolean?) -> Unit = { check, withShimmer ->
+                    binding.swipeRefreshLayout.isRefreshing = false
                     if (shimmerList != null) {
                         val filteredResult = queueTrackerViewModel.filteredCapsterList.value.orEmpty()
                         binding.tvEmptyCapster.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
@@ -565,8 +576,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             if (isSavedInstanceStateNull) {
                 Log.d("CheckShimmer", "Set First Date >>> savedInstanceState == null")
                 setDateFilterValue(Timestamp.now())
-            }
-            else {
+            } else {
                 Log.d("CheckShimmer", "Orientation Change Date >>> savedInstanceState != null")
                 setDateFilterValue(timeSelected)
             }
@@ -804,80 +814,86 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
 
     private fun listenSpecificOutletData() {
-        if (::outletListener.isInitialized) {
-            outletListener.remove()
-        }
-        var decrementGlobalListener = false
-
-        outletListener = db.document(dataTellerRef).addSnapshotListener { documentSnapshot, exception ->
-            if (exception != null) {
-                showToast("Error getting outlet document: ${exception.message}")
-                if (!decrementGlobalListener) {
-                    Log.d("EnterQTP", "ListenSpecificOutletData -- ${remainingListeners.get()}")
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
-                return@addSnapshotListener
+        queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
             }
+            var decrementGlobalListener = false
 
-            documentSnapshot?.let { document ->
-                if (document.exists()) {
-                    if (!isFirstLoad && !skippedProcess) {
-//                        val pastCurrentQueue = queueTrackerViewModel.outletSelected.value?.currentQueue?.toMap() ?: emptyMap()
-
-                        val outletData = document.toObject(Outlet::class.java)
-                        outletData?.let { outlet ->
-                            // Assign the document reference path to outletReference
-                            outlet.outletReference = document.reference.path
-                            // outletSelected = outlet
-                            queueTrackerViewModel.setOutletSelected(outlet)
-                            Log.d("EnterQTP", "01 Outlet Selected: ${outlet.outletName}")
-
-                            // TIDAK LAGI DIPAKAI KARENA KETIKA CURRENT QUEUE BERUBAH DATA RESERVATION HARI INI JUGA PASTI ADA YANG BERUBAH (KECUALI SEBALIKNYA JIKA ADA DATA RESERVATION YANG BERUBAH STATUSYA KE PROCESS MAKA CURRENT QUEUE BARU BERUBAH TAPI SETIAP DATA RESERVATION BERUBAH BOARD PASTI BERUBAH)
-                            // INI DIPAKEK CUMA BUAT PENGCHECKAN AJA
-//                            if (pastCurrentQueue.isNotEmpty() && (pastCurrentQueue != outlet.currentQueue)) {
-//                                Log.d("EnterQTP", "preDisplayQueueBoard ListenerOutlet = false")
-//                                preDisplayQueueBoard(false, outlet)
-                                // queueTrackerViewModel.setUpdateUIBoard(false)
-//                                queueTrackerViewModel.triggerFilteringDataCapster(null)
-//                            }
-
-                            // LIST EMPLOYEES JUGA TIDAK DI BUATKAN IMPLEMENTASINYA KARENA JIKA DATA LIST EMPLOYEES BERUBAH MAKA DATA PADA LIST PLACEMENT MILIH EMPLOYEE JUGA PASTI BERUBAH DAN TENTU PERUBAHAN PADA DATA LIST PLACEMENT SUDAH MENTRIGGER FUNCTION LISTENER_TO_CAPSTER
+            outletListener = db.document(outletSelected.rootRef)
+                .collection("outlets")
+                .document(outletSelected.uid)
+                .addSnapshotListener { documents, exception ->
+                    exception?.let {
+                        showToast("Error getting outlet document: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            Log.d("EnterQTP", "ListenSpecificOutletData -- ${remainingListeners.get()}")
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
                         }
-
+                        return@addSnapshotListener
                     }
+                    documents?.let {
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            if (!isFirstLoad && !skippedProcess && it.exists()) {
+                                val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch
+                                val updatedOutlet = it.toObject(Outlet::class.java)?.apply {
+                                    // Assign the document reference path to outletReference
+                                    outletReference = it.reference.path
+                                }
 
-                    // Kurangi counter pada snapshot pertama
-                    if (!decrementGlobalListener) {
-                        Log.d("EnterQTP", "listenSpecificOutletData ++ ${remainingListeners.get()}")
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
+                                if (updatedOutlet != null) {
+                                    Log.d("CheckListenerLog", "BBP OUTLET NAME SELECTED: ${updatedOutlet.outletName} FROM LISTENER")
+                                    Log.d("CheckListenerLog", "BBP outletData.listEmployees >> ${outletData.listEmployees}")
+                                    Log.d("CheckListenerLog", "BBP updatedOutlet.listEmployees >> ${updatedOutlet.listEmployees}")
+
+                                    // Periksa dan update list_customers jika ada perubahan
+                                    if (!areListsEqual(
+                                            outletData.listEmployees,
+                                            updatedOutlet.listEmployees
+                                        )) {
+                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletData.listEmployees, updatedOutlet.listEmployees)")
+                                        updateCapsterList(updatedOutlet)
+                                    } else Log.d("CheckListenerLog", "BBP OUTLET >>> areListsEqual(outletData.listEmployees, updatedOutlet.listEmployees)")
+
+                                    withContext(Dispatchers.Main) {
+                                        queueTrackerViewModel.setOutletSelected(updatedOutlet)
+                                        Log.d("CheckListenerLog", "queueTrackerViewModel.setOutletSelected(updatedOutlet)")
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                Log.d("EnterQTP", "listenSpecificOutletData ++ ${remainingListeners.get()}")
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
                     }
-                }
             }
         }
     }
 
-    private fun listenToCapsterData() {
-        queueTrackerViewModel.outletSelected.value?.let { outlet ->
-            val employeeUidList = outlet.listEmployees
-//            if (employeeUidList.isEmpty()) {
-//                Toast.makeText(this, "Anda belum menambahkan daftar capster untuk outlet", Toast.LENGTH_SHORT).show()
-//                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-//                return
-//            }
+    private fun <T> areListsEqual(list1: List<T>?, list2: List<T>?): Boolean {
+        return list1?.size == list2?.size &&
+                list2?.let { list1?.containsAll(it) } == true &&
+                list1?.let { list2.containsAll(it) } == true
+    }
 
+    private fun listenToCapsterData() {
+        queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
             if (::capsterListener.isInitialized) {
                 capsterListener.remove()
             }
             var decrementGlobalListener = false
 
-            capsterListener = db.document(outlet.rootRef)
+            capsterListener = db.document(outletSelected.rootRef)
                 .collection("divisions")
                 .document("capster")
                 .collection("employees")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error getting capster: ${exception.message}")
 //                        Toast.makeText(this, "QTP ??L1: exception capster", Toast.LENGTH_SHORT).show()
                         if (!decrementGlobalListener) {
@@ -887,14 +903,16 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         }
                         return@addSnapshotListener
                     }
-
                     documents?.let {
                         lifecycleScope.launch(Dispatchers.Default) {
                             if (!isFirstLoad && !skippedProcess) {
+                                val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch
+                                val employeeUidList = outletData.listEmployees
+
                                 val (newCapsterList, newCapsterNames) = it.documents.mapNotNull { document ->
                                     document.toObject(UserEmployeeData::class.java)?.apply {
                                         userRef = document.reference.path
-                                        outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                        outletRef = outletData.outletReference
                                     }?.takeIf { it1 -> it1.uid in employeeUidList && it1.availabilityStatus } // Filter availabilityStatus == true
                                         ?.let { employee ->
                                             employee to employee.fullname
@@ -907,13 +925,13 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                         capster.restOfQueue = queueTrackerViewModel.capsterWaitingCount.value?.getOrDefault(capster.userRef, 0) ?: 0
                                     }
 
-                                    Log.d("CacheChecking", "ADD CAPSTER LIST FROM LISTENER")
+                                    Log.d("CheckListenerLog", "QTP CAPSTER LIST SIZE: ${newCapsterList.size} FROM LISTENER")
 //                                    withContext(Dispatchers.Main) {
 //                                        Toast.makeText(this@QueueTrackerPage, "QTP ??L2 - ${newCapsterList.size} capster", Toast.LENGTH_SHORT).show()
 //                                    }
                                     queueTrackerViewModel.addCapsterList(newCapsterList)
                                     queueTrackerViewModel.addCapsterNames(newCapsterNames)
-                                    Log.d("EnterQTP", "02 Outlet Selected: ${outlet.outletName}")
+                                    Log.d("EnterQTP", "02 Outlet Selected: ${outletData?.outletName}")
                                     // capsterList.clear()
                                     // capsterNames.clear()
                                     // capsterList.addAll(newCapsterList)
@@ -930,7 +948,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                 queueTrackerViewModel.triggerFilteringDataCapster(false)
 
                                 queueTrackerViewModel.setReSetupDropdownCapster(true)
-
+//                                getAllReservationData()
                             }
 
                             // Kurangi counter pada snapshot pertama
@@ -949,25 +967,42 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
+    private fun updateCapsterList(updateOutlet: Outlet) {
+        lifecycleScope.launch(Dispatchers.Default) {
+            val oldCapsterList = (queueTrackerViewModel.capsterList.value ?: mutableListOf()).toList()
+
+            try {
+                Log.d("CheckListenerLog", "BBP updateCapsterList")
+                getCapsterDataTask(oldCapsterList, updateOutlet).await()
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@BarberBookingPage, "BBP ??X1 - catch service", Toast.LENGTH_SHORT).show()
+                    showToast("Error updating capster: ${e.message}")
+                }
+                throw e
+            }
+        }
+    }
+
 
     private fun listenToReservationData() {
-        queueTrackerViewModel.outletSelected.value?.let { outlet ->
+        queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
             if (::reservationListener.isInitialized) {
                 reservationListener.remove()
             }
             var decrementGlobalListener = false
 
-            reservationListener = db.collection("${outlet.rootRef}/reservations")
+            reservationListener = db.collection("${outletSelected.rootRef}/reservations")
                 .where(
                     Filter.and(
-                        Filter.equalTo("outlet_identifier", outlet.uid),
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
                         Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
                         Filter.lessThan("timestamp_to_booking", startOfNextDay)
                     )
                 )
                 .addSnapshotListener { documents, exception ->
                     Log.d("EnterQTP", "listenToReservationData >>> isFirstLoad: $isFirstLoad || skippedProcess: $skippedProcess")
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error getting reservations: ${exception.message}")
                         if (!decrementGlobalListener) {
                             Log.d("EnterQTP", "listenToReservationData -- ${remainingListeners.get()}")
@@ -976,7 +1011,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         }
                         return@addSnapshotListener
                     }
-
                     documents?.let {
                         lifecycleScope.launch(Dispatchers.Default) {
                            if (!isFirstLoad && !skippedProcess) {
@@ -987,9 +1021,8 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                }.filter { it1 -> it1.queueStatus !in listOf("pending", "expired") }
 
                                reservationMutex.withLock {
-                                   Log.d("CacheChecking", "ADD RESERVATION LIST FROM LISTENER")
+                                   Log.d("CheckListenerLog", "QTP RESERVATION LIST SIZE: ${newReservationList.size} FROM LISTENER")
                                    queueTrackerViewModel.addReservationList(newReservationList)
-                                   Log.d("EnterQTP", "03 Outlet Selected: ${outlet.outletName}")
 
                                    // reservationList.clear()
                                    // reservationList.addAll(newReservationList)
@@ -1046,6 +1079,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     }
                 }
 
+                Log.d("CheckListenerLog", "filteredResult ${filteredResult.size}")
                 queueTrackerViewModel.setFilteredCapsterList(filteredResult)
             }
 
@@ -1062,7 +1096,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
-    private fun getSpecificOutletData() {
+    private fun getSpecificOutletData(isRefreshingPage: Boolean = false) {
         Log.d("EnterQTP", "Data Teller Ref: $dataTellerRef")
         db.document(dataTellerRef).get().addOnSuccessListener { documentSnapshot ->
             if (documentSnapshot.exists()) {
@@ -1072,14 +1106,14 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 Log.d("EnterQTP", "Outlet Data: ${outletData?.outletName}")
                 Log.d("CheckShimmer", "getSpecificOutletData Success >> apakah outlet null: ${outletData == null}")
                 outletData?.let { outlet ->
-                    // outletSelected = outlet
                     queueTrackerViewModel.setOutletSelected(outlet)
 
                     lifecycleScope.launch(Dispatchers.Default) {
                         val isSameDay = isSameDay(Timestamp.now().toDate(), outlet.timestampModify.toDate())
                         Log.d("EnterQTP", "Is same day Tracker: $isSameDay")
 
-                        val updateOutletTask = if (!isSameDay) {
+                        // Update Outlet Task (di-skip jika refreshing)
+                        val updateOutletTask = if (!isRefreshingPage && !isSameDay) {
                             outlet.apply {
                                 currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
                                 timestampModify = Timestamp.now()
@@ -1089,17 +1123,21 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             Tasks.forResult(null)
                         }
 
-                        val getCapsterDataTask = getCapsterDataTask(outlet)
+                        val getCapsterDataTask = getCapsterDataTask(outletSelected = outlet)
 
                         // Tambahkan updateActiveDevices sebagai task
-                        val updateActiveDevicesTask = Tasks.call(Dispatchers.IO.asExecutor()) {
-                            updateActiveDevices(1, outlet)
-                                .addOnSuccessListener {
-                                    Log.d("CheckShimmer", "updateActiveDevices Success: ${outlet.outletName}")
-                                }
-                                .addOnFailureListener {
-                                    Log.e("CheckShimmer", "updateActiveDevices Failed")
-                                }
+                        val updateActiveDevicesTask = if (!isRefreshingPage) {
+                            Tasks.call(Dispatchers.IO.asExecutor()) {
+                                updateActiveDevices(1, outlet)
+                                    .addOnSuccessListener {
+                                        Log.d("CheckShimmer", "updateActiveDevices Success: ${outlet.outletName}")
+                                    }
+                                    .addOnFailureListener {
+                                        Log.e("CheckShimmer", "updateActiveDevices Failed")
+                                    }
+                            }
+                        } else {
+                            Tasks.forResult(null)
                         }
 
                         try {
@@ -1188,12 +1226,12 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
-    private fun getCapsterDataTask(outletSelected: Outlet): Task<Void> {
+    private fun getCapsterDataTask(oldCapsterList: List<UserEmployeeData>? = null, outletSelected: Outlet): Task<Void> {
         val taskCompletionSource = TaskCompletionSource<Void>()
 
         outletSelected.let { outlet ->
-            val employeeUidList = outlet.listEmployees
-            if (employeeUidList.isEmpty()) {
+            Log.d("CheckListenerLog", "BBP outlet.listEmployees 123 >> ${outlet.listEmployees}")
+            if (outlet.listEmployees.isEmpty() && oldCapsterList == null) {
 //                Toast.makeText(this@QueueTrackerPage, "QTP ??B0 - empty capster", Toast.LENGTH_SHORT).show()
                 taskCompletionSource.setException(Exception("Anda belum menambahkan daftar capster untuk outlet"))
                 return taskCompletionSource.task
@@ -1206,17 +1244,21 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 .get()
                 .addOnSuccessListener { documents ->
                     lifecycleScope.launch(Dispatchers.Default) {
+                        val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch // harusnya data terbaru
+                        val employeeUidList = outletData.listEmployees
+                        Log.d("CheckListenerLog", "outletData in getCapsterDataTask")
+
                         val (newCapsterList, newCapsterNames) = documents.documents.mapNotNull { document ->
                             document.toObject(UserEmployeeData::class.java)?.apply {
                                 userRef = document.reference.path
-                                outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                outletRef = outletData.outletReference ?: ""
                             }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter untuk availabilityStatus == true
                                 ?.let { employee ->
                                     employee to employee.fullname
                                 }
                         }.unzip()
 
-                        Log.d("EnterQTP", "Get Capster Data: ${outlet.outletName}")
+                        Log.d("EnterQTP", "Get Capster Data: ${outletData.outletName}")
 
                         if (newCapsterList.isEmpty()) {
                             Log.d("CheckShimmer", "getCapsterDataTask Success >> newCapsterList count: kosong")
@@ -1224,21 +1266,78 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 //                                Toast.makeText(this@QueueTrackerPage, "QTP ??B1 - 0 capster", Toast.LENGTH_SHORT).show()
 //                            }
                             taskCompletionSource.setException(Exception("Tidak ditemukan data capster yang sesuai"))
-                        } else {
-                            Log.d("CheckShimmer", "getCapsterDataTask Success >> newCapsterList count: ${newCapsterList.size}")
-                            capsterListMutex.withLock {
-                                Log.d("CacheChecking", "ADD CAPSTER LIST FROM GET CAPSTER")
-//                                withContext(Dispatchers.Main) {
-//                                    Toast.makeText(this@QueueTrackerPage, "QTP ??B2 - ${newCapsterList.size} capster", Toast.LENGTH_SHORT).show()
-//                                }
-                                queueTrackerViewModel.addCapsterList(newCapsterList)
+                            return@launch
+                        }
+
+                        Log.d("CheckShimmer", "getCapsterDataTask Success >> newCapsterList count: ${newCapsterList.size}")
+                        capsterListMutex.withLock {
+                            if (oldCapsterList != null) {
+                                val updatedCapsterList = oldCapsterList.toMutableList()
+                                // Perbarui item jika ada di list
+                                updatedCapsterList.forEach { existing ->
+                                    val matchingCapsterData = newCapsterList.find { it.uid == existing.uid }
+                                    if (matchingCapsterData != null) {
+                                        existing.apply {
+                                            accumulatedLateness = matchingCapsterData.accumulatedLateness
+                                            userReminder = matchingCapsterData.userReminder
+                                            availabilityStatus = matchingCapsterData.availabilityStatus
+                                            customerCounting = matchingCapsterData.customerCounting
+                                            email = matchingCapsterData.email
+                                            employeeRating = matchingCapsterData.employeeRating
+                                            fullname = matchingCapsterData.fullname
+                                            gender = matchingCapsterData.gender
+                                            listPlacement = matchingCapsterData.listPlacement
+                                            password = matchingCapsterData.password
+                                            phone = matchingCapsterData.phone
+                                            photoProfile = matchingCapsterData.photoProfile
+                                            pin = matchingCapsterData.pin
+                                            point = matchingCapsterData.point
+                                            positions = matchingCapsterData.positions
+                                            role = matchingCapsterData.role
+                                            roleDetail = matchingCapsterData.roleDetail
+                                            rootRef = matchingCapsterData.rootRef
+                                            salary = matchingCapsterData.salary
+                                            uid = matchingCapsterData.uid
+                                            username = matchingCapsterData.username
+                                            userNotification = matchingCapsterData.userNotification
+                                            userRef = matchingCapsterData.userRef
+                                            outletRef = matchingCapsterData.outletRef
+                                        }
+                                    }
+                                }
+
+                                // Tambah yang baru
+                                Log.d("CheckListenerLog", "BBP newCapsterList = ${newCapsterList.size}")
+                                val toAdd = newCapsterList.filter { fetched ->
+                                    updatedCapsterList.none { it.uid == fetched.uid }
+                                }
+                                Log.d("CheckListenerLog", "BBP toAdd = $toAdd")
+                                updatedCapsterList.addAll(toAdd)
+
+                                // Hapus yang sudah tidak ada
+                                val toRemove = updatedCapsterList.filterNot { current ->
+                                    newCapsterList.any { it.uid == current.uid }
+                                }
+                                Log.d("CheckListenerLog", "BBP toRemove = $toRemove")
+                                updatedCapsterList.removeAll(toRemove)
+
+                                Log.d("CheckListenerLog", "BBP oldCapsterList != null")
+                                queueTrackerViewModel.addCapsterList(updatedCapsterList)
                                 queueTrackerViewModel.addCapsterNames(newCapsterNames)
 
-                                // capsterList.clear()
-                                // capsterNames.clear()
-                                // capsterList.addAll(newCapsterList)
-                                // capsterNames.addAll(newCapsterNames)
+//                                preDisplayQueueBoard(null)
+                                // queueTrackerViewModel.setUpdateUIBoard(null)
+//                                queueTrackerViewModel.triggerFilteringDataCapster(false)
+
+                                queueTrackerViewModel.setReSetupDropdownCapster(true)
+                                getAllReservationData()
+                            } else {
+                                // Logika normal
+                                Log.d("CheckListenerLog", "BBP oldCapsterList == null")
+                                queueTrackerViewModel.addCapsterList(newCapsterList)
+                                queueTrackerViewModel.addCapsterNames(newCapsterNames)
                             }
+
                             taskCompletionSource.setResult(null)
                         }
                     }
@@ -1254,27 +1353,41 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     }
 
     private fun getAllReservationData() {
-        queueTrackerViewModel.outletSelected.value?.let { outlet ->
-            db.collection("${outlet.rootRef}/reservations")
+        queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
+            db.collection("${outletSelected.rootRef}/reservations")
                 .where(
                     Filter.and(
-                        Filter.equalTo("outlet_identifier", outlet.uid),
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
                         Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
                         Filter.lessThan("timestamp_to_booking", startOfNextDay)
                     )
                 ).get()
                 .addOnSuccessListener { documents ->
                     lifecycleScope.launch(Dispatchers.Default) {
+                        val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch
+                        val employeeUidList = outletData.listEmployees
+
                         val newReservationList = documents.mapNotNull { document ->
-                            document.toObject(Reservation::class.java).apply {
+                            val reservation = document.toObject(Reservation::class.java).apply {
                                 dataRef = document.reference.path
                             }
-                        }.filter { it.queueStatus !in listOf("pending", "expired") }
+
+                            val capsterUid = reservation.capsterInfo?.capsterRef
+                                ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
+
+                            // Filter berdasarkan queueStatus dan juga employeeUidList
+                            reservation.takeIf {
+                                it.queueStatus !in listOf("pending", "expired") &&
+                                        capsterUid != null &&
+                                        capsterUid in employeeUidList
+                            }
+                        }
+
 
                         reservationMutex.withLock {
                             Log.d("CacheChecking", "ADD RESERVATION LIST FROM GET RESERVATION")
                             queueTrackerViewModel.addReservationList(newReservationList)
-                            Log.d("EnterQTP", "Get All Reservation Data: ${outlet.outletName}")
+                            Log.d("EnterQTP", "Get All Reservation Data: ${outletSelected?.outletName}")
                             // reservationList.clear()
                             // reservationList.addAll(newReservationList)
                         }
@@ -1424,7 +1537,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 } else {
                     Log.d("CheckShimmer", "Not First Load")
                     Log.d("EnterQTP", "preDisplayQueueBoard Not First Load = false")
-                    preDisplayQueueBoard(false)
+                    preDisplayQueueBoard(isShimmerBoardVisible)
                     // queueTrackerViewModel.setUpdateUIBoard(false)
                     // filterCapster(keyword, isShimmerListVisible)
                     queueTrackerViewModel.triggerFilteringDataCapster(isShimmerListVisible)
@@ -1760,9 +1873,9 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             return
         }
 
-        queueTrackerViewModel.outletSelected.value?.let { outlet ->
+        queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
             // dialogFragment = ListQueueBoardFragment.newInstance((queueTrackerViewModel.capsterList.value ?: emptyList()).toMutableList() as ArrayList<Employee>, outlet, isSameDay(timeSelected.toDate(), outlet.timestampModify.toDate()))
-            dialogFragment = ListQueueBoardFragment.newInstance(isSameDay(timeSelected.toDate(), outlet.timestampModify.toDate()))
+            dialogFragment = ListQueueBoardFragment.newInstance(isSameDay(timeSelected.toDate(), outletSelected.timestampModify.toDate()))
             // The device is smaller, so show the fragment fullscreen.
             val transaction = fragmentManager.beginTransaction()
             // For a polished look, specify a transition animation.

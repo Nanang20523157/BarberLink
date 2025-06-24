@@ -16,11 +16,13 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
@@ -28,6 +30,7 @@ import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
+import com.example.barberlink.UserInterface.Capster.ViewModel.SelectAccountViewModel
 import com.example.barberlink.databinding.FragmentPinInputBinding
 
 // TNODO: Rename parameter arguments, choose names that match
@@ -43,13 +46,16 @@ private const val ARG_PARAM2 = "param2"
 class PinInputFragment : DialogFragment() {
     private var _binding: FragmentPinInputBinding? = null
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
+    private val pinInputViewModel: SelectAccountViewModel by activityViewModels()
     private lateinit var context: Context
     private val binding get() = _binding!!
     private val handler = Handler(Looper.getMainLooper())
+    private var currentToastMessage: String? = null
     // TNODO: Rename and change types of parameters
-    private var userEmployeeData: UserEmployeeData? = null
-    private var outletSelected: Outlet? = null
+//    private var userEmployeeData: UserEmployeeData? = null
+//    private var outletSelected: Outlet? = null
     private lateinit var textWatcher: TextWatcher
+    private var myCurrentToast: Toast? = null
 
     // Interface yang akan diimplementasikan oleh Activity
     interface OnClearBackStackListener {
@@ -60,10 +66,11 @@ class PinInputFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            userEmployeeData = it.getParcelable(ARG_PARAM1)
-            outletSelected = it.getParcelable(ARG_PARAM2)
-        }
+//        arguments?.let {
+//            userEmployeeData = it.getParcelable(ARG_PARAM1)
+//            outletSelected = it.getParcelable(ARG_PARAM2)
+//        }
+        currentToastMessage = savedInstanceState?.getString("current_toast_message", null)
 
         context = requireContext()
     }
@@ -109,6 +116,28 @@ class PinInputFragment : DialogFragment() {
             }
         }
 
+    }
+
+    private fun showToast(message: String) {
+        if (message != currentToastMessage) {
+            myCurrentToast?.cancel()
+            myCurrentToast = Toast.makeText(
+                context,
+                message ,
+                Toast.LENGTH_SHORT
+            )
+            currentToastMessage = message
+            myCurrentToast?.show()
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (currentToastMessage == message) currentToastMessage = null
+            }, 2000)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -179,33 +208,39 @@ class PinInputFragment : DialogFragment() {
 
                 @RequiresApi(Build.VERSION_CODES.S)
                 override fun afterTextChanged(s: Editable?) {
-                    if (s?.length == 6) {
-                        if (s.toString() == userEmployeeData?.pin) {
-                            setLineColor(
-                                ResourcesCompat.getColorStateList(
-                                    resources,
-                                    R.color.green_lime_wf,
-                                    null
+                    val userEmployeeData = pinInputViewModel.userEmployeeData.value
+
+                    userEmployeeData?.let {
+                        if (s?.length == 6) {
+                            if (s.toString() == userEmployeeData.pin) {
+                                setLineColor(
+                                    ResourcesCompat.getColorStateList(
+                                        resources,
+                                        R.color.green_lime_wf,
+                                        null
+                                    )
                                 )
-                            )
-                            binding.progressBar.visibility = View.VISIBLE
-                            handler.postDelayed({
-                                binding.progressBar.visibility = View.GONE
-                                sessionManager.setSessionCapster(true)
-                                userEmployeeData?.userRef?.let { sessionManager.setDataCapsterRef(it) }
-                                // Log.d("OutletSelected", "${outletSelected?.rootRef}/outlets/${outletSelected?.uid}")
-                                // outletSelected?.uid?.let { sessionManager.setOutletSelectedRef("${outletSelected?.rootRef}/outlets/$it") }
-                                navigatePage(context, HomePageCapster::class.java)
-                            }, 800)
-                        } else {
-                            setLineColor(
-                                ResourcesCompat.getColorStateList(
-                                    resources,
-                                    R.color.red,
-                                    null
+                                binding.progressBar.visibility = View.VISIBLE
+                                handler.postDelayed({
+                                    binding.progressBar.visibility = View.GONE
+                                    sessionManager.setSessionCapster(true)
+                                    userEmployeeData.userRef.let { sessionManager.setDataCapsterRef(it) }
+                                    // Log.d("OutletSelected", "${outletSelected?.rootRef}/outlets/${outletSelected?.uid}")
+                                    // outletSelected?.uid?.let { sessionManager.setOutletSelectedRef("${outletSelected?.rootRef}/outlets/$it") }
+                                    navigatePage(context, HomePageCapster::class.java)
+                                }, 800)
+                            } else {
+                                setLineColor(
+                                    ResourcesCompat.getColorStateList(
+                                        resources,
+                                        R.color.red,
+                                        null
+                                    )
                                 )
-                            )
+                            }
                         }
+                    } ?: run {
+                        showToast("PIN pegawai belum diatur. Silakan atur PIN terlebih dahulu.")
                     }
                 }
             }
@@ -227,7 +262,7 @@ class PinInputFragment : DialogFragment() {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, requireContext(), false) {
             val intent = Intent(context, destination)
             intent.apply {
-                putExtra(USER_DATA_KEY, userEmployeeData)
+                putExtra(USER_DATA_KEY, pinInputViewModel.userEmployeeData.value)
                 // putExtra(PinInputFragment.OUTLET_DATA_KEY, outletSelected)
                 // flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             }
@@ -270,6 +305,9 @@ class PinInputFragment : DialogFragment() {
                     putParcelable(ARG_PARAM2, outletSelected)
                 }
             }
+
+        @JvmStatic
+        fun newInstance() = PinInputFragment()
     }
 
 }

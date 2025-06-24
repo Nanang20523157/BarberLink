@@ -92,7 +92,7 @@
     </com.facebook.shimmer.ShimmerFrameLayout>
 
     <com.facebook.shimmer.ShimmerFrameLayout
-        android:id="@+id/shimmer_view_container"
+        android:id="@+id/shimmer_view_container3"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:shimmer_auto_start="true"

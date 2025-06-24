@@ -175,11 +175,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
 
         super.onCreate(savedInstanceState)
         binding = ActivityApproveOrRejectBonPageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -187,6 +182,11 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         fragmentManager = supportFragmentManager
         val adminRef = sessionManager.getDataAdminRef()
@@ -872,13 +872,12 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     }
                     return@addSnapshotListener
                 }
-
-                documents?.let { snapshot ->
-                    val metadata = snapshot.metadata
+                documents?.let {
+                    val metadata = it.metadata
 
                     if (!isFirstLoad && !skippedProcess) {
                         lifecycleScope.launch(Dispatchers.Default) {
-                            val (newCapsterList, newCapsterNames) = snapshot.documents.mapNotNull { document ->
+                            val (newCapsterList, newCapsterNames) = it.documents.mapNotNull { document ->
                                 document.toObject(UserEmployeeData::class.java)?.apply {
                                     userRef = document.reference.path
                                     outletRef = ""
@@ -934,7 +933,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     }
                     return@addSnapshotListener
                 }
-
                 documents?.let {
                     val metadata = it.metadata
 
@@ -1020,7 +1018,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                 }
                 return@addSnapshotListener
             }
-
             documents?.let {
                 val metadata = it.metadata
 

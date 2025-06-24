@@ -79,11 +79,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
         super.onCreate(savedInstanceState)
         binding = ActivityManageOutletPageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -91,6 +86,11 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
@@ -289,7 +289,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         employeeListener = db.collectionGroup("employees")
             .whereEqualTo("root_ref", "barbershops/$barbershopId")
             .addSnapshotListener { documents, exception ->
-                if (exception != null) {
+                exception?.let {
                     showToast("Error listening to employee data: ${exception.message}")
                     if (!decrementGlobalListener) {
                         if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -297,13 +297,12 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                     }
                     return@addSnapshotListener
                 }
-
-                documents?.let { snapshot ->
-                    val metadata = snapshot.metadata
+                documents?.let {
+                    val metadata = it.metadata
 
                     // Jalankan pengolahan data di background thread
                     if (!isFirstLoad && !skippedProcess) {
-                        val newUserEmployeeListData = snapshot.mapNotNull { document ->
+                        val newUserEmployeeListData = it.mapNotNull { document ->
                             document.toObject(UserEmployeeData::class.java)
                         }
 
@@ -350,7 +349,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             .document(barbershopId)
             .collection("outlets")
             .addSnapshotListener { documents, exception ->
-                if (exception != null) {
+                exception?.let {
                     showToast("Error listening to outlets data: ${exception.message}")
                     if (!decrementGlobalListener) {
                         if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -358,14 +357,13 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                     }
                     return@addSnapshotListener
                 }
-
-                documents?.let { snapshot ->
-                    val metadata = snapshot.metadata
+                documents?.let {
+                    val metadata = it.metadata
 
                     // Jalankan pengolahan data di background thread
                     lifecycleScope.launch(Dispatchers.Default) {
                         if (!isFirstLoad && !skippedProcess) {
-                            val newOutletsList = snapshot.mapNotNull { document ->
+                            val newOutletsList = it.mapNotNull { document ->
                                 document.toObject(Outlet::class.java).apply {
                                     // Cek apakah UID outlet ada di collapseStateMap
                                     // isCollapseCard = extendedStateMap[uid] ?: true

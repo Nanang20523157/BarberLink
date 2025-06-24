@@ -122,6 +122,7 @@ class ItemListCollapseQueueAdapter(
         }
 
         isShimmer = shimmer
+        Log.d("DisDisDIs", "4444 beta")
         notifyDataSetChanged()
 
         recyclerView?.post {

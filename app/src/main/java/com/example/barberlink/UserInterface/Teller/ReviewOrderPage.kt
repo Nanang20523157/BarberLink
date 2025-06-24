@@ -32,7 +32,6 @@ import com.example.barberlink.DataClass.CapsterInfo
 import com.example.barberlink.DataClass.DataCreator
 import com.example.barberlink.DataClass.ItemInfo
 import com.example.barberlink.DataClass.LocationPoint
-import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.PaymentDetail
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.Service
@@ -118,11 +117,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
         super.onCreate(savedInstanceState)
         binding = ActivityReviewOrderPageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -155,6 +149,11 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
         shareDataViewModelFactory = Injection.provideViewModelFactory()
@@ -196,22 +195,22 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             setDateFilterValue(timeSelected)
         } else {
             @Suppress("DEPRECATION")
-            val outletSelected: Outlet
-            val capsterSelected: UserEmployeeData
-            val customerData: UserCustomerData
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                outletSelected = intent.getParcelableExtra(BarberBookingPage.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
-                capsterSelected = intent.getParcelableExtra(BarberBookingPage.CAPSTER_DATA_KEY, UserEmployeeData::class.java) ?: UserEmployeeData()
-                customerData = intent.getParcelableExtra(BarberBookingPage.CUSTOMER_DATA_KEY, UserCustomerData::class.java) ?: UserCustomerData()
-            } else {
-                outletSelected = intent.getParcelableExtra(BarberBookingPage.OUTLET_DATA_KEY) ?: Outlet()
-                capsterSelected = intent.getParcelableExtra(BarberBookingPage.CAPSTER_DATA_KEY) ?: UserEmployeeData()
-                customerData = intent.getParcelableExtra(BarberBookingPage.CUSTOMER_DATA_KEY) ?: UserCustomerData()
-            }
-
-            reviewOrderViewModel.setOutletSelected(outletSelected)
-            reviewOrderViewModel.setCapsterSelected(capsterSelected)
-            reviewOrderViewModel.setCustomerData(customerData)
+//            val outletSelected: Outlet
+//            val capsterSelected: UserEmployeeData
+//            val customerData: UserCustomerData
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                outletSelected = intent.getParcelableExtra(BarberBookingPage.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
+//                capsterSelected = intent.getParcelableExtra(BarberBookingPage.CAPSTER_DATA_KEY, UserEmployeeData::class.java) ?: UserEmployeeData()
+//                customerData = intent.getParcelableExtra(BarberBookingPage.CUSTOMER_DATA_KEY, UserCustomerData::class.java) ?: UserCustomerData()
+//            } else {
+//                outletSelected = intent.getParcelableExtra(BarberBookingPage.OUTLET_DATA_KEY) ?: Outlet()
+//                capsterSelected = intent.getParcelableExtra(BarberBookingPage.CAPSTER_DATA_KEY) ?: UserEmployeeData()
+//                customerData = intent.getParcelableExtra(BarberBookingPage.CUSTOMER_DATA_KEY) ?: UserCustomerData()
+//            }
+//
+            sharedReserveViewModel.outletSelected.value?.let { reviewOrderViewModel.setOutletSelected(it) }
+            sharedReserveViewModel.capsterSelected.value?.let { reviewOrderViewModel.setCapsterSelected(it) }
+            sharedReserveViewModel.customerSelected.value?.let { reviewOrderViewModel.setCustomerData(it) }
             val timeSelectedSeconds = intent.getLongExtra(QueueTrackerPage.TIME_SECONDS_KEY, 0L)
             val timeSelectedNanos = intent.getIntExtra(QueueTrackerPage.TIME_NANOS_KEY, 0)
             setDateFilterValue(Timestamp(timeSelectedSeconds, timeSelectedNanos))
@@ -252,11 +251,11 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         sharedReserveViewModel.itemSelectedCounting.observe(this) {
             Log.d("OBServerRev", "current itemCount: ${it}")
             // After modifying the quantities, recalculate the payment details
-            val filteredServices = sharedReserveViewModel.servicesList.value?.filter { it.serviceQuantity > 0 } ?: emptyList()
-            val filteredBundlingPackages = sharedReserveViewModel.bundlingPackagesList.value?.filter { it.bundlingQuantity > 0 } ?: emptyList()
+            val filteredServices = sharedReserveViewModel.servicesList.value?.filter { it1 -> it1.serviceQuantity > 0 } ?: emptyList()
+            val filteredBundlingPackages = sharedReserveViewModel.bundlingPackagesList.value?.filter { it2 -> it2.bundlingQuantity > 0 } ?: emptyList()
 
             // Call calculateValues to recalculate payment details
-            calculateValues(filteredServices, filteredBundlingPackages)
+            calculateValues(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected(), reviewOrderViewModel.getCustomerData())
         }
 
         reviewOrderViewModel.reservationResult.observe(this) { state ->
@@ -297,10 +296,52 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             }
         }
 
+        sharedReserveViewModel.outletSelected.observe(this) { outlet ->
+            if (!reviewOrderViewModel.getIsFirstLoad()) {
+                outlet?.let { reviewOrderViewModel.setOutletSelected(outlet) }
+            }
+        }
+
+        sharedReserveViewModel.capsterSelected.observe(this) { capster ->
+            if (!reviewOrderViewModel.getIsFirstLoad()) {
+                capster?.let {
+                    // Mengambil data capster dan mengupdate UI
+                    reviewOrderViewModel.setCapsterSelected(it)
+                    displayCapsterData(it)
+                }
+            }
+        }
+
+        sharedReserveViewModel.customerSelected.observe(this) { customer ->
+            if (!reviewOrderViewModel.getIsFirstLoad()) {
+                customer?.let {
+                    // Mengambil data customer dan mengupdate UI
+                    reviewOrderViewModel.setCustomerData(customer)
+                    displayCustomerData(customer)
+                }
+
+            }
+        }
+
+        sharedReserveViewModel.servicesList.observe(this) { services ->
+            Log.d("ReviewOrderPage", "Services list updated: ${services.size} items")
+            // Update the service adapter with the new list
+            serviceAdapter.submitList(services.filter { it.serviceQuantity > 0 })
+            serviceAdapter.notifyDataSetChanged()
+        }
+
+        sharedReserveViewModel.bundlingPackagesList.observe(this) { bundlingPackages ->
+            Log.d("ReviewOrderPage", "Bundling packages list updated: ${bundlingPackages.size} items")
+            // Update the bundling adapter with the new list
+            bundlingAdapter.submitList(bundlingPackages.filter { it.bundlingQuantity > 0 })
+            bundlingAdapter.notifyDataSetChanged()
+            binding.rlBundlings.visibility = if (bundlingPackages.isEmpty()) View.GONE else View.VISIBLE
+        }
+
         // Set up the switch listener
         binding.switchUseCoins.setOnCheckedChangeListener { _, isChecked: Boolean ->
             isCoinSwitchOn = isChecked
-            updateCoinsUsage()
+            updateCoinsUsage(reviewOrderViewModel.getCustomerData())
         }
 
         binding.apply {
@@ -569,14 +610,24 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         bundlingAdapter.submitList(filteredBundlingPackages)
         binding.rlBundlings.visibility = if (filteredBundlingPackages.isEmpty()) View.GONE else View.VISIBLE
 
-        val reviewCount = 2134
+        displayCustomerData(reviewOrderViewModel.getCustomerData())
+        displayCapsterData(reviewOrderViewModel.getCapsterSelected())
+        binding.tvKodePromo.text = setPromoCodeText(promoCode)
+        binding.tvNumberOfClaimKode.text = getString(R.string.claim_amount_promo, promoCode.size)
 
+        calculateValues(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected(), reviewOrderViewModel.getCustomerData())
+        Log.d("LastScroll", "lastScrollPositition: $lastScrollPositition")
+        serviceAdapter.setlastScrollPosition(lastScrollPositition)
+        setupRecyclerViewWithIndicators(filteredServices.size)
+    }
+
+    private fun displayCustomerData(customerData: UserCustomerData) {
         with(binding) {
-            if (reviewOrderViewModel.getCustomerData().photoProfile.isNotEmpty()) {
+            if (customerData.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
                     Glide.with(this@ReviewOrderPage)
-                        .load(reviewOrderViewModel.getCustomerData().photoProfile)
+                        .load(customerData.photoProfile)
                         .placeholder(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
@@ -588,19 +639,26 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             }
 
             // Set User Customer Data
-            realLayoutCustomer.tvCustomerName.text = reviewOrderViewModel.getCustomerData().fullname
-            val username = reviewOrderViewModel.getCustomerData().username.ifEmpty { "---" }
+            realLayoutCustomer.tvCustomerName.text = customerData.fullname
+            val username = customerData.username.ifEmpty { "---" }
             realLayoutCustomer.tvUsername.text = getString(R.string.username_template, username)
-            val formattedPhone = PhoneUtils.formatPhoneNumberWithZero(reviewOrderViewModel.getCustomerData().phone)
+            val formattedPhone = PhoneUtils.formatPhoneNumberWithZero(customerData.phone)
             realLayoutCustomer.tvCustomerPhone.text = getString(R.string.phone_template, formattedPhone)
-            setUserGender(reviewOrderViewModel.getCustomerData().gender)
-            setMembershipStatus(reviewOrderViewModel.getCustomerData().membership)
+            setUserGender(customerData.gender)
+            setMembershipStatus(customerData.membership)
 
-            if (reviewOrderViewModel.getCapsterSelected().photoProfile.isNotEmpty()) {
+            tvUserCoins.text = getString(R.string.exchange_coin_template, customerData.userCoins.toString())
+        }
+    }
+
+    private fun displayCapsterData(capsterData: UserEmployeeData) {
+        val reviewCount = 2134
+        with(binding) {
+            if (capsterData.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
                     Glide.with(this@ReviewOrderPage)
-                        .load(reviewOrderViewModel.getCapsterSelected().photoProfile)
+                        .load(capsterData.photoProfile)
                         .placeholder(
                             ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
                         .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
@@ -611,25 +669,18 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                 realLayoutCapster.ivCapsterPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
             }
 
-            if (reviewOrderViewModel.getCapsterSelected().uid.isNotEmpty()) {
-                realLayoutCapster.tvCapsterName.text = reviewOrderViewModel.getCapsterSelected().fullname.ifEmpty { "???" }
-                realLayoutCapster.tvReviewsAmount.text = if (reviewOrderViewModel.getCapsterSelected().fullname.isNotEmpty()) getString(R.string.template_number_of_reviews, reviewCount) else "(??? Reviews)"
+            if (capsterData.uid.isNotEmpty()) {
+                realLayoutCapster.tvCapsterName.text = capsterData.fullname.ifEmpty { "???" }
+                realLayoutCapster.tvReviewsAmount.text = if (capsterData.fullname.isNotEmpty()) getString(R.string.template_number_of_reviews, reviewCount) else "(??? Reviews)"
             }
-
-            tvKodePromo.text = setPromoCodeText(promoCode)
-            tvNumberOfClaimKode.text = getString(R.string.claim_amount_promo, promoCode.size)
-            tvUserCoins.text = getString(R.string.exchange_coin_template, reviewOrderViewModel.getCustomerData().userCoins.toString())
-
-            calculateValues(filteredServices, filteredBundlingPackages)
-            Log.d("LastScroll", "lastScrollPositition: $lastScrollPositition")
-            serviceAdapter.setlastScrollPosition(lastScrollPositition)
-            setupRecyclerViewWithIndicators(filteredServices.size)
         }
     }
 
     private fun calculateValues(
         filteredServices: List<Service>,
-        filteredBundlingPackages: List<BundlingPackage>
+        filteredBundlingPackages: List<BundlingPackage>,
+        capsterData: UserEmployeeData,
+        customerData: UserCustomerData
     ) {
         lifecycleScope.launch(Dispatchers.Default) {
             val totalQuantityDeferred = async {
@@ -643,7 +694,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             }
 
             val shareProfitDeferred = async {
-                calculateTotalShareProfit(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected().uid)
+                calculateTotalShareProfit(filteredServices, filteredBundlingPackages, capsterData.uid)
             }
 
             totalQuantity = totalQuantityDeferred.await()
@@ -652,14 +703,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
             withContext(Dispatchers.Main) {
                 // Example call to update coins usage with initial values
-                updateCoinsUsage()
+                updateCoinsUsage(customerData)
             }
 
         }
     }
 
-    private fun updateCoinsUsage() {
-        val availableCoins = reviewOrderViewModel.getCustomerData().userCoins // Get the available coins
+    private fun updateCoinsUsage(customerData: UserCustomerData) {
+        val availableCoins = customerData.userCoins // Get the available coins
 
         coinsUse = if (isCoinSwitchOn) { // Check if the switch is on
             // Determine the amount of coins to use

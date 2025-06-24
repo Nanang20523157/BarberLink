@@ -33,11 +33,6 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpSuccessBinding.inflate(layoutInflater)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -45,6 +40,11 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         @Suppress("DEPRECATION")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

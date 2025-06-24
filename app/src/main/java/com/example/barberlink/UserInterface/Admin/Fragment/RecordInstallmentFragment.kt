@@ -372,18 +372,17 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
         val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
 
-        employeeBonListener = documentRef.addSnapshotListener { document, exception ->
+        employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
             exception?.let {
                 showToast("Error listening to employee bon data: ${it.message}")
                 isFirstLoad = false
                 return@addSnapshotListener
             }
-
-            document?.let {
+            documents?.let {
                 val metadata = it.metadata
 
                 lifecycleScope.launch(Dispatchers.Default) {
-                    if ((!isFirstLoad && !isOrientationChanged) || isProcessUpdatingData) {
+                    if ((!isFirstLoad && !isOrientationChanged && it.exists()) || isProcessUpdatingData) {
                         val bonData = it.toObject(BonEmployeeData::class.java)
                         bonData?.let { bon ->
                             recordInstallmentViewModel.setBonEmployeeData(bon)

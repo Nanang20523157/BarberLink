@@ -11,6 +11,8 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.Event
+import com.google.firebase.Timestamp
+import java.util.Locale
 
 class SharedReserveViewModel : ViewModel() {
 
@@ -88,9 +90,25 @@ class SharedReserveViewModel : ViewModel() {
     private val _outletSelected = MutableLiveData<Outlet>()
     val outletSelected: LiveData<Outlet> = _outletSelected
 
+    private val _capsterSelected = MutableLiveData<UserEmployeeData?>()
+    val capsterSelected: LiveData<UserEmployeeData?> = _capsterSelected
+
+    private val _customerSelected = MutableLiveData<UserCustomerData?>()
+    val customerSelected: LiveData<UserCustomerData?> = _customerSelected
+
     fun setOutletSelected(outlet: Outlet) {
         Log.d("ScanAll", "A2")
         _outletSelected.value = outlet
+    }
+
+    fun setCapsterSelected(capster: UserEmployeeData?) {
+        Log.d("ScanAll", "A1")
+        _capsterSelected.value = capster
+    }
+
+    fun setCustomerSelected(customer: UserCustomerData?) {
+        Log.d("ScanAll", "A3")
+        _customerSelected.value = customer
     }
 
     fun showSnackBarToAll(fullname: String, gender: String, message: String) {
@@ -123,11 +141,82 @@ class SharedReserveViewModel : ViewModel() {
         }
     }
 
-    fun setCustomerList(customerList: List<UserCustomerData>) {
-        Log.d("ScanAll", "F2")
-        synchronized(listLock) {
-            Log.d("CacheChecking", "setCustomerList --> customerList size: ${customerList.size}")
-            _customerList.value = customerList
+    fun setCustomerList(
+        lowerCaseQuery: String,
+        newCustomerList: List<UserCustomerData>,
+        isFromListener: Boolean = false,
+    ) = synchronized(listLock) {
+        val updatedCustomerList = _customerList.value?.toMutableList() ?: mutableListOf()
+        val updatedFilteredList = _filteredCustomerList.value?.toMutableList() ?: mutableListOf()
+        Log.d("XYZChecking", "setCustomerList --> new size: ${newCustomerList.size} XXX isFromListener: $isFromListener")
+
+        if (!isFromListener) {
+            Log.d("XYZChecking", "updatedCustomerList.addAll(newCustomerList)")
+            updatedCustomerList.clear()
+            updatedCustomerList.addAll(newCustomerList)
+        } else {
+            newCustomerList.forEach { newCustomerData ->
+                val existingCustomer = updatedCustomerList.find { it.uid == newCustomerData.uid }
+                if (existingCustomer != null) {
+                    Log.d("XYZChecking", "if (existingCustomer != null)")
+                    existingCustomer.apply {
+                        userReminder = newCustomerData.userReminder
+                        email = newCustomerData.email
+                        fullname = newCustomerData.fullname
+                        gender = newCustomerData.gender
+                        membership = newCustomerData.membership
+                        password = newCustomerData.password
+                        phone = newCustomerData.phone
+                        photoProfile = newCustomerData.photoProfile
+                        userNotification = newCustomerData.userNotification
+                        uid = newCustomerData.uid
+                        username = newCustomerData.username
+                        userCoins = newCustomerData.userCoins
+                        lastReserve = newCustomerData.lastReserve
+                        // dataSelected = newCustomerData.dataSelected
+                        // guestAccount = newCustomerData.guestAccount
+                        userRef = newCustomerData.userRef
+                    }
+                } else {
+                    Log.d("XYZChecking", "<<<!!!>>> if (existingCustomer == null)")
+                    updatedCustomerList.add(newCustomerData)
+
+                    if (newCustomerData.phone.lowercase(Locale.getDefault()).contains(lowerCaseQuery)) {
+                        Log.d("XYZChecking", "data baru dengan query yang cocok ditemukan: ${newCustomerData.phone}")
+                        // Tambahkan ke filtered list hanya jika belum ada uid yang sama
+                        val isAlreadyInFilteredList = updatedFilteredList.any { it.uid == newCustomerData.uid }
+                        if (!isAlreadyInFilteredList) {
+                            val insertAt = updatedFilteredList.indexOfFirst {
+                                (it.lastReserve ?: Timestamp(0, 0)) < (newCustomerData.lastReserve ?: Timestamp(0, 0))
+                            }
+                            val insertIndex = if (insertAt == -1) updatedFilteredList.size else insertAt
+                            updatedFilteredList.add(insertIndex, newCustomerData)
+                        }
+                    } else {
+                        Log.d("XYZChecking", "<<<___>>> data baru dengan query yang cocok tidak ditemukan: ${newCustomerData.phone}")
+                    }
+                }
+            }
+
+            val customerToRemove = updatedCustomerList.filterNot { updated ->
+                newCustomerList.any { it.uid == updated.uid }
+            }
+            if (customerToRemove.isNotEmpty()) {
+                Log.d("XYZChecking", "customerToRemove size: ${customerToRemove.size}")
+                updatedCustomerList.removeAll(customerToRemove)
+                updatedFilteredList.removeAll(customerToRemove)
+            }
+        }
+
+        _customerList.value = updatedCustomerList
+        if (isFromListener) {
+            if (updatedFilteredList.size > 10) {
+                val trimmedFilteredList = updatedFilteredList.subList(0, 10)
+                _filteredCustomerList.value = trimmedFilteredList.toMutableList()
+            } else {
+                _filteredCustomerList.value = updatedFilteredList
+            }
+            _letsFilteringDataCustomer.value = false
         }
     }
 
@@ -268,66 +357,50 @@ class SharedReserveViewModel : ViewModel() {
 
     fun setUpAndSortedBundling(
         currentBundlingList: MutableList<BundlingPackage>,
-        capsterSelected: UserEmployeeData,
-        oldBundlingList: List<BundlingPackage>?
+        capsterSelected: UserEmployeeData
     ) = synchronized(this) {
         Log.d("ScanAll", "Q2")
-        val updatedBundlingList = oldBundlingList?.toMutableList() ?: mutableListOf()
+        val updatedBundlingList = _bundlingPackagesList.value?.toMutableList() ?: mutableListOf()
         Log.d("CacheChecking", "setUpAndSortedBundling --> oldBundlinglist size: ${updatedBundlingList.size}")
         Log.d("CacheChecking", "setUpAndSortedBundling --> currentBundlinglist size: ${currentBundlingList.size}")
 
-        if (oldBundlingList.isNullOrEmpty()) {
+        if (updatedBundlingList.isEmpty()) {
             // Jika oldBundlingList null, gunakan currentBundlingList
             currentBundlingList.forEach { bundling ->
-                bundling.apply {
-                    if (autoSelected || defaultItem) {
-                        bundlingQuantity = 1 // Set default quantity
-                        addItemSelectedCounting(packageName, "package")
-                    }
-                    // Atur properti lainnya
-                    listItemDetails = _servicesList.value?.filter { service ->
-                        listItems.contains(service.uid)
-                    } ?: emptyList()
-                    Log.d("CacheChecking", "setUpAndSortedBundling --> listservice contain 3: ${listItemDetails?.size} || ${bundling.packageName}")
-
-                    priceToDisplay = calculatePriceToDisplay(
-                        packagePrice,
-                        resultsShareFormat,
-                        resultsShareAmount,
-                        applyToGeneral,
-                        capsterSelected.uid
-                    )
-                }
+                applyFieldBundling(bundling, capsterSelected)
             }
             updatedBundlingList.addAll(currentBundlingList) // Tambahkan semua item dari currentBundlingList
         } else {
-            // Jika oldBundlingList tidak null, perbarui properti dari existing item
-            updatedBundlingList.forEach { existingBundling ->
-                val matchingCurrentBundling = currentBundlingList.find { it.uid == existingBundling.uid }
-                if (matchingCurrentBundling != null) {
+            currentBundlingList.forEach { currentBundling ->
+                // Cek apakah bundling dengan UID yang sama sudah ada
+                val existingBundling = updatedBundlingList.find { it.uid == currentBundling.uid }
+                if (existingBundling == null) {
+                    // Jika tidak ada, tambahkan bundling baru
+                    applyFieldBundling(currentBundling, capsterSelected)
+                    updatedBundlingList.add(currentBundling)
+                } else {
+                    // Jika ada, perbarui properti dari existing item
                     existingBundling.apply {
-                        // Perbarui semua properti dari matching item tanpa mengganti referensi
-                        accumulatedPrice = matchingCurrentBundling.accumulatedPrice
-                        applyToGeneral = matchingCurrentBundling.applyToGeneral
-                        autoSelected = matchingCurrentBundling.autoSelected
-                        defaultItem = matchingCurrentBundling.defaultItem
-                        listItems = matchingCurrentBundling.listItems
-                        packageCounting = matchingCurrentBundling.packageCounting
-                        packageDesc = matchingCurrentBundling.packageDesc
-                        packageDiscount = matchingCurrentBundling.packageDiscount
-                        packageName = matchingCurrentBundling.packageName
-                        packagePrice = matchingCurrentBundling.packagePrice
-                        packageRating = matchingCurrentBundling.packageRating
-                        resultsShareAmount = matchingCurrentBundling.resultsShareAmount
-                        resultsShareFormat = matchingCurrentBundling.resultsShareFormat
-                        rootRef = matchingCurrentBundling.rootRef
-                        uid = matchingCurrentBundling.uid
-                        //bundlingQuantity = matchingCurrentBundling.bundlingQuantity
+                        accumulatedPrice = currentBundling.accumulatedPrice
+                        applyToGeneral = currentBundling.applyToGeneral
+                        autoSelected = currentBundling.autoSelected
+                        defaultItem = currentBundling.defaultItem
+                        listItems = currentBundling.listItems
+                        packageCounting = currentBundling.packageCounting
+                        packageDesc = currentBundling.packageDesc
+                        packageDiscount = currentBundling.packageDiscount
+                        packageName = currentBundling.packageName
+                        packagePrice = currentBundling.packagePrice
+                        packageRating = currentBundling.packageRating
+                        resultsShareAmount = currentBundling.resultsShareAmount
+                        resultsShareFormat = currentBundling.resultsShareFormat
+                        rootRef = currentBundling.rootRef
+                        uid = currentBundling.uid
 
                         listItemDetails = _servicesList.value?.filter { service ->
                             listItems.contains(service.uid)
                         } ?: emptyList()
-                        Log.d("CacheChecking", "setUpAndSortedBundling --> listservice contain 2: ${listItemDetails?.size} || ${existingBundling.packageName}")
+                        Log.d("CacheChecking", "setUpAndSortedBundling --> listservice contain 1: ${listItemDetails?.size} || ${packageName}")
 
                         priceToDisplay = calculatePriceToDisplay(
                             packagePrice,
@@ -339,13 +412,6 @@ class SharedReserveViewModel : ViewModel() {
                     }
                 }
             }
-
-            // Tambahkan item dari currentBundlingList yang tidak ada di oldBundlingList
-            val newBundlings = currentBundlingList.filter { current ->
-                updatedBundlingList.none { it.uid == current.uid }
-            }
-            updatedBundlingList.addAll(newBundlings)
-
             // Hapus item dari updatedBundlingList yang tidak ada di currentBundlingList
             val bundlingsToRemove = updatedBundlingList.filterNot { existingBundling ->
                 currentBundlingList.any { it.uid == existingBundling.uid }
@@ -363,6 +429,28 @@ class SharedReserveViewModel : ViewModel() {
         // Update _bundlingPackagesList dengan referensi yang telah diperbarui
         _bundlingPackagesList.value = updatedBundlingList
         Log.d("LifeAct", "observer 158: setUpAndSortedBundling")
+    }
+
+    private fun applyFieldBundling(bundling: BundlingPackage, capsterSelected: UserEmployeeData) = synchronized(this) {
+        bundling.apply {
+            if (autoSelected || defaultItem) {
+                bundlingQuantity = 1 // Set default quantity
+                addItemSelectedCounting(packageName, "package")
+            }
+            // Atur properti lainnya
+            listItemDetails = _servicesList.value?.filter { service ->
+                listItems.contains(service.uid)
+            } ?: emptyList()
+            Log.d("CacheChecking", "setUpAndSortedBundling --> listservice contain 3: ${listItemDetails?.size} || ${bundling.packageName}")
+
+            priceToDisplay = calculatePriceToDisplay(
+                packagePrice,
+                resultsShareFormat,
+                resultsShareAmount,
+                applyToGeneral,
+                capsterSelected.uid
+            )
+        }
     }
 
     fun setServiceBundlingList() = synchronized(this) {
@@ -387,59 +475,48 @@ class SharedReserveViewModel : ViewModel() {
 
     fun setUpAndSortedServices(
         currentServicesList: MutableList<Service>,
-        capsterSelected: UserEmployeeData,
-        oldServiceList: List<Service>?
+        capsterSelected: UserEmployeeData
     ) = synchronized(this) {
         Log.d("ScanAll", "S2")
-        val updatedServicesList = oldServiceList?.toMutableList() ?: mutableListOf()
+        val updatedServicesList = _servicesList.value?.toMutableList() ?: mutableListOf()
         Log.d("CacheChecking", "setUpAndSortedServices --> oldServiceList size: ${updatedServicesList.size}")
         Log.d("CacheChecking", "setUpAndSortedServices --> currentServicesList size: ${currentServicesList.size}")
 
-        if (oldServiceList.isNullOrEmpty()) {
+        if (updatedServicesList.isEmpty()) {
             // Jika oldServiceList null, gunakan currentServicesList
             currentServicesList.forEach { service ->
-                service.apply {
-                    if (autoSelected || defaultItem) {
-                        serviceQuantity = 1 // Set default quantity
-                        addItemSelectedCounting(service.serviceName, "service")
-                    }
-
-                    // Perhitungan priceToDisplay pada service
-                    priceToDisplay = calculatePriceToDisplay(
-                        servicePrice,
-                        resultsShareFormat,
-                        resultsShareAmount,
-                        applyToGeneral,
-                        capsterSelected.uid
-                    )
-                }
+                applyFieldService(service, capsterSelected)
             }
             updatedServicesList.addAll(currentServicesList) // Tambahkan semua item dari currentServicesList
         } else {
-            // Jika oldServiceList tidak null, perbarui properti dari existing item
-            updatedServicesList.forEach { existingService ->
-                val matchingCurrentService = currentServicesList.find { it.uid == existingService.uid }
-                if (matchingCurrentService != null) {
+            currentServicesList.forEach { currentService ->
+                // Cek apakah service dengan UID yang sama sudah ada
+                val existingService = updatedServicesList.find { it.uid == currentService.uid }
+                if (existingService == null) {
+                    // Jika tidak ada, tambahkan service baru
+                    applyFieldService(currentService, capsterSelected)
+                    updatedServicesList.add(currentService)
+                } else {
                     existingService.apply {
                         // Perbarui semua properti dari matching item tanpa mengganti referensi
-                        applyToGeneral = matchingCurrentService.applyToGeneral
-                        autoSelected = matchingCurrentService.autoSelected
-                        categoryDetail = matchingCurrentService.categoryDetail
-                        defaultItem = matchingCurrentService.defaultItem
-                        freeOfCharge = matchingCurrentService.freeOfCharge
-                        resultsShareAmount = matchingCurrentService.resultsShareAmount
-                        resultsShareFormat = matchingCurrentService.resultsShareFormat
-                        rootRef = matchingCurrentService.rootRef
-                        serviceCategory = matchingCurrentService.serviceCategory
-                        serviceCounting = matchingCurrentService.serviceCounting
-                        serviceDesc = matchingCurrentService.serviceDesc
-                        serviceIcon = matchingCurrentService.serviceIcon
-                        serviceImg = matchingCurrentService.serviceImg
-                        serviceName = matchingCurrentService.serviceName
-                        servicePrice = matchingCurrentService.servicePrice
-                        serviceRating = matchingCurrentService.serviceRating
-                        uid = matchingCurrentService.uid
-                        // serviceQuantity = matchingCurrentService.serviceQuantity
+                        applyToGeneral = currentService.applyToGeneral
+                        autoSelected = currentService.autoSelected
+                        categoryDetail = currentService.categoryDetail
+                        defaultItem = currentService.defaultItem
+                        freeOfCharge = currentService.freeOfCharge
+                        resultsShareAmount = currentService.resultsShareAmount
+                        resultsShareFormat = currentService.resultsShareFormat
+                        rootRef = currentService.rootRef
+                        serviceCategory = currentService.serviceCategory
+                        serviceCounting = currentService.serviceCounting
+                        serviceDesc = currentService.serviceDesc
+                        serviceIcon = currentService.serviceIcon
+                        serviceImg = currentService.serviceImg
+                        serviceName = currentService.serviceName
+                        servicePrice = currentService.servicePrice
+                        serviceRating = currentService.serviceRating
+                        uid = currentService.uid
+                        // serviceQuantity = currentService.serviceQuantity
 
                         // Perhitungan priceToDisplay pada service
                         priceToDisplay = calculatePriceToDisplay(
@@ -452,13 +529,6 @@ class SharedReserveViewModel : ViewModel() {
                     }
                 }
             }
-
-            // Tambahkan item dari currentServicesList yang tidak ada di oldServiceList
-            val newServices = currentServicesList.filter { current ->
-                updatedServicesList.none { it.uid == current.uid }
-            }
-            updatedServicesList.addAll(newServices)
-
             // Hapus item dari updatedServicesList yang tidak ada di currentServicesList
             val servicesToRemove = updatedServicesList.filterNot { existingService ->
                 currentServicesList.any { it.uid == existingService.uid }
@@ -477,6 +547,24 @@ class SharedReserveViewModel : ViewModel() {
         _servicesList.value = updatedServicesList
         _isSetItemBundling.value = true
         Log.d("LifeAct", "observer 196: setUpAndSortedServices")
+    }
+
+    private fun applyFieldService(service: Service, capsterSelected: UserEmployeeData) = synchronized(this) {
+        service.apply {
+            if (autoSelected || defaultItem) {
+                serviceQuantity = 1 // Set default quantity
+                addItemSelectedCounting(service.serviceName, "service")
+            }
+
+            // Perhitungan priceToDisplay pada service
+            priceToDisplay = calculatePriceToDisplay(
+                servicePrice,
+                resultsShareFormat,
+                resultsShareAmount,
+                applyToGeneral,
+                capsterSelected.uid
+            )
+        }
     }
 
     private fun calculatePriceToDisplay(

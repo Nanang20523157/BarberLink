@@ -123,7 +123,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
-                if (destination == SignUpStepOne::class.java) {
+                if (destination == SignUpStepOne::class.java || destination == SelectUserRolePage::class.java) {
                     intent.putExtra(ORIGIN_PAGE_KEY, "LandingPage")
                 }
                 Log.d("WinWinWin", "LandingPage: navigation")

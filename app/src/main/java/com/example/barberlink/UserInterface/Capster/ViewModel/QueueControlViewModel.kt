@@ -33,8 +33,8 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _currentIndexQueue = MutableLiveData<Int>()
     val currentIndexQueue: LiveData<Int> = _currentIndexQueue
 
-    private val _resetupDropdownOutlet = MutableLiveData<Boolean?>()
-    val resetupDropdownOutlet: LiveData<Boolean?> = _resetupDropdownOutlet
+    private val _setupDropdownOutlet = MutableLiveData<Boolean?>()
+    val setupDropdownOutlet: LiveData<Boolean?> = _setupDropdownOutlet
 
     private val _setupDropdownOutletWithNullState = MutableLiveData<Boolean?>()
     val setupDropdownOutletWithNullState: LiveData<Boolean?> = _setupDropdownOutletWithNullState
@@ -276,7 +276,7 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     fun clearState() {
         _isLoadingScreen.value = false
         _isShowSnackBar.value = false
-        _resetupDropdownOutlet.value = null
+        _setupDropdownOutlet.value = null
         _setupDropdownOutletWithNullState.value = null
         _dataServiceOriginState.value = null
         _dataBundlingOriginState.value = null
@@ -298,9 +298,9 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
         Log.d("ObjectReferences", "neptunes 0")
     }
 
-    fun setOutletList(listOutlet: List<Outlet>, reSetupDropdown: Boolean, isSavedInstanceStateNull: Boolean?) {
+    fun setOutletList(listOutlet: List<Outlet>, setupDropdown: Boolean, isSavedInstanceStateNull: Boolean?) {
         _outletList.value = listOutlet
-        _resetupDropdownOutlet.value = reSetupDropdown
+        _setupDropdownOutlet.value = setupDropdown
         _setupDropdownOutletWithNullState.value = isSavedInstanceStateNull
         Log.d("ObjectReferences", "neptunes 2")
     }
@@ -323,9 +323,9 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
         Log.d("ObjectReferences", "neptunes 4")
     }
 
-    fun setupDropdownOutletWithNullState(isSavedInstanceStateNull: Boolean) {
-        _resetupDropdownOutlet.postValue(false)
-        _setupDropdownOutletWithNullState.postValue(isSavedInstanceStateNull)
+    fun setupDropdownOutletWithNullState() {
+        _setupDropdownOutlet.postValue(false)
+        _setupDropdownOutletWithNullState.postValue(false)
         Log.d("ObjectReferences", "neptunes 5")
     }
 

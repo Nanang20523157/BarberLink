@@ -170,16 +170,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
         setAndDisplayBanner()
         adjustCardViewLayout()
-        // GAK SETTING STATUS BAR KARENA UDAH DI SET SAAT DI MAIN ACTIVITY
-        super.onViewCreated(view, savedInstanceState)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            Log.d("CheckShimmer", "Animate First Load BAF >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(context, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
-        navController = Navigation.findNavController(requireView())
-
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, requireContext(), true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { _, left, right, _ ->
@@ -257,6 +247,16 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 }
             }
         }
+        // GAK SETTING STATUS BAR KARENA UDAH DI SET SAAT DI MAIN ACTIVITY
+        super.onViewCreated(view, savedInstanceState)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            Log.d("CheckShimmer", "Animate First Load BAF >>> isRecreated: false")
+            val fadeInAnimation = AnimationUtils.loadAnimation(context, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
+        navController = Navigation.findNavController(requireView())
+
         fragmentManager = requireActivity().supportFragmentManager
         val adminRef = sessionManager.getDataAdminRef()
         userId = adminRef?.substringAfter("barbershops/") ?: ""
@@ -469,7 +469,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
         barbershopListener = db.collection("barbershops")
             .document(userId)
-            .addSnapshotListener { document, exception ->
+            .addSnapshotListener { documents, exception ->
                 exception?.let {
                     showToast("Error listening to barbershop data: ${it.message}")
                     if (!decrementGlobalListener) {
@@ -478,13 +478,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                     }
                     return@addSnapshotListener
                 }
-                document?.takeIf { it.exists() }?.let {
-                    if (!isFirstLoad && !skippedProcess) {
-                        val userAdminData = it.toObject(UserAdminData::class.java).apply {
-                            this?.userRef = it.reference.path
-                        } ?: UserAdminData()
-
-                        berandaAdminViewModel.setUserAdminData(userAdminData)
+                documents?.let {
+                    if (!isFirstLoad && !skippedProcess && it.exists()) {
+                        val userAdminData = it.toObject(UserAdminData::class.java)?.apply {
+                            userRef = it.reference.path
+                        }
+                        userAdminData?.let {
+                            berandaAdminViewModel.setUserAdminData(userAdminData)
+                        }
                     }
                     // loadImageWithGlide(userAdminData.imageCompanyProfile)
                     if (!decrementGlobalListener) {
@@ -506,7 +507,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             .document(userId)
             .collection("outlets")
             .addSnapshotListener { documents, exception ->
-                if (exception != null) {
+                exception?.let {
                     showToast("Error listening to outlets data: ${exception.message}")
                     if (!decrementGlobalListener) {
                         if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -514,7 +515,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                     }
                     return@addSnapshotListener
                 }
-
                 documents?.let {
                     lifecycleScope.launch(Dispatchers.Default) {
                         if (!isFirstLoad && !skippedProcess) {
@@ -714,12 +714,13 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             .get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
-                    val userAdminData = document.toObject(UserAdminData::class.java).apply {
-                        this?.userRef = document.reference.path
-                    } ?: UserAdminData()
+                    val userAdminData = document.toObject(UserAdminData::class.java)?.apply {
+                        userRef = document.reference.path
+                    }
                     Log.d("CheckShimmer", "getBarbershopDataFromDatabase Success >> document.exists() == true")
-
-                    berandaAdminViewModel.setUserAdminData(userAdminData)
+                    userAdminData?.let {
+                        berandaAdminViewModel.setUserAdminData(userAdminData)
+                    }
                     // loadImageWithGlide(userAdminData.imageCompanyProfile)
                 } else {
                     Log.d("CheckShimmer", "getBarbershopDataFromDatabase Success >> document.exists() == false")
@@ -1234,7 +1235,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         employeeAdapter.stopAllShimmerEffects()
         bundlingAdapter.stopAllShimmerEffects()
         serviceAdapter.stopAllShimmerEffects()
-        _binding = null
 
         handler.removeCallbacksAndMessages(null)
         if (::serviceListener.isInitialized) serviceListener.remove()
@@ -1243,6 +1243,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         if (::productListener.isInitialized) productListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()
         if (::barbershopListener.isInitialized) barbershopListener.remove()
+        _binding = null
     }
 
     override fun displayThisToast(message: String) {

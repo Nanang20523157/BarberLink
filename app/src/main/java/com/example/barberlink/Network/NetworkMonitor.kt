@@ -27,13 +27,16 @@ object NetworkMonitor {
     private var lostConnection = false
     private var duplicateToast = false
     private var checkConnectionJob: Job? = null
+    private var schedulingToast: Job? = null
 
     private var rechecking = false
+    private var isSchedulingToast = false
 //    private var checkConnectionInProcess = false
 
     private val _isOnline = MutableStateFlow(false)
     private var lastMessage: String? = null
     private var currentToast: Toast? = null
+    private var countDown: Int = 2
     val isOnline: StateFlow<Boolean> get() = _isOnline
 
     private val _errorMessage = MutableStateFlow("Koneksi internet tidak tersedia. Periksa koneksi Anda.")
@@ -117,6 +120,7 @@ object NetworkMonitor {
 
     private fun recheckInternetConnection() {
         checkConnectionJob = scope.launch {
+            countDown = 2
             while (true) {
                 delay(500) // Cek setiap 10 detik
 
@@ -135,12 +139,20 @@ object NetworkMonitor {
                     rechecking = true
                     if (reachable) {
                         Log.d("NetMonitor", "133 ${_errorMessage.value == "Koneksi internet tidak stabil. Periksa koneksi Anda."}")
-                        if (_errorMessage.value == "Koneksi internet tidak stabil. Periksa koneksi Anda.") _errorMessage.value = ""
-                        else rechecking = false
+                        if (_errorMessage.value == "Koneksi internet tidak stabil. Periksa koneksi Anda.") {
+                            _errorMessage.value = ""
+                            countDown = 2 // Reset countdown
+                        } else rechecking = false
                     } else {
                         Log.d("NetMonitor", "137 if ${_errorMessage.value.isEmpty()}")
-                        if (_errorMessage.value.isEmpty()) _errorMessage.value = "Koneksi internet tidak stabil. Periksa koneksi Anda."
-                        else rechecking = false
+                        if (_errorMessage.value.isEmpty() && countDown == 0) _errorMessage.value = "Koneksi internet tidak stabil. Periksa koneksi Anda."
+                        else {
+                            if (countDown > 0) {
+                                Log.d("NetMonitor", "countDown: $countDown")
+                                countDown--
+                            }
+                            rechecking = false
+                        }
                     }
                 }
             }
@@ -201,16 +213,22 @@ object NetworkMonitor {
 //                        Log.d("NetMonitor", "CANCEL $toastMessage")
 //                    }
                     if (lastMessage != msg) {
-                        currentToast?.cancel()
-                        currentToast = Toast.makeText(appContext, msg, Toast.LENGTH_SHORT)
-                        lastMessage = msg
-                        currentToast?.show()
-
-                        // Reset lastMessage setelah durasi toast selesai (2 detik)
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            if (lastMessage == msg) lastMessage = null
-                        }, 2000)
+                        if (msg == "Koneksi internet tidak stabil. Periksa koneksi Anda." && rechecking) {
+                            isSchedulingToast = true
+                            schedulingToast?.cancel()
+                            schedulingToast = scope.launch {
+                                delay(1000)
+                                internalShowToast(msg, isFromScheduling = true)
+                            }
+                        } else if (msg == "Aplikasi kembali online" && rechecking && isSchedulingToast) {
+                            schedulingToast?.cancel()
+                            schedulingToast = null
+                            isSchedulingToast = false
+                        } else {
+                            internalShowToast(msg, isFromScheduling = false)
+                        }
                     }
+
                 }
 
                 previous?.let { updateConnection(it) }
@@ -218,6 +236,26 @@ object NetworkMonitor {
 //                }
 
             }
+        }
+    }
+
+    private fun internalShowToast(message: String, isFromScheduling: Boolean) {
+        CoroutineScope(Dispatchers.Main).launch {
+            currentToast?.cancel()
+            currentToast = Toast.makeText(appContext, message, Toast.LENGTH_SHORT)
+            lastMessage = message
+            currentToast?.show()
+
+            // Jika pesan error sempat dijadwalkan
+            if (isFromScheduling) {
+                schedulingToast = null
+                isSchedulingToast = false
+            }
+
+            // Reset lastMessage setelah durasi toast selesai (2 detik)
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (lastMessage == message) lastMessage = null
+            }, 2000)
         }
     }
 
