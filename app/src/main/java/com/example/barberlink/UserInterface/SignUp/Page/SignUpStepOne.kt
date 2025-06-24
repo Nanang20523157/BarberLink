@@ -52,11 +52,6 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpStepOneBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -64,6 +59,11 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
         stepOneViewModel = ViewModelProvider(this, registerViewModelFactory)[StepOneViewModel::class.java]

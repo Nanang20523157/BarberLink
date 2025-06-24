@@ -147,12 +147,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivityHomePageCapsterBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            Log.d("CheckShimmer", "Animate First Load HPC >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -175,6 +169,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            Log.d("CheckShimmer", "Animate First Load HPC >>> isRecreated: false")
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
 
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
@@ -501,15 +501,15 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 }
                 return@addSnapshotListener
             }
-
-            documents?.takeIf { it.exists() }?.toObject(UserEmployeeData::class.java)?.let { employeeData ->
-                if (!isFirstLoad && !skippedProcess) {
-                    val userEmployeeData = employeeData.apply {
+            documents?.let {
+                if (!isFirstLoad && !skippedProcess && it.exists()) {
+                    val userEmployeeData = it.toObject(UserEmployeeData::class.java)?.apply {
                         userRef = documents.reference.path
                         outletRef = ""
                     }
-
-                    homePageViewModel.setUserEmployeeData(userEmployeeData, true)
+                    userEmployeeData?.let {
+                        homePageViewModel.setUserEmployeeData(userEmployeeData, true)
+                    }
                     // displayEmployeeData()
                 }
 
@@ -531,7 +531,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             outletListener = db.document(userEmployeeData.rootRef)
                 .collection("outlets")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to outlets data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -572,7 +572,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             productListener = db.document(userEmployeeData.rootRef)
                 .collection("products")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to products data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -640,7 +640,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 )
         }
 
-        return query.addSnapshotListener { result, exception ->
+        return query.addSnapshotListener { documents, exception ->
             exception?.let {
                 showToast("Error listening to $collectionPath data: ${it.message}")
                 if (!decrementFlag.get()) {
@@ -649,10 +649,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 }
                 return@addSnapshotListener
             }
-
-            if (result != null) {
-                onSuccess(result)
-            } else {
+            documents?.let { onSuccess(it) } ?: run {
                 // Jaga-jaga kalau null tanpa exception
                 if (!decrementFlag.get()) {
                     if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -854,7 +851,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                     }
                     return@addSnapshotListener
                 }
-
                 documents?.let {
                     lifecycleScope.launch(Dispatchers.Default) {
                         if (!isFirstLoad && !skippedProcess) {

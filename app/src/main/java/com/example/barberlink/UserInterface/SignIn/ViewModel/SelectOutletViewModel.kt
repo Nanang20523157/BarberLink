@@ -7,14 +7,14 @@ import com.example.barberlink.DataClass.Outlet
 
 class SelectOutletViewModel : ViewModel() {
 
+    private val _outletSelected = MutableLiveData<Outlet>()
+    val outletSelected: LiveData<Outlet> = _outletSelected
+
     private val _outletList = MutableLiveData<MutableList<Outlet>>().apply { emptyList<Outlet>() }
     val outletList: LiveData<MutableList<Outlet>> = _outletList
 
     private val _filteredOutletList = MutableLiveData<MutableList<Outlet>>().apply { emptyList<Outlet>() }
     val filteredOutletList: LiveData<MutableList<Outlet>> = _filteredOutletList
-
-    // private val _isDisableShimmer = MutableLiveData<Boolean>()
-    // val isDisableShimmer: LiveData<Boolean> = _isDisableShimmer
 
     private val _letsFilteringDataOutlet = MutableLiveData<Boolean?>()
     val letsFilteringDataOutlet: LiveData<Boolean?> = _letsFilteringDataOutlet
@@ -24,25 +24,29 @@ class SelectOutletViewModel : ViewModel() {
 
     fun setOutletList(outletList: MutableList<Outlet>) {
         // _isDisableShimmer.value = isDisableShimmer
-        _outletList.value = outletList
+        _outletList.postValue(outletList)
+    }
+
+    fun setOutletSelected(outlet: Outlet) {
+        _outletSelected.postValue(outlet)
     }
 
     fun triggerFilteringDataOutlet(withShimmer: Boolean) {
-        _letsFilteringDataOutlet.value = withShimmer
+        _letsFilteringDataOutlet.postValue(withShimmer)
     }
 
     fun setFilteredOutletList(outletList: MutableList<Outlet>) {
         // _isDisableShimmer.value = isDisableShimmer
-        _filteredOutletList.value = outletList
+        _filteredOutletList.postValue(outletList)
     }
 
     fun displayFilteredOutletResult(withShimmer: Boolean) {
-        _displayFilteredOutletResult.value = withShimmer
+        _displayFilteredOutletResult.postValue(withShimmer)
     }
 
     fun clearState() {
-        _letsFilteringDataOutlet.value = null
-        _displayFilteredOutletResult.value = null
+        _letsFilteringDataOutlet.postValue(null)
+        _displayFilteredOutletResult.postValue(null)
     }
 
 }

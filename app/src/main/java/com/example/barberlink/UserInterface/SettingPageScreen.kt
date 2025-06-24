@@ -32,17 +32,17 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySettingPageScreenBinding.inflate(layoutInflater)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         sessionAdmin = sessionManager.getSessionAdmin()
         sessionCapster = sessionManager.getSessionCapster()
@@ -85,15 +85,10 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun logout() {
         Log.d("LogOutClick", "originOfIntent: $originOfIntent")
-        if (originOfIntent == "BerandaAdminPage" && sessionAdmin) {
-            auth.signOut()
-            sessionManager.clearSessionAdmin()
-            navigatePage(this, SelectUserRolePage::class.java, binding.btnLogout)
-        } else if (originOfIntent == "HomePageCapster" && sessionCapster) {
-            auth.signOut()
-            sessionManager.clearSessionCapster()
-            navigatePage(this, SelectUserRolePage::class.java, binding.btnLogout)
-        }
+        auth.signOut()
+        if (originOfIntent == "BerandaAdminPage" && sessionAdmin) sessionManager.clearSessionAdmin()
+        else if (originOfIntent == "HomePageCapster" && sessionCapster) sessionManager.clearSessionCapster()
+        navigatePage(this, SelectUserRolePage::class.java, binding.btnLogout)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

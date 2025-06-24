@@ -415,35 +415,36 @@ class SwitchCapsterFragment : DialogFragment() {
     }
 
     private fun getAndListenCapsterData() {
-        switchCapsterViewModel.outletSelected.value?.let { outlet ->
-            val employeeUidList = outlet.listEmployees
-            if (employeeUidList.isEmpty()) {
+        switchCapsterViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.listEmployees.isEmpty()) {
                 showToast("Anda belum menambahkan daftar capster untuk outlet")
                 return
             }
 
-            Log.d("SwitchTagFragment", "Listening to: ${outlet.rootRef}/divisions/capster/employees")
+            Log.d("SwitchTagFragment", "Listening to: ${outletSelected.rootRef}/divisions/capster/employees")
             // Hapus listener sebelumnya jika ada
             if (::capsterListener.isInitialized) {
                 capsterListener.remove()
             }
 
-            capsterListener = db.document(outlet.rootRef)
+            capsterListener = db.document(outletSelected.rootRef)
                 .collection("divisions")
                 .document("capster")
                 .collection("employees")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to capster data: ${exception.message}")
                         return@addSnapshotListener
                     }
-
                     documents?.let {
                         lifecycleScope.launch(Dispatchers.Default) {
+                            val outletData = switchCapsterViewModel.outletSelected.value ?: return@launch
+                            val employeeUidList = outletData.listEmployees
+
                             val newCapsterList = it.mapNotNull { document ->
                                 document.toObject(UserEmployeeData::class.java).apply {
                                     userRef = document.reference.path
-                                    outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                    outletRef = outletData.outletReference
                                 }.takeIf { it.uid in employeeUidList }
                             }
 

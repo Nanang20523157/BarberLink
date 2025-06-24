@@ -125,11 +125,6 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
 
         super.onCreate(savedInstanceState)
         binding = ActivityBonEmployeePageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -137,6 +132,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         fragmentManager = supportFragmentManager
         dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
@@ -746,16 +746,17 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                 }
                 return@addSnapshotListener
             }
+            documents?.let {
+                val metadata = it.metadata
 
-            documents?.takeIf { it.exists() }?.toObject(UserEmployeeData::class.java)?.let { employeeData ->
-                val metadata = documents.metadata
-
-                if (!isFirstLoad && !skippedProcess) {
-                    val userEmployeeData = employeeData.apply {
+                if (!isFirstLoad && !skippedProcess && it.exists()) {
+                    val userEmployeeData = it.toObject(UserEmployeeData::class.java)?.apply {
                         userRef = documents.reference.path
                         outletRef = ""
                     }
-                    bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, false)
+                    userEmployeeData?.let {
+                        bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, false)
+                    }
 
                     if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
                         showLocalToast()
@@ -795,7 +796,6 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                     }
                     return@addSnapshotListener
                 }
-
                 documents?.let {
                     val metadata = it.metadata
 
@@ -870,7 +870,6 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                     }
                     return@addSnapshotListener
                 }
-
                 documents?.let {
                     val metadata = it.metadata
 

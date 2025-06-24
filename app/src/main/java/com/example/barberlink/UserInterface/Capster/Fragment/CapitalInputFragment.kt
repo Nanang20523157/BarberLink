@@ -1041,37 +1041,42 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     Filter.lessThan("timestamp_created", startOfNextDay)
                 )
             )
-            .addSnapshotListener { snapshot, exception ->
+            .addSnapshotListener { documents, exception ->
                 if (isGetData) {
                     isGetData = false
                     return@addSnapshotListener
                 }
 
-                if (exception != null) {
+                exception?.let {
                     Log.e("SnapshotUID", "Listening failed: ${exception.message}")
                     showToast("Error listening to daily capital data: ${exception.message}")
                     return@addSnapshotListener
                 }
+                documents?.let {
+                    if (documents.isEmpty) {
+                        Log.d("SnapshotUID", "No data found in snapshot")
+                        setDailyCapitalValue(null)
+                        return@addSnapshotListener
+                    }
 
-                if (snapshot == null || snapshot.isEmpty) {
+                    val metadata = it.metadata
+                    val firstDocument = it.documents.firstOrNull()
+                    Log.d("SnapshotUID", "Listening successful: ${it.size()} items")
+                    val uid = firstDocument?.getString("uid")
+                    Log.d("SnapshotUID", "UID from first document: $uid")
+
+                    val dailyCapital = firstDocument?.toObject(DailyCapital::class.java)
+                    setDailyCapitalValue(dailyCapital)
+
+                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                        showLocalToast()
+                    }
+                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                } ?: run {
                     Log.d("SnapshotUID", "No data found in snapshot")
                     setDailyCapitalValue(null)
-                    return@addSnapshotListener
                 }
 
-                val metadata = snapshot.metadata
-                val firstDocument = snapshot.documents.firstOrNull()
-                Log.d("SnapshotUID", "Listening successful: ${snapshot.size()} items")
-                val uid = firstDocument?.getString("uid")
-                Log.d("SnapshotUID", "UID from first document: $uid")
-
-                val dailyCapital = firstDocument?.toObject(DailyCapital::class.java)
-                setDailyCapitalValue(dailyCapital)
-
-                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                    showLocalToast()
-                }
-                isProcessUpdatingData = false // Reset flag setelah menampilkan toast
             }
     }
 

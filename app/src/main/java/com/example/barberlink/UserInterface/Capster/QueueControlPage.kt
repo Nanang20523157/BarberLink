@@ -100,6 +100,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
@@ -109,6 +110,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.resume
 
 class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceOrdersAdapter.OnItemClicked, ItemListPackageOrdersAdapter.OnItemClicked, ItemListCollapseQueueAdapter.OnItemClicked,
     EditOrderFragment.EditOrderListener, ItemListCollapseQueueAdapter.DisplayThisToastMessage {
@@ -133,7 +135,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     private var isShimmerVisible: Boolean = false
     private lateinit var timeSelected: Timestamp
     //private lateinit var userEmployeeData: Employee
-    //private lateinit var outletSelected: Outlet
     private var isExpiredQueue: Boolean = false
     private var moneyCashBackAmount: String = ""
     private var userPaymentAmount: String = ""
@@ -155,7 +156,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 //    private var dataReservationToExecution: Reservation? = null
 //    private var dataReservationBeforeSwitch: Reservation? = null
     private var successSnackbar: (() -> Unit)? = null
-    private var updateQueueList: (() -> Unit)? = null
+    private var updateQueueList: (suspend () -> Unit)? = null
     private var updateQueueNumber: (() -> Unit)? = null
 
     // private val reservationList = mutableListOf<Reservation>()
@@ -207,12 +208,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
         super.onCreate(savedInstanceState)
         binding = ActivityQueueControlPageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            Log.d("CheckShimmer", "Animate First Load QCP >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        } else { Log.d("CheckShimmer", "Orientation Change QCP >>> isRecreated: true") }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -235,6 +230,12 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            Log.d("CheckShimmer", "Animate First Load QCP >>> isRecreated: false")
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        } else { Log.d("CheckShimmer", "Orientation Change QCP >>> isRecreated: true") }
 
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
@@ -250,7 +251,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         editor = sharedPreferences.edit()
 
         fragmentManager = supportFragmentManager
-//        outletSelected = intent.getParcelableExtra(HomePageCapster.OUTLET_SELECTED_KEY, Outlet::class.java) ?: Outlet()
         sessionCapster = sessionManager.getSessionCapster()
         dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
 
@@ -260,7 +260,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             //userEmployeeData = savedInstanceState.getParcelable("user_employee_data") ?: Employee()
-            //outletSelected = savedInstanceState.getParcelable("outlet_selected") ?: Outlet()
             isExpiredQueue = savedInstanceState.getBoolean("is_expired_queue", false)
             moneyCashBackAmount = savedInstanceState.getString("money_cash_back_amount") ?: ""
             userPaymentAmount = savedInstanceState.getString("user_payment_amount") ?: ""
@@ -352,10 +351,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     lifecycleScope.launch(Dispatchers.Main) {
                         Log.d("DataExecution", "set outlet list by intent")
                         outletsListMutex.withLock {
-                            queueControlViewModel.setOutletList(outlets,
-                                reSetupDropdown = false,
-                                isSavedInstanceStateNull = true
-                            )
+                            queueControlViewModel.setOutletList(outlets, setupDropdown = true, isSavedInstanceStateNull = true)
                             // outletsList.clear()
                             // outletsList.addAll(outlets)
                         }
@@ -371,10 +367,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     lifecycleScope.launch(Dispatchers.Main) {
                         Log.d("DataExecution", "set outlet list by intent")
                         outletsListMutex.withLock {
-                            queueControlViewModel.setOutletList(outlets,
-                                reSetupDropdown = false,
-                                isSavedInstanceStateNull = true
-                            )
+                            queueControlViewModel.setOutletList(outlets, setupDropdown = true, isSavedInstanceStateNull = true)
                             // outletsList.clear()
                             // outletsList.addAll(outlets)
                         }
@@ -389,7 +382,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         } else {
             Log.d("CheckShimmer", "orientation change :: queueControlViewModel.setupDropdownOutletWithNullState(false)")
             // setupDropdownOutlet(false)
-            queueControlViewModel.setupDropdownOutletWithNullState(false)
+            queueControlViewModel.setupDropdownOutletWithNullState()
         }
 
         supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
@@ -508,7 +501,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 //                                queueControlViewModel.setPrevReservationQueue(previousQueue) // ada kemungkinan null
                                 currentQueue[capsterUid] = (previousQueue?.queueNumber ?: "00")
                                 outletSelected.currentQueue = currentQueue
-                //                                outletSelected.timestampModify = Timestamp.now()
 
                                 val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                                 Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> AAA :: isFailed: $isFailed")
@@ -640,7 +632,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         //outState.putParcelable("user_employee_data", userEmployeeData)
-        //outState.putParcelable("outlet_selected", outletSelected)
         outState.putBoolean("is_expired_queue", isExpiredQueue)
         outState.putString("money_cash_back_amount", moneyCashBackAmount)
         outState.putString("user_payment_amount", userPaymentAmount)
@@ -838,9 +829,9 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             }
 
             queueControlViewModel.setupDropdownOutletWithNullState.observe(this@QueueControlPage) { isSavedInstanceStateNull ->
-                val reSetupDropdown = queueControlViewModel.resetupDropdownOutlet.value ?: false
-                Log.d("CheckShimmer", "resetupDropdown $reSetupDropdown || setupDropdownOutletWithNullState: $isSavedInstanceStateNull")
-                if (isSavedInstanceStateNull != null) setupDropdownOutlet(reSetupDropdown, isSavedInstanceStateNull)
+                val setupDropdown = queueControlViewModel.setupDropdownOutlet.value ?: false
+                Log.d("CheckShimmer", "setupDropdown $setupDropdown || setupDropdownOutletWithNullState: $isSavedInstanceStateNull")
+                if (isSavedInstanceStateNull != null) setupDropdownOutlet(setupDropdown, isSavedInstanceStateNull)
             }
 
             queueControlViewModel.snackBarQueueMessage.observe(this@QueueControlPage) { event ->
@@ -975,7 +966,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 //                                queueControlViewModel.setPrevReservationQueue(previousQueue) // ada kemungkinan null
                                     currentQueue[capsterUid] = (previousQueue?.queueNumber ?: "00")
                                     outletSelected.currentQueue = currentQueue
-                                    //                                outletSelected.timestampModify = Timestamp.now()
 
                                     val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                                     Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> BBB :: isFailed: $isFailed")
@@ -1023,7 +1013,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                 if (previousStatus == "process" && shouldUpdateQueue && existingQueueNumber != queueNumber) {
                                     currentQueue[capsterUid] = queueNumber
                                     outletSelected.currentQueue = currentQueue
-//                                        outletSelected.timestampModify = Timestamp.now()
 
                                     val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                                     Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> CCC :: isFailed: $isFailed")
@@ -1073,7 +1062,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                 if (previousStatus == "process" && shouldUpdateQueue && existingQueueNumber != queueNumber) {
                                     currentQueue[capsterUid] = queueNumber
                                     outletSelected.currentQueue = currentQueue
-//                                        outletSelected.timestampModify = Timestamp.now()
 
                                     val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                                     Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> DDD :: isFailed: $isFailed")
@@ -1117,7 +1105,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                 if (outletSelected != null && existingQueueNumber != (previousQueue?.queueNumber ?: "00")) {
                                     currentQueue[capsterUid] = if (reservation.queueStatus == "process" && existingQueueNumber != reservation.queueNumber) reservation.queueNumber else (previousQueue?.queueNumber ?: "00")
                                     outletSelected.currentQueue = currentQueue
-//                                    outletSelected.timestampModify = Timestamp.now()
 
                                     val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                                     Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> EEE :: isFailed: $isFailed")
@@ -1135,7 +1122,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                     Log.d("LocalChangeTest", "Undo Requeue == currentQueue[capsterUid]: ${currentQueue[capsterUid]} = reservation.queueNumber: ${reservation.queueNumber}")
                                     currentQueue[capsterUid] = reservation.queueNumber
                                     outletSelected.currentQueue = currentQueue
-//                                    outletSelected.timestampModify = Timestamp.now()
 
                                     val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                                     Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> HHH :: isFailed: $isFailed")
@@ -1237,9 +1223,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             realLayoutCapster.root.visibility = if (show) View.GONE else View.VISIBLE
             realLayoutNotes.root.visibility = if (show) View.GONE else View.VISIBLE
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                tvEmptyListQueue.visibility = if (queueControlViewModel.reservationList.value.isNullOrEmpty() && !show) View.VISIBLE else View.GONE
-            }, 250)
+            tvEmptyListQueue.visibility = if (queueControlViewModel.reservationList.value.isNullOrEmpty() && !show) View.VISIBLE else View.GONE
         }
     }
 
@@ -1263,7 +1247,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         }
     }
 
-    private fun setupDropdownOutlet(reSetupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
+    private fun setupDropdownOutlet(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Default) {
             queueControlViewModel.userEmployeeData.value.let { userEmployeeData ->
                 if (userEmployeeData == null) {
@@ -1284,7 +1268,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
                 // Dapatkan daftar nama outlet yang akan ditampilkan di dropdown
                 val filteredOutletNames = outletPlacement.map { it.outletName }
-
                 withContext(Dispatchers.Main) {
                     val adapter = ArrayAdapter(this@QueueControlPage, android.R.layout.simple_dropdown_item_1line, filteredOutletNames)
                     binding.acOutletName.setAdapter(adapter)
@@ -1308,7 +1291,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                             if (!isSameDay) {
                                 dataOutlet.apply {
                                     currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
-//                                    timestampModify = Timestamp.now()
                                 }
                                 dataOutlet.currentQueue?.let {
                                     withContext(Dispatchers.IO) {
@@ -1330,7 +1312,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     }
 
                     if (!::calendar.isInitialized) calendar = Calendar.getInstance()
-                    if (isSavedInstanceStateNull && !reSetupDropdown) {
+                    if (isSavedInstanceStateNull && setupDropdown) {
                         Log.d("CheckShimmer", "Set First Date >>> savedInstanceState == null")
                         setDateFilterValue(Timestamp.now())
                     } else {
@@ -1338,17 +1320,14 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                         setDateFilterValue(timeSelected)
                     }
                     Log.d("QCPCheck", "outlet name: $filteredOutletNames")
-                    if (!reSetupDropdown) {
-                        Log.d("CheckShimmer", "re setup dropdown by outletlist zero index")
+                    if (setupDropdown) {
+                        Log.d("CheckShimmer", "setup dropdown by outletlist zero index")
                         binding.acOutletName.setText(filteredOutletNames[0], false)
-//                    outletSelected = outletPlacement[0]
-//                    userEmployeeData.outletRef = outletPlacement[0].outletReference
                         val dataOutlet = outletPlacement[0]
                         val isSameDay = isSameDay(Timestamp.now().toDate(), dataOutlet.timestampModify.toDate())
                         if (!isSameDay) {
                             dataOutlet.apply {
                                 currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
-//                                timestampModify = Timestamp.now()
                             }
                             dataOutlet.currentQueue?.let {
                                 withContext(Dispatchers.IO) {
@@ -1359,17 +1338,21 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
                         queueControlViewModel.setOutletSelected(dataOutlet)
                         queueControlViewModel.updateEmployeeOutletRef(dataOutlet.outletReference)
-
-                        listenSpecificOutletData()
                     } else {
-                        Log.d("CheckShimmer", "re setup dropdown by outletlist listener")
+                        Log.d("CheckShimmer", "setup dropdown by outletlist listener && orientationChange")
+                    }
+                    listenSpecificOutletData()
+
+                    if ((isSavedInstanceStateNull && setupDropdown) || (isShimmerVisible && isFirstLoad)) {
+                        Log.d("CheckShimmer", "getAllData()")
+                        getAllData()
                     }
 
-                    if ((isSavedInstanceStateNull && !reSetupDropdown) || (isShimmerVisible && isFirstLoad)) getAllData()
-                    // if ((isSavedInstanceStateNull && !reSetupDropdown) || isShimmerVisible || isFirstLoad) getAllData()
-
                     if (!isSavedInstanceStateNull) {
-                        if (!isFirstLoad) setupListeners(skippedProcess = true)
+                        if (!isFirstLoad) {
+                            Log.d("CheckShimmer", "setupListeners(skippedProcess = true)")
+                            setupListeners(skippedProcess = true)
+                        }
                     }
 
                 }
@@ -1445,22 +1428,22 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 dataOutletListener.remove()
             }
 
-            dataOutletListener = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}").addSnapshotListener { documentSnapshot, exception ->
-                if (exception != null) {
+            dataOutletListener = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}")
+                .addSnapshotListener { documents, exception ->
+                exception?.let {
                     showToast("Error getting outlet document: ${exception.message}")
                     return@addSnapshotListener
                 }
-                documentSnapshot?.let { document ->
-                    val metadata = document.metadata
+                documents?.let {
+                    if (it.exists()) {
+                        val metadata = it.metadata
 
-                    if (document.exists()) {
-                        val dataOutlet = document.toObject(Outlet::class.java)
+                        val dataOutlet = it.toObject(Outlet::class.java)
                         dataOutlet?.apply {
                             // Assign the document reference path to outletReference
-                            outletReference = document.reference.path
+                            outletReference = it.reference.path
                         }
                         dataOutlet?.let { outlet ->
-//                            outletSelected = outlet
                             queueControlViewModel.setOutletSelected(outlet)
                         }
 
@@ -1484,7 +1467,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             listOutletListener = db.document(userEmployeeData.rootRef)
                 .collection("outlets")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to outlets data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -1492,7 +1475,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                         }
                         return@addSnapshotListener
                     }
-
                     documents?.let {
                         val metadata = it.metadata
 
@@ -1506,10 +1488,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                 outletsListMutex.withLock {
                                     withContext(Dispatchers.Main) {
                                         Log.d("DataExecution", "re setup dropdown by outletlist listener")
-                                        queueControlViewModel.setOutletList(outlets,
-                                            reSetupDropdown = true,
-                                            isSavedInstanceStateNull = true
-                                        )
+                                        queueControlViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
 
                                         if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
                                             showLocalToast()
@@ -1538,7 +1517,8 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         }
         var decrementGlobalListener = false
 
-        employeeListener = db.document(dataCapsterRef).addSnapshotListener { documentSnapshot, exception ->
+        employeeListener = db.document(dataCapsterRef)
+            .addSnapshotListener { documents, exception ->
             exception?.let {
                 showToast("Error listening to employee data: ${it.message}")
                 if (!decrementGlobalListener) {
@@ -1547,16 +1527,17 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 }
                 return@addSnapshotListener
             }
+            documents?.let {
+                val metadata = it.metadata
 
-            documentSnapshot?.takeIf { it.exists() }?.toObject(UserEmployeeData::class.java)?.let { employeeData ->
-                val metadata = documentSnapshot.metadata
-
-                if (!isFirstLoad && !skippedProcess) {
-                    val userEmployeeData = employeeData.apply {
-                        userRef = documentSnapshot.reference.path
+                if (!isFirstLoad && !skippedProcess && it.exists()) {
+                    val userEmployeeData = it.toObject(UserEmployeeData::class.java)?.apply {
+                        userRef = it.reference.path
                         outletRef = queueControlViewModel.outletSelected.value?.outletReference ?: ""
                     }
-                    queueControlViewModel.setUserEmployeeData(userEmployeeData)
+                    userEmployeeData?.let {
+                        queueControlViewModel.setUserEmployeeData(userEmployeeData)
+                    }
 
                     if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
                         showLocalToast()
@@ -1582,7 +1563,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             serviceListener = db.document(userEmployeeData.rootRef)
                 .collection("services")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to services data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -1632,7 +1613,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             bundlingListener = db.document(userEmployeeData.rootRef)
                 .collection("bundling_packages")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to bundling packages data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -1694,7 +1675,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     // Filter.notEqualTo("timestamp_to_booking", null)
                 ))
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error getting reservations: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -1702,7 +1683,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                         }
                         return@addSnapshotListener
                     }
-
                     documents?.let {
                         val metadata = it.metadata
 
@@ -1910,10 +1890,10 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 }
 
                 // Mendapatkan data reservations menggunakan path spesifik untuk outlet
-                queueControlViewModel.outletSelected.value?.let { outlet ->
+                queueControlViewModel.outletSelected.value?.let { outletSelected ->
                     // Deklarasi reservationDeferred di luar blok let
                     val reservationDeferred = getCollectionDataDeferred(
-                        collectionPath = "${outlet.rootRef}/reservations",
+                        collectionPath = "${outletSelected.rootRef}/reservations",
                         // listToUpdate = reservationList,
                         emptyMessage = "No reservations found",
                         dataClass = Reservation::class.java,
@@ -2064,7 +2044,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 queueDataDeferred.await() // Tunggu sampai displayQueueData selesai
 
                 // Pastikan displayListQueue juga selesai sebelum melanjutkan
-                updateQueueList = { displayListQueue() }
+                updateQueueList = { displayListQueueSuspending() }
 //                val listQueueDeferred = async { displayListQueue() }
 //                listQueueDeferred.await()
             }
@@ -2175,31 +2155,31 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         // Tambahkan listener snapshot untuk customerRef
         displayReservationCurrentData(currentReservation)
         if (customerRef.isNotEmpty()) {
-            customerListener = db.document(customerRef).addSnapshotListener { snapshot, exception ->
-                if (exception != null) {
+            customerListener = db.document(customerRef).addSnapshotListener { documents, exception ->
+                exception?.let {
                     // Handle error, tampilkan toast atau log jika terjadi kesalahan
                     showToast("Error fetching customer data: ${exception.message}")
                     return@addSnapshotListener
                 }
+                documents?.let {
+                    if (it.exists()) {
+                        val metadata = it.metadata
 
-                // Periksa apakah snapshot ada dan datanya valid
-                if (snapshot != null && snapshot.exists()) {
-                    val metadata = snapshot.metadata
+                        val customerData = it.toObject(UserCustomerData::class.java)?.apply {
+                            // Set the userRef with the document path
+                            userRef = it.reference.path
+                        }
+                        queueControlViewModel.updateCustomerDetailByIndex(currentIndexQueue, customerData)
 
-                    val customerData = snapshot.toObject(UserCustomerData::class.java)?.apply {
-                        // Set the userRef with the document path
-                        userRef = snapshot.reference.path
+                        Log.d("CheckShimmer", "checkUserCustomerData Success >> ${customerData?.uid ?: "No UID"}")
+                        displayCustomerCaptureData(customerData)
+
+                        if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                            showLocalToast()
+                        }
+                        isProcessUpdatingData = false
                     }
-                    queueControlViewModel.updateCustomerDetailByIndex(currentIndexQueue, customerData)
-
-                    Log.d("CheckShimmer", "checkUserCustomerData Success >> ${customerData?.uid ?: "No UID"}")
-                    displayCustomerCaptureData(customerData)
-
-                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                        showLocalToast()
-                    }
-                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
-                } else {
+                } ?: run {
                     Log.d("CheckShimmer", "checkUserCustomerData Success >> snapshot != null || snapshot.exists()")
                     displayCustomerCaptureData(null)
                     // Jika snapshot kosong atau tidak ada, tampilkan pesan default atau log
@@ -2297,20 +2277,19 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
     }
 
-    private fun displayListQueue() {
+    private suspend fun displayListQueueSuspending() = suspendCancellableCoroutine<Unit> { cont ->
         Log.d("CheckListQueue", "4444")
         queueAdapter.submitList(queueControlViewModel.reservationList.value.orEmpty()) {
             if (adjustAdapterQueue) {
-                Log.d(
-                    "CheckShimmer",
-                    "displayListQueue :: currentIndexQueue: $currentIndexQueue adjustAdapterQueue: $adjustAdapterQueue"
-                )
-                // Smooth scroll ke posisi currentIndexQueue dalam QueueAdapter
+                Log.d("CheckShimmer", "displayListQueue :: currentIndexQueue: $currentIndexQueue adjustAdapterQueue: $adjustAdapterQueue")
                 queueAdapter.setlastScrollPosition(currentIndexQueue)
                 adjustAdapterQueue = false
             }
+            // Lanjutkan coroutine setelah submitList selesai
+            if (cont.isActive) cont.resume(Unit)
         }
     }
+
 
     private fun preDisplayOrderData() {
         Log.d("CheckShimmer", "#######?? preDisplayOrderData")
@@ -2421,8 +2400,11 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 Log.d("ObjectReferences", "Index: $index, Object reference: ${System.identityHashCode(item)}")
             }
             Log.d("ObjectReferences", "========== End of object references ==========")
-
-            updateQueueList?.invoke()
+            // ✅ TUNGGU hingga queueAdapter selesai update
+            if (updateQueueList != null) {
+                Log.d("CheckShimmer", "Menjalankan displayListQueueSuspending()")
+                displayListQueueSuspending()
+            }
             updateQueueNumber?.invoke()
             serviceAdapter.submitList(filteredServices)
             bundlingAdapter.submitList(filteredBundlingPackages)
@@ -3127,7 +3109,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 // Lanjut update currentQueue dan notifikasi
                 currentQueue[capsterUid] = queueNumber
                 outletSelected.currentQueue = currentQueue
-//                outletSelected.timestampModify = Timestamp.now()
             }
 
             // Gunakan coroutine untuk menjalankan update dan notifikasi secara paralel
@@ -3267,7 +3248,6 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                             queueControlViewModel.setPrevReservationQueue(previousQueue)
                             currentQueue[capsterUid] = queueNumber
                             outletSelected.currentQueue = currentQueue
-//                        outletSelected.timestampModify = Timestamp.now()
 
                             val isFailed = updateCurrentQueue(currentQueue, outletSelected)
                             Log.d("LocalChangeTest", "UPDATE CURRENT QUEUE >>>>>>>> KKK :: isFailed: $isFailed")
@@ -4527,7 +4507,6 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
 
         Log.d("LastCheck", "Display SwitchCapsterFragment")
         queueControlViewModel.setReservationDataBeforeSwitch(reservation)
-        //dialogFragment = SwitchCapsterFragment.newInstance(reservation, ArrayList(serviceAdapter.currentList), ArrayList(bundlingAdapter.currentList), userEmployeeData, outletSelected)
         dialogFragment = SwitchCapsterFragment.newInstance()
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()

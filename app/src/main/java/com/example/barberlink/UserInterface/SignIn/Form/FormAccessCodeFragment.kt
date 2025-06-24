@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
@@ -34,6 +35,7 @@ import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.SelectAccountPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
+import com.example.barberlink.UserInterface.SignIn.ViewModel.SelectOutletViewModel
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.databinding.FragmentFormAccessCodeBinding
@@ -43,6 +45,7 @@ import com.google.android.gms.tasks.Tasks
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +65,7 @@ class FormAccessCodeFragment : DialogFragment() {
     private var _binding: FragmentFormAccessCodeBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
+    private  val formAccessViewModel: SelectOutletViewModel by activityViewModels()
     private lateinit var context: Context
     private var currentView: View? = null
     private var isNavigating = false
@@ -71,10 +75,12 @@ class FormAccessCodeFragment : DialogFragment() {
     private var isOrientationChanged: Boolean = false
     private var isBtnEnableState: Boolean = false
     private var currentToastMessage: String? = null
+    private var skippedProcess: Boolean = false
+    private var isFirstLoad: Boolean = true
+    private lateinit var locationListener: ListenerRegistration
 
     // TNODO: Rename and change types of parameters
     private var loginType: String = ""
-    private var outletSelected: Outlet? = null
     private val employeesList = mutableListOf<UserEmployeeData>()
     private val capsterList = mutableListOf<UserEmployeeData>()
     private val reservationList =  mutableListOf<Reservation>()
@@ -93,8 +99,7 @@ class FormAccessCodeFragment : DialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            outletSelected = it.getParcelable(ARG_PARAM1)
-            loginType = it.getString(ARG_PARAM2).toString()
+            loginType = it.getString(ARG_PARAM1).toString()
         }
         isInputValid = savedInstanceState?.getBoolean("is_input_valid", false) ?: false
         textErrorForAccessCode = savedInstanceState?.getString("text_error_for_access_code", "undefined") ?: "undefined"
@@ -174,6 +179,7 @@ class FormAccessCodeFragment : DialogFragment() {
             }
         }
 
+        listenSpecificOutletData(isOrientationChanged) // check apakah isOrientationChanged syncrone atau tidak
         Log.d("CheckPion", "isOrientationChanged = AA")
     }
 
@@ -228,18 +234,18 @@ class FormAccessCodeFragment : DialogFragment() {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun handleTellerLogin() {
-        outletSelected?.let { outlet ->
-            val isSameDay = isSameDay(Timestamp.now().toDate(), outlet.timestampModify.toDate())
+        formAccessViewModel.outletSelected.value?.let { outletSelected ->
+            val isSameDay = isSameDay(Timestamp.now().toDate(), outletSelected.timestampModify.toDate())
 
             binding.progressBar.visibility = View.VISIBLE
             // Jika bukan hari yang sama, perbarui currentQueue dan timestampModify
             Log.d("TellerSession", "Is same day FORM: $isSameDay")
             val updateOutletTask = if (!isSameDay) {
-                outletSelected?.apply {
+                outletSelected.apply {
                     currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
                     timestampModify = Timestamp.now()
                 }
-                outletSelected?.let { updateOutletCurrentQueue(it) }
+                outletSelected.let { updateOutletCurrentQueue(it) }
             } else {
                 Tasks.forResult(null) // Skip updateOutletCurrentQueue jika hari yang sama
             }
@@ -279,9 +285,8 @@ class FormAccessCodeFragment : DialogFragment() {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun getEmployeesData() {
         binding.progressBar.visibility = View.VISIBLE
-        outletSelected?.let { outlet ->
-            val employeeUidList = outlet.listEmployees
-            if (employeeUidList.isEmpty()) {
+        formAccessViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.listEmployees.isEmpty()) {
                 showToast("Anda belum menambahkan daftar karyawan untuk outlet")
                 binding.progressBar.visibility = View.GONE
                 return
@@ -289,14 +294,17 @@ class FormAccessCodeFragment : DialogFragment() {
 
             // Ambil data awal
             db.collectionGroup("employees")
-                .whereEqualTo("root_ref", outlet.rootRef)
+                .whereEqualTo("root_ref", outletSelected.rootRef)
                 .get()
                 .addOnSuccessListener { documents ->
                     lifecycleScope.launch(Dispatchers.Default) {
+                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
+                        val employeeUidList = outletData.listEmployees
+
                         val newEmployeesList = documents.mapNotNull { document ->
                             document.toObject(UserEmployeeData::class.java).apply {
                                 userRef = document.reference.path
-                                outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
+                                outletRef = outletData.outletReference
                             }.takeIf { it.uid in employeeUidList }
                         }
 
@@ -333,38 +341,41 @@ class FormAccessCodeFragment : DialogFragment() {
     private fun getCapsterDataTask(): Task<List<UserEmployeeData>> {
         val taskCompletionSource = TaskCompletionSource<List<UserEmployeeData>>()
 
-        outletSelected?.let { outlet ->
-            val employeeUidList = outlet.listEmployees
-            if (employeeUidList.isEmpty()) {
+        formAccessViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.listEmployees.isEmpty()) {
                 taskCompletionSource.setException(Exception("Anda belum menambahkan daftar capster untuk outlet"))
-            } else {
-                db.document(outlet.rootRef)
-                    .collection("divisions")
-                    .document("capster")
-                    .collection("employees")
-                    .get()
-                    .addOnSuccessListener { documents ->
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            val newCapsterList = documents.mapNotNull { document ->
-                                document.toObject(UserEmployeeData::class.java).apply {
-                                    userRef = document.reference.path
-                                    outletRef = "${outlet.rootRef}/outlets/${outlet.uid}"
-                                }.takeIf { it.uid in employeeUidList && it.availabilityStatus}
-                            }
+                return@let
+            }
 
-                            if (newCapsterList.isNotEmpty()) {
-                                capsterList.clear()
-                                capsterList.addAll(newCapsterList)
-                                taskCompletionSource.setResult(newCapsterList)
-                            } else {
-                                taskCompletionSource.setException(Exception("Tidak ditemukan data capster yang sesuai"))
-                            }
+            db.document(outletSelected.rootRef)
+                .collection("divisions")
+                .document("capster")
+                .collection("employees")
+                .get()
+                .addOnSuccessListener { documents ->
+                    lifecycleScope.launch(Dispatchers.Default) {
+                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
+                        val employeeUidList = outletData.listEmployees
+
+                        val newCapsterList = documents.mapNotNull { document ->
+                            document.toObject(UserEmployeeData::class.java).apply {
+                                userRef = document.reference.path
+                                outletRef = outletSelected.outletReference
+                            }.takeIf { it.uid in employeeUidList && it.availabilityStatus}
+                        }
+
+                        if (newCapsterList.isNotEmpty()) {
+                            capsterList.clear()
+                            capsterList.addAll(newCapsterList)
+                            taskCompletionSource.setResult(newCapsterList)
+                        } else {
+                            taskCompletionSource.setException(Exception("Tidak ditemukan data capster yang sesuai"))
                         }
                     }
-                    .addOnFailureListener { exception ->
-                        taskCompletionSource.setException(Exception("Error getting capster: ${exception.message}"))
-                    }
-            }
+                }
+                .addOnFailureListener { exception ->
+                    taskCompletionSource.setException(Exception("Error getting capster: ${exception.message}"))
+                }
         } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
 
         return taskCompletionSource.task
@@ -414,7 +425,7 @@ class FormAccessCodeFragment : DialogFragment() {
     private fun getAllReservationDataTask(): Task<List<Reservation>> {
         val taskCompletionSource = TaskCompletionSource<List<Reservation>>()
 
-        outletSelected?.let { outlet ->
+        formAccessViewModel.outletSelected.value?.let { outletSelected ->
             val calendar = Calendar.getInstance().apply {
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)
@@ -425,21 +436,35 @@ class FormAccessCodeFragment : DialogFragment() {
             calendar.add(Calendar.DAY_OF_MONTH, 1)
             val startOfNextDay = Timestamp(calendar.time)
 
-            db.collection("${outlet.rootRef}/reservations")
+            db.collection("${outletSelected.rootRef}/reservations")
                 .where(
                     Filter.and(
-                        Filter.equalTo("outlet_identifier", outlet.uid),
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
                         Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
                         Filter.lessThan("timestamp_to_booking", startOfNextDay)
                     )
                 ).get()
                 .addOnSuccessListener { documents ->
                     lifecycleScope.launch(Dispatchers.Default) {
+                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
+                        val employeeUidList = outletData.listEmployees
+
                         val newReservationList = documents.mapNotNull { document ->
-                            document.toObject(Reservation::class.java).apply {
+                            val reservation = document.toObject(Reservation::class.java).apply {
                                 dataRef = document.reference.path
                             }
-                        }.filter { it.queueStatus !in listOf("pending", "expired") }
+
+                            val capsterUid = reservation.capsterInfo?.capsterRef
+                                ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
+
+                            // Filter berdasarkan queueStatus dan juga employeeUidList
+                            reservation.takeIf {
+                                it.queueStatus !in listOf("pending", "expired") &&
+                                        capsterUid != null &&
+                                        capsterUid in employeeUidList
+                            }
+                        }
+
 
                         withContext(Dispatchers.Main) {
                             reservationList.clear()
@@ -454,6 +479,42 @@ class FormAccessCodeFragment : DialogFragment() {
         } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
 
         return taskCompletionSource.task
+    }
+
+    private fun listenSpecificOutletData(skippedProcess: Boolean = false) {
+        formAccessViewModel.outletSelected.value?.let { outletSelected ->
+            this.skippedProcess = skippedProcess
+            if (::locationListener.isInitialized) {
+                locationListener.remove()
+            }
+
+            locationListener = db.document(outletSelected.rootRef)
+                .collection("outlets")
+                .document(outletSelected.uid)
+                .addSnapshotListener { documents, exception ->
+                    exception?.let {
+                        showToast("Error listening to outlet data: ${exception.message}")
+                        this@FormAccessCodeFragment.isFirstLoad = false
+                        this@FormAccessCodeFragment.skippedProcess = false
+                        return@addSnapshotListener
+                    }
+
+                    documents?.let {
+                        if (!this@FormAccessCodeFragment.isFirstLoad && !this@FormAccessCodeFragment.skippedProcess && it.exists()) {
+                            val outletData = it.toObject(Outlet::class.java)?.apply {
+                                outletReference = it.reference.path
+                            }
+                            outletData?.let { outlet ->
+                                // Assign the document reference path to outletReference
+                                formAccessViewModel.setOutletSelected(outlet)
+                            }
+                        } else {
+                            this@FormAccessCodeFragment.isFirstLoad = false
+                            this@FormAccessCodeFragment.skippedProcess = false
+                        }
+                    }
+                }
+        }
     }
 
     private fun handleError(message: String) {
@@ -493,6 +554,7 @@ class FormAccessCodeFragment : DialogFragment() {
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
+                val outletSelected = formAccessViewModel.outletSelected.value
                 if (destroyActivity) {
                     // Set extra data untuk aktivitas tujuan
                     intent.apply {
@@ -503,7 +565,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     outletSelected?.uid?.let {
                         Log.d("TellerSession", "SET SESSION")
                         sessionManager.setSessionTeller(true)
-                        sessionManager.setDataTellerRef("${outletSelected?.rootRef}/outlets/$it")
+                        sessionManager.setDataTellerRef("${outletSelected.rootRef}/outlets/$it")
                     }
 
                     // Tutup DialogFragment jika ada
@@ -533,6 +595,7 @@ class FormAccessCodeFragment : DialogFragment() {
     private fun validateInput(): Boolean {
         with (binding) {
             val codeAccess = etAccessCode.text.toString().trim()
+            val outletSelected = formAccessViewModel.outletSelected.value
             return if (codeAccess.isEmpty()) {
                 textErrorForAccessCode = getString(R.string.code_access_cannot_be_empty)
                 codeCustomError.text = textErrorForAccessCode
@@ -580,6 +643,9 @@ class FormAccessCodeFragment : DialogFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         binding.etAccessCode.removeTextChangedListener(textWatcher)
+        if (::locationListener.isInitialized) {
+            locationListener.remove()
+        }
 
         _binding = null
     }
@@ -625,11 +691,10 @@ class FormAccessCodeFragment : DialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(outlet: Outlet, loginType: String) =
+        fun newInstance(loginType: String) =
             FormAccessCodeFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, outlet)
-                    putString(ARG_PARAM2, loginType)
+                    putString(ARG_PARAM1, loginType)
                 }
             }
     }

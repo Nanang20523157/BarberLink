@@ -477,17 +477,16 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
         val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
 
-        employeeBonListener = documentRef.addSnapshotListener { document, exception ->
+        employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
             exception?.let {
                 showToast("Error listening to employee bon data: ${it.message}")
                 isFirstLoad = false
                 return@addSnapshotListener
             }
-
-            document?.let {
+            documents?.let {
                 lifecycleScope.launch(Dispatchers.Default) {
                     Log.d("ChangeOriented", "Listener 3: $isOrientationChanged")
-                    if (!isFirstLoad && !isOrientationChanged) {
+                    if (!isFirstLoad && !isOrientationChanged && it.exists()) {
                         Log.d("ChangeOriented", "Listener 3: IF")
                         val bonData = it.toObject(BonEmployeeData::class.java)
                         bonData?.let { bon ->

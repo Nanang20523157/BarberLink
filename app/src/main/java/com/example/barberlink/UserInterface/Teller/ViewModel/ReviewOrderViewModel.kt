@@ -153,13 +153,12 @@ class ReviewOrderViewModel(
                     )
                 )
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         btnRequestClicked = false
                         // displayAllData()
                         _toastDetection.value = TriggerToast.CommonToast("Error getting reservations: ${exception.message}")
                         return@addSnapshotListener
                     }
-
                     documents?.let {
                         val metadata = it.metadata
 
@@ -171,6 +170,7 @@ class ReviewOrderViewModel(
                                     }
                                 }.filter { it.queueStatus !in listOf("pending", "expired") }
 
+                                Log.d("CheckListenerLog", "ROP TOTAL QUEUE NUMBER: ${newReservationList.size} FROM LISTENER")
                                 totalQueueNumber = newReservationList.size
                                 // withContext(Dispatchers.Main) { displayAllData() }
                                 isSuccessGetReservation = true
@@ -199,29 +199,25 @@ class ReviewOrderViewModel(
         locationListener = db.document(outletSelected.rootRef)
             .collection("outlets")
             .document(outletSelected.uid)
-            .addSnapshotListener { documentSnapshot, exception ->
-                if (exception != null) {
+            .addSnapshotListener { documents, exception ->
+                exception?.let {
                     _toastDetection.value = TriggerToast.CommonToast("Error listening to outlet data: ${exception.message}")
                     this@ReviewOrderViewModel.isFirstLoad = false
                     this@ReviewOrderViewModel.skippedProcess = false
                     return@addSnapshotListener
                 }
-
-                documentSnapshot?.let { document ->
-                    if (document.exists()) {
-                        if (document.exists()) {
-                            if (!this@ReviewOrderViewModel.isFirstLoad && !this@ReviewOrderViewModel.skippedProcess) {
-                                val outletData = document.toObject(Outlet::class.java)
-                                outletData?.let { outlet ->
-                                    // Assign the document reference path to outletReference
-                                    outlet.outletReference = document.reference.path
-                                    outletSelected = outlet
-                                }
-                            } else {
-                                this@ReviewOrderViewModel.isFirstLoad = false
-                                this@ReviewOrderViewModel.skippedProcess = false
-                            }
+                documents?.let {
+                    if (!this@ReviewOrderViewModel.isFirstLoad && !this@ReviewOrderViewModel.skippedProcess && it.exists()) {
+                        val outletData = it.toObject(Outlet::class.java)
+                        outletData?.let { outlet ->
+                            // Assign the document reference path to outletReference
+                            outlet.outletReference = it.reference.path
+                            outletSelected = outlet
+                            Log.d("CheckListenerLog", "ROP OUTLET NAME SELECTED: ${outletSelected.outletName} FROM LISTENER")
                         }
+                    } else {
+                        this@ReviewOrderViewModel.isFirstLoad = false
+                        this@ReviewOrderViewModel.skippedProcess = false
                     }
                 }
             }

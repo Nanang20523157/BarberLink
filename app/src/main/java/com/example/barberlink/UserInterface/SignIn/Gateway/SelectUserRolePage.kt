@@ -28,6 +28,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     private var adminSession: Boolean = false
     private var tellerSession: Boolean = false
     private var capsterSession: Boolean = false
+    private var isRecreated: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,11 +36,8 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySelectUserRolePageBinding.inflate(layoutInflater)
-        val isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
+        val originPageFrom = intent.getStringExtra("origin_page_key") ?: ""
+        Log.d("SelectUserRolePage", "Origin Page: $originPageFrom")
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -47,6 +45,12 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: run { originPageFrom.isEmpty() }
+        Log.d("SelectUserRolePage", "isRecreated: $isRecreated")
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
 //        BarberLinkApp.sessionManager.clearActivePage()
 

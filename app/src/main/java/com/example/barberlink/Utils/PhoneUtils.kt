@@ -13,6 +13,9 @@ object PhoneUtils {
     fun formatPhoneNumberCodeCountry(phoneNumber: String, countryCode: String): String {
         // Pastikan nomor telepon tidak kosong
         if (phoneNumber.isEmpty()) return ""
+        val isStartWithZero = phoneNumber.startsWith("0")
+        val isNumberNotValid = phoneNumber.startsWith("00")
+        if (!isStartWithZero || isNumberNotValid) return "???"
         Log.d("CodeCountry", "phoneNumber: $phoneNumber")
 
         // Tentukan posisi awal untuk pemformatan dan buat nomor telepon tanpa kode negara

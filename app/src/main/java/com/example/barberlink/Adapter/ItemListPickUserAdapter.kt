@@ -10,14 +10,18 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListPickUserAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPickUserBinding
+import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListPickUserAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+
     private var isShimmer = true
     private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
@@ -25,6 +29,15 @@ class ItemListPickUserAdapter(
 
     interface OnItemClicked {
         fun onItemClickListener(userEmployeeData: UserEmployeeData)
+    }
+
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -49,6 +62,9 @@ class ItemListPickUserAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val employee = getItem(position)
             (holder as ItemViewHolder).bind(employee)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(UserEmployeeData()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -91,13 +107,21 @@ class ItemListPickUserAdapter(
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutPickUserBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(userEmployeeData: UserEmployeeData) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListPickUserAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(userEmployeeData: UserEmployeeData) {
             val reviewCount = 2134
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
                 tvEmployeeName.text = userEmployeeData.fullname

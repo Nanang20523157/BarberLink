@@ -161,11 +161,6 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
         super.onCreate(savedInstanceState)
         binding = ActivityDashboardAdminPageBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -216,6 +211,11 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
@@ -706,7 +706,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
             barbershopListener = db.collection("barbershops")
                 .document(userAdminData.uid)
-                .addSnapshotListener { document, exception ->
+                .addSnapshotListener { documents, exception ->
                     exception?.let {
                         showToast("Error listening to barbershop data: ${it.message}")
                         if (!decrementGlobalListener) {
@@ -715,13 +715,14 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                         }
                         return@addSnapshotListener
                     }
-                    document?.takeIf { it.exists() }?.let {
-                        if (!isFirstLoad && !skippedProcess) {
-                            val userData = it.toObject(UserAdminData::class.java).apply {
-                                this?.userRef = it.reference.path
-                            } ?: UserAdminData()
-
-                            dashboardViewModel.setUserAdminData(userData, true)
+                    documents?.let {
+                        if (!isFirstLoad && !skippedProcess && it.exists()) {
+                            val userData = it.toObject(UserAdminData::class.java)?.apply {
+                                userRef = it.reference.path
+                            }
+                            userData?.let {
+                                dashboardViewModel.setUserAdminData(userData, true)
+                            }
                         }
 
                         if (!decrementGlobalListener) {
@@ -744,7 +745,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 .document(userAdminData.uid)
                 .collection("outlets")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to outlets data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -786,7 +787,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 .document(userAdminData.uid)
                 .collection("products")
                 .addSnapshotListener { documents, exception ->
-                    if (exception != null) {
+                    exception?.let {
                         showToast("Error listening to products data: ${exception.message}")
                         if (!decrementGlobalListener) {
                             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -850,8 +851,8 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 )
         }
 
-        return query.addSnapshotListener { result, exception ->
-            if (exception != null) {
+        return query.addSnapshotListener { documents, exception ->
+            exception?.let {
                 showToast("Error listening to $collectionPath data: ${exception.message}")
                 if (!decrementFlag.get()) {
                     if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -859,8 +860,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 }
                 return@addSnapshotListener
             }
-
-            if (result != null) {
+            documents?.let {
                 lifecycleScope.launch(Dispatchers.Default) {
                     // Lock the mutex to safely reset shared variables
                     if (!isFirstLoad && !skippedProcess) {
@@ -872,7 +872,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
                             // Pindahkan iterasi dan proses ke dalam ViewModel
                             dashboardViewModel.processDocumentsConcurrently(
-                                documents = result.documents,
+                                documents = it.documents,
                                 normalizedOutletName = normalizedOutletName,
                                 selectedDates = selectedDates,
                                 processFunction = processFunction
@@ -889,7 +889,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                         }
                     }
                 }
-            } else {
+            } ?: run {
                 lifecycleScope.launch(Dispatchers.Default) {
                     dataMutex.withLock {
                         resetFunction()

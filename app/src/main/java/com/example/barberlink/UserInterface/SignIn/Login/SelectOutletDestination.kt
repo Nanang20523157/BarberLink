@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.OnItemClicked, FormAccessCodeFragment.OnClearBackStackListener {
@@ -47,6 +46,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private var currentToastMessage: String? = null
+
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: FormAccessCodeFragment
     private lateinit var outletAdapter: ItemListDestinationAdapter
@@ -65,11 +65,6 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
         super.onCreate(savedInstanceState)
         binding = ActivitySelectOutletDestinationBinding.inflate(layoutInflater)
-        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
-        if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
-        }
 
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
@@ -77,6 +72,11 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
+        isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
+        if (!isRecreated) {
+            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            binding.mainContent.startAnimation(fadeInAnimation)
+        }
 
         fragmentManager = supportFragmentManager
         if (savedInstanceState != null) {
@@ -200,8 +200,6 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         outState.putBoolean("is_recreated", true)
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
-        // outState.putParcelableArrayList("outlets_list", ArrayList(outletsList)) // Simpan sebagai ArrayList<Outlet>
-        // outState.putParcelableArray("filtered_result", filteredResult.toTypedArray()) // Simpan sebagai ArrayList<Outlet>
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_first_load", isFirstLoad)
@@ -235,27 +233,25 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
         outletListener = db.collectionGroup("outlets")
             .addSnapshotListener { documents, exception ->
-                if (exception != null) {
+                exception?.let {
                     showToast("Error listening to outlets data: ${exception.message}")
                     this@SelectOutletDestination.isFirstLoad = false
                     this@SelectOutletDestination.skippedProcess = false
                     return@addSnapshotListener
                 }
-
                 documents?.let {
                     lifecycleScope.launch(Dispatchers.Default) {
                         if (!this@SelectOutletDestination.isFirstLoad && !this@SelectOutletDestination.skippedProcess) {
                             val outlets = it.mapNotNull { doc ->
-                                val outlet = doc.toObject(Outlet::class.java)
-                                outlet.outletReference = doc.reference.path
-                                if (!outlet.hiddenOutlet) outlet else null // Filter hanya outlet yang tidak tersembunyi
+                                val outlet = doc.toObject(Outlet::class.java).apply {
+                                    outletReference = doc.reference.path
+                                }
+                                if (!outlet.hiddenOutlet) outlet else null
                             }
 
-                            withContext(Dispatchers.Main) {
-                                outletsMutex.withLock {
-                                    selectOutletViewModel.setOutletList(outlets.toMutableList())
-                                    selectOutletViewModel.triggerFilteringDataOutlet(false)
-                                }
+                            outletsMutex.withLock {
+                                selectOutletViewModel.setOutletList(outlets.toMutableList())
+                                selectOutletViewModel.triggerFilteringDataOutlet(false)
                             }
                         } else {
                             this@SelectOutletDestination.isFirstLoad = false
@@ -265,7 +261,6 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 }
             }
     }
-
 
     private fun getAllOutletsData() {
         db.collectionGroup("outlets").get()
@@ -277,10 +272,8 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                         if (!outlet.hiddenOutlet) outlet else null // Filter hanya outlet yang tidak tersembunyi
                     }
 
-                    withContext(Dispatchers.Main) {
-                        outletsMutex.withLock {
-                            selectOutletViewModel.setOutletList(outlets.toMutableList())
-                        }
+                    outletsMutex.withLock {
+                        selectOutletViewModel.setOutletList(outlets.toMutableList())
                     }
 
                     displayAllData()
@@ -295,9 +288,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
     private fun displayAllData() {
         // filterOutlets(keyword, shimmerState)  // Update UI with the data
-        lifecycleScope.launch {
-            selectOutletViewModel.triggerFilteringDataOutlet(true)
-        }
+        selectOutletViewModel.triggerFilteringDataOutlet(true)
 
         if (isFirstLoad) listenToOutletsData()
     }
@@ -322,10 +313,8 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 }
             }
 
-            withContext(Dispatchers.Main) {
-                selectOutletViewModel.setFilteredOutletList(filteredResult.toMutableList())
-                selectOutletViewModel.displayFilteredOutletResult(withShimmer)
-            }
+            selectOutletViewModel.setFilteredOutletList(filteredResult.toMutableList())
+            selectOutletViewModel.displayFilteredOutletResult(withShimmer)
 
 //            withContext(Dispatchers.Main) {
 //                outletAdapter.submitList(filteredResult)
@@ -356,7 +345,8 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
             return
         }
-        dialogFragment = FormAccessCodeFragment.newInstance(outlet, loginType)
+        selectOutletViewModel.setOutletSelected(outlet)
+        dialogFragment = FormAccessCodeFragment.newInstance(loginType)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
         // For a polished look, specify a transition animation.

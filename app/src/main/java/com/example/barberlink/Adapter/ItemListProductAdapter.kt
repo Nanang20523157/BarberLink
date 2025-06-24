@@ -19,6 +19,7 @@ import com.facebook.shimmer.ShimmerFrameLayout
 class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(ProductDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val shimmerViewList2 = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList3 = mutableListOf<ShimmerFrameLayout>()
 
     private var isShimmer = true
     private val shimmerItemCount = 3
@@ -37,6 +38,12 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
                 it.stopShimmer()
             }
             shimmerViewList2.clear() // Bersihkan referensi untuk mencegah memory leak
+        }
+        if (shimmerViewList3.isNotEmpty()) {
+            shimmerViewList3.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList3.clear() // Bersihkan referensi untuk mencegah memory leak
         }
     }
 
@@ -119,11 +126,15 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
         fun bind(product: Product) {
             shimmerViewList.add(binding.shimmerViewContainer)
             shimmerViewList2.add(binding.shimmerViewContainer2)
+            shimmerViewList3.add(binding.shimmerViewContainer3)
             if (!binding.shimmerViewContainer.isShimmerStarted) {
                 binding.shimmerViewContainer.startShimmer()
             }
             if (!binding.shimmerViewContainer2.isShimmerStarted) {
                 binding.shimmerViewContainer2.startShimmer()
+            }
+            if (!binding.shimmerViewContainer3.isShimmerStarted) {
+                binding.shimmerViewContainer3.startShimmer()
             }
         }
     }
@@ -134,6 +145,7 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
         fun bind(product: Product) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
             if (shimmerViewList2.isNotEmpty()) shimmerViewList2.clear()
+            if (shimmerViewList3.isNotEmpty()) shimmerViewList3.clear()
 
             with (binding) {
                 tNamaProdukMenu.text = product.productName
