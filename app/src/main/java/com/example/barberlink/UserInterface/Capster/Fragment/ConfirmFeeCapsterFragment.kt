@@ -89,7 +89,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvUseMyFormat.isSelected = true
-        confirmFeeCapsViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
+        confirmFeeCapsViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
                 currentReservation = reservation
                 currentReservation?.let {

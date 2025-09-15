@@ -65,8 +65,15 @@ class BarberLinkApp : Application(), LifecycleObserver {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+    fun onAppForeground() {
+        NetworkMonitor.startMonitoring()
+        // App masuk foreground
+    }
+
     @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
     fun onAppBackgrounded() {
+        NetworkMonitor.stopMonitoring()
         Log.d("UserInteraction", "App moved to background or removed from Recent Apps")
     }
 
@@ -106,5 +113,6 @@ class BarberLinkApp : Application(), LifecycleObserver {
 //        WorkManager.getInstance(applicationContext).enqueue(workRequest)
         Log.d("UserInteraction", "SessionCleanupWorker triggered")
     }
+
 
 }

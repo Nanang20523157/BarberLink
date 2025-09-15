@@ -20,6 +20,11 @@ data class BonEmployeeData(
     @get:PropertyName("data_creator") @set:PropertyName("data_creator") var dataCreator: @RawValue DataCreator<UserData>? = null,
     @get:Exclude @set:Exclude var itemPosition: Int = -1,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyCreatorDetail: Boolean,
         copyCreatorWithReminder: Boolean,
@@ -50,6 +55,11 @@ data class BonDetails(
     @get:PropertyName("nominal_bon") @set:PropertyName("nominal_bon") var nominalBon: Int = 0,
     @get:PropertyName("remaining_bon") @set:PropertyName("remaining_bon") var remainingBon: Int = 0
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(): BonDetails {
         return BonDetails(
             installmentsBon = this.installmentsBon,

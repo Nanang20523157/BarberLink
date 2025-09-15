@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -66,16 +67,24 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         super.onCreate(savedInstanceState)
         binding = ActivitySelectOutletDestinationBinding.inflate(layoutInflater)
 
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         fragmentManager = supportFragmentManager
@@ -116,7 +125,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 outletAdapter.setShimmer(false)
                 isShimmerVisible = false
 
-                if (!isFirstLoad) listenToOutletsData(skippedProcess = true)
+                if (!isFirstLoad) listenToOutletList(skippedProcess = true)
             }
 
             searchid.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -225,7 +234,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         isRecreated = false
     }
 
-    private fun listenToOutletsData(skippedProcess: Boolean = false) {
+    private fun listenToOutletList(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
         if (::outletListener.isInitialized) {
             outletListener.remove()
@@ -290,7 +299,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         // filterOutlets(keyword, shimmerState)  // Update UI with the data
         selectOutletViewModel.triggerFilteringDataOutlet(true)
 
-        if (isFirstLoad) listenToOutletsData()
+        if (isFirstLoad) listenToOutletList()
     }
 
 

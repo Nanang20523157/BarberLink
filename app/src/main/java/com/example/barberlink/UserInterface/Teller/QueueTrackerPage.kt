@@ -16,6 +16,7 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -32,6 +33,7 @@ import com.example.barberlink.Adapter.ItemListCapsterAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
@@ -59,7 +61,6 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -73,7 +74,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCapsterAdapter.OnItemClicked {
     private lateinit var binding: ActivityQueueTrackerPageBinding
-    private val queueTrackerViewModel: QueueTrackerViewModel by viewModels()
+    private val queueTrackerViewModel: QueueTrackerViewModel by viewModels {
+        SaveStateViewModelFactory(this)
+    }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private lateinit var fragmentManager: FragmentManager
@@ -90,8 +93,9 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private var completeQueue: Int = 0
     private var totalQueue: Int = 0
     private var restQueue: Int = 0
-    private var keyword: String = ""
-    private var textInputDropdown: String = ""
+    private var capsterKeyword: String = "Semua"
+    private var uidDropdownPosition: String = "----------------"
+    private var textDropdownCapsterName: String = "Semua"
     private var capsterSelected: UserEmployeeData = UserEmployeeData()
     private var skippedProcess: Boolean = false
     private var isShimmerListVisible: Boolean = false
@@ -115,6 +119,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private val capsterListMutex = Mutex()
     private val reservationMutex = Mutex()
     private val animationMutex = Mutex()
+//    private var calculatingData: (() -> Unit)? = null
     // private var filteredResult: List<Employee> = emptyList()
 
 //    private val reservationList = mutableListOf<Reservation>()
@@ -133,10 +138,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
     private val popupRunnable = object : Runnable {
         override fun run() {
-            val currentStatePopUp = binding.realLayout.autoCompleteTextView.isPopupShowing
+            val currentStatePopUp = binding.realLayout.acCapsterName.isPopupShowing
 
             if (currentStatePopUp != isPopUpDropdownShow) {
-                val text = binding.realLayout.autoCompleteTextView.text.toString().trim()
+                val text = binding.realLayout.acCapsterName.text.toString().trim()
                 isPopUpDropdownShow = currentStatePopUp
                 Log.d("BindingFocus", "Popup: $isPopUpDropdownShow")
                 if (!isPopUpDropdownShow) {
@@ -184,6 +189,8 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         super.onCreate(savedInstanceState)
         binding = ActivityQueueTrackerPageBinding.inflate(layoutInflater)
 
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
@@ -202,14 +209,20 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
             binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
         }
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
             Log.d("CheckShimmer", "Animate First Load QTP >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         } else { Log.d("CheckShimmer", "Orientation Change QTP >>> isRecreated: true") }
 
         fragmentManager = supportFragmentManager
@@ -227,19 +240,20 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             completeQueue = savedInstanceState.getInt("complete_queue", 0)
             totalQueue = savedInstanceState.getInt("total_queue", 0)
             restQueue = savedInstanceState.getInt("rest_queue", 0)
-            keyword = savedInstanceState.getString("keyword", "") ?: ""
+            capsterKeyword = savedInstanceState.getString("capster_keyword", "Semua")
+            uidDropdownPosition = savedInstanceState.getString("uid_dropdown_position", "----------------")
+            textDropdownCapsterName = savedInstanceState.getString("text_dropdown_capster_name", "Semua")
             firstCurrentQueue = savedInstanceState.getString("first_current_queue", "00") ?: "00"
             isUserTyping = savedInstanceState.getBoolean("is_user_typing", false)
             isCapsterDropdownFocus = savedInstanceState.getBoolean("is_capster_dropdown_focus", false)
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
-            textInputDropdown = savedInstanceState.getString("text_input_dropdown", "") ?: ""
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             // filteredResult = savedInstanceState.getParcelableArray("filtered_result")?.mapNotNull { it as Employee } ?: emptyList()
         } else { Log.d("CheckShimmer", "Orientation Change QTP >>> savedInstanceState == null") }
 
-        Log.d("BindingFocus", "onCreate: $textInputDropdown || Pop Up Checking: $isPopUpDropdownShow")
-        init(savedInstanceState == null)
+        Log.d("BindingFocus", "onCreate: $textDropdownCapsterName || Pop Up Checking: $isPopUpDropdownShow")
+        init(savedInstanceState)
         binding.apply {
             ivBack.setOnClickListener(this@QueueTrackerPage)
             ivExits.setOnClickListener(this@QueueTrackerPage)
@@ -262,26 +276,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             })
         }
 
-        queueTrackerViewModel.calculateDataReservation.observe(this) { isAllData ->
-            if (isAllData != null) calculateQueueData(isAllData)
-        }
-
-        queueTrackerViewModel.reSetupDropdownCapster.observe(this) { reSetup ->
-            if (reSetup == true) setupAutoCompleteTextView()
-        }
-
-        queueTrackerViewModel.letsFilteringDataCapster.observe(this) { withShimmer ->
-            if (withShimmer != null) filterCapster(keyword, withShimmer)
-        }
-
-        queueTrackerViewModel.displayFilteredCapsterResult.observe(this) { shimmerList ->
-            val shimmerBoard = queueTrackerViewModel.updateUIBoard.value
-
-            displayAllData(shimmerBoard, shimmerList)
-        }
-
-        if (savedInstanceState == null) showShimmer(shimmerBoard = true, shimmerList = true)
-        else showShimmer(isShimmerBoardVisible, isShimmerListVisible)
         // Check if the intent has the key ACTION_GET_DATA
         if (savedInstanceState == null || (isShimmerListVisible && isShimmerBoardVisible && isFirstLoad)) {
             if ((intent.hasExtra(SelectUserRolePage.ACTION_GET_DATA) && sessionTeller) || (!intent.hasExtra(FormAccessCodeFragment.OUTLET_DATA_KEY) && !intent.hasExtra(FormAccessCodeFragment.CAPSTER_DATA_KEY) && !intent.hasExtra(FormAccessCodeFragment.RESERVE_DATA_KEY))) {
@@ -297,111 +291,45 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         queueTrackerViewModel.setOutletSelected(outletSelected)
                         updateActiveDevices(1, outletSelected)
                         Log.d("EnterQTP", "Outlet Selected: ${outletSelected.outletName}")
-                        intent.getParcelableArrayListExtra(FormAccessCodeFragment.CAPSTER_DATA_KEY, UserEmployeeData::class.java)?.let { list ->
-                            capsterListMutex.withLock {
-                                Log.d("CacheChecking", "ADD CAPSTER LIST FROM INTENT")
-//                                withContext(Dispatchers.Main) {
-//                                    Toast.makeText(this@QueueTrackerPage, "QTP ??P1 - ${list.size} capster", Toast.LENGTH_SHORT).show()
-//                                }
-                                queueTrackerViewModel.addCapsterList(list)
-                                queueTrackerViewModel.addCapsterNames(list.filter { capster -> capster.availabilityStatus }
-                                    .map { capster -> capster.fullname }
-                                    .toMutableList())
-                                // capsterList.clear()
-                                // capsterNames.clear()
-                                // capsterList.addAll(list)
-                                // capsterNames = capsterList.filter { capster -> capster.availabilityStatus }
-                                //    .map { capster -> capster.fullname }
-                                //    .toMutableList()
-                                list.forEach {
-                                    Log.d("EnterQTP", "Capster Name: ${it.fullname}")
-                                }
-                            }
-                            // Pastikan setupAutoCompleteTextView dipanggil di thread utama jika berinteraksi dengan UI
-                            withContext(Dispatchers.Main) {
-                                // setupAutoCompleteTextView()
-                                queueTrackerViewModel.setReSetupDropdownCapster(true)
-                            }
-                        }
-
                         intent.getParcelableArrayListExtra(FormAccessCodeFragment.RESERVE_DATA_KEY, Reservation::class.java)?.let { list ->
                             reservationMutex.withLock {
                                 Log.d("CacheChecking", "ADD RESERVATION LIST FROM INTENT")
-                                queueTrackerViewModel.addReservationList(list)
-                                // reservationList.clear()
-                                // reservationList.addAll(list)
-                                Log.d("EnterQTP", "Reservation List: ${list.size}")
+                                queueTrackerViewModel.setReservationList(list, isAllData = null)
                             }
-                            Log.d("animateLoop", "Calculate Queue Percelable")
-                            // calculateQueueData(true)
-                            queueTrackerViewModel.setCalculateDataReservation(true)
+                        }
+                        intent.getParcelableArrayListExtra(FormAccessCodeFragment.CAPSTER_DATA_KEY, UserEmployeeData::class.java)?.let { list ->
+                            capsterListMutex.withLock {
+                                Log.d("CacheChecking", "ADD CAPSTER LIST FROM INTENT")
+                                queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+                                Log.d("CapsterCheck", "capsterList A ${list.size}")
+                                queueTrackerViewModel.setCapsterList(list, setupDropdown = true, isSavedInstanceStateNull = true)
+                            }
                         }
                     } else {
                         val outletSelected = intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY) ?: Outlet()
                         queueTrackerViewModel.setOutletSelected(outletSelected)
                         updateActiveDevices(1, outletSelected)
                         Log.d("EnterQTP", "Outlet Selected: ${outletSelected.outletName}")
-                        intent.getParcelableArrayListExtra<UserEmployeeData>(FormAccessCodeFragment.CAPSTER_DATA_KEY)?.let { list ->
-                            capsterListMutex.withLock {
-                                Log.d("CacheChecking", "ADD CAPSTER LIST FROM INTENT")
-//                                withContext(Dispatchers.Main) {
-//                                    Toast.makeText(this@QueueTrackerPage, "QTP ??P1 - ${list.size} capster", Toast.LENGTH_SHORT).show()
-//                                }
-                                queueTrackerViewModel.addCapsterList(list)
-                                queueTrackerViewModel.addCapsterNames(list.filter { capster -> capster.availabilityStatus }
-                                    .map { capster -> capster.fullname }
-                                    .toMutableList())
-                                // capsterList.clear()
-                                // capsterNames.clear()
-                                // capsterList.addAll(list)
-                                // capsterNames = capsterList.filter { capster -> capster.availabilityStatus }
-                                //    .map { capster -> capster.fullname }
-                                //    .toMutableList()
-                                list.forEach {
-                                    Log.d("EnterQTP", "Capster Name: ${it.fullname}")
-                                }
-                            }
-                            // Pastikan setupAutoCompleteTextView dipanggil di thread utama jika berinteraksi dengan UI
-                            withContext(Dispatchers.Main) {
-                                // setupAutoCompleteTextView()
-                                queueTrackerViewModel.setReSetupDropdownCapster(true)
-                            }
-                        }
-
                         intent.getParcelableArrayListExtra<Reservation>(FormAccessCodeFragment.RESERVE_DATA_KEY)?.let { list ->
                             reservationMutex.withLock {
                                 Log.d("CacheChecking", "ADD RESERVATION LIST FROM INTENT")
-                                queueTrackerViewModel.addReservationList(list)
-                                // reservationList.clear()
-                                // reservationList.addAll(list)
-                                Log.d("EnterQTP", "Reservation List: ${list.size}")
+                                queueTrackerViewModel.setReservationList(list, isAllData = null)
                             }
-                            Log.d("animateLoop", "Calculate Queue Percelable")
-                            // calculateQueueData(true)
-                            queueTrackerViewModel.setCalculateDataReservation(true)
+                        }
+                        intent.getParcelableArrayListExtra<UserEmployeeData>(FormAccessCodeFragment.CAPSTER_DATA_KEY)?.let { list ->
+                            capsterListMutex.withLock {
+                                Log.d("CacheChecking", "ADD CAPSTER LIST FROM INTENT")
+                                queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+                                Log.d("CapsterCheck", "capsterList B ${list.size}")
+                                queueTrackerViewModel.setCapsterList(list, setupDropdown = true, isSavedInstanceStateNull = true)
+                            }
                         }
                     }
 
                 }
             }
-        } else {
-            Log.d("CheckShimmer", "Enter QTP Else")
-            // setupAutoCompleteTextView()
-            queueTrackerViewModel.setReSetupDropdownCapster(true)
-            Log.d("EnterQTP", "preDisplayQueueBoard OrientationChange = $isShimmerBoardVisible")
-            binding.realLayout.tvCurrentQueue.text = firstCurrentQueue
-            binding.realLayout.tvRestQueue.text = NumberUtils.convertToFormattedString(restQueue)
-            binding.realLayout.tvCompleteQueue.text = NumberUtils.convertToFormattedString(completeQueue)
-            binding.realLayout.tvTotalQueue.text = NumberUtils.convertToFormattedString(totalQueue)
-
-            val filteredResult = queueTrackerViewModel.filteredCapsterList.value.orEmpty()
-            binding.tvEmptyCapster.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
-            capsterAdapter.submitList(filteredResult)
-            showShimmer(shimmerBoard = false, shimmerList = false)
-            // TANPA PENGE-CHECKAN KARENA TIDAK MEMANGGIL CALCULLATE
-
-            // Tambahi juga gpp
-            if (!isFirstLoad) setupListeners(skippedProcess = true)
         }
 
         supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
@@ -421,6 +349,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 showToast("Outlet barbershop masih Tutup!!!")
             }
         }
+
+        if (savedInstanceState == null) showShimmer(shimmerBoard = true, shimmerList = true)
+        else showShimmer(isShimmerBoardVisible, isShimmerListVisible)
+        if (savedInstanceState != null) displayDataOrientationChange()
 
     }
 
@@ -488,6 +420,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     displayCapsterList(true, shimmerList)
                 }
 
+                if (textDropdownCapsterName == "---") showToast("Tidak ada data yang sesuai untuk ${acCapsterName.text.toString().trim()}")
                 if (shimmerBoard != null) queueTrackerViewModel.setUpdateUIBoard(null)
                 if (shimmerList != null) queueTrackerViewModel.setCapsterToDisplay(null)
             }
@@ -530,8 +463,9 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         outState.putInt("complete_queue", completeQueue)
         outState.putInt("total_queue", totalQueue)
         outState.putInt("rest_queue", restQueue)
-        outState.putString("keyword", keyword)
-        outState.putString("text_input_dropdown", textInputDropdown)
+        outState.putString("capster_keyword", capsterKeyword)
+        outState.putString("uid_dropdown_position", uidDropdownPosition)
+        outState.putString("text_dropdown_capster_name", textDropdownCapsterName)
         outState.putString("first_current_queue", firstCurrentQueue)
 
         // Simpan objek yang dapat di-serialize
@@ -564,7 +498,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
-    private fun init(isSavedInstanceStateNull: Boolean) {
+    private fun init(savedInstanceState: Bundle?) {
         binding.apply {
             Log.d("CheckShimmer", "Init Blok Functions")
             capsterAdapter = ItemListCapsterAdapter(this@QueueTrackerPage, this@QueueTrackerPage)
@@ -573,7 +507,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             realLayout.tvCurrentQueue.isSelected = true
 
             calendar = Calendar.getInstance()
-            if (isSavedInstanceStateNull) {
+            if (savedInstanceState == null) {
                 Log.d("CheckShimmer", "Set First Date >>> savedInstanceState == null")
                 setDateFilterValue(Timestamp.now())
             } else {
@@ -607,23 +541,23 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     Log.d("BindingFocus", "current Text: $capitalized")
                     if (capitalized != s.toString()) {
                         Log.d("BindingFocus", "Set Text Ulang")
-                        binding.realLayout.autoCompleteTextView.setText(capitalized)
-                        binding.realLayout.autoCompleteTextView.setSelection(capitalized.length)
+                        binding.realLayout.acCapsterName.setText(capitalized)
+                        binding.realLayout.acCapsterName.setSelection(capitalized.length)
                     }
 
-                    val keywords = listOf("Semua", "Semu", "Sem", "Se", "S")
-                    val textKey = if (capitalized in keywords) "" else capitalized
+                    val keywords = listOf("Semua", "Semu", "Sem", "Se", "S", "")
+                    val textKey = if (capitalized in keywords) "Semua" else capitalized
                     Log.d("textKey", textKey)
                     // Menangani perubahan teks di sini
                     // if ((queueTrackerViewModel.capsterNames.value?.contains(textKey.toString()) == true || textKey.toString().isEmpty()) && textKey.toString() != keyword) {
-                    if (textKey != keyword) {
-                        keyword = textKey
-                        Log.d("TestABD", "keyword: $keyword")
+                    if (textKey != capsterKeyword) {
+                        capsterKeyword = textKey
                         // capsterAdapter.setShimmer(true)
                         // isShimmerListVisible = true
                         Log.d("TestTextChange", "isRunning Well")
                         // calculateQueueData(keyword.isEmpty())
-                        queueTrackerViewModel.setCalculateDataReservation(keyword.isEmpty())
+                        Log.d("CapsterCheck", "A")
+                        queueTrackerViewModel.setCalculateDataReservation(capsterKeyword == "Semua")
                     }
                 }
 
@@ -634,29 +568,68 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 }
             }
 
-            binding.realLayout.autoCompleteTextView.addTextChangedListener(textWatcher)
+            binding.realLayout.acCapsterName.addTextChangedListener(textWatcher)
+
+            queueTrackerViewModel.calculateDataReservation.observe(this@QueueTrackerPage) { isAllData ->
+                if (isAllData != null) calculateQueueData(isAllData)
+            }
+
+            queueTrackerViewModel.setupDropdownFilterWithNullState.observe(this@QueueTrackerPage) { isSavedInstanceStateNull ->
+                val setupDropdown = queueTrackerViewModel.setupDropdownFilter.value ?: false
+                Log.d("CheckShimmer", "setupDropdown $setupDropdown || setupDropdownCapsterWithNullState: $isSavedInstanceStateNull")
+                if (isSavedInstanceStateNull != null) setupDropdownCapster(setupDropdown, isSavedInstanceStateNull)
+            }
+
+            queueTrackerViewModel.letsFilteringDataCapster.observe(this@QueueTrackerPage) { withShimmer ->
+                if (withShimmer != null) filterCapster(capsterKeyword, withShimmer)
+            }
+
+            queueTrackerViewModel.displayFilteredCapsterResult.observe(this@QueueTrackerPage) { shimmerList ->
+                val shimmerBoard = queueTrackerViewModel.updateUIBoard.value
+
+                displayAllData(shimmerBoard, shimmerList)
+            }
         }
 
     }
 
+    private fun displayDataOrientationChange() {
+        queueTrackerViewModel.setupDropdownFilterWithNullState()
+        Log.d("EnterQTP", "preDisplayQueueBoard OrientationChange = $isShimmerBoardVisible")
+        binding.realLayout.tvCurrentQueue.text = firstCurrentQueue
+        binding.realLayout.tvRestQueue.text = NumberUtils.convertToFormattedString(restQueue)
+        binding.realLayout.tvCompleteQueue.text = NumberUtils.convertToFormattedString(completeQueue)
+        binding.realLayout.tvTotalQueue.text = NumberUtils.convertToFormattedString(totalQueue)
+
+        val filteredResult = queueTrackerViewModel.filteredCapsterList.value.orEmpty()
+        binding.tvEmptyCapster.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
+        capsterAdapter.submitList(filteredResult)
+        showShimmer(shimmerBoard = false, shimmerList = false)
+        // TANPA PENGE-CHECKAN KARENA TIDAK MEMANGGIL CALCULLATE
+    }
+
     private fun setupTextFieldInputType(s: String, isRecreated: Boolean) {
         if (!isRecreated) {
-            val capsterName = queueTrackerViewModel.capsterNames.value ?: emptyList()
-            isCompleteSearch = (capsterName + "Semua").any { it == s }
-            textInputDropdown = s
+            val capsterList = queueTrackerViewModel.capsterList.value ?: emptyList()
+            val modifiedCapsterList = mutableListOf(UserEmployeeData(uid = "Semua", fullname = "Semua"))
+            modifiedCapsterList.addAll(capsterList)
+            val selectedCapster: UserEmployeeData? = modifiedCapsterList.find { it.fullname == s }
+            isCompleteSearch = selectedCapster != null
+            uidDropdownPosition = selectedCapster?.uid ?: "----------------"
+            textDropdownCapsterName = s
 
             if (isCompleteSearch || s.isEmpty()) {
                 Log.d("BindingFocus", "isCompleteSearch: true")
                 // Kembalikan ke dropdown menu
                 binding.realLayout.textInputLayout.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-                binding.realLayout.autoCompleteTextView.dismissDropDown()
+                binding.realLayout.acCapsterName.dismissDropDown()
                 if (::adapter.isInitialized) adapter.filter.filter(null)
                 if (s.isEmpty()) {
                     // Tunda sedikit agar showDropDown tidak ditimpa oleh dismiss bawaan
                     handler.postDelayed({
                         Log.d("BindingFocus", "123")
-                        if (!binding.realLayout.autoCompleteTextView.isPopupShowing) {
-                            binding.realLayout.autoCompleteTextView.showDropDown()
+                        if (!binding.realLayout.acCapsterName.isPopupShowing) {
+                            binding.realLayout.acCapsterName.showDropDown()
                         }
                     }, 50)
                 }
@@ -688,56 +661,108 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         binding.realLayout.root.visibility = if (shimmerBoard) View.GONE else View.VISIBLE
     }
 
-    private fun setupAutoCompleteTextView() {
+    private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
-            queueTrackerViewModel.capsterNames.value.let {
-                if (it?.isNotEmpty() == true) {
-                    // Tambahkan pilihan "All" di indeks pertama
-                    val modifiedCapsterNames = mutableListOf("Semua")
-                    modifiedCapsterNames.addAll(it)
-                    Log.d("CheckShimmer", "setupAutoCompleteTextView Capster Names: $modifiedCapsterNames")
+            queueTrackerViewModel.capsterList.value?.let { capsterList ->
+                val capsterItemDropdown = buildList {
+                    add(UserEmployeeData(uid = "Semua", fullname = "Semua"))
+                    addAll(
+                        capsterList
+                            .distinctBy { it.fullname }
+                            .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
+                    )
+                }
+                val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
+                // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
+                adapter = ArrayAdapter(this@QueueTrackerPage, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
+                // Set adapter ke AutoCompleteTextView
+                binding.realLayout.acCapsterName.setAdapter(adapter)
+                binding.realLayout.acCapsterName.threshold = 0
+                binding.realLayout.acCapsterName.setOnFocusChangeListener { _, state ->
+                    isCapsterDropdownFocus = state
+                    Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
+                }
 
-                    // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
-                    adapter = ArrayAdapter(this@QueueTrackerPage, android.R.layout.simple_dropdown_item_1line, modifiedCapsterNames)
+                if (setupDropdown) {
+                    val dataCapster = capsterItemDropdown.first()
+                    binding.realLayout.acCapsterName.setText(dataCapster.fullname, false)
+                    capsterKeyword = dataCapster.fullname
+                    uidDropdownPosition = dataCapster.uid
+                    textDropdownCapsterName = dataCapster.fullname
+                } else {
+                    if (isSavedInstanceStateNull) {
+                        if (isCompleteSearch) {
+                            val selectedIndex = capsterItemDropdown.indexOfFirst {
+                                it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                            }.takeIf { it != -1 } ?: -1
+                            Log.d("CheckShimmer", "setup dropdown by uidDropdownPosition index: $selectedIndex")
+                            val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
+                            if (textDropdownCapsterName != "---") binding.realLayout.acCapsterName.setText(dataCapster.fullname, false)
+                            capsterKeyword = dataCapster.fullname
+                            uidDropdownPosition = dataCapster.uid
+                            textDropdownCapsterName = dataCapster.fullname
 
-                    // Set adapter ke AutoCompleteTextView
-                    binding.realLayout.autoCompleteTextView.setAdapter(adapter)
-                    binding.realLayout.autoCompleteTextView.threshold = 0
-                    binding.realLayout.autoCompleteTextView.setOnFocusChangeListener { _, state ->
-                        isCapsterDropdownFocus = state
-                        Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
-                    }
-
-                    if (isFirstLoad) {
-                        // Langsung set nilai "All" di AutoCompleteTextView
-                        if (textInputDropdown.isEmpty()) {
-                            Log.d("BindingFocus", "empty")
-                            binding.realLayout.autoCompleteTextView.setText(getString(R.string.all_text), false)
+                            //dashboardViewModel.refreshAllListData()
+                            //if (textDropdownCapsterName == "---")
+                            queueTrackerViewModel.pendingCalculation.value?.let { action ->
+                                when (action) {
+                                    is QueueTrackerViewModel.PendingCalculation.Recalculate -> {
+                                        Log.d("CapsterCheck", "Re-run calculation after rotation")
+                                        calculateQueueData(action.isAllData)
+                                        queueTrackerViewModel.clearPendingCalculation()
+                                    }
+                                    else -> {}
+                                }
+                            }
                         }
-                        else {
-                            Log.d("BindingFocus", "not empty")
-                            binding.realLayout.autoCompleteTextView.setText(textInputDropdown, false)
-                        }
-
-                        binding.realLayout.autoCompleteTextView.setSelection(binding.realLayout.autoCompleteTextView.text.length)
                     } else {
-                        Log.d("BindingFocus", "textInputDropdown $textInputDropdown || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
-                        if (isCompleteSearch || textInputDropdown.isEmpty()) {
-                            binding.realLayout.textInputLayout.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-                        } else {
-                            binding.realLayout.textInputLayout.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
-                            adapter.filter.filter(textInputDropdown)
-                        }
-                        if (isPopUpDropdownShow) {
-                            Log.d("BindingFocus", "LLL")
-                            binding.realLayout.autoCompleteTextView.showDropDown()
-                        }
+                        Log.d("CheckShimmer", "setup dropdown by orientationChange")
                     }
-                    Log.d("CheckShimmer", "setupAutoCompleteTextView >> isFirstLoad: $isFirstLoad || textInputDropdown: $textInputDropdown || isCompleteSearch: $isCompleteSearch || isPopUpDropdownShow: $isPopUpDropdownShow || isCapsterDropdownFocus: $isCapsterDropdownFocus")
+                }
 
-                    Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
-                    if (isCapsterDropdownFocus) { binding.realLayout.autoCompleteTextView.requestFocus() }
-                    startPopupObserver()
+                val textDropdownSelected = binding.realLayout.acCapsterName.text.toString().trim()
+                if (isFirstLoad) {
+                    // Langsung set nilai "All" di AutoCompleteTextView
+                    if (textDropdownSelected.isEmpty()) {
+                        Log.d("BindingFocus", "empty")
+                        binding.realLayout.acCapsterName.setText(getString(R.string.all_text), false)
+                    }
+
+                    binding.realLayout.acCapsterName.setSelection(binding.realLayout.acCapsterName.text.length)
+                } else {
+                    Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
+                    if (isCompleteSearch || textDropdownSelected.isEmpty()) {
+                        binding.realLayout.textInputLayout.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                    } else {
+                        binding.realLayout.textInputLayout.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                        adapter.filter.filter(textDropdownCapsterName)
+                    }
+                    if (isPopUpDropdownShow) {
+                        Log.d("BindingFocus", "LLL")
+                        binding.realLayout.acCapsterName.showDropDown()
+                    }
+                }
+
+                Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
+                if (isCapsterDropdownFocus) { binding.realLayout.acCapsterName.requestFocus() }
+                startPopupObserver()
+
+                queueTrackerViewModel.pendingCalculation.value?.let { action ->
+                    when (action) {
+                        is QueueTrackerViewModel.PendingCalculation.Recalculate -> {
+                            Log.d("CapsterCheck", "Re-run calculation after rotation")
+                            calculateQueueData(action.isAllData)
+                            queueTrackerViewModel.clearPendingCalculation()
+                        }
+                        else -> {}
+                    }
+                }
+
+                if (!isSavedInstanceStateNull) {
+                    if (!isFirstLoad) {
+                        Log.d("CheckShimmer", "setupListeners(skippedProcess = true)")
+                        setupListeners(skippedProcess = true)
+                    }
                 }
             }
         }
@@ -759,7 +784,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 mutableMapOf()
             }
 
-            val lowerCaseQuery = keyword.lowercase(Locale.getDefault())
+            val lowerCaseQuery = capsterKeyword.lowercase(Locale.getDefault())
             val indexRefs = queueTrackerViewModel.capsterList.value
                 ?.filter { employee ->
                     employee.availabilityStatus && (
@@ -773,19 +798,14 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 ?.map { it.userRef.substringAfterLast("/") }
                 ?: emptyList()
 
-//            val indexRefs = queueTrackerViewModel.capsterList.value
-//                ?.filter { it.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) }
-//                ?.map { it.userRef.substringAfterLast("/") }
-//                ?: emptyList()
-
             val currentQueueToDisplay = when {
-                keyword.isEmpty() -> currentQueue
+                capsterKeyword == "Semua" -> currentQueue
                 indexRefs.isNotEmpty() -> currentQueue.filterKeys { it in indexRefs }
                 else -> emptyMap()
             }
-            queueTrackerViewModel.addCurrentQueue(currentQueueToDisplay)
+            queueTrackerViewModel.setCurrentQueue(currentQueueToDisplay)
 
-            firstCurrentQueue = if (keyword.isNotEmpty() && indexRefs.size == 1) {
+            firstCurrentQueue = if (capsterKeyword != "Semua" && indexRefs.size == 1) {
                 currentQueueToDisplay[indexRefs.first()] ?: "00"
             } else {
                 getFirstQueue(currentQueueToDisplay).ifEmpty { "00" }
@@ -811,7 +831,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             ""
         }
     }
-
 
     private fun listenSpecificOutletData() {
         queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
@@ -926,29 +945,14 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                     }
 
                                     Log.d("CheckListenerLog", "QTP CAPSTER LIST SIZE: ${newCapsterList.size} FROM LISTENER")
-//                                    withContext(Dispatchers.Main) {
-//                                        Toast.makeText(this@QueueTrackerPage, "QTP ??L2 - ${newCapsterList.size} capster", Toast.LENGTH_SHORT).show()
-//                                    }
-                                    queueTrackerViewModel.addCapsterList(newCapsterList)
-                                    queueTrackerViewModel.addCapsterNames(newCapsterNames)
-                                    Log.d("EnterQTP", "02 Outlet Selected: ${outletData?.outletName}")
-                                    // capsterList.clear()
-                                    // capsterNames.clear()
-                                    // capsterList.addAll(newCapsterList)
-                                    // capsterNames.addAll(newCapsterNames)
+//
+                                    queueTrackerViewModel.setPendingCalculation(isAllData = (capsterKeyword == "Semua"))
 
-                                    // capsterList.forEach { capster ->
-                                    //    capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0)
-                                    // }
+                                    Log.d("CapsterCheck", "capsterList C ${newCapsterList.size}")
+                                    queueTrackerViewModel.setCapsterList(newCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
                                 }
-                                // filterCapster(keyword, false)
                                 Log.d("EnterQTP", "preDisplayQueueBoard ListenerCapster = null")
                                 preDisplayQueueBoard(null)
-                                // queueTrackerViewModel.setUpdateUIBoard(null)
-                                queueTrackerViewModel.triggerFilteringDataCapster(false)
-
-                                queueTrackerViewModel.setReSetupDropdownCapster(true)
-//                                getAllReservationData()
                             }
 
                             // Kurangi counter pada snapshot pertama
@@ -1014,21 +1018,29 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     documents?.let {
                         lifecycleScope.launch(Dispatchers.Default) {
                            if (!isFirstLoad && !skippedProcess) {
-                               val newReservationList = it.documents.mapNotNull { document ->
-                                   document.toObject(Reservation::class.java)?.apply {
+                               val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch
+                               val employeeUidList = outletData.listEmployees
+
+                               val newReservationList = documents.mapNotNull { document ->
+                                   val reservation = document.toObject(Reservation::class.java).apply {
                                        dataRef = document.reference.path
                                    }
-                               }.filter { it1 -> it1.queueStatus !in listOf("pending", "expired") }
+
+                                   val capsterUid = reservation.capsterInfo?.capsterRef
+                                       ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
+
+                                   // Filter berdasarkan queueStatus dan juga employeeUidList
+                                   reservation.takeIf {
+                                       it.queueStatus !in listOf("pending", "expired") &&
+                                               capsterUid != null &&
+                                               capsterUid in employeeUidList
+                                   }
+                               }
 
                                reservationMutex.withLock {
                                    Log.d("CheckListenerLog", "QTP RESERVATION LIST SIZE: ${newReservationList.size} FROM LISTENER")
-                                   queueTrackerViewModel.addReservationList(newReservationList)
-
-                                   // reservationList.clear()
-                                   // reservationList.addAll(newReservationList)
+                                   queueTrackerViewModel.setReservationList(newReservationList, isAllData = capsterKeyword == "Semua")
                                }
-
-                               queueTrackerViewModel.setCalculateDataReservation(keyword.isEmpty())
 
                                Log.d("animateLoop", "Calculate Queue LISTEN")
                                // calculateQueueData(keyword.isEmpty())
@@ -1051,16 +1063,18 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     }
 
     private fun filterCapster(query: String, withShimmer: Boolean?) {
-        Log.d("CheckShimmer", "filterCapster withShimmer: $withShimmer")
+        Log.d("CapsterCheck", "filterCapster withShimmer: $withShimmer || query: $query")
         lifecycleScope.launch(Dispatchers.Default) {
             if (withShimmer != null) {
                 val lowerCaseQuery = query.lowercase(Locale.getDefault())
                 // Use mutex lock for thread-safe reading of capsterList
                 val filteredResult = capsterListMutex.withLock {
-                    if (lowerCaseQuery.isEmpty()) {
+                    if (lowerCaseQuery == "semua") {
                         // Only filter capsters with availabilityStatus true
+                        Log.d("CapsterCheck", "888")
                         queueTrackerViewModel.capsterList.value?.filter { employee -> employee.availabilityStatus } ?: emptyList()
                     } else {
+                        Log.d("CapsterCheck", "999")
                         // Filter based on fullname and availabilityStatus
                         queueTrackerViewModel.capsterList.value?.filter { employee ->
                             employee.availabilityStatus && (
@@ -1072,158 +1086,120 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                 )
                         } ?: emptyList()
 
-//                        queueTrackerViewModel.capsterList.value?.filter { employee ->
-//                            employee.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) &&
-//                                    employee.availabilityStatus
-//                        } ?: emptyList()
                     }
                 }
 
-                Log.d("CheckListenerLog", "filteredResult ${filteredResult.size}")
+                Log.d("CapsterCheck", "filteredResult ${filteredResult.size}")
                 queueTrackerViewModel.setFilteredCapsterList(filteredResult)
             }
 
             queueTrackerViewModel.setCapsterToDisplay(withShimmer)
-//            withContext(Dispatchers.Main) {
-//                Toast.makeText(this@QueueTrackerPage, "QTP ??A1 - ${filteredResult.size} capster", Toast.LENGTH_SHORT).show()
-//            }
-
-//            filteredList.apply {
-//                clear()
-//                addAll(filteredResult)
-//            }
 
         }
     }
 
     private fun getSpecificOutletData(isRefreshingPage: Boolean = false) {
-        Log.d("EnterQTP", "Data Teller Ref: $dataTellerRef")
         db.document(dataTellerRef).get().addOnSuccessListener { documentSnapshot ->
             if (documentSnapshot.exists()) {
                 val outletData = documentSnapshot.toObject(Outlet::class.java)?.apply {
                     outletReference = documentSnapshot.reference.path
                 }
-                Log.d("EnterQTP", "Outlet Data: ${outletData?.outletName}")
-                Log.d("CheckShimmer", "getSpecificOutletData Success >> apakah outlet null: ${outletData == null}")
+
                 outletData?.let { outlet ->
                     queueTrackerViewModel.setOutletSelected(outlet)
 
                     lifecycleScope.launch(Dispatchers.Default) {
-                        val isSameDay = isSameDay(Timestamp.now().toDate(), outlet.timestampModify.toDate())
-                        Log.d("EnterQTP", "Is same day Tracker: $isSameDay")
-
-                        // Update Outlet Task (di-skip jika refreshing)
-                        val updateOutletTask = if (!isRefreshingPage && !isSameDay) {
-                            outlet.apply {
-                                currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
-                                timestampModify = Timestamp.now()
-                            }
-                            updateCurrentQueue(outlet)
-                        } else {
-                            Tasks.forResult(null)
-                        }
-
-                        val getCapsterDataTask = getCapsterDataTask(outletSelected = outlet)
-
-                        // Tambahkan updateActiveDevices sebagai task
-                        val updateActiveDevicesTask = if (!isRefreshingPage) {
-                            Tasks.call(Dispatchers.IO.asExecutor()) {
-                                updateActiveDevices(1, outlet)
-                                    .addOnSuccessListener {
-                                        Log.d("CheckShimmer", "updateActiveDevices Success: ${outlet.outletName}")
-                                    }
-                                    .addOnFailureListener {
-                                        Log.e("CheckShimmer", "updateActiveDevices Failed")
-                                    }
-                            }
-                        } else {
-                            Tasks.forResult(null)
-                        }
-
                         try {
-                            Log.d("CheckShimmer", "getSpecificOutletData Try Block")
-                            // Combine both tasks and handle their success or failure
-                            val allTasks = listOf(updateOutletTask, getCapsterDataTask, updateActiveDevicesTask)
-                            Tasks.whenAllComplete(allTasks).await()
+                            val isSameDay = isSameDay(Timestamp.now().toDate(), outlet.timestampModify.toDate())
 
-                            val failedTasks = allTasks.filter { !it.isSuccessful }
-                            if (failedTasks.isNotEmpty()) {
-                                Log.d("CheckShimmer", "getSpecificOutletData Failed Tasks")
-                                withContext(Dispatchers.Main) {
-                                    val updateOutletError = failedTasks.find { it == updateOutletTask }?.exception?.message
-                                    val getCapsterError = failedTasks.find { it == getCapsterDataTask }?.exception?.message
-                                    val updateActiveDevicesError = failedTasks.find { it == updateActiveDevicesTask }?.exception?.message
-
-                                    if (updateOutletError != null) {
-                                        showToast(updateOutletError)
-                                    }
-                                    if (getCapsterError != null) {
-                                        showToast(getCapsterError)
-                                    }
-                                    if (updateActiveDevicesError != null) {
-                                        showToast(updateActiveDevicesError)
-                                    }
-
-                                    // calculateQueueData(true)
-                                    queueTrackerViewModel.setReSetupDropdownCapster(true)
-                                    queueTrackerViewModel.setCalculateDataReservation(true)
+                            // 1. updateCurrentQueue
+                            val updateOutletTask: Task<Void> = if (!isRefreshingPage && !isSameDay) {
+                                outlet.apply {
+                                    currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
+                                    timestampModify = Timestamp.now()
                                 }
-                                throw Exception("One or more tasks failed")
+                                updateOutletCurrentQueue(outlet)
                             } else {
-                                Log.d("CheckShimmer", "getSpecificOutletData All Tasks Succeeded")
-                                // All tasks succeeded
-                                withContext(Dispatchers.Main) {
-                                    // setupAutoCompleteTextView()
-                                    queueTrackerViewModel.setReSetupDropdownCapster(true)
-                                    getAllReservationData()
-                                }
+                                Tasks.forResult(null)
                             }
+
+                            // 2. getAllReservationData (dibungkus di Task)
+                            val reservationTask = getAllReservationData(outlet)
+
+                            // 3. updateActiveDevices
+                            val updateDeviceTask = updateActiveDevices(1, outlet)
+
+                            val firstPhaseTasks = listOf(updateOutletTask, reservationTask, updateDeviceTask)
+                            Tasks.whenAllComplete(firstPhaseTasks).await()
+
+                            // Cek jika ada yang gagal di fase 1
+                            val failedPhase1 = firstPhaseTasks.any { !it.isSuccessful }
+                            if (failedPhase1) throw Exception("One or more tasks failed in process getting data")
+
+                            // 4. getCapsterDataTask
+                            val getCapsterDataTask = getCapsterDataTask(outletSelected = outlet)
+                            getCapsterDataTask.await()
+
                         } catch (e: Exception) {
-                            Log.d("CheckShimmer", "getSpecificOutletData Catch Block")
-                            // Handle unexpected errors in the process
+                            Log.e("QTP", "Failed during initialization flow: ${e.message}")
                             withContext(Dispatchers.Main) {
-//                                Toast.makeText(this@QueueTrackerPage, "QTP ??N1 - catch capster", Toast.LENGTH_SHORT).show()
-                                // calculateQueueData(true)
-                                queueTrackerViewModel.setReSetupDropdownCapster(true)
-                                queueTrackerViewModel.setCalculateDataReservation(true)
-                                showToast("Unexpected error: ${e.message}")
+                                showToast("Terjadi kesalahan: ${e.message}")
+                                queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+                                Log.d("CapsterCheck", "capsterList D 0")
+                                queueTrackerViewModel.setCapsterList(
+                                    emptyList(),
+                                    setupDropdown = true,
+                                    isSavedInstanceStateNull = true
+                                )
                             }
-                            throw e
                         }
                     }
-
                 }
+
             } else {
-                Log.d("CheckShimmer", "getSpecificOutletData Success >> document tidak ditemukan")
-                // calculateQueueData(true)
-                queueTrackerViewModel.setReSetupDropdownCapster(true)
-                queueTrackerViewModel.setCalculateDataReservation(true)
                 showToast("Outlet document does not exist")
+                queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+                Log.d("CapsterCheck", "capsterList E 0")
+                queueTrackerViewModel.setCapsterList(
+                    emptyList(),
+                    setupDropdown = true,
+                    isSavedInstanceStateNull = true
+                )
             }
-        }.addOnFailureListener { exception ->
-            Log.d("CheckShimmer", "getSpecificOutletData Failed")
-            // calculateQueueData(true)
-            queueTrackerViewModel.setReSetupDropdownCapster(true)
-            queueTrackerViewModel.setCalculateDataReservation(true)
-            showToast("Error getting outlet document: ${exception.message}")
+        }.addOnFailureListener {
+            showToast("Error getting outlet document: ${it.message}")
+            queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+            Log.d("CapsterCheck", "capsterList F 0")
+            queueTrackerViewModel.setCapsterList(
+                emptyList(),
+                setupDropdown = true,
+                isSavedInstanceStateNull = true
+            )
         }
     }
 
-    private fun updateCurrentQueue(outletSelected: Outlet): Task<Void> {
+    private fun updateOutletCurrentQueue(outletSelected: Outlet): Task<Void> {
+        val taskCompletionSource = TaskCompletionSource<Void>()
         val outletRef = db.document(outletSelected.outletReference)
 
         Log.d("EnterQTP", "Update Outlet Status: ${outletSelected.outletName}")
-        // Update Firestore
-        return outletRef.update(
+        outletRef.update(
             mapOf(
                 "current_queue" to outletSelected.currentQueue,
                 "timestamp_modify" to outletSelected.timestampModify
             )
         ).addOnSuccessListener {
             Log.d("CheckShimmer", "updateCurrentQueue Success: ${outletSelected.outletName}")
+            taskCompletionSource.setResult(null)
         }.addOnFailureListener {
-            Log.e("CheckShimmer", "updateCurrentQueue Failed")
+            Log.e("CheckShimmer", "updateCurrentQueue Failed: ${it.message}")
+            taskCompletionSource.setException(it)
         }
+
+        return taskCompletionSource.task
     }
 
     private fun getCapsterDataTask(oldCapsterList: List<UserEmployeeData>? = null, outletSelected: Outlet): Task<Void> {
@@ -1232,7 +1208,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         outletSelected.let { outlet ->
             Log.d("CheckListenerLog", "BBP outlet.listEmployees 123 >> ${outlet.listEmployees}")
             if (outlet.listEmployees.isEmpty() && oldCapsterList == null) {
-//                Toast.makeText(this@QueueTrackerPage, "QTP ??B0 - empty capster", Toast.LENGTH_SHORT).show()
+                queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+                Log.d("CapsterCheck", "capsterList G 0")
+                queueTrackerViewModel.setCapsterList(emptyList(), setupDropdown = true, isSavedInstanceStateNull = true)
                 taskCompletionSource.setException(Exception("Anda belum menambahkan daftar capster untuk outlet"))
                 return taskCompletionSource.task
             }
@@ -1244,6 +1223,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 .get()
                 .addOnSuccessListener { documents ->
                     lifecycleScope.launch(Dispatchers.Default) {
+                        // menggunakan outletData alih2 outletSelected karena tidak ada pengcheckan let
                         val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch // harusnya data terbaru
                         val employeeUidList = outletData.listEmployees
                         Log.d("CheckListenerLog", "outletData in getCapsterDataTask")
@@ -1251,7 +1231,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         val (newCapsterList, newCapsterNames) = documents.documents.mapNotNull { document ->
                             document.toObject(UserEmployeeData::class.java)?.apply {
                                 userRef = document.reference.path
-                                outletRef = outletData.outletReference ?: ""
+                                outletRef = outletData.outletReference
                             }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter untuk availabilityStatus == true
                                 ?.let { employee ->
                                     employee to employee.fullname
@@ -1262,11 +1242,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
                         if (newCapsterList.isEmpty()) {
                             Log.d("CheckShimmer", "getCapsterDataTask Success >> newCapsterList count: kosong")
-//                            withContext(Dispatchers.Main) {
-//                                Toast.makeText(this@QueueTrackerPage, "QTP ??B1 - 0 capster", Toast.LENGTH_SHORT).show()
-//                            }
                             taskCompletionSource.setException(Exception("Tidak ditemukan data capster yang sesuai"))
-                            return@launch
                         }
 
                         Log.d("CheckShimmer", "getCapsterDataTask Success >> newCapsterList count: ${newCapsterList.size}")
@@ -1286,7 +1262,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                             employeeRating = matchingCapsterData.employeeRating
                                             fullname = matchingCapsterData.fullname
                                             gender = matchingCapsterData.gender
-                                            listPlacement = matchingCapsterData.listPlacement
+                                            uidListPlacement = matchingCapsterData.uidListPlacement
                                             password = matchingCapsterData.password
                                             phone = matchingCapsterData.phone
                                             photoProfile = matchingCapsterData.photoProfile
@@ -1322,20 +1298,17 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                 updatedCapsterList.removeAll(toRemove)
 
                                 Log.d("CheckListenerLog", "BBP oldCapsterList != null")
-                                queueTrackerViewModel.addCapsterList(updatedCapsterList)
-                                queueTrackerViewModel.addCapsterNames(newCapsterNames)
+                                queueTrackerViewModel.setPendingCalculation(isAllData = (capsterKeyword == "Semua"))
 
-//                                preDisplayQueueBoard(null)
-                                // queueTrackerViewModel.setUpdateUIBoard(null)
-//                                queueTrackerViewModel.triggerFilteringDataCapster(false)
-
-                                queueTrackerViewModel.setReSetupDropdownCapster(true)
-                                getAllReservationData()
+                                Log.d("CapsterCheck", "capsterList H ${updatedCapsterList.size}")
+                                queueTrackerViewModel.setCapsterList(updatedCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
                             } else {
                                 // Logika normal
                                 Log.d("CheckListenerLog", "BBP oldCapsterList == null")
-                                queueTrackerViewModel.addCapsterList(newCapsterList)
-                                queueTrackerViewModel.addCapsterNames(newCapsterNames)
+                                queueTrackerViewModel.setPendingCalculation(isAllData = true)
+
+                                Log.d("CapsterCheck", "capsterList I ${newCapsterList.size}")
+                                queueTrackerViewModel.setCapsterList(newCapsterList, setupDropdown = true, isSavedInstanceStateNull = true)
                             }
 
                             taskCompletionSource.setResult(null)
@@ -1344,7 +1317,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 }
                 .addOnFailureListener { exception ->
                     Log.d("CheckShimmer", "getCapsterDataTask Failed")
-//                    Toast.makeText(this@QueueTrackerPage, "QTP ??B3 - failed capster", Toast.LENGTH_SHORT).show()
                     taskCompletionSource.setException(exception)
                 }
         }
@@ -1352,8 +1324,15 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         return taskCompletionSource.task
     }
 
-    private fun getAllReservationData() {
-        queueTrackerViewModel.outletSelected.value?.let { outletSelected ->
+    private fun getAllReservationData(outletSelected: Outlet): Task<Void> {
+        val taskCompletionSource = TaskCompletionSource<Void>()
+
+        outletSelected.let {
+            if (outletSelected.uid.isEmpty()) {
+                taskCompletionSource.setException(IllegalStateException("Outlet not selected"))
+                return taskCompletionSource.task
+            }
+
             db.collection("${outletSelected.rootRef}/reservations")
                 .where(
                     Filter.and(
@@ -1364,56 +1343,55 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 ).get()
                 .addOnSuccessListener { documents ->
                     lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
+                        try {
+                            val outletData = queueTrackerViewModel.outletSelected.value ?: return@launch
+                            val employeeUidList = outletData.listEmployees
 
-                        val newReservationList = documents.mapNotNull { document ->
-                            val reservation = document.toObject(Reservation::class.java).apply {
-                                dataRef = document.reference.path
+                            val newReservationList = documents.mapNotNull { document ->
+                                val reservation = document.toObject(Reservation::class.java).apply {
+                                    dataRef = document.reference.path
+                                }
+
+                                val capsterUid = reservation.capsterInfo?.capsterRef
+                                    ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
+
+                                // Filter berdasarkan queueStatus dan juga employeeUidList
+                                reservation.takeIf {
+                                    it.queueStatus !in listOf("pending", "expired") &&
+                                            capsterUid != null &&
+                                            capsterUid in employeeUidList
+                                }
                             }
 
-                            val capsterUid = reservation.capsterInfo?.capsterRef
-                                ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
-
-                            // Filter berdasarkan queueStatus dan juga employeeUidList
-                            reservation.takeIf {
-                                it.queueStatus !in listOf("pending", "expired") &&
-                                        capsterUid != null &&
-                                        capsterUid in employeeUidList
+                            reservationMutex.withLock {
+                                Log.d("CacheChecking", "ADD RESERVATION LIST FROM GET RESERVATION")
+                                queueTrackerViewModel.setReservationList(newReservationList, isAllData = null)
                             }
-                        }
 
-
-                        reservationMutex.withLock {
-                            Log.d("CacheChecking", "ADD RESERVATION LIST FROM GET RESERVATION")
-                            queueTrackerViewModel.addReservationList(newReservationList)
-                            Log.d("EnterQTP", "Get All Reservation Data: ${outletSelected?.outletName}")
-                            // reservationList.clear()
-                            // reservationList.addAll(newReservationList)
-                        }
-                        Log.d("animateLoop", "Calculate Queue GET ALL")
-                        // calculateQueueData(true)
-                        queueTrackerViewModel.setCalculateDataReservation(true)
-
-                        if (newReservationList.isEmpty()) {
-                            Log.d("CheckShimmer", "getAllReservationData Success >> newReservationList count: kosong")
                             withContext(Dispatchers.Main) {
-                                showToast("No reservations data found")
+                                if (newReservationList.isEmpty()) {
+                                    showToast("No reservations data found")
+                                }
                             }
-                        } else { Log.d("CheckShimmer", "getAllReservationData Success >> newReservationList count: kosong") }
+
+                            taskCompletionSource.setResult(null)
+                        } catch (e: Exception) {
+                            Log.e("CheckShimmer", "Exception in processing reservations: ${e.message}")
+                            taskCompletionSource.setException(e)
+                        }
                     }
                 }
                 .addOnFailureListener { exception ->
-                    Log.d("CheckShimmer", "getAllReservationData Failed")
-                    // calculateQueueData(true)
-                    queueTrackerViewModel.setCalculateDataReservation(true)
-                    showToast("Error getting reservations: ${exception.message}")
+                    taskCompletionSource.setException(exception)
                 }
         }
+
+
+        return taskCompletionSource.task
     }
 
     private fun calculateQueueData(isAllData: Boolean) {
-        Log.d("CheckShimmer", "calculateQueueData isAllData: $isAllData")
+        Log.d("CapsterCheck", "calculateQueueData isAllData: $isAllData")
         lifecycleScope.launch(Dispatchers.Default) {
             // Menghitung jumlah reservation "waiting" untuk setiap capster
             reservationMutex.withLock {
@@ -1425,15 +1403,21 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                 val capsterWaitingCount = queueTrackerViewModel.capsterWaitingCount.value?.toMutableMap() ?: mutableMapOf()
                 val capsterList = queueTrackerViewModel.capsterList.value ?: emptyList()
 
+                // === NEW: siapkan map untuk "waiting queues" per capster ===
+                // key: last segment dari capster.userRef; value: list queueNumber ("02", dll)
+                val capsterWaitingQueuesMap = mutableMapOf<String, MutableList<String>>()
+
+                // Inisialisasi semua capster agar kasus capsterRef kosong bisa broadcast ke semua
+                capsterList.forEach { capster ->
+                    val key = capster.userRef.substringAfterLast("/")
+                    capsterWaitingQueuesMap.putIfAbsent(key, mutableListOf())
+                }
+
                 val filteredReservations = if (isAllData) {
-//                    currentQueue.clear()
                     capsterWaitingCount.clear()
                     reservationList
                 } else {
-                    val lowerCaseQuery = keyword.lowercase(Locale.getDefault())
-//                    val indexRefs = capsterList
-//                        .filter { it.fullname.lowercase(Locale.getDefault()).contains(lowerCaseQuery) }
-//                        .map { it.userRef }
+                    val lowerCaseQuery = capsterKeyword.lowercase(Locale.getDefault())
                     val indexRefs = capsterList
                         .filter { employee ->
                             employee.availabilityStatus && (
@@ -1448,10 +1432,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
                     indexRefs.forEach { capsterWaitingCount.remove(it) }
                     capsterWaitingCount.remove("")
-//                    reservationList.filter { reservation ->
-//                        reservation.capsterInfo?.capsterName == "" ||
-//                                reservation.capsterInfo?.capsterName?.lowercase(Locale.getDefault())?.contains(lowerCaseQuery) == true
-//                    }
                     reservationList.filter { reservation ->
                         val capsterName = reservation.capsterInfo?.capsterName?.lowercase(Locale.getDefault()).orEmpty()
 
@@ -1467,7 +1447,12 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                         }
                     }
                 }
-                // Log.d("TestABD", "filteredReservations: ${filteredReservations[0]}")
+
+                // === EXISTING COUNT + NEW QUEUE GROUPING ===
+                // Kita tetap mempertahankan perhitungan existing,
+                // tapi pengelompokan map hanya untuk status "waiting" (sesuai permintaan).
+                // Simpan sementara queueNumber dari reservation capsterRef kosong untuk di-broadcast belakangan
+                val broadcastQueueNumbers = mutableListOf<String>()
 
                 filteredReservations.forEach { reservation ->
                     when (reservation.queueStatus) {
@@ -1476,6 +1461,19 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             capsterWaitingCount[capsterRef] = capsterWaitingCount.getOrDefault(capsterRef, 0) + 1
                             restQueue++
                             totalQueue++
+
+                            // === NEW: pengelompokan untuk map ===
+                            if (capsterRef.isEmpty()) {
+                                // ditambahkan ke semua key nanti (broadcast)
+                                if (reservation.queueNumber.isNotEmpty()) {
+                                    broadcastQueueNumbers += reservation.queueNumber
+                                }
+                            } else {
+                                val key = capsterRef.substringAfterLast("/")
+                                if (reservation.queueNumber.isNotEmpty()) {
+                                    capsterWaitingQueuesMap.getOrPut(key) { mutableListOf() }.add(reservation.queueNumber)
+                                }
+                            }
                         }
                         "completed" -> {
                             completeQueue++
@@ -1486,50 +1484,43 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             totalQueue++
                         }
                         "process" -> {
-//                            currentQueue[reservation.capsterInfo.capsterRef] = reservation.queueNumber
                             val capsterRef = reservation.capsterInfo?.capsterRef ?: "null"
                             capsterWaitingCount[capsterRef] = capsterWaitingCount.getOrDefault(capsterRef, 0) + 1
                             totalQueue++
                             restQueue++
                         }
-                        // "pending", "expired" -> {}
                     }
                 }
 
+                // === NEW: broadcast queueNumber dari capsterRef kosong ke semua key ===
+                if (broadcastQueueNumbers.isNotEmpty()) {
+                    capsterWaitingQueuesMap.keys.forEach { key ->
+                        capsterWaitingQueuesMap.getOrPut(key) { mutableListOf() }.addAll(broadcastQueueNumbers)
+                    }
+                }
+
+                // === EXISTING: update restOfQueue per capster (menjaga perilaku lama) ===
                 capsterListMutex.withLock {
                     capsterList.forEach { capster ->
                         capster.restOfQueue = capsterWaitingCount.getOrDefault(capster.userRef, 0) + capsterWaitingCount.getOrDefault("", 0)
                     }
                 }
 
-                // Add logs for currentQueue with detailed CapsterRef
-//                currentQueue.forEach { (capsterRef, queueNumber) ->
-//                    Log.d("QueueLog", "CurrentQueue -> CapsterRef: $capsterRef, QueueNumber: $queueNumber")
-//                }
-
-                // Add logs for capsterWaitingCount
-//                capsterWaitingCount.forEach { (capsterRef, count) ->
-//                    Log.d("QueueLog", "CapsterWaitingCount -> CapsterRef: $capsterRef, WaitingCount: $count")
-//                }
-
-//            if (isFirstLoad || isChangeDate) {
-
-                queueTrackerViewModel.addCapsterWaitingCount(capsterWaitingCount)
+                // === PUSH ke ViewModel (existing) ===
+                queueTrackerViewModel.setCapsterWaitingCount(capsterWaitingCount)
                 Log.d("CacheChecking", "UPDATE CAPSTER DATA AFTER CALCULATE")
-                queueTrackerViewModel.addCapsterList(capsterList)
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@QueueTrackerPage, "QTP ??C1 - ${capsterList.size} capster", Toast.LENGTH_SHORT).show()
-//                }
-//                // queueTrackerViewModel.addReservationList(reservationList)
+                queueTrackerViewModel.updateCapsterList(capsterList)
+
+                // === NEW: push map pengelompokan "waiting queues" ke ViewModel ===
+                // Ubah ke Map<String, List<String>> (immutable) sebelum set
+                val immutableQueues = capsterWaitingQueuesMap.mapValues { it.value.sorted() /* optional: urutkan "01","02",... */ }
+                queueTrackerViewModel.setCapsterWaitingQueues(immutableQueues)
 
                 if (isFirstLoad) {
                     Log.d("CheckShimmer", "First Load")
                     Log.d("EnterQTP", "preDisplayQueueBoard First Load = true")
                     preDisplayQueueBoard(true)
-                    // queueTrackerViewModel.setUpdateUIBoard(true)
-                    // filterCapster("", false)
                     queueTrackerViewModel.triggerFilteringDataCapster(true)
-                    // delay(500)
                     setupListeners()
                     Log.d("EnterQTP", "Enter QTP First Load Setup Listener")
                     Log.d("EnterQTP", "isShimmerListVisible: $isShimmerListVisible :: isShimmerBoardVisible: $isShimmerBoardVisible")
@@ -1538,12 +1529,11 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     Log.d("CheckShimmer", "Not First Load")
                     Log.d("EnterQTP", "preDisplayQueueBoard Not First Load = false")
                     preDisplayQueueBoard(isShimmerBoardVisible)
-                    // queueTrackerViewModel.setUpdateUIBoard(false)
-                    // filterCapster(keyword, isShimmerListVisible)
                     queueTrackerViewModel.triggerFilteringDataCapster(isShimmerListVisible)
                     Log.d("EnterQTP", "isShimmerListVisible: $isShimmerListVisible >< isShimmerBoardVisible: $isShimmerBoardVisible")
                 }
 
+                Log.d("CapsterCheck", "B")
                 queueTrackerViewModel.setCalculateDataReservation(null)
             }
         }
@@ -1747,27 +1737,31 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     }
 
     private fun updateActiveDevices(change: Int, outletSelected: Outlet): Task<Void> {
-        outletSelected.let { outlet ->
-            if (outlet.rootRef.isEmpty() || outlet.uid.isEmpty()) {
-                return Tasks.forException(IllegalArgumentException("Invalid outlet reference or UID"))
-            }
-            val outletDocRef = db.document("${outlet.rootRef}/outlets/${outlet.uid}")
-            Log.d("EnterQTP", "Update Active Devices: ${outlet.outletName}")
+        val taskCompletionSource = TaskCompletionSource<Void>()
 
-            return db.runTransaction { transaction ->
-                val currentActiveDevices = outlet.activeDevices
-                outlet.activeDevices = currentActiveDevices + change
-                transaction.update(outletDocRef, "active_devices", outlet.activeDevices)
-                null // Explicitly return null to match Void type
-            }
-
-            // runTransaction digunakan untuk menghindari race condition sehingga ketika 2 device ingin memperbarui data maka data yang dipakai adalah data terbaru
-            // Perangkat A membaca activeDevices = 2
-            // Perangkat B juga membaca activeDevices = 2
-            // Keduanya mengubah menjadi 3
-            // Padahal seharusnya jadi 4
+        if (outletSelected.rootRef.isEmpty() || outletSelected.uid.isEmpty()) {
+            taskCompletionSource.setException(IllegalArgumentException("Invalid outlet reference or UID"))
+            return taskCompletionSource.task
         }
+
+        val outletDocRef = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}")
+        Log.d("EnterQTP", "Update Active Devices: ${outletSelected.outletName}")
+
+        db.runTransaction { transaction ->
+            val currentActiveDevices = outletSelected.activeDevices
+            outletSelected.activeDevices = currentActiveDevices + change
+            transaction.update(outletDocRef, "active_devices", outletSelected.activeDevices)
+            null // Return null for Task<Void>
+        }.addOnSuccessListener {
+            taskCompletionSource.setResult(null)
+        }.addOnFailureListener {
+            Log.e("CheckShimmer", "updateActiveDevices Failed: ${it.message}")
+            taskCompletionSource.setException(it)
+        }
+
+        return taskCompletionSource.task
     }
+
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
@@ -1823,15 +1817,17 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         super.onNewIntent(intent)
         intent?.getStringExtra(CompleteOrderPage.CAPSTER_NAME_KEY)?.let {
             Log.d("BindingFocus", "onNewIntent: $it")
-            binding.realLayout.autoCompleteTextView.setText(it, false)
+            binding.realLayout.acCapsterName.setText(it, false)
 
-            if ((queueTrackerViewModel.capsterNames.value?.contains(it) == true || it.isEmpty()) && it != keyword) {
-                keyword = it
+            val capsterListName = queueTrackerViewModel.capsterList.value?.map { it1 -> it1.fullname } ?: emptyList()
+            if ((capsterListName.contains(it) || it == "Semua") && it != capsterKeyword) {
+                capsterKeyword = it
                 capsterAdapter.setShimmer(true)
                 isShimmerListVisible = true
                 Log.d("animateLoop", "Calculate Queue NEW INTENT")
                 // calculateQueueData(keyword.isEmpty())
-                queueTrackerViewModel.setCalculateDataReservation(keyword.isEmpty())
+                Log.d("CapsterCheck", "C")
+                queueTrackerViewModel.setCalculateDataReservation(capsterKeyword == "Semua")
             }
         }
     }
@@ -1950,11 +1946,11 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     override fun onDestroy() {
         super.onDestroy()
         capsterAdapter.stopAllShimmerEffects()
-        Log.d("BindingFocus", "onDestroy: ${binding.realLayout.autoCompleteTextView.text.toString().trim()} || Pop Up Checking: $isPopUpDropdownShow")
+        Log.d("BindingFocus", "onDestroy: ${binding.realLayout.acCapsterName.text.toString().trim()} || Pop Up Checking: $isPopUpDropdownShow")
         stopAnimation()
 
         queueTrackerViewModel.clearState()
-        binding.realLayout.autoCompleteTextView.removeTextChangedListener(textWatcher)
+        binding.realLayout.acCapsterName.removeTextChangedListener(textWatcher)
 //        Toast.makeText(this, "QTP ??D11 capster", Toast.LENGTH_SHORT).show()
         handler.removeCallbacksAndMessages(null)
         if (::capsterListener.isInitialized) capsterListener.remove()

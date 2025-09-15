@@ -34,6 +34,11 @@ data class AppointmentData(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyCreatorDetail: Boolean,
         copyCreatorWithReminder: Boolean,
@@ -85,6 +90,11 @@ data class LocationPoint(
     @get:PropertyName("latitude") @set:PropertyName("latitude") var latitude: Double = 0.0,
     @get:PropertyName("longitude") @set:PropertyName("longitude") var longitude: Double = 0.0,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(): LocationPoint {
         return LocationPoint(
             placeName = this.placeName,

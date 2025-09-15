@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -51,6 +52,7 @@ import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.toUtcMidnightMillis
 import com.example.barberlink.databinding.FragmentCapitalInputBinding
+import com.google.android.material.color.MaterialColors
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.Timestamp
@@ -58,11 +60,13 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 
 
 // TNODO: Rename parameter arguments, choose names that match
@@ -87,47 +91,47 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private var isOutletNameValid = false
     private var isCapitalAmountValid = false
     private var dailyCapitalString: String = ""
     private var isFirstLoad: Boolean = true
-    private var outletName: String = ""
-    private var isGetData: Boolean = true
+    private var uidDropdownPosition: String = ""
+    private var textDropdownOutletName: String = ""
     private var isOrientationChanged: Boolean = false
     private var previousText: String = ""
+    private var previousCursorPosition: Int = 0
     private var isInSaveProcess: Boolean = false
     private var uidDailyCapital: String = ""
     private lateinit var timeStampFilter: Timestamp
-    private var textErrorForOutletName: String = "undefined"
     private var textErrorForCapitalAmount: String = "undefined"
     private var isProcessUpdatingData: Boolean = false
     private var currentToastMessage: String? = null
+    private var skippedProcess: Boolean = false
 
-    private var capitalListener: ListenerRegistration? = null
+    private lateinit var capitalListener: ListenerRegistration
+    private lateinit var dataOutletListener: ListenerRegistration
     private var todayDate: String = ""
     private lateinit var calendar: Calendar
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
     private var lifecycleListener: DefaultLifecycleObserver? = null
     private lateinit var textWatcher1: TextWatcher
-    private lateinit var textWatcher2: TextWatcher
+    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
 
     private lateinit var context: Context
     // private var previousCapitalAmount: Long = 0
     private var isNavigating = false
     private var currentView: View? = null
     private val handler = Handler(Looper.getMainLooper())
+    private var remainingListeners = AtomicInteger(2)
 
     private var selectedCardView: CardView? = null
     private var selectedTextView: TextView? = null
     private var inputManualCheckOne: (() -> Unit)? = null
-    private var inputManualCheckTwo: (() -> Unit)? = null
 
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
     // TNODO: Rename and change types of parameters
-    private var outletList: ArrayList<Outlet>? = null
     //private var userAdminData: UserAdminData? = null
     //private var userPegawaiData: Employee? = null
     private var currentSnackbar: Snackbar? = null
@@ -145,20 +149,22 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) {
             isFirstLoad = savedInstanceState.getBoolean("is_first_load")
-            isGetData = savedInstanceState.getBoolean("is_get_data")
+            skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed")
-            outletName = savedInstanceState.getString("outlet_name", "")
+            uidDropdownPosition = savedInstanceState.getString("uid_dropdown_position", "")
+            textDropdownOutletName = savedInstanceState.getString("text_dropdown_outlet_name", "")
             dailyCapitalString = savedInstanceState.getString("daily_capital", "")
-            isOutletNameValid = savedInstanceState.getBoolean("is_outlet_name_valid")
             isCapitalAmountValid = savedInstanceState.getBoolean("is_capital_amount_valid")
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
+            previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
             isInSaveProcess = savedInstanceState.getBoolean("is_in_save_process", false)
             uidDailyCapital = savedInstanceState.getString("uid_daily_capital", "") ?: ""
             timeStampFilter = Timestamp(Date(savedInstanceState.getLong("timestamp_filter")))
-            textErrorForOutletName = savedInstanceState.getString("text_error_for_outlet_name", "undefined") ?: "undefined"
             textErrorForCapitalAmount = savedInstanceState.getString("text_error_for_capital_amount", "undefined") ?: "undefined"
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
+
+            capitalFragmentViewModel.setupDropdownFilterWithNullState()
         }
 //        arguments?.let {
 //            outletList = it.getParcelableArrayList(ARG_PARAM1)
@@ -227,47 +233,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             }
         }
 
-        init()
-        capitalFragmentViewModel.outletsList.observe(viewLifecycleOwner) { outletList ->
-            if (outletList != null) {
-                this.outletList = outletList.toCollection(ArrayList())
-                if (isFirstLoad || isOrientationChanged) {
-                    if (isOrientationChanged) {
-                        inputManualCheckOne = {
-                            if (textErrorForOutletName.isNotEmpty() && textErrorForOutletName != "undefined") {
-                                isOutletNameValid = false
-                                binding.outletCustomError.text = textErrorForOutletName
-                                setFocus(binding.acOutletName)
-                            } else {
-                                isOutletNameValid = textErrorForOutletName != "undefined"
-                                binding.outletCustomError.text = getString(R.string.required)
-                            }
-
-                            if (textErrorForOutletName == "undefined" && textErrorForCapitalAmount == "undefined") binding.etDailyCapital.requestFocus()
-                        }
-
-                        inputManualCheckTwo = {
-                            if (textErrorForCapitalAmount.isNotEmpty() && textErrorForCapitalAmount != "undefined") {
-                                isCapitalAmountValid = false
-                                binding.llInfo.visibility = View.VISIBLE
-                                binding.tvInfo.text = textErrorForCapitalAmount
-                                setFocus(binding.etDailyCapital)
-                            } else {
-                                isCapitalAmountValid = textErrorForCapitalAmount != "undefined"
-                                binding.llInfo.visibility = View.GONE
-                                binding.tvInfo.text = textErrorForCapitalAmount
-                            }
-
-                            if (textErrorForOutletName == "undefined" && textErrorForCapitalAmount == "undefined") binding.etDailyCapital.requestFocus()
-                        }
-                    }
-
-                    setupEditTextListeners()
-                    binding.etDailyCapital.setText(binding.etDailyCapital.text.toString().ifEmpty { "0" })
-                }
-                setupAutoCompleteTextView()
-            }
-        }
+        init(view, savedInstanceState)
 
         // Panggil fungsi pertama kali
         updateMargins()
@@ -320,18 +286,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
 
         capitalFragmentViewModel.snackBarInputMessage.observe(this) { showSnackBar(it)  }
-        // Observasi perubahan data dari ViewModel
-        capitalFragmentViewModel.selectedCardId.value.let { cardId ->
-            capitalFragmentViewModel.selectedTextId.value.let { textId ->
-                if (cardId != null && textId != null) {
-                    selectedCardView = view.findViewById(cardId)
-                    selectedTextView = view.findViewById(textId)
-                    selectCardView(selectedCardView, selectedTextView, null)
-                } else {
-                    selectCardView(null, null, null)  // Jika tidak ada kartu yang dipilih
-                }
-            }
-        }
     }
 
     private fun showLocalToast() {
@@ -365,17 +319,17 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_first_load", isFirstLoad)
-        outState.putBoolean("is_get_data", true)
+        outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_orientation_changed", true)
-        outState.putString("outlet_name", outletName)
+        outState.putString("uid_dropdown_position", uidDropdownPosition)
+        outState.putString("text_dropdown_outlet_name", textDropdownOutletName)
         outState.putString("daily_capital", dailyCapitalString)
-        outState.putBoolean("is_outlet_name_valid", isOutletNameValid)
         outState.putBoolean("is_capital_amount_valid", isCapitalAmountValid)
         outState.putString("previous_text", previousText)
+        outState.putInt("previous_cursor_position", previousCursorPosition)
         outState.putBoolean("is_in_save_process", isInSaveProcess)
         outState.putString("uid_daily_capital", uidDailyCapital)
         outState.putLong("timestamp_filter", timeStampFilter.toDate().time)
-        outState.putString("text_error_for_outlet_name", textErrorForOutletName)
         outState.putString("text_error_for_capital_amount", textErrorForCapitalAmount)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
@@ -414,13 +368,86 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         return (dp * resources.displayMetrics.density).toInt()
     }
 
-    private fun init() {
+    private fun init(view: View, savedInstanceState: Bundle?) {
         calendar = Calendar.getInstance()
-        if (isOrientationChanged) setDateFilterValue(timeStampFilter)
-        else setDateFilterValue(Timestamp.now())
+        if (savedInstanceState == null) {
+            setDateFilterValue(Timestamp.now())
+        } else {
+            setDateFilterValue(timeStampFilter)
+        }
+
+        capitalFragmentViewModel.inputAmountValue.observe(this@CapitalInputFragment) { amount ->
+            val cardId = capitalFragmentViewModel.selectedCardId.value
+            val textId = capitalFragmentViewModel.selectedTextId.value
+
+            Log.d("PickButton", "Selected card ID: $cardId, Selected text ID: $textId, Amount: $amount")
+            if (cardId != null && textId != null && cardId != -999 && textId != -999) {
+                val selectedCard: CardView = view.findViewById(cardId)
+                val selectedText: TextView = view.findViewById(textId)
+                selectCardView(selectedCard, selectedText, amount)
+            } else {
+                selectCardView(null, null, amount)  // Jika tidak ada kartu yang dipilih
+            }
+        }
+
+        if (isOrientationChanged) {
+            inputManualCheckOne = {
+                if (textErrorForCapitalAmount.isNotEmpty() && textErrorForCapitalAmount != "undefined") {
+                    isCapitalAmountValid = false
+                    binding.llInfo.visibility = View.VISIBLE
+                    binding.tvInfo.text = textErrorForCapitalAmount
+                    setFocus(binding.etDailyCapital)
+                } else {
+                    isCapitalAmountValid = textErrorForCapitalAmount != "undefined"
+                    binding.llInfo.visibility = View.GONE
+                    binding.tvInfo.text = textErrorForCapitalAmount
+                }
+
+                if (textErrorForCapitalAmount == "undefined") binding.etDailyCapital.requestFocus()
+            }
+        }
+
+//        val input = binding.etDailyCapital.text.toString().ifEmpty { "0" }
+//        format.parse(input)?.toInt()?.let { number ->
+//            setupCapitalInputValue(number)
+//        }
+        setupEditTextListeners()
 
         Log.d("SnapshotUID", "INIT")
         binding.tvDateValue.isSelected = true
+
+        capitalFragmentViewModel.setupDropdownFilterWithNullState.observe(this@CapitalInputFragment) { isSavedInstanceStateNull ->
+            val setupDropdown = capitalFragmentViewModel.setupDropdownFilter.value ?: false
+            Log.d("CheckDialog", "setupDropdown $setupDropdown || setupDropdownOutletWithNullState: $isSavedInstanceStateNull")
+            if (isSavedInstanceStateNull != null) setupDropdownOutlet(setupDropdown, isSavedInstanceStateNull)
+        }
+    }
+
+    private fun setupCapitalInputValue(number: Int) {
+        with(binding) {
+            when (number) {
+                100000 -> {
+                    //selectCardView(cd100000, tv100000, 100000)
+                    capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
+                }
+                150000 -> {
+                    //selectCardView(cd150000, tv150000, 150000)
+                    capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
+                }
+                200000 -> {
+                    //selectCardView(cd200000, tv200000, 200000)
+                    capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
+                }
+                -777 -> {
+                    //selectCardView(null, null, -999)
+                    capitalFragmentViewModel.saveSelectedCard(-999, -999, -777)
+                }
+                else -> {
+                    //selectCardView(null, null, number)
+                    capitalFragmentViewModel.saveSelectedCard(null, null, number)
+                }
+            }
+        }
     }
 
     private fun setDateFilterValue(timestamp: Timestamp) {
@@ -462,7 +489,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 val userPegawaiData = capitalFragmentViewModel.userEmployeeData.value
                 if (userAdminData != null) {
                     tvNama.text = userAdminData.ownerName
-                    if (userAdminData.imageCompanyProfile?.isNotEmpty() == true) {
+                    if (userAdminData.imageCompanyProfile.isNotEmpty()) {
                         Glide.with(context)
                             .load(userAdminData.imageCompanyProfile)
                             .placeholder(
@@ -472,7 +499,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     }
                 } else if (userPegawaiData != null) {
                     tvNama.text = userPegawaiData.fullname
-                    if (userPegawaiData.photoProfile?.isNotEmpty() == true) {
+                    if (userPegawaiData.photoProfile.isNotEmpty()) {
                         Glide.with(context)
                             .load(userPegawaiData.photoProfile)
                             .placeholder(
@@ -489,27 +516,87 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
     }
 
-    private fun setupAutoCompleteTextView() {
+    private fun setupDropdownOutlet(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
-            // Extract outlet names from the list of Outlets
-            val outletNames = outletList?.map { it.outletName }?.toMutableList() ?: mutableListOf()
+            capitalFragmentViewModel.outletList.value?.let { outletList ->
+                // Filter dan urutkan outlet, lalu tambahkan item khusus
+                val outletItemDropdown = buildList {
+                    addAll(
+                        outletList
+                            // Buang duplikat berdasarkan outletName, lalu urutkan berdasarkan outletName
+                            .distinctBy { it.outletName }
+                            .sortedBy { it.outletName.lowercase(Locale.getDefault()) }
+                            // Jika kosong, isi dengan dummy outlet
+                            .ifEmpty { listOf(Outlet(uid = "---", outletName = "---")) }
+                    )
+                }
 
-            outletNames.let {
-                if (it.isNotEmpty()) {
-                    // Create an ArrayAdapter using the outlet names
-                    val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, outletNames)
+                val filteredOutletNames = outletItemDropdown.map { it.outletName }
+                val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, filteredOutletNames)
+                binding.acOutletName.setAdapter(adapter)
 
-                    // Set the adapter to the AutoCompleteTextView
-                    binding.acOutletName.setAdapter(adapter)
-                    // binding.acOutletName.setOnItemClickListener { adapterView, view, i, l ->
-                    //    outletName = adapterView.getItemAtPosition(i).toString()
-                    //    isOutletNameValid = validateOutletInput()
-                    // }
+                binding.acOutletName.setOnItemClickListener { _, _, position, _ ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        val dataOutlet = outletItemDropdown[position]
+                        binding.acOutletName.setText(dataOutlet.outletName, false)
+                        uidDropdownPosition = dataOutlet.uid
+                        textDropdownOutletName = dataOutlet.outletName
 
-                    // Set the text of acOutletName to the first outlet name
-                    if (isFirstLoad) binding.acOutletName.setText(outletNames[0], false)
-                    else if (isOrientationChanged) binding.acOutletName.setText(outletName, false)
-//                    binding.acOutletName.setSelection(binding.acOutletName.text.length)
+                        capitalFragmentViewModel.setOutletSelected(dataOutlet)
+                        if (textDropdownOutletName == "---") {
+                            capitalListener.remove()
+                            dataOutletListener.remove()
+                            // selectCardView(null, null, -999)
+                            capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
+                        } else {
+                            listenToDailyCapital()
+                            listenSpecificOutletData()
+                        }
+
+                    }
+
+                }
+
+                if (setupDropdown) {
+                    val dataOutlet = outletItemDropdown.first()
+                    binding.acOutletName.setText(dataOutlet.outletName, false)
+                    uidDropdownPosition = dataOutlet.uid
+                    textDropdownOutletName = dataOutlet.outletName
+
+                    capitalFragmentViewModel.setOutletSelected(dataOutlet)
+                } else {
+                    if (isSavedInstanceStateNull) {
+                        val selectedIndex = outletItemDropdown.indexOfFirst {
+                            it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                        }.takeIf { it != -1 } ?: -1
+                        Log.d("CheckDialog", "setup dropdown by uidDropdownPosition index: $selectedIndex")
+                        val dataOutlet = if (selectedIndex != -1) outletItemDropdown[selectedIndex] else Outlet(uid = "---", outletName = "---")
+                        if (textDropdownOutletName != "---") binding.acOutletName.setText(dataOutlet.outletName, false)
+                        uidDropdownPosition = dataOutlet.uid
+                        textDropdownOutletName = dataOutlet.outletName
+
+                        capitalFragmentViewModel.setOutletSelected(dataOutlet)
+                        if (textDropdownOutletName == "---") {
+                            capitalListener.remove()
+                            dataOutletListener.remove()
+                            // selectCardView(null, null, -999)
+                            capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
+                        }
+                    } else {
+                        //binding.acOutletName.setText(textDropdownOutletName, false)
+                        Log.d("CheckDialog", "setup dropdown by orientationChange")
+                    }
+                }
+
+                if ((isSavedInstanceStateNull && setupDropdown) || isFirstLoad) {
+                    Log.d("CheckDialog", "getDailyCapital()")
+                    getDailyCapital()
+                }
+
+                if (!isSavedInstanceStateNull) {
+                    if (!isFirstLoad) {
+                        setupListeners(skippedProcess = true)
+                    }
                 }
             }
         }
@@ -520,44 +607,42 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         with (binding) {
             when (v?.id) {
                 R.id.btnSave -> {
-                    if (validateInputs()) {
+                    if (isCapitalAmountValid) {
                         checkNetworkConnection {
-//                        val outletName = binding.acOutletName.text.toString().trim()
-                            var originalString = dailyCapitalString
-                            if (dailyCapitalString.contains(".")) {
-                                originalString = originalString.replace(".", "")
-                            }
-                            val formattedAmount = originalString.toInt()
-                            if (originalString[0] == '0' && originalString.length > 1) {
-                                isCapitalAmountValid = validateCapitalInput(true)
-                            } else {
+                            val formattedAmount = format.parse(dailyCapitalString)?.toInt()
+                            if (formattedAmount != null) {
                                 disableBtnWhenShowDialog(v) {
-                                    saveDailyCapital(formattedAmount, outletName)
+                                    saveDailyCapital(formattedAmount)
                                 }
+                            } else {
+                                showToast("Input tidak valid karena menghasilkan null")
+                                setFocus(binding.etDailyCapital)
                             }
                         }
+//                        var originalString = dailyCapitalString
+//                        if (dailyCapitalString.contains(".")) {
+//                            originalString = originalString.replace(".", "")
+//                        }
+//                        val formattedAmount = originalString.toInt()
+//                        if (originalString[0] == '0' && originalString.length > 1) {
+//                            isCapitalAmountValid = validateCapitalInput(true)
+//                        } else { }
                     } else {
                         showToast("Mohon periksa kembali data yang dimasukkan")
-                        if (!isOutletNameValid) {
-//                            isOutletNameValid = validateOutletInput()
-                            setFocus(binding.acOutletName)
-                        } else if (!isCapitalAmountValid) {
-//                            isCapitalAmountValid = validateCapitalInput(true)
-                            setFocus(binding.etDailyCapital)
-                        }
+                        setFocus(binding.etDailyCapital)
                     }
                 }
                 R.id.cd100000 -> {
-                    selectCardView(cd100000, tv100000, 100000)
-                    capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id)
+                    //selectCardView(cd100000, tv100000, 100000)
+                    capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
                 }
                 R.id.cd150000 -> {
-                    selectCardView(cd150000, tv150000, 150000)
-                    capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id)
+                    //selectCardView(cd150000, tv150000, 150000)
+                    capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
                 }
                 R.id.cd200000 -> {
-                    selectCardView(cd200000, tv200000, 200000)
-                    capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id)
+                    //selectCardView(cd200000, tv200000, 200000)
+                    capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
                 }
                 R.id.cvDateFilterLabel -> {
                     disableBtnWhenShowDialog(v) {
@@ -586,7 +671,15 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             message,
             Snackbar.LENGTH_LONG
         ).setAction("Replace") {
-            binding.etDailyCapital.setText(capitalFragmentViewModel.moneyAmount.value?.getContentIfNotHandled())
+            capitalFragmentViewModel.moneyAmount.value?.getContentIfNotHandled()?.let { it1 ->
+                if (it1 == "-") {
+                    setupCapitalInputValue(-777)
+                } else {
+                    format.parse(it1)?.toInt()?.let { number ->
+                        setupCapitalInputValue(number)
+                    }
+                }
+            }
         }
 
         // Tambahkan margin ke atas (30dp)
@@ -604,109 +697,105 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         return (this * context.resources.displayMetrics.density).toInt()
     }
 
-    private fun saveDailyCapital(capitalAmount: Int, outletName: String) {
-        // val differenceCurrentCapital = capitalAmount - previousCapitalAmount
-        val outletSelected = outletList?.find { it.outletName == outletName }
-        var dailyCapital = DailyCapital()
-        val userAdminData = capitalFragmentViewModel.userAdminData.value
-        val userPegawaiData = capitalFragmentViewModel.userEmployeeData.value
+    private fun saveDailyCapital(capitalAmount: Int) {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            // val differenceCurrentCapital = capitalAmount - previousCapitalAmount
+            var dailyCapital = DailyCapital()
+            val userAdminData = capitalFragmentViewModel.userAdminData.value
+            val userPegawaiData = capitalFragmentViewModel.userEmployeeData.value
 
-        if (userAdminData != null) {
-            val dataCreator = DataCreator<UserData>(
-                userFullname = userAdminData.ownerName,
-                userPhone = userAdminData.phone,
-                userPhoto = userAdminData.imageCompanyProfile,
-                userRef = userAdminData.userRef,
-                userRole = "Owner"
-            )
-            val locationPoint = LocationPoint(
-                placeName = outletSelected?.outletName ?: "",
-                locationAddress = outletSelected?.outletAddress ?: "",
-                latitude = outletSelected?.latitudePoint ?: 0.0,
-            )
-            dailyCapital = DailyCapital(
-                timestampCreated = timeStampFilter,
-                outletCapital = capitalAmount,
-                uid = uidDailyCapital,
-                rootRef = "barbershops/${userAdminData.uid}",
-                outletIdentifier = outletSelected?.uid ?: "",
-                locationPoint = locationPoint,
-                dataCreator = dataCreator
-            )
-        } else if (userPegawaiData != null) {
-            val dataCreator = DataCreator<UserData>(
-                userFullname = userPegawaiData.fullname,
-                userPhone = userPegawaiData.phone,
-                userPhoto = userPegawaiData.photoProfile,
-                userRef = userPegawaiData.userRef,
-                userRole = "Employee"
-            )
-            val locationPoint = LocationPoint(
-                placeName = outletSelected?.outletName ?: "",
-                locationAddress = outletSelected?.outletAddress ?: "",
-                latitude = outletSelected?.latitudePoint ?: 0.0,
-            )
-            dailyCapital = DailyCapital(
-                timestampCreated = timeStampFilter,
-                outletCapital = capitalAmount,
-                uid = uidDailyCapital,
-                rootRef = userPegawaiData.rootRef,
-                outletIdentifier = outletSelected?.uid ?: "",
-                locationPoint = locationPoint,
-                dataCreator = dataCreator
-            )
-        }
+            if (userAdminData != null) {
+                val dataCreator = DataCreator<UserData>(
+                    userFullname = userAdminData.ownerName,
+                    userPhone = userAdminData.phone,
+                    userPhoto = userAdminData.imageCompanyProfile,
+                    userRef = userAdminData.userRef,
+                    userRole = "Owner"
+                )
+                val locationPoint = LocationPoint(
+                    placeName = outletSelected.outletName,
+                    locationAddress = outletSelected.outletAddress,
+                    latitude = outletSelected.latitudePoint,
+                )
+                dailyCapital = DailyCapital(
+                    timestampCreated = timeStampFilter,
+                    outletCapital = capitalAmount,
+                    uid = uidDailyCapital,
+                    rootRef = "barbershops/${userAdminData.uid}",
+                    outletIdentifier = outletSelected.uid,
+                    locationPoint = locationPoint,
+                    dataCreator = dataCreator
+                )
+            } else if (userPegawaiData != null) {
+                val dataCreator = DataCreator<UserData>(
+                    userFullname = userPegawaiData.fullname,
+                    userPhone = userPegawaiData.phone,
+                    userPhoto = userPegawaiData.photoProfile,
+                    userRef = userPegawaiData.userRef,
+                    userRole = "Employee"
+                )
+                val locationPoint = LocationPoint(
+                    placeName = outletSelected.outletName,
+                    locationAddress = outletSelected.outletAddress,
+                    latitude = outletSelected.latitudePoint,
+                )
+                dailyCapital = DailyCapital(
+                    timestampCreated = timeStampFilter,
+                    outletCapital = capitalAmount,
+                    uid = uidDailyCapital,
+                    rootRef = userPegawaiData.rootRef,
+                    outletIdentifier = outletSelected.uid,
+                    locationPoint = locationPoint,
+                    dataCreator = dataCreator
+                )
+            }
 
-        if (outletSelected != null) {
             saveDailyCapitalToFirestore(outletSelected, dailyCapital)
-        } else {
+        } ?: run {
             isNavigating = false
             currentView?.isClickable = true
         }
     }
 
-    private fun saveDailyCapitalToFirestore(outletSelected: Outlet?, dailyCapital: DailyCapital) {
+    private fun saveDailyCapitalToFirestore(outletSelected: Outlet, dailyCapital: DailyCapital) {
         binding.progressBar.visibility = View.VISIBLE
         isInSaveProcess = true
 
-        val dailyCapitalRef = if (outletSelected != null) {
-            db.document(outletSelected.rootRef)
-                .collection("daily_capital")
-        } else null
-
         if (uidDailyCapital.isNotEmpty()) {
             // Perbarui dokumen dengan ID yang diberikan
-            dailyCapitalRef?.document(uidDailyCapital)
-                ?.set(dailyCapital)
-                ?.addOnSuccessListener {
+            db.document(outletSelected.rootRef)
+                .collection("daily_capital").document(uidDailyCapital)
+                .set(dailyCapital)
+                .addOnSuccessListener {
                     isProcessUpdatingData = true
                     showToast("Daily capital successfully updated")
                 }
-                ?.addOnFailureListener { exception ->
+                .addOnFailureListener { exception ->
                     isProcessUpdatingData = false
                     isInSaveProcess = false
                     showToast("Failed to update daily capital: ${exception.message}")
                 }
-                ?.addOnCompleteListener {
+                .addOnCompleteListener {
                     binding.progressBar.visibility = View.GONE
                     isNavigating = false
                     currentView?.isClickable = true
                 }
         } else {
             // Generate a new document ID and set it to dailyCapital.uid
-            val newDocRef = dailyCapitalRef?.document() // Get a new document reference with a generated ID
-            dailyCapital.uid = newDocRef?.id ?: "" // Set the generated ID to dailyCapital.uid
-            newDocRef?.set(dailyCapital)
-                ?.addOnSuccessListener {
+            val newDocRef = db.document(outletSelected.rootRef)
+                .collection("daily_capital").document() // Get a new document reference with a generated ID
+            dailyCapital.uid = newDocRef.id ?: "" // Set the generated ID to dailyCapital.uid
+            newDocRef.set(dailyCapital)
+                .addOnSuccessListener {
                     isProcessUpdatingData = true
                     showToast("Daily capital successfully saved")
                 }
-                ?.addOnFailureListener { exception ->
+                .addOnFailureListener { exception ->
                     isProcessUpdatingData = false
                     isInSaveProcess = false
                     showToast("Failed to save daily capital: ${exception.message}")
                 }
-                ?.addOnCompleteListener {
+                .addOnCompleteListener {
                     binding.progressBar.visibility = View.GONE
                     isNavigating = false
                     currentView?.isClickable = true
@@ -719,96 +808,15 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         isNavigating = false
         currentView?.isClickable = true
         // kode OnResume dijalankan terlebih dahulu sebelum validate karena setupEditTextListeners() ada di observer
-        Log.d("CheckPion", "isOrientationChanged = DD")
     }
-
-
-//    private fun saveDailyCapitalToFirestore(outletSelected: Outlet, dailyCapital: HashMap<String, Any>, differenceCurrentCapital: Long) {
-//        binding.progressBar.visibility = View.VISIBLE
-//        val documentId = currentMonth
-//        val dailyCapitalRef = db.document(outletSelected.rootRef)
-//            .collection("outlets")
-//            .document(outletSelected.uid)
-//            .collection("daily_capital")
-//            .document(documentId)
-//
-//        dailyCapitalRef.set(
-//            mapOf(
-//                todayDate to dailyCapital
-//            ),
-//            SetOptions.merge()
-//        )
-//            .addOnSuccessListener {
-//                Toast.makeText(requireContext(), "Daily capital successfully saved", Toast.LENGTH_SHORT).show()
-//                updateMonthlyCapital(outletSelected.rootRef, differenceCurrentCapital)
-//            }
-//            .addOnFailureListener { exception ->
-//                Toast.makeText(requireContext(), "Failed to save daily capital: ${exception.message}", Toast.LENGTH_SHORT).show()
-//                binding.progressBar.visibility = View.GONE
-//                currentView?.isClickable = true
-//            }
-//    }
-
-//    private fun updateMonthlyCapital(rootRef: String, differenceCurrentCapital: Long) {
-//        val monthlyCapitalRef = db.document(rootRef)
-//
-//        monthlyCapitalRef.get()
-//            .addOnSuccessListener { document ->
-//                if (document != null && document.exists()) {
-//                    val currentMonthlyCapital = document.getLong("amount_of_capital.$currentMonth") ?: 0
-//                    val updatedMonthlyCapital = currentMonthlyCapital + differenceCurrentCapital
-//                    var currentDailyCapital = dailyCapital
-//                    if (currentDailyCapital.contains(".")) {
-//                        currentDailyCapital = currentDailyCapital.replace(".", "")
-//                    }
-//
-//                    monthlyCapitalRef.update("amount_of_capital.$currentMonth", updatedMonthlyCapital)
-//                        .addOnSuccessListener {
-//                            previousCapitalAmount = currentDailyCapital.toLong()
-//                            Toast.makeText(requireContext(), "Monthly capital updated successfully", Toast.LENGTH_SHORT).show()
-//                        }
-//                        .addOnFailureListener { exception ->
-//                            Toast.makeText(requireContext(), "Failed to update monthly capital: ${exception.message}", Toast.LENGTH_SHORT).show()
-//                        }
-//                }
-//            }
-//            .addOnFailureListener { exception ->
-//                Toast.makeText(requireContext(), "Failed to get monthly capital: ${exception.message}", Toast.LENGTH_SHORT).show()
-//            }
-//            .addOnCompleteListener {
-//                binding.progressBar.visibility = View.GONE
-//                currentView?.isClickable = true
-//            }
-//    }
 
     private fun setupEditTextListeners() {
         with(binding) {
             // Kode ini sementara tidak terlalu dibutuhkan karena acOutlet hanya akan di jadikan dropdown biasa
             textWatcher1 = object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-                override fun afterTextChanged(s: Editable?) {
-                    if (s != null && (s.toString() != outletName || isOrientationChanged)) {
-                        inputManualCheckOne?.invoke().also {
-                            if (inputManualCheckOne != null) {
-                                Log.d("OutletListener", "OutletListener A: $s")
-                                setupListeners()
-                            }
-                        } ?: run {
-                            Log.d("OutletListener", "OutletListener B: $s")
-                            outletName = s.toString()
-                            isOutletNameValid = validateOutletInput()
-                        }
-                        inputManualCheckOne = null
-                    }
-                }
-            }
-
-            textWatcher2 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     previousText = s.toString()
+                    previousCursorPosition = etDailyCapital.selectionStart
                 }
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -825,6 +833,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                                 etDailyCapital.setText("0")
                                 etDailyCapital.setSelection(1)
                                 throw IllegalArgumentException("The original string is empty")
+                            } else if (originalString == "-") {
+                                throw IllegalArgumentException("The original string is a single dash")
                             }
 
                             /// Remove the dots and update the original string
@@ -835,20 +845,23 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                                 originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                             }
 
-                            val parsed = originalString.replace(".", "")
-                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-                            val formatted = if (previousText == "0") {
-                                format.format(parsed.toIntOrNull() ?: 0L)
-                            } else {
-                                formatWithDotsKeepingLeadingZeros(parsed)
-                            }
+//                            val parsed = originalString.replace(".", "")
+//                            val formatted = if (previousText == "0") {
+//                                format.format(parsed.toIntOrNull() ?: 0L)
+//                            } else {
+//                                formatWithDotsKeepingLeadingZeros(parsed)
+//                            }
+                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val formatted = format.format(parsed)
 
                             // Set the text
                             etDailyCapital.setText(formatted)
                             dailyCapitalString = formatted
 
                             // Calculate the new cursor position
-                            val newCursorPosition = cursorPosition + (formatted.length - s.length)
+                            val newCursorPosition = if (formatted == previousText) {
+                                previousCursorPosition
+                            } else cursorPosition + (formatted.length - s.length)
 
                             // Ensure the new cursor position is within the bounds of the new text
                             val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
@@ -861,62 +874,25 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                             nfe.printStackTrace()
                         }
 
-                        inputManualCheckTwo?.invoke() ?: run {
+                        inputManualCheckOne?.invoke() ?: run {
 //                            isCapitalAmountValid = validateCapitalInput(false)
                             isCapitalAmountValid = validateCapitalInput(true)
                         }
-                        inputManualCheckTwo = null
+                        inputManualCheckOne = null
                         etDailyCapital.addTextChangedListener(this)
                     }
                 }
             }
 
-            acOutletName.addTextChangedListener(textWatcher1)
-            etDailyCapital.addTextChangedListener(textWatcher2)
+            etDailyCapital.addTextChangedListener(textWatcher1)
         }
     }
 
-    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
-        val reversed = number.reversed()
-        val grouped = reversed.chunked(3).joinToString(".")
-        return grouped.reversed()
-    }
-
-    private fun validateInputs(): Boolean {
-        return isCapitalAmountValid && isOutletNameValid
-    }
-
-    private fun validateOutletInput(): Boolean {
-        with (binding) {
-//            val outlet = acOutletName.text.toString().trim()
-            return if (outletName.isEmpty()) {
-                textErrorForOutletName = getString(R.string.outlet_name_cannot_be_empty)
-                outletCustomError.text = textErrorForOutletName
-                setFocus(acOutletName)
-                false
-            } else if (outletList?.find { it.outletName == outletName } == null) {
-                textErrorForOutletName = getString(R.string.outlet_name_was_not_found)
-                outletCustomError.text = textErrorForOutletName
-                setFocus(acOutletName)
-                false
-            } else {
-                textErrorForOutletName = ""
-                outletCustomError.text = getString(R.string.required)
-                Log.d("CheckPion", "VALIDATE OUTLET INPUT: isOrientationChanged = $isOrientationChanged || isGetData = $isGetData")
-                getDailyCapital(outletName)
-                true
-            }
-        }
-    }
-
-    private fun setupListeners() {
-        outletList?.find { it.outletName == outletName }?.let {
-            Log.d("CheckPion", "isOrientationChanged = BB")
-            listenToDailyCapital(it)
-        }
-        Log.d("CheckPion", "isOrientationChanged = CC")
-        isOrientationChanged = false
-    }
+//    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
+//        val reversed = number.reversed()
+//        val grouped = reversed.chunked(3).joinToString(".")
+//        return grouped.reversed()
+//    }
 
     private fun validateCapitalInput(checkLeadingZeros: Boolean): Boolean {
         with (binding) {
@@ -924,7 +900,19 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             val clearText = capitalAmount.replace(".", "")
             val formattedAmount = clearText.toIntOrNull()
 
-            return if (capitalAmount.isEmpty()) {
+            if (capitalAmount != "100.000"
+                && capitalAmount != "150.000"
+                && capitalAmount != "200.000") {
+                //selectCardView(null, null, null)
+                capitalFragmentViewModel.saveSelectedCard(null, null, null)
+            }
+            return if (textDropdownOutletName == "---" || capitalAmount == "-") {
+                textErrorForCapitalAmount = getString(R.string.there_was_a_problem_with_the_selected_outlet)
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForCapitalAmount
+                clearFocus(etDailyCapital)
+                false
+            } else if (capitalAmount.isEmpty()) {
                 textErrorForCapitalAmount = getString(R.string.daily_capital_cannot_be_empty)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
@@ -940,20 +928,15 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 textErrorForCapitalAmount = getString(R.string.your_value_entered_not_valid)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
-                val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
+                val nominal = format.format(formattedAmount)
                 capitalFragmentViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
                 )
                 setFocus(etDailyCapital)
                 false
-            } else {
-                if ( capitalAmount != "100.000"
-                    && capitalAmount != "150.000"
-                    && capitalAmount != "200.000") {
-                    selectCardView(null, null, null)
-                    capitalFragmentViewModel.saveSelectedCard(null, null)
-                }
+            }
+            else {
                 textErrorForCapitalAmount = ""
                 llInfo.visibility = View.GONE
                 tvInfo.text = textErrorForCapitalAmount
@@ -962,210 +945,281 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-//    private fun getDailyCapital(outletName: String) {
-//        val outletId = outletList?.find { it.outletName == outletName }?.uid
-//        // Referensi ke dokumen yang sesuai
-//        if (userAdminData != null) {
-//            userAdminData?.uid?.let {
-//                if (outletId != null) {
-//                    docRef = db.collection("barbershops")
-//                        .document(it)
-//                        .collection("outlets")
-//                        .document(outletId)
-//                        .collection("daily_capital")
-//                }
-//            }
-//        } else if (userPegawaiData != null) {
-//            userPegawaiData?.rootRef?.let {
-//                if (outletId != null) {
-//                    docRef = db.document(it)
-//                        .collection("outlets")
-//                        .document(outletId)
-//                        .collection("daily_capital")
-//                }
-//            }
-//        } else {
-//            docRef = null
-//        }
-//
-//        // Mengambil dokumen dari Firestore
-//        docRef?.get()?.addOnSuccessListener { document ->
-//            if (document != null && document.exists()) {
-//                // Map data ke objek DailyCapital
-//                val dataMap = document.get(todayDate) as? Map<*, *>
-//                var dailyCapital = DailyCapital()
-//                dataMap?.let { data ->
-//                    dailyCapital = DailyCapital(
-//                        uid = data["uid"] as String,
-//                        createdBy = data["created_by"] as String,
-//                        createdOn = data["created_on"] as Timestamp,
-//                        outletCapital = data["outlet_capital"] as Long,
-//                        rootRef = data["root_ref"] as String,
-//                        userJobs = data["user_jobs"] as String,
-//                        userRef = data["user_ref"] as String,
-//                        outletNumber = data["outlet_number"] as String,
-//                        userPhoto = data["user_photo"] as String
-//                    )
-//                }
-//                // Lakukan sesuatu dengan dailyCapital
-//                dataMap?.let {
-//                    // Contoh: Menampilkan data
-//                    setDailyCapitalValue(dailyCapital)
-//                } ?: run {
-//                    setDailyCapitalValue(null)
-//                }
-//            } else {
-//                setDailyCapitalValue(null)
-//            }
-//        }?.addOnFailureListener { exception ->
-//            Toast.makeText(context, "Error getting document: ${exception.message}", Toast.LENGTH_SHORT).show()
-//        }
-//    }
+    private fun getDailyCapital() {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.uid == "---") {
+                Log.d("SnapshotUID", "No outlet selected, skipping daily capital retrieval")
+                displayDailyCapitalValue(null)
+                return
+            }
 
-    private fun listenToDailyCapital(outletSelected: Outlet) {
-        capitalListener?.remove()
+            db.document(outletSelected.rootRef)
+                .collection("daily_capital")
+                .where(
+                    Filter.and(
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
+                        Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
+                        Filter.lessThan("timestamp_created", startOfNextDay)
+                    )
+                ).get()
+                .addOnSuccessListener { querySnapshot ->
+                    Log.d("SnapshotUID", "GETTING DATA SUCCESSFUL")
+                    querySnapshot?.documents?.forEach { document ->
+                        val uid = document.getString("uid") // Mengambil field "uid" dari dokumen
+                        Log.d("SnapshotUID", "UID FROM GETTING: $uid")
+                    }
 
-        if (!::timeStampFilter.isInitialized) {
-            showToast("Timestamp filter not set")
-            return
+                    val dailyCapital = querySnapshot.documents.firstOrNull()?.toObject(DailyCapital::class.java)
+                    displayDailyCapitalValue(dailyCapital)
+                }
+                .addOnFailureListener { exception ->
+                    Log.d("SnapshotUID", "GETTING DATA FAILED")
+                    displayDailyCapitalValue(null)
+                    showToast("Error getting document: ${exception.message}")
+                }
         }
+    }
 
-        val dailyCapitalRef = db.document(outletSelected.rootRef)
-            .collection("daily_capital")
+    private fun setupListeners(skippedProcess: Boolean = false) {
+        this.skippedProcess = skippedProcess
+        if (skippedProcess) remainingListeners.set(2)
+        Log.d("CheckDialog", "textDropdownOutletName: $textDropdownOutletName, isFirstLoad: $isFirstLoad")
+        if (textDropdownOutletName != "---") listenSpecificOutletData()
+        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        if (textDropdownOutletName != "---") listenToDailyCapital()
+        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
 
-        capitalListener = dailyCapitalRef
-            .where(
-                Filter.and(
-                    Filter.equalTo("outlet_identifier", outletSelected.uid),
-                    Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
-                    Filter.lessThan("timestamp_created", startOfNextDay)
-                )
-            )
-            .addSnapshotListener { documents, exception ->
-                if (isGetData) {
-                    isGetData = false
-                    return@addSnapshotListener
-                }
+        // Tambahkan logika sinkronisasi di sini
+        lifecycleScope.launch {
+            while (remainingListeners.get() > 0) {
+                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
+            }
+            this@CapitalInputFragment.isFirstLoad = false
+            this@CapitalInputFragment.skippedProcess = false
+            Log.d("FirstLoopEdited", "First Load QCP = false")
+        }
+    }
 
-                exception?.let {
-                    Log.e("SnapshotUID", "Listening failed: ${exception.message}")
-                    showToast("Error listening to daily capital data: ${exception.message}")
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    if (documents.isEmpty) {
-                        Log.d("SnapshotUID", "No data found in snapshot")
-                        setDailyCapitalValue(null)
+    private fun listenSpecificOutletData() {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            // Hapus listener jika sudah terinisialisasi
+            if (::dataOutletListener.isInitialized) {
+                dataOutletListener.remove()
+            }
+            var decrementGlobalListener = false
+
+            dataOutletListener = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}")
+                .addSnapshotListener { documents, exception ->
+                    Log.d("CheckDialog", "addSnapshotListener listenSpecificOutletData")
+                    exception?.let {
+                        showToast("Error getting outlet document: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
                         return@addSnapshotListener
                     }
+                    documents?.let {
+                        val metadata = it.metadata
 
-                    val metadata = it.metadata
-                    val firstDocument = it.documents.firstOrNull()
-                    Log.d("SnapshotUID", "Listening successful: ${it.size()} items")
-                    val uid = firstDocument?.getString("uid")
-                    Log.d("SnapshotUID", "UID from first document: $uid")
+                        if (!isFirstLoad && !skippedProcess && it.exists()) {
+                            val dataOutlet = it.toObject(Outlet::class.java)
+                            dataOutlet?.apply {
+                                // Assign the document reference path to outletReference
+                                outletReference = it.reference.path
+                            }
+                            dataOutlet?.let { outlet ->
+                                capitalFragmentViewModel.setOutletSelected(outlet)
+                            }
 
-                    val dailyCapital = firstDocument?.toObject(DailyCapital::class.java)
-                    setDailyCapitalValue(dailyCapital)
+                            if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                                showLocalToast()
+                            }
+                            isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                        }
 
-                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                        showLocalToast()
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
                     }
-                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
-                } ?: run {
-                    Log.d("SnapshotUID", "No data found in snapshot")
-                    setDailyCapitalValue(null)
                 }
-
-            }
+        }
     }
 
-
-    private fun getDailyCapital(outletName: String) {
-        isGetData = true
-        val outletSelected = outletList?.find { it.outletName == outletName } ?: return
-
-        if (!::timeStampFilter.isInitialized) {
-            showToast("Timestamp filter not set")
-            return
-        }
-
-//        val dailyCapitalRef = db.document(outletSelected.rootRef)
-//            .collection("outlets")
-//            .document(outletSelected.uid)
-//            .collection("daily_capital")
-
-        val dailyCapitalRef = db.document(outletSelected.rootRef)
-            .collection("daily_capital")
-
-        dailyCapitalRef
-            .where(
-                Filter.and(
-                    Filter.equalTo("outlet_identifier", outletSelected.uid),
-                    Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
-                    Filter.lessThan("timestamp_created", startOfNextDay)
-                )
-            ).get()
-            .addOnSuccessListener { querySnapshot ->
-                Log.d("SnapshotUID", "GETTING DATA SUCCESSFUL")
-                querySnapshot?.documents?.forEach { document ->
-                    val uid = document.getString("uid") // Mengambil field "uid" dari dokumen
-                    Log.d("SnapshotUID", "UID FROM GETTING: $uid")
-                }
-
-                val dailyCapital = querySnapshot.documents.firstOrNull()?.toObject(DailyCapital::class.java)
-                setDailyCapitalValue(dailyCapital)
-                listenToDailyCapital(outletSelected)  // Re-register listener after fetching
+    private fun listenToDailyCapital() {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            if (::capitalListener.isInitialized) {
+                capitalListener.remove()
             }
-            .addOnFailureListener { exception ->
-                Log.d("SnapshotUID", "GETTING DATA FAILED")
-                setDailyCapitalValue(null)
-                showToast("Error getting document: ${exception.message}")
-            }
-    }
+            var decrementGlobalListener = false
 
-    private fun setDailyCapitalValue(capitalAmount: DailyCapital?) {
-        if (_binding == null) return
-        val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-        val inputCapital = binding.etDailyCapital.text.toString()
-        val capitalText = if (capitalAmount != null) {
-            uidDailyCapital = capitalAmount.uid
-            setUserIdentity(capitalAmount)
-            "Catatan Modal Harian: Rp ${format.format(capitalAmount.outletCapital)}"
-        } else {
-            uidDailyCapital = ""
-            setUserIdentity(null)
-            "Catatan Modal Harian: (Tidak Tersedia)"
-        }
-
-        if (!isInSaveProcess) {
-            showToast(capitalText)
-            selectCardView(null, null, capitalAmount?.outletCapital ?: 0)
-            capitalFragmentViewModel.saveSelectedCard(null, null)
-        } else {
-            isInSaveProcess = false
-        }
-
-        if (dailyCapitalString != inputCapital && !isFirstLoad) {
-            handler.postDelayed({
-                if (isAdded) {
-                    capitalFragmentViewModel.showInputSnackBar(
-                        inputCapital,
-                        getString(R.string.rollback_value, inputCapital)
+            capitalListener = db.document(outletSelected.rootRef)
+                .collection("daily_capital")
+                .where(
+                    Filter.and(
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
+                        Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
+                        Filter.lessThan("timestamp_created", startOfNextDay)
                     )
-                }
-            }, 1000)
-        }
+                )
+                .addSnapshotListener { documents, exception ->
+                    Log.d("CheckDialog", "addSnapshotListener listenToDailyCapital")
+                    exception?.let {
+                        showToast("Error listening to daily capital data: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        val metadata = it.metadata
 
-        if (isFirstLoad) isFirstLoad = false
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            if (!isFirstLoad && !skippedProcess) {
+                                if (documents.isEmpty) {
+                                    Log.d("SnapshotUID", "No data found in snapshot")
+                                    displayDailyCapitalValue(null)
+                                } else {
+                                    val firstDocument = it.documents.firstOrNull()
+                                    Log.d("SnapshotUID", "Listening successful: ${it.size()} items")
+                                    val uid = firstDocument?.getString("uid")
+                                    Log.d("SnapshotUID", "UID from first document: $uid")
+
+                                    val dailyCapital = firstDocument?.toObject(DailyCapital::class.java)
+                                    displayDailyCapitalValue(dailyCapital)
+                                }
+
+                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                                    showLocalToast()
+                                }
+                                isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
     }
 
+    private fun displayDailyCapitalValue(capitalData: DailyCapital?) {
+        if (_binding == null) return
+        if (textDropdownOutletName != "---") {
+            val inputCapital = binding.etDailyCapital.text.toString()
+            val capitalText = if (capitalData != null) {
+                uidDailyCapital = capitalData.uid
+                setUserIdentity(capitalData)
+                "Catatan Modal Harian: Rp ${format.format(capitalData.outletCapital)}"
+            } else {
+                uidDailyCapital = ""
+                setUserIdentity(null)
+                "Catatan Modal Harian: (Tidak Tersedia)"
+            }
+
+            if (!isInSaveProcess) {
+                showToast(capitalText)
+                setupCapitalInputValue(capitalData?.outletCapital ?: 0)
+            } else {
+                isInSaveProcess = false
+            }
+
+            // inputCapital >> before
+            // dailyCapitalString >> after
+            if (dailyCapitalString != inputCapital && !isFirstLoad) {
+                handler.postDelayed({
+                    if (isAdded) {
+                        capitalFragmentViewModel.showInputSnackBar(
+                            inputCapital,
+                            getString(R.string.rollback_value, inputCapital)
+                        )
+                    }
+                }, 1000)
+            }
+        } else {
+            //selectCardView(null, null, -999)
+            capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
+        }
+
+        isOrientationChanged = false
+        if (isFirstLoad) setupListeners()
+    }
+
+    private fun selectCardView(cardView: CardView?, textView: TextView?, value: Int?) {
+        selectedCardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+        selectedTextView?.setTextColor(ContextCompat.getColor(context, R.color.text_grey_color))
+
+        cardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.sky_blue))
+        textView?.setTextColor(ContextCompat.getColor(context, R.color.white))
+
+        selectedCardView = cardView
+        selectedTextView = textView
+        if (value != null) updateValueDisplay(value)
+        if (textDropdownOutletName == "---") {
+            setBtnNextToDisableState()
+            if (value == -999) showToast("Tidak ada data yang sesuai untuk ${binding.acOutletName.text.toString().trim()}")
+        } else setBtnNextToEnableState()
+
+        // Tentukan warna berdasarkan nilai
+        val isNegative = textDropdownOutletName == "---"
+        val colorRes = if (isNegative) R.color.red else R.color.black_font_color
+        val textColor = ContextCompat.getColor(context, colorRes)
+        val textPrefixColor = if (isNegative)
+            ContextCompat.getColor(context, R.color.red)
+        else
+            MaterialColors.getColor(binding.etDailyCapital, com.google.android.material.R.attr.colorOnSurfaceVariant)
+
+        // Ubah warna teks input
+        binding.etDailyCapital.setTextColor(textColor)
+        // Ubah warna prefixText (pada TextInputLayout)
+        binding.wrapperCapitalAmount.setPrefixTextColor(ColorStateList.valueOf(textPrefixColor))
+    }
+
+    private fun updateValueDisplay(value: Int) {
+        if (value >= 0) {
+            val formattedValue = format.format(value)
+            binding.etDailyCapital.setText(formattedValue)
+        } else {
+            binding.etDailyCapital.setText("-")
+        }
+        binding.etDailyCapital.text?.let { binding.etDailyCapital.setSelection(it.length) }
+    }
+
+    private fun setBtnNextToDisableState() {
+        with(binding) {
+            btnSave.isEnabled = false
+            btnSave.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
+            btnSave.setTypeface(null, Typeface.NORMAL)
+            btnSave.setTextColor(resources.getColor(R.color.white))
+        }
+    }
+
+    private fun setBtnNextToEnableState() {
+        with(binding) {
+            btnSave.isEnabled = true
+            btnSave.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
+            btnSave.setTypeface(null, Typeface.BOLD)
+            btnSave.setTextColor(resources.getColor(R.color.green_lime_wf))
+        }
+    }
 
     private fun setFocus(editText: View) {
         editText.requestFocus()
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
+
+    private fun clearFocus(editText: View) {
+        editText.clearFocus() // Menghapus fokus dari EditText
+
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0) // Menutup keyboard
+    }
+
 
     private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
         v.isClickable = false
@@ -1189,12 +1243,13 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        binding.acOutletName.removeTextChangedListener(textWatcher1)
-        binding.etDailyCapital.removeTextChangedListener(textWatcher2)
+        binding.etDailyCapital.removeTextChangedListener(textWatcher1)
         Log.d("SnapshotUID", "ON DESTROY VIEW")
 
         currentSnackbar?.dismiss()
-        capitalListener?.remove()
+        if (::capitalListener.isInitialized) capitalListener.remove()
+        if (::dataOutletListener.isInitialized) dataOutletListener.remove()
+
         handler.removeCallbacksAndMessages(null)
         lifecycleListener?.let {
             viewLifecycleOwner.lifecycle.removeObserver(it)
@@ -1205,26 +1260,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
         Log.d("SnapshotUID", "DELETE CARD STATE")
-        capitalFragmentViewModel.saveSelectedCard(null, null)
-    }
-
-    private fun selectCardView(cardView: CardView?, textView: TextView?, value: Int?) {
-        selectedCardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
-        selectedTextView?.setTextColor(ContextCompat.getColor(context, R.color.text_grey_color))
-
-        cardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.sky_blue))
-        textView?.setTextColor(ContextCompat.getColor(context, R.color.white))
-
-        selectedCardView = cardView
-        selectedTextView = textView
-        if (value != null) updateValueDisplay(value)
-    }
-
-    private fun updateValueDisplay(value: Int) {
-        val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-        val formattedValue = format.format(value)
-        binding.etDailyCapital.setText(formattedValue)
-        binding.etDailyCapital.text?.let { binding.etDailyCapital.setSelection(it.length) }
+        capitalFragmentViewModel.saveSelectedCard(null, null, null)
+        capitalFragmentViewModel.setOutletSelected(null)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -1246,9 +1283,13 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             if (!isSameDay(date, timeStampFilter.toDate())) {
                 setDateFilterValue(Timestamp(date))
 
-                if (outletName.isNotEmpty()) {
-                    Log.d("SnapshotUID", "SHOW DATE PICKER")
-                    getDailyCapital(outletName)
+                if (textDropdownOutletName == "---") {
+                    capitalListener.remove()
+                    dataOutletListener.remove()
+                    //selectCardView(null, null, -999)
+                    capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
+                } else {
+                    listenToDailyCapital()
                 }
             }
 

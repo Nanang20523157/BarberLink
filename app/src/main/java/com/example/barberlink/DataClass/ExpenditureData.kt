@@ -28,6 +28,11 @@ data class ExpenditureData(
 //    @get:PropertyName("outlet_uid") @set:PropertyName("outlet_uid") var outletUid: String = "",
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyCreatorDetail: Boolean,
         copyCreatorWithReminder: Boolean,

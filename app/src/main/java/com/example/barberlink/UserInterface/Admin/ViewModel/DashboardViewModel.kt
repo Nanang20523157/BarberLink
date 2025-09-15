@@ -3,7 +3,7 @@ package com.example.barberlink.UserInterface.Admin.ViewModel
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.AppointmentData
 import com.example.barberlink.DataClass.DailyCapital
@@ -15,6 +15,7 @@ import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Helper.CalendarDateModel
+import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
@@ -26,10 +27,7 @@ import kotlinx.coroutines.withContext
 import java.util.Date
 
 // ViewModel class to handle Snackbar message state
-class DashboardViewModel : ViewModel() {
-    private val _outletsList = MutableLiveData<List<Outlet>>().apply { value = mutableListOf() }
-    val outletsList: LiveData<List<Outlet>> = _outletsList
-
+class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
     private val _productList = MutableLiveData<List<Product>>().apply { value = mutableListOf() }
     val productList: LiveData<List<Product>> = _productList
 
@@ -162,18 +160,25 @@ class DashboardViewModel : ViewModel() {
     private val _displayAdminData = MutableLiveData<Boolean?>().apply { value = null }
     val displayAdminData: LiveData<Boolean?> = _displayAdminData
 
-    private val _userAdminData = MutableLiveData<UserAdminData?>()
-    val userAdminData: LiveData<UserAdminData?> = _userAdminData
-
     fun setUserAdminData(userAdminData: UserAdminData, displayData: Boolean) {
         viewModelScope.launch {
             _userAdminData.value = userAdminData
             _displayAdminData.value = displayData
         }
     }
-    fun setOutletsList(list: List<Outlet>) {
+
+    fun setOutletList(listOutlet: List<Outlet>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
         viewModelScope.launch {
-            _outletsList.value = list
+            _outletList.value = listOutlet
+            _setupDropdownFilter.value = setupDropdown
+            _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+        }
+    }
+
+    override fun setupDropdownFilterWithNullState() {
+        viewModelScope.launch {
+            _setupDropdownFilter.value = false
+            _setupDropdownFilterWithNullState.value = false
         }
     }
 
@@ -377,15 +382,18 @@ class DashboardViewModel : ViewModel() {
 
     fun iterateReservationData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
         viewModelScope.launch {
+            val outletUids = outletList.value?.map { it.uid } ?: emptyList()
+
             if (addList) {
                 result?.forEach { document ->
-                    document.toObject(Reservation::class.java).apply {
+                    val reservation = document.toObject(Reservation::class.java).apply {
                         dataRef = document.reference.path
-                    }.let { processReservationDataAsync(isDaily, it, normalizedOutletName, selectedDates, true) }
+                    }
+                    processReservationDataAsync(isDaily, reservation, normalizedOutletName, selectedDates, true, outletUids)
                 }
             } else {
                 _reservationList.value?.toList()?.forEach { reservation ->
-                    processReservationDataAsync(isDaily, reservation, normalizedOutletName, selectedDates, false)
+                    processReservationDataAsync(isDaily, reservation, normalizedOutletName, selectedDates, false, outletUids)
                 }
             }
         }
@@ -393,15 +401,17 @@ class DashboardViewModel : ViewModel() {
 
     fun iterateAppointmentData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
         viewModelScope.launch {
+            val outletUids = outletList.value?.map { it.uid } ?: emptyList()
             if (addList) {
                 result?.forEach { document ->
-                    document.toObject(AppointmentData::class.java).apply {
+                    val appointment = document.toObject(AppointmentData::class.java).apply {
                         dataRef = document.reference.path
-                    }.let { processAppointmentDataAsync(isDaily, it, normalizedOutletName, selectedDates, true) }
+                    }
+                    processAppointmentDataAsync(isDaily, appointment, normalizedOutletName, selectedDates, true, outletUids)
                 }
             } else {
                 _appointmentList.value?.toList()?.forEach { appointment ->
-                    processAppointmentDataAsync(isDaily, appointment, normalizedOutletName, selectedDates, false)
+                    processAppointmentDataAsync(isDaily, appointment, normalizedOutletName, selectedDates, false, outletUids)
                 }
             }
         }
@@ -409,15 +419,17 @@ class DashboardViewModel : ViewModel() {
 
     fun iterateSalesData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
         viewModelScope.launch {
+            val outletUids = outletList.value?.map { it.uid } ?: emptyList()
             if (addList) {
                 result?.forEach { document ->
-                    document.toObject(ProductSales::class.java).apply {
+                    val sale = document.toObject(ProductSales::class.java).apply {
                         dataRef = document.reference.path
-                    }.let { processSalesDataAsync(isDaily, it, normalizedOutletName, selectedDates, true) }
+                    }
+                    processSalesDataAsync(isDaily, sale, normalizedOutletName, selectedDates, true, outletUids)
                 }
             } else {
                 _productSalesList.value?.toList()?.forEach { sale ->
-                    processSalesDataAsync(isDaily, sale, normalizedOutletName, selectedDates, false)
+                    processSalesDataAsync(isDaily, sale, normalizedOutletName, selectedDates, false, outletUids)
                 }
             }
         }
@@ -425,15 +437,17 @@ class DashboardViewModel : ViewModel() {
 
     fun iterateManualReportData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
         viewModelScope.launch {
+            val outletUids = outletList.value?.map { it.uid } ?: emptyList()
             if (addList) {
                 result?.forEach { document ->
-                    document.toObject(ManualIncomeData::class.java).apply {
+                    val manualReport = document.toObject(ManualIncomeData::class.java).apply {
                         dataRef = document.reference.path
-                    }.let { processManualReportDataAsync(isDaily, it, normalizedOutletName, selectedDates, true) }
+                    }
+                    processManualReportDataAsync(isDaily, manualReport, normalizedOutletName, selectedDates, true, outletUids)
                 }
             } else {
                 _manualReportList.value?.toList()?.forEach { manualReport ->
-                    processManualReportDataAsync(isDaily, manualReport, normalizedOutletName, selectedDates, false)
+                    processManualReportDataAsync(isDaily, manualReport, normalizedOutletName, selectedDates, false, outletUids)
                 }
             }
         }
@@ -441,14 +455,15 @@ class DashboardViewModel : ViewModel() {
 
     fun iterateDailyCapitalData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
         viewModelScope.launch {
+            val outletUids = outletList.value?.map { it.uid } ?: emptyList()
             if (addList) {
                 result?.forEach { document ->
-                    processDailyCapitalDataAsync(isDaily,
-                        document.toObject(DailyCapital::class.java), normalizedOutletName, selectedDates, true)
+                    val dailyCapital = document.toObject(DailyCapital::class.java)
+                    processDailyCapitalDataAsync(isDaily, dailyCapital, normalizedOutletName, selectedDates, true, outletUids)
                 }
             } else {
                 _dailyCapitalList.value?.toList()?.forEach { dailyCapital ->
-                    processDailyCapitalDataAsync(isDaily, dailyCapital, normalizedOutletName, selectedDates, false)
+                    processDailyCapitalDataAsync(isDaily, dailyCapital, normalizedOutletName, selectedDates, false, outletUids)
                 }
             }
         }
@@ -456,19 +471,22 @@ class DashboardViewModel : ViewModel() {
 
     fun iterateExpenditureData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
         viewModelScope.launch {
+            val outletUids = outletList.value?.map { it.uid } ?: emptyList()
             if (addList) {
                 result?.forEach { document ->
-                    document.toObject(ExpenditureData::class.java).apply {
+                    val expenditureData = document.toObject(ExpenditureData::class.java).apply {
                         dataRef = document.reference.path
-                    }.let { processExpenditureDataAsync(isDaily, it, normalizedOutletName, selectedDates, true) }
+                    }
+                    processExpenditureDataAsync(isDaily, expenditureData, normalizedOutletName, selectedDates, true, outletUids)
                 }
             } else {
-                _expenditureDataList.value?.toList()?.forEach { expenditure ->
-                    processExpenditureDataAsync(isDaily, expenditure, normalizedOutletName, selectedDates, false)
+                _expenditureDataList.value?.toList()?.forEach { expenditureData ->
+                    processExpenditureDataAsync(isDaily, expenditureData, normalizedOutletName, selectedDates, false, outletUids)
                 }
             }
         }
     }
+
 
     suspend fun processDocumentsConcurrently(
         documents: List<DocumentSnapshot>,
@@ -485,111 +503,117 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    fun processReservationDataAsync(isDaily: Boolean, reservation: Reservation, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
-        val reservationDate = reservation.timestampToBooking?.toDate()
-        val isDateSelected = reservationDate?.let { date ->
-            selectedDates.any { selectedDate -> isSameDay(date, selectedDate) }
-        } ?: false
-        var normalizedLocation = reservation.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
-        if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
+    fun processReservationDataAsync(isDaily: Boolean, reservation: Reservation, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean, outletUids: List<String>) {
+        if (reservation.outletIdentifier.isBlank() || reservation.outletIdentifier in outletUids) {
+            val reservationDate = reservation.timestampToBooking?.toDate()
+            val isDateSelected = reservationDate?.let { date ->
+                selectedDates.any { selectedDate -> isSameDay(date, selectedDate) }
+            } ?: false
+            var normalizedLocation = reservation.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
+            if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
 
-        if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
-            (!isDaily || isDateSelected)) {
-            when (reservation.queueStatus) {
-                "completed" -> _numberOfCompletedQueue.value = (_numberOfCompletedQueue.value ?: 0) + 1
-                "waiting" -> _numberOfWaitingQueue.value = (_numberOfWaitingQueue.value ?: 0) + 1
-                "canceled" -> _numberOfCanceledQueue.value = (_numberOfCanceledQueue.value ?: 0) + 1
-                "skipped" -> _numberOfSkippedQueue.value = (_numberOfSkippedQueue.value ?: 0) + 1
-                "process" -> _numberOfProcessQueue.value = (_numberOfProcessQueue.value ?: 0) + 1
-            }
-            if (reservation.paymentDetail.paymentStatus && reservation.queueStatus == "completed") {
-                _amountReserveRevenue.value = (_amountReserveRevenue.value ?: 0) + reservation.paymentDetail.finalPrice
-                reservation.capsterInfo?.shareProfit?.let { _shareProfitReserve.value = (_shareProfitReserve.value ?: 0) + it }
-                val paymentMethod = reservation.paymentDetail.paymentMethod
-
-                if (paymentMethod.contains("CASH", ignoreCase = true) ||
-                    paymentMethod.contains("COD", ignoreCase = true) ||
-                    paymentMethod.contains("TUNAI", ignoreCase = true)) {
-                    _amountOfReserveCashPayment.value = (_amountOfReserveCashPayment.value ?: 0) + reservation.paymentDetail.finalPrice
-                } else {
-                    _amountOfReserveCashlessPayment.value = (_amountOfReserveCashlessPayment.value ?: 0) + reservation.paymentDetail.finalPrice
+            if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
+                (!isDaily || isDateSelected)) {
+                when (reservation.queueStatus) {
+                    "completed" -> _numberOfCompletedQueue.value = (_numberOfCompletedQueue.value ?: 0) + 1
+                    "waiting" -> _numberOfWaitingQueue.value = (_numberOfWaitingQueue.value ?: 0) + 1
+                    "canceled" -> _numberOfCanceledQueue.value = (_numberOfCanceledQueue.value ?: 0) + 1
+                    "skipped" -> _numberOfSkippedQueue.value = (_numberOfSkippedQueue.value ?: 0) + 1
+                    "process" -> _numberOfProcessQueue.value = (_numberOfProcessQueue.value ?: 0) + 1
                 }
-            }
-        }
-        if (reservation.queueStatus !in listOf("pending", "expired") && addList) {
-            addReservation(reservation)
-        }
-    }
+                if (reservation.paymentDetail.paymentStatus && reservation.queueStatus == "completed") {
+                    _amountReserveRevenue.value = (_amountReserveRevenue.value ?: 0) + reservation.paymentDetail.finalPrice
+                    reservation.capsterInfo?.shareProfit?.let { _shareProfitReserve.value = (_shareProfitReserve.value ?: 0) + it }
+                    val paymentMethod = reservation.paymentDetail.paymentMethod
 
-    fun processAppointmentDataAsync(isDaily: Boolean, appointment: AppointmentData, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
-        val appointmentDate = appointment.timestampCreated.toDate()
-        val isDateSelected = selectedDates.any { selectedDate -> isSameDay(appointmentDate, selectedDate) }
-        var normalizedLocation = appointment.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
-        if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
-
-        if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
-            (!isDaily || isDateSelected)) {
-            if (appointment.paymentDetail.paymentStatus && appointment.appointmentStatus == "completed") {
-                _amountAppointmentRevenue.value = (_amountAppointmentRevenue.value ?: 0) + appointment.paymentDetail.finalPrice
-                appointment.capsterInfo?.shareProfit?.let { _shareProfitAppointment.value = (_shareProfitAppointment.value ?: 0) + it }
-                val paymentMethod = appointment.paymentDetail.paymentMethod
-
-                if (paymentMethod.contains("CASH", ignoreCase = true) ||
-                    paymentMethod.contains("COD", ignoreCase = true) ||
-                    paymentMethod.contains("TUNAI", ignoreCase = true)) {
-                    _amountOfAppointmentCashPayment.value = (_amountOfAppointmentCashPayment.value ?: 0) + appointment.paymentDetail.finalPrice
-                } else {
-                    _amountOfAppointmentCashlessPayment.value = (_amountOfAppointmentCashlessPayment.value ?: 0) + appointment.paymentDetail.finalPrice
-                }
-            }
-        }
-        if (appointment.appointmentStatus !in listOf("pending", "expired") && addList) {
-            addAppointmentData(appointment)
-        }
-    }
-
-    fun processSalesDataAsync(isDaily: Boolean, sale: ProductSales, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
-        val saleDate = sale.timestampCreated.toDate()
-        val isDateSelected = selectedDates.any { selectedDate -> isSameDay(saleDate, selectedDate) }
-        var normalizedLocation = sale.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
-        if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
-
-        if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
-            (!isDaily || isDateSelected)) {
-            when (sale.orderStatus) {
-                "completed" -> _numberOfCompletedOrders.value = (_numberOfCompletedOrders.value ?: 0) + 1
-                "returned" -> _numberOfOrdersReturn.value = (_numberOfOrdersReturn.value ?: 0) + 1
-                "packaging" -> _numberOfOrdersPacked.value = (_numberOfOrdersPacked.value ?: 0) + 1
-                "shipping" -> _numberOfOrdersShipped.value = (_numberOfOrdersShipped.value ?: 0) + 1
-                "canceled" -> _numberOfOrdersCanceled.value = (_numberOfOrdersCanceled.value ?: 0) + 1
-                "incoming" -> _numberOfIncomingOrders.value = (_numberOfIncomingOrders.value ?: 0) + 1
-            }
-            if (sale.paymentDetail.paymentStatus && sale.orderStatus == "completed") {
-                sale.itemInfo?.forEach { order ->
-                    _salesProductMarketCounter.value = (_salesProductMarketCounter.value ?: emptyMap()).toMutableMap().apply {
-                        this[order.itemRef] = (this[order.itemRef] ?: 0) + order.itemQuantity
+                    if (paymentMethod.contains("CASH", ignoreCase = true) ||
+                        paymentMethod.contains("COD", ignoreCase = true) ||
+                        paymentMethod.contains("TUNAI", ignoreCase = true)) {
+                        _amountOfReserveCashPayment.value = (_amountOfReserveCashPayment.value ?: 0) + reservation.paymentDetail.finalPrice
+                    } else {
+                        _amountOfReserveCashlessPayment.value = (_amountOfReserveCashlessPayment.value ?: 0) + reservation.paymentDetail.finalPrice
                     }
                 }
-                _amountSalesRevenue.value = (_amountSalesRevenue.value ?: 0) + sale.paymentDetail.finalPrice
-                sale.capsterInfo?.shareProfit?.let { _shareProfitSales.value = (_shareProfitSales.value ?: 0) + it }
-                val paymentMethod = sale.paymentDetail.paymentMethod
-
-                if (paymentMethod.contains("CASH", ignoreCase = true) ||
-                    paymentMethod.contains("COD", ignoreCase = true) ||
-                    paymentMethod.contains("TUNAI", ignoreCase = true)) {
-                    _amountOfSalesCashPayment.value = (_amountOfSalesCashPayment.value ?: 0) + sale.paymentDetail.finalPrice
-                } else {
-                    _amountOfSalesCashlessPayment.value = (_amountOfSalesCashlessPayment.value ?: 0) + sale.paymentDetail.finalPrice
-                }
             }
-        }
-        if (sale.orderStatus !in listOf("pending", "expired") && addList) {
-            // productSalesList.add(sale)
-            addProductSales(sale)
+            if (reservation.queueStatus !in listOf("pending", "expired") && addList) {
+                addReservation(reservation)
+            }
         }
     }
 
-    fun processManualReportDataAsync(isDaily: Boolean, manualReport: ManualIncomeData, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
+    fun processAppointmentDataAsync(isDaily: Boolean, appointment: AppointmentData, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean, outletUids: List<String>) {
+        if (appointment.outletIdentifier.isBlank() || appointment.outletIdentifier in outletUids) {
+            val appointmentDate = appointment.timestampCreated.toDate()
+            val isDateSelected = selectedDates.any { selectedDate -> isSameDay(appointmentDate, selectedDate) }
+            var normalizedLocation = appointment.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
+            if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
+
+            if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
+                (!isDaily || isDateSelected)) {
+                if (appointment.paymentDetail.paymentStatus && appointment.appointmentStatus == "completed") {
+                    _amountAppointmentRevenue.value = (_amountAppointmentRevenue.value ?: 0) + appointment.paymentDetail.finalPrice
+                    appointment.capsterInfo?.shareProfit?.let { _shareProfitAppointment.value = (_shareProfitAppointment.value ?: 0) + it }
+                    val paymentMethod = appointment.paymentDetail.paymentMethod
+
+                    if (paymentMethod.contains("CASH", ignoreCase = true) ||
+                        paymentMethod.contains("COD", ignoreCase = true) ||
+                        paymentMethod.contains("TUNAI", ignoreCase = true)) {
+                        _amountOfAppointmentCashPayment.value = (_amountOfAppointmentCashPayment.value ?: 0) + appointment.paymentDetail.finalPrice
+                    } else {
+                        _amountOfAppointmentCashlessPayment.value = (_amountOfAppointmentCashlessPayment.value ?: 0) + appointment.paymentDetail.finalPrice
+                    }
+                }
+            }
+            if (appointment.appointmentStatus !in listOf("pending", "expired") && addList) {
+                addAppointmentData(appointment)
+            }
+        }
+    }
+
+    fun processSalesDataAsync(isDaily: Boolean, sale: ProductSales, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean, outletUids: List<String>) {
+        if (sale.outletIdentifier.isBlank() || sale.outletIdentifier in outletUids) {
+            val saleDate = sale.timestampCreated.toDate()
+            val isDateSelected = selectedDates.any { selectedDate -> isSameDay(saleDate, selectedDate) }
+            var normalizedLocation = sale.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
+            if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
+
+            if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
+                (!isDaily || isDateSelected)) {
+                when (sale.orderStatus) {
+                    "completed" -> _numberOfCompletedOrders.value = (_numberOfCompletedOrders.value ?: 0) + 1
+                    "returned" -> _numberOfOrdersReturn.value = (_numberOfOrdersReturn.value ?: 0) + 1
+                    "packaging" -> _numberOfOrdersPacked.value = (_numberOfOrdersPacked.value ?: 0) + 1
+                    "shipping" -> _numberOfOrdersShipped.value = (_numberOfOrdersShipped.value ?: 0) + 1
+                    "canceled" -> _numberOfOrdersCanceled.value = (_numberOfOrdersCanceled.value ?: 0) + 1
+                    "incoming" -> _numberOfIncomingOrders.value = (_numberOfIncomingOrders.value ?: 0) + 1
+                }
+                if (sale.paymentDetail.paymentStatus && sale.orderStatus == "completed") {
+                    sale.itemInfo?.forEach { order ->
+                        _salesProductMarketCounter.value = (_salesProductMarketCounter.value ?: emptyMap()).toMutableMap().apply {
+                            this[order.itemRef] = (this[order.itemRef] ?: 0) + order.itemQuantity
+                        }
+                    }
+                    _amountSalesRevenue.value = (_amountSalesRevenue.value ?: 0) + sale.paymentDetail.finalPrice
+                    sale.capsterInfo?.shareProfit?.let { _shareProfitSales.value = (_shareProfitSales.value ?: 0) + it }
+                    val paymentMethod = sale.paymentDetail.paymentMethod
+
+                    if (paymentMethod.contains("CASH", ignoreCase = true) ||
+                        paymentMethod.contains("COD", ignoreCase = true) ||
+                        paymentMethod.contains("TUNAI", ignoreCase = true)) {
+                        _amountOfSalesCashPayment.value = (_amountOfSalesCashPayment.value ?: 0) + sale.paymentDetail.finalPrice
+                    } else {
+                        _amountOfSalesCashlessPayment.value = (_amountOfSalesCashlessPayment.value ?: 0) + sale.paymentDetail.finalPrice
+                    }
+                }
+            }
+            if (sale.orderStatus !in listOf("pending", "expired") && addList) {
+                // productSalesList.add(sale)
+                addProductSales(sale)
+            }
+        }
+    }
+
+    fun processManualReportDataAsync(isDaily: Boolean, manualReport: ManualIncomeData, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean, outletUids: List<String>) {
         val manualReportDate = manualReport.timestampCreated.toDate()
         val isDateSelected = selectedDates.any { selectedDate -> isSameDay(manualReportDate, selectedDate) }
         var normalizedLocation = manualReport.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
@@ -640,36 +664,40 @@ class DashboardViewModel : ViewModel() {
         }
     }
 
-    fun processDailyCapitalDataAsync(isDaily: Boolean ,dailyCapital: DailyCapital, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
-        val dailyCapitalDate = dailyCapital.timestampCreated.toDate()
-        val isDateSelected = selectedDates.any { selectedDate -> isSameDay(dailyCapitalDate, selectedDate) }
-        var normalizedLocation = dailyCapital.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
-        if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
+    fun processDailyCapitalDataAsync(isDaily: Boolean ,dailyCapital: DailyCapital, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean, outletUids: List<String>) {
+        if (dailyCapital.outletIdentifier.isBlank() || dailyCapital.outletIdentifier in outletUids) {
+            val dailyCapitalDate = dailyCapital.timestampCreated.toDate()
+            val isDateSelected = selectedDates.any { selectedDate -> isSameDay(dailyCapitalDate, selectedDate) }
+            var normalizedLocation = dailyCapital.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
+            if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
 
-        Log.d("calculateDataAsync", "${dailyCapital.uid} = isDateSelected (${(!isDaily || isDateSelected)}) isOutletNameAsPer (${(normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation)}) ")
-        if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
-            (!isDaily || isDateSelected)) {
-            _amountOfCapital.value = (_amountOfCapital.value ?: 0) + dailyCapital.outletCapital
-            // amountOfCapital += dailyCapital.outletCapital
+            Log.d("calculateDataAsync", "${dailyCapital.uid} = isDateSelected (${(!isDaily || isDateSelected)}) isOutletNameAsPer (${(normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation)}) ")
+            if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
+                (!isDaily || isDateSelected)) {
+                _amountOfCapital.value = (_amountOfCapital.value ?: 0) + dailyCapital.outletCapital
+                // amountOfCapital += dailyCapital.outletCapital
+            }
+            // if (addList) dailyCapitalList.add(dailyCapital)
+            if (addList) addDailyCapital(dailyCapital)
         }
-        // if (addList) dailyCapitalList.add(dailyCapital)
-        if (addList) addDailyCapital(dailyCapital)
     }
 
-    fun processExpenditureDataAsync(isDaily: Boolean, expenditureData: ExpenditureData, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) {
-        val expenditureDate = expenditureData.timestampCreated.toDate()
-        val isDateSelected = selectedDates.any { selectedDate -> isSameDay(expenditureDate, selectedDate) }
-        var normalizedLocation = expenditureData.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
-        if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
+    fun processExpenditureDataAsync(isDaily: Boolean, expenditureData: ExpenditureData, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean, outletUids: List<String>) {
+        if (expenditureData.outletIdentifier.isBlank() || expenditureData.outletIdentifier in outletUids) {
+            val expenditureDate = expenditureData.timestampCreated.toDate()
+            val isDateSelected = selectedDates.any { selectedDate -> isSameDay(expenditureDate, selectedDate) }
+            var normalizedLocation = expenditureData.outletIdentifier.trim().replace("\\s".toRegex(), "").lowercase()
+            if (normalizedLocation.isEmpty()) normalizedLocation = "lainnya"
 
-        if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
-            (!isDaily || isDateSelected)) {
-            _amountOfExpenditure.value = (_amountOfExpenditure.value ?: 0) + expenditureData.paymentDetail.finalPrice
-            // amountOfExpenditure += expenditure.totalExpenditure
+            if ((normalizedOutletName == "semua" || normalizedOutletName == normalizedLocation) &&
+                (!isDaily || isDateSelected)) {
+                _amountOfExpenditure.value = (_amountOfExpenditure.value ?: 0) + expenditureData.paymentDetail.finalPrice
+                // amountOfExpenditure += expenditure.totalExpenditure
+            }
+            Log.d("ExpenditureDate", "Expenditure Date ${isDateSelected}: $isDaily")
+            // if (addList) expenditureList.add(expenditure)
+            if (addList) addExpenditure(expenditureData)
         }
-        Log.d("ExpenditureDate", "Expenditure Date ${isDateSelected}: $isDaily")
-        // if (addList) expenditureList.add(expenditure)
-        if (addList) addExpenditure(expenditureData)
     }
 
 

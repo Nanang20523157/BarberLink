@@ -2,6 +2,7 @@ package com.example.barberlink.DataClass
 
 import android.os.Parcelable
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 
@@ -25,7 +26,12 @@ data class BestDeal(
     @get:PropertyName("title_marker_keywords") @set:PropertyName("title_marker_keywords") var titleMarkerKeywords: List<String> = emptyList(),
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:PropertyName("user_target") @set:PropertyName("user_target") var userTarget: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 // Best Deals category data class
 @Parcelize
@@ -35,4 +41,9 @@ data class BestDealCategory(
 //    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: Int = 0,
 //    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}

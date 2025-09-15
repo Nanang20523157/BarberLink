@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -40,18 +41,25 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         Log.d("SelectUserRolePage", "Origin Page: $originPageFrom")
 
         // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        // Set window background sesuai tema
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: run { originPageFrom.isEmpty() }
         Log.d("SelectUserRolePage", "isRecreated: $isRecreated")
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
-
 //        BarberLinkApp.sessionManager.clearActivePage()
 
         with(binding) {
@@ -112,12 +120,8 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
                 }
                 R.id.btnKasirTeller -> {
                     Log.d("TellerSession", "Teller Session: $tellerSession")
-                    if (tellerSession) {
-                        navigatePage(this@SelectUserRolePage, QueueTrackerPage::class.java, btnKasirTeller)
-                    }
-                    else {
-                        navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnKasirTeller)
-                    }
+                    if (tellerSession) navigatePage(this@SelectUserRolePage, QueueTrackerPage::class.java, btnKasirTeller)
+                    else navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnKasirTeller)
                 }
             }
         }

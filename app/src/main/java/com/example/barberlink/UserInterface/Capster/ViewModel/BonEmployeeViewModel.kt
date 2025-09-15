@@ -15,8 +15,8 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
 
-    private val _capsterNames = MutableLiveData<List<String>>(emptyList())
-    val capsterNames: LiveData<List<String>> = _capsterNames
+//    private val _capsterNames = MutableLiveData<List<String>>(emptyList())
+//    val capsterNames: LiveData<List<String>> = _capsterNames
 
     private val _employeeListBon = MutableLiveData<MutableList<BonEmployeeData>>().apply { emptyList<BonEmployeeData>() }
     val employeeListBon: LiveData<MutableList<BonEmployeeData>> = _employeeListBon
@@ -24,20 +24,14 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
     private val _filteredEmployeeListBon = MutableLiveData<MutableList<BonEmployeeData>>().apply { emptyList<BonEmployeeData>() }
     val filteredEmployeeListBon: LiveData<MutableList<BonEmployeeData>> = _filteredEmployeeListBon
 
-    private val _reSetupDropdownCapster = MutableLiveData<Boolean?>()
-    val reSetupDropdownCapster: LiveData<Boolean?> = _reSetupDropdownCapster
-
     private val _dataBonDelete = MutableLiveData<BonEmployeeData?>()
     val dataBonDelete: LiveData<BonEmployeeData?> = _dataBonDelete
 
     private val _snackBarMessage = MutableLiveData<Event<String>>()
     val snackBarMessage: LiveData<Event<String>> = _snackBarMessage
 
-    private val _userEmployeeData = MutableLiveData<UserEmployeeData?>()
-    override val userEmployeeData: LiveData<UserEmployeeData?> = _userEmployeeData
-
-    private val _initializationPage = MutableLiveData<Boolean?>()
-    val initializationPage: LiveData<Boolean?> = _initializationPage
+//    private val _initializationPage = MutableLiveData<Boolean?>()
+//    val initializationPage: LiveData<Boolean?> = _initializationPage
 
     // Fragment Requirement
     private val _bonEmployeeData = MutableLiveData<BonEmployeeData?>()
@@ -55,11 +49,10 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
     private val _employeePreviousAccumulationBon = MutableLiveData<MutableMap<String, Int>>().apply { value = mutableMapOf() }
     val employeePreviousAccumulationBon: LiveData<MutableMap<String, Int>> = _employeePreviousAccumulationBon
 
-
     // Pindahkan tag filtering category ke dalam ViewModel
     private val _tagFilteringCategory = MutableLiveData<ArrayList<UserFilterCategories>>(
         arrayListOf(
-            UserFilterCategories(tagCategory = "Semua", textContained = "", dataSelected = true),
+            UserFilterCategories(tagCategory = "Semua", textContained = "Semua", dataSelected = true),
             UserFilterCategories(tagCategory = "Sistem Angsuran", textContained = "From Installment", dataSelected = false),
             UserFilterCategories(tagCategory = "Potong Gaji", textContained = "From Salary", dataSelected = false),
             UserFilterCategories(tagCategory = "Lunas", textContained = "Lunas", dataSelected = false),
@@ -69,11 +62,20 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
     )
     val tagFilteringCategory: LiveData<ArrayList<UserFilterCategories>> = _tagFilteringCategory
 
-    fun setUserEmployeeData(data: UserEmployeeData?, initPage: Boolean?) {
+    fun setUserEmployeeData(
+        data: UserEmployeeData?,
+//        initPage: Boolean?,
+        setupDropdown: Boolean?,
+        isSavedInstanceStateNull: Boolean?
+    ) {
         _userEmployeeData.postValue(data)
-        if (initPage == true) {
-            _initializationPage.postValue(initPage)
+        if (setupDropdown != null && isSavedInstanceStateNull != null) {
+            _setupDropdownFilter.postValue(setupDropdown)
+            _setupDropdownFilterWithNullState.postValue(isSavedInstanceStateNull)
         }
+//        if (initPage != null) {
+//            if (initPage == true) _initializationPage.postValue(initPage)
+//        }
     }
 
     fun setBonEmployeeData(data: BonEmployeeData?) {
@@ -102,15 +104,23 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
             _snackBarMessage.postValue(Event(message))
         }
     }
-    fun addCapsterList(capsterList: List<UserEmployeeData>) {
-        Log.d("CacheChecking", "addCapsterList --> capsterList size: ${capsterList.size}")
+    fun setCapsterList(
+        capsterList: List<UserEmployeeData>,
+        //capsterNames: List<String>,
+        setupDropdown: Boolean?,
+        isSavedInstanceStateNull: Boolean?
+    ) {
+        Log.d("CacheChecking", "setCapsterList --> capsterList size: ${capsterList.size}")
         _capsterList.postValue(capsterList)
+        //_capsterNames.postValue(capsterNames)
+        _setupDropdownFilter.postValue(setupDropdown)
+        _setupDropdownFilterWithNullState.postValue(isSavedInstanceStateNull)
     }
 
-    fun addCapsterNames(capsterNames: List<String>) {
-        Log.d("CacheChecking", "addCapsterNames --> capsterNames size: ${capsterNames.size}")
-        _capsterNames.postValue(capsterNames)
-    }
+//    fun setCapsterNames(capsterNames: List<String>) {
+//        Log.d("CacheChecking", "setCapsterNames --> capsterNames size: ${capsterNames.size}")
+//        _capsterNames.postValue(capsterNames)
+//    }
 
     fun setEmployeeListBon(employeeListBon: MutableList<BonEmployeeData>) {
         _employeeListBon.postValue(employeeListBon)
@@ -120,9 +130,13 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
         _filteredEmployeeListBon.postValue(filteredEmployeeListBon)
     }
 
-    fun setReSetupDropdownCapster(reSetup: Boolean) {
-        _reSetupDropdownCapster.postValue(reSetup)
+
+    override fun setupDropdownFilterWithNullState() {
+        _setupDropdownFilter.postValue(false)
+        _setupDropdownFilterWithNullState.postValue(false)
+        Log.d("ObjectReferences", "neptunes 5")
     }
+
 
     fun setActiveTagFilterCategory(position: Int, adapter: ItemListTagFilteringAdapter) {
         _tagFilteringCategory.value?.apply {

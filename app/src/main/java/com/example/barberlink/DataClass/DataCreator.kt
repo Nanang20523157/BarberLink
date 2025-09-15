@@ -15,6 +15,11 @@ data class DataCreator<T>(
     @get:PropertyName("user_ref") @set:PropertyName("user_ref") var userRef: String = "",
     @get:Exclude @set:Exclude var userDetails: @RawValue T? = null // Bisa menampung UserAdminData, Employee, atau UserCustomerData
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     // Fungsi deep copy yang bisa menangani berbagai jenis data
     fun deepCopyCustomer(
         copyWithReminder: Boolean = false,

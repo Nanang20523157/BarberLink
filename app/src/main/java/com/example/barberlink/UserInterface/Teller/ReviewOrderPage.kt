@@ -10,6 +10,7 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -50,6 +51,7 @@ import com.example.barberlink.UserInterface.Teller.Fragment.PaymentMethodFragmen
 import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivityReviewOrderPageBinding
@@ -118,6 +120,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         super.onCreate(savedInstanceState)
         binding = ActivityReviewOrderPageBinding.inflate(layoutInflater)
 
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
@@ -146,13 +150,19 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
             binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
         }
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
@@ -1076,6 +1086,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
                                     val userReservationData = Reservation(
                                         shareProfitCapsterRef = reviewOrderViewModel.getCapsterSelected().userRef,
+                                        fieldToFiltering = formatTimestampToDate(timeSelected),
                                         rootRef = reviewOrderViewModel.getOutletSelected().rootRef,
                                         bestDealsRef = emptyList(),
                                         capsterInfo = capsterInfo,

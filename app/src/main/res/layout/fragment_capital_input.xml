@@ -329,6 +329,7 @@
                             app:boxBackgroundColor="#00FFFFFF"
                             app:boxBackgroundMode="outline"
                             app:prefixText="Rp"
+                            app:prefixTextColor="?attr/colorOnSurfaceVariant"
                             app:prefixTextAppearance="@style/PrefixTextAppearance">
 
                             <com.google.android.material.textfield.TextInputEditText
@@ -340,6 +341,7 @@
                                 android:drawablePadding="10dp"
                                 android:inputType="number|numberDecimal"
                                 android:text="@string/text_0"
+                                android:textColor="@color/black_font_color"
                                 android:textSize="23sp" />
 
                         </com.google.android.material.textfield.TextInputLayout>

@@ -58,10 +58,10 @@ class MainActivity : BaseActivity(), DrawerController
 
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         setContentView(binding.root)
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {

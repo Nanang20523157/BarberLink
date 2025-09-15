@@ -1,6 +1,7 @@
 package com.example.barberlink.UserInterface.Admin.Fragment
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
@@ -14,9 +15,11 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.barberlink.Adapter.ItemListQueueBoardAdapter
+import com.example.barberlink.Adapter.ItemListQueueResetAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Network.NetworkMonitor
@@ -41,7 +44,8 @@ class ResetQueueBoardFragment : DialogFragment() {
     //private var capsterList: ArrayList<Employee>? = null
     private lateinit var currentQueue: Map<String, String>
     //private var outlet: Outlet? = null
-    private lateinit var queueAdapter: ItemListQueueBoardAdapter
+    private lateinit var queueAdapter: ItemListQueueResetAdapter
+    private var lifecycleListener: DefaultLifecycleObserver? = null
     private var isFirstLoad: Boolean = true
 
     private val binding get() = _binding!!
@@ -92,7 +96,7 @@ class ResetQueueBoardFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        queueAdapter = ItemListQueueBoardAdapter(3)
+        queueAdapter = ItemListQueueResetAdapter(3)
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
         queueAdapter.setShimmer(true)
@@ -109,6 +113,21 @@ class ResetQueueBoardFragment : DialogFragment() {
                 if (!isFirstLoad) queueAdapter.notifyDataSetChanged()
             }
         }
+
+        // Panggil fungsi pertama kali
+        updateMargins()
+
+        // Deteksi perubahan orientasi layar
+        val listener = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                updateMargins()
+            }
+        }
+
+        viewLifecycleOwner.lifecycle.addObserver(listener)
+
+        // Simpan listener agar bisa dihapus nanti jika perlu
+        this.lifecycleListener = listener
 
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
@@ -221,10 +240,36 @@ class ResetQueueBoardFragment : DialogFragment() {
         return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
+    private fun updateMargins() {
+        val params = binding.cdResetQueueBoard.layoutParams as ViewGroup.MarginLayoutParams
+        val orientation = resources.configuration.orientation
+
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            params.topMargin = dpToPx(30)
+            params.bottomMargin = dpToPx(30)
+            Log.d("FormulirBon", "updateMargins: PORTRAIT")
+        } else {
+            params.topMargin = dpToPx(100)
+            params.bottomMargin = dpToPx(30)
+            Log.d("FormulirBon", "updateMargins: LANDSCAPE")
+        }
+
+        binding.cdResetQueueBoard.layoutParams = params
+    }
+
+    // Konversi dari dp ke pixel
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         queueAdapter.stopAllShimmerEffects()
         _binding = null
+
+        lifecycleListener?.let {
+            viewLifecycleOwner.lifecycle.removeObserver(it)
+        }
 
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah

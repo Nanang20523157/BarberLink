@@ -284,11 +284,17 @@ class AddNewCustomerFragment : DialogFragment() {
                             binding.tvInformation.text = getString(R.string.owner_barber, addCustomerViewModel.getUserAdminData().barbershopName)
                         }
                         "employee" -> {
+                            val firstUid = addCustomerViewModel.getUserEmployeeData().uidListPlacement.firstOrNull()
+                            val outletName = firstUid?.let { uid ->
+                                shareReserveViewModel.outletList.value?.find { it.uid == uid }?.outletName
+                            } ?: "Barbershop"
+
                             binding.tvInformation.text = getString(
                                 R.string.employee_barber,
-                                addCustomerViewModel.getUserEmployeeData().listPlacement.firstOrNull()
+                                outletName
                             )
                         }
+
                         "customer" -> {
                             binding.tvInformation.text = getString(R.string.user_customer_information)
                         }

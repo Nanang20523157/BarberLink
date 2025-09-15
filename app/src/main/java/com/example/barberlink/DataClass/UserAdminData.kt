@@ -32,6 +32,11 @@ data class UserAdminData(
     @get:PropertyName("account_verification") @set:PropertyName("account_verification") var accountVerification: Boolean = false,
     @get:Exclude @set:Exclude override var userRef: String = "", // Hanya Digunakan pada saat Sign Up
 ) : Parcelable, UserData {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyOperationalHour: Boolean,
         copySunday: Boolean,
@@ -75,6 +80,11 @@ data class OperationalHour(
     @get:PropertyName("tuesday") @set:PropertyName("tuesday") var tuesday: @RawValue DailySchedule = DailySchedule(),
     @get:PropertyName("monday") @set:PropertyName("monday") var monday: @RawValue DailySchedule = DailySchedule()
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copySunday: Boolean,
         copySaturday: Boolean,
@@ -130,6 +140,11 @@ data class DailySchedule(
     @get:PropertyName("open") @set:PropertyName("open") var open: String = "",
     @get:PropertyName("close") @set:PropertyName("close") var close: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(): DailySchedule {
         return DailySchedule(
             open = this.open,
@@ -162,8 +177,12 @@ data class BundlingPackage(
     @get:Exclude @set:Exclude var itemIndex: Int = 0,
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
-    // Deep copy function for BundlingPackage
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
 
+    // Deep copy function for BundlingPackage
     fun deepCopy(deepCopyItemsDetails: Boolean): BundlingPackage {
         return BundlingPackage(
             accumulatedPrice = this.accumulatedPrice,
@@ -203,7 +222,12 @@ data class Division(
     @get:PropertyName("division_description") @set:PropertyName("division_description") var divisionDescription: String = "",
     @get:PropertyName("division_name") @set:PropertyName("division_name") var divisionName: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 // Employee data class
 @Parcelize
@@ -218,7 +242,7 @@ data class UserEmployeeData(
     @get:PropertyName("employee_rating") @set:PropertyName("employee_rating") var employeeRating: Double = 5.0,
     @get:PropertyName("fullname") @set:PropertyName("fullname") var fullname: String = "",
     @get:PropertyName("gender") @set:PropertyName("gender") var gender: String = "",
-    @get:PropertyName("list_placement") @set:PropertyName("list_placement") var listPlacement: List<String> = emptyList(),
+    @get:PropertyName("uid_list_placement") @set:PropertyName("uid_list_placement") var uidListPlacement: List<String> = emptyList(),
     @get:PropertyName("password") @set:PropertyName("password") override var password: String = "",
     @get:PropertyName("phone") @set:PropertyName("phone") override var phone: String = "",
     @get:PropertyName("photo_profile") @set:PropertyName("photo_profile") var photoProfile: String = "",
@@ -242,6 +266,11 @@ data class UserEmployeeData(
 //    @get:PropertyName("rest_queue_counting") @set:PropertyName("rest_queue_counting") var restQueueCounting: Int = 0,
 //    @get:PropertyName("user_review_counting") @set:PropertyName("user_review_counting") var userReviewCounting: Int = 0
 ) : Parcelable, UserData {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     // Deep copy function for Employee
     fun deepCopy(copyReminder: Boolean, copyNotification: Boolean): UserEmployeeData {
         return UserEmployeeData(
@@ -264,7 +293,7 @@ data class UserEmployeeData(
             employeeRating = this.employeeRating,
             fullname = this.fullname,
             gender = this.gender,
-            listPlacement = this.listPlacement.toList(),
+            uidListPlacement = this.uidListPlacement.toList(),
             password = this.password,
             phone = this.phone,
             photoProfile = this.photoProfile,
@@ -293,12 +322,22 @@ data class UserEmployeeData(
 @Parcelize
 data class AttendanceRecord(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 @Parcelize
 data class LeavePermission(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 // Outlet data class
 @Parcelize
@@ -330,13 +369,54 @@ data class Outlet(
     @get:Exclude @set:Exclude var outletReference: String = "",
     //    @get:PropertyName("status_active") @set:PropertyName("status_active") var statusActive: Boolean = false,
 //    var dailyCapitalIsEmpty: Boolean = true,
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
+    fun deepCopy(): Outlet {
+        return Outlet(
+            activeDevices = this.activeDevices,
+            currentQueue = this.currentQueue?.toMap(), // salin map
+            imgOutlet = this.imgOutlet,
+            lastUpdated = this.lastUpdated, // Timestamp immutable (Firestore)
+            listBestDeals = this.listBestDeals.toList(),
+            listBundling = this.listBundling.toList(),
+            listCustomers = this.listCustomers?.map { it.copy() }?.toMutableList(),
+            listEmployees = this.listEmployees.toList(),
+            listProducts = this.listProducts.toList(),
+            listServices = this.listServices.toList(),
+            openStatus = this.openStatus,
+            outletAccessCode = this.outletAccessCode,
+            outletName = this.outletName,
+            outletAddress = this.outletAddress,
+            latitudePoint = this.latitudePoint,
+            longitudePoint = this.longitudePoint,
+            outletPhoneNumber = this.outletPhoneNumber,
+            outletRating = this.outletRating,
+            rootRef = this.rootRef,
+            taglineOrDesc = this.taglineOrDesc,
+            timestampModify = this.timestampModify,
+            hiddenOutlet = this.hiddenOutlet,
+            uid = this.uid,
+            isCollapseCard = this.isCollapseCard,
+            outletReference = this.outletReference
+        )
+    }
+
+}
 
 @Parcelize
 data class Customer(
     @get:PropertyName("last_reserve") @set:PropertyName("last_reserve") var lastReserve: Timestamp = Timestamp.now(),
     @get:PropertyName("uid_customer") @set:PropertyName("uid_customer") var uidCustomer: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 // Product data class
 @Parcelize
@@ -361,6 +441,11 @@ data class Product(
     @get:Exclude @set:Exclude var numberOfSales: Int = 0,
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyDataSeller: Boolean
     ): Product {
@@ -401,6 +486,11 @@ data class Seller(
     @get:PropertyName("seller_profile") @set:PropertyName("seller_profile") var sellerProfile: String = "",
     @get:PropertyName("uid_seller") @set:PropertyName("uid_seller") var uidSeller: String = "",
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(): Seller {
         return Seller(
             originLocation = this.originLocation,
@@ -420,7 +510,12 @@ data class Role(
     @get:PropertyName("permissions") @set:PropertyName("permissions") var permissions: @RawValue Map<String, Boolean>? = emptyMap(),
     @get:PropertyName("role_name") @set:PropertyName("role_name") var roleName: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 
 // Service data class
@@ -448,6 +543,11 @@ data class Service(
     @get:Exclude @set:Exclude var itemIndex: Int = 0,
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     // Deep copy function for Employee
     fun deepCopy(): Service {
         return Service(

@@ -11,6 +11,7 @@ import kotlinx.parcelize.RawValue
 data class Reservation(
 //    @get:PropertyName("applicant_capster_ref") @set:PropertyName("applicant_capster_ref") var applicantCapsterRef: String = "",
     @get:PropertyName("share_profit_capster_ref") @set:PropertyName("share_profit_capster_ref") var shareProfitCapsterRef: String = "",
+    @get:PropertyName("field_to_filtering") @set:PropertyName("field_to_filtering") var fieldToFiltering: String = "",
 //    @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("best_deals_ref") @set:PropertyName("best_deals_ref") var bestDealsRef: List<String> = listOf(),
@@ -34,8 +35,12 @@ data class Reservation(
     // @get:PropertyName("is_requeue") @set:PropertyName("is_requeue") var isRequeue: Boolean = false,
 //    @get:PropertyName("dont_adjust_fee") @set:PropertyName("dont_adjust_fee") var dontAdjustFee: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
-    @get:Exclude @set:Exclude var dataRef: String = ""
+    @get:Exclude @set:Exclude var dataRef: String = "",
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
 
     // Deep copy function
     fun deepCopy(
@@ -47,6 +52,7 @@ data class Reservation(
         return Reservation(
 //            applicantCapsterRef = this.applicantCapsterRef,
             shareProfitCapsterRef = this.shareProfitCapsterRef,
+            fieldToFiltering = this.fieldToFiltering,
             rootRef = this.rootRef,
             bestDealsRef = this.bestDealsRef.toList(), // Copy list to ensure it's a new instance
             capsterInfo = if (copyCapsterDetail) {
@@ -88,6 +94,11 @@ data class CapsterInfo(
     @get:PropertyName("capster_ref") @set:PropertyName("capster_ref") var capsterRef: String = "",
     @get:PropertyName("share_profit") @set:PropertyName("share_profit") var shareProfit: Int = 0,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     // Deep copy function for CapsterInfo
     fun deepCopy(): CapsterInfo {
         return CapsterInfo(
@@ -132,6 +143,11 @@ data class ItemInfo(
     @get:PropertyName("non_package") @set:PropertyName("non_package") var nonPackage: Boolean = true,
     @get:PropertyName("sum_of_price") @set:PropertyName("sum_of_price") var sumOfPrice: Int = 0,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     // Deep copy function for OrderInfo
     fun deepCopy(): ItemInfo {
         return ItemInfo(
@@ -158,6 +174,11 @@ data class PaymentDetail(
     @get:PropertyName("discount_amount") @set:PropertyName("discount_amount") var discountAmount: Int = 0,
 //    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     // Deep copy function for PaymentDetail
     fun deepCopy(): PaymentDetail {
         return PaymentDetail(

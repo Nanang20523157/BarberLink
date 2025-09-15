@@ -14,6 +14,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.PopupWindow
@@ -82,16 +83,24 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         binding = ActivitySignUpStepTwoBinding.inflate(layoutInflater)
         windowBinding = InquiryConfirmationWindowBinding.inflate(layoutInflater)
 
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)

@@ -13,9 +13,6 @@ import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 
 class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
-    private val _outletsList = MutableLiveData<List<Outlet>>().apply { value = mutableListOf() }
-    override val outletsList: LiveData<List<Outlet>> = _outletsList
-
     private val _servicesList = MutableLiveData<List<Service>>().apply { value = mutableListOf() }
     val servicesList: LiveData<List<Service>> = _servicesList
 
@@ -31,22 +28,39 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _isSetItemBundling = MutableLiveData<Boolean>().apply { value = false }
     val isSetItemBundling: LiveData<Boolean> = _isSetItemBundling
 
-    private val _userAdminData = MutableLiveData<UserAdminData>()
-    override val userAdminData: LiveData<UserAdminData> = _userAdminData
+    private var isCapitalDialogShow: Boolean = false
 
-    private val _triggeredGetAllData = MutableLiveData<Boolean>().apply { value = false }
-    val triggeredGetAllData: LiveData<Boolean> = _triggeredGetAllData
+    fun getIsCapitalDialogShow(): Boolean = synchronized(this) {
+        return isCapitalDialogShow
+    }
 
-    fun setTriggeredGetAllData(triggered: Boolean) = synchronized(this) {
-        _triggeredGetAllData.value = triggered
+    fun setCapitalDialogShow(show: Boolean) = synchronized(this) {
+        isCapitalDialogShow = show
+        if (show) {
+            _setupDropdownFilter.value = true
+            _setupDropdownFilterWithNullState.value = true
+        }
+    }
+
+    override fun setOutletSelected(outlet: Outlet?) = synchronized(this) {
+        _outletSelected.value = outlet
     }
 
     fun setUserAdminData(userAdminData: UserAdminData) = synchronized(this) {
         _userAdminData.value = userAdminData
     }
 
-    fun setOutletsList(list: List<Outlet>) = synchronized(this) {
-        _outletsList.value = list
+    fun setOutletList(listOutlet: List<Outlet>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) = synchronized(this) {
+        _outletList.value = listOutlet
+        if (isCapitalDialogShow) {
+            _setupDropdownFilter.value = setupDropdown
+            _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+        }
+    }
+
+    override fun setupDropdownFilterWithNullState() = synchronized(this) {
+        _setupDropdownFilter.value = false
+        _setupDropdownFilterWithNullState.value = false
     }
 
     fun setServicesList(list: List<Service>) = synchronized(this) {

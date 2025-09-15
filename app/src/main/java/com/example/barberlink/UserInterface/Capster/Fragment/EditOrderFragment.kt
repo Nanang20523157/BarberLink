@@ -138,7 +138,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         binding.apply {
             tvTitle.text = toolbarTitle
             binding.tvPaymentAmount.text = priceText
-            editOrderViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
+            editOrderViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
                 if (reservation != null) {
                     currentReservation = reservation
                     paymentMethod = if (savedInstanceState == null) {

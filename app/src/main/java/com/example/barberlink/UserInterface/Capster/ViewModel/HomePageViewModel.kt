@@ -21,9 +21,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
-    private val _outletsList = MutableLiveData<List<Outlet>>().apply { value = mutableListOf() }
-    override val outletsList: LiveData<List<Outlet>> = _outletsList
-
     private val _productList = MutableLiveData<List<Product>>().apply { value = mutableListOf() }
     val productList: LiveData<List<Product>> = _productList
 
@@ -93,8 +90,27 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     private val _displayEmployeeData = MutableLiveData<Boolean?>().apply { value = null }
     val displayEmployeeData: LiveData<Boolean?> = _displayEmployeeData
 
-    private val _userEmployeeData = MutableLiveData<UserEmployeeData?>()
-    override val userEmployeeData: LiveData<UserEmployeeData?> = _userEmployeeData
+    private var isCapitalDialogShow: Boolean = false
+
+    fun getIsCapitalDialogShow(): Boolean {
+        return isCapitalDialogShow
+    }
+
+    fun setCapitalDialogShow(show: Boolean) {
+        viewModelScope.launch {
+            isCapitalDialogShow = show
+            if (show) {
+                _setupDropdownFilter.value = true
+                _setupDropdownFilterWithNullState.value = true
+            }
+        }
+    }
+
+    override fun setOutletSelected(outlet: Outlet?) {
+        viewModelScope.launch {
+            _outletSelected.value = outlet
+        }
+    }
 
     fun setUserEmployeeData(userEmployeeData: UserEmployeeData, displayData: Boolean) {
         viewModelScope.launch {
@@ -103,24 +119,35 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    fun setOutletsList(list: List<Outlet>) {
+    fun setOutletList(listOutlet: List<Outlet>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
         viewModelScope.launch {
-            _outletsList.value = list
+            _outletList.value = listOutlet
+            if (isCapitalDialogShow) {
+                _setupDropdownFilter.value = setupDropdown
+                _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+            }
+        }
+    }
+
+    override fun setupDropdownFilterWithNullState() {
+        viewModelScope.launch {
+            _setupDropdownFilter.value = false
+            _setupDropdownFilterWithNullState.value = false
         }
     }
 
     // Metode untuk OutletList
     private fun addOutletData(outlet: Outlet) {
         viewModelScope.launch {
-            val list = _outletsList.value?.toMutableList() ?: mutableListOf()
+            val list = _outletList.value?.toMutableList() ?: mutableListOf()
             list.add(outlet)
-            _outletsList.value = list
+            _outletList.value = list
         }
     }
 
     fun clearOutletsList() {
         viewModelScope.launch {
-            _outletsList.value = mutableListOf()
+            _outletList.value = mutableListOf()
         }
     }
 
@@ -294,6 +321,8 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
                     outletReference = document.reference.path
                 }.let { addOutletData(it) }
             }
+            _setupDropdownFilter.value = true
+            _setupDropdownFilterWithNullState.value = true
         }
     }
 

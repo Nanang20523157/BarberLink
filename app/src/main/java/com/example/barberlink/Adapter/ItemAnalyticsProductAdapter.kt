@@ -1,6 +1,7 @@
 package com.example.barberlink.Adapter
 
 import android.util.Log
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
@@ -19,6 +20,11 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+    private var outletName = ""
+
+    fun setOutletName(name: String) {
+        outletName = name
+    }
 
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
@@ -101,7 +107,19 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
             with(binding) {
                 tvProductName.isSelected = true
                 tvProductName.text = product.productName
-                tvProductCounter.text = root.context.getString(R.string.short_items_text_of_product_sales, product.numberOfSales.toString())
+                tvProductCounter.text = if (outletName != "---") root.context.getString(R.string.short_items_text_of_product_sales, product.numberOfSales.toString()) else "--"
+
+                val marginStartDp = if (outletName == "---") 10f else 9.5f
+
+                val marginStartPx = TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP,
+                    marginStartDp,
+                    root.context.resources.displayMetrics
+                ).toInt()
+
+                val layoutParams = tvProductCounter.layoutParams as ViewGroup.MarginLayoutParams
+                layoutParams.marginStart = marginStartPx
+                tvProductCounter.layoutParams = layoutParams
 
                 // Use Glide to load the image
                 if (product.imgProduct.isNotEmpty()) {

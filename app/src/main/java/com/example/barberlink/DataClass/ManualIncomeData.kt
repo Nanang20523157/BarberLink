@@ -28,6 +28,11 @@ data class ManualIncomeData(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyCreatorDetail: Boolean,
         copyCreatorWithReminder: Boolean,
@@ -78,6 +83,11 @@ data class ShareProfitDetail(
     @get:PropertyName("percentage_amount") @set:PropertyName("percentage_amount") var percentageAmount: Int? = null,
     @get:PropertyName("barber_net_income") @set:PropertyName("barber_net_income") var barberNetIncome: Int = 0,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(): ShareProfitDetail {
         return ShareProfitDetail(
             shareProfitFormat = this.shareProfitFormat,

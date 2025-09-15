@@ -13,6 +13,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
@@ -111,9 +112,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
-    private var isCapitalInputShow = false
     // Mutex objects for each list to control access
-    private val outletsListMutex = Mutex()
+    private val outletListMutex = Mutex()
     private val servicesListMutex = Mutex()
     private val bundlingListMutex = Mutex()
     private val employeesListMutex = Mutex()
@@ -122,7 +122,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 //    private var todayDate = GetDateUtils.formatTimestampToDate(Timestamp.now())
 
     // Global variables for storing data
-//    private val outletsList = mutableListOf<Outlet>()
+//    private val outletList = mutableListOf<Outlet>()
 //    private val servicesList = mutableListOf<Service>()
 //    private val productsList = mutableListOf<Product>()
 //    private val bundlingPackagesList = mutableListOf<BundlingPackage>()
@@ -165,7 +165,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        isCapitalInputShow = savedInstanceState?.getBoolean("is_capital_input_show", false) ?: false
         shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         setAndDisplayBanner()
@@ -252,8 +251,16 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
             Log.d("CheckShimmer", "Animate First Load BAF >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(context, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(context, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
         navController = Navigation.findNavController(requireView())
 
@@ -368,7 +375,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
-        outState.putBoolean("is_capital_input_show", isCapitalInputShow)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("skipped_process", skippedProcess)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
@@ -445,7 +451,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         this.skippedProcess = skippedProcess
         if (skippedProcess) remainingListeners.set(6)
         listenToBarbershopData()
-        listenToOutletsData()
+        listenToOutletList()
         listenToServicesData()
         listenToProductsData()
         listenToBundlingPackagesData()
@@ -496,8 +502,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             }
     }
 
-    // Example of adding mutex to listenToOutletsData
-    private fun listenToOutletsData() {
+    // Example of adding mutex to listenToOutletList
+    private fun listenToOutletList() {
         if (::outletListener.isInitialized) {
             outletListener.remove()
         }
@@ -518,7 +524,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 documents?.let {
                     lifecycleScope.launch(Dispatchers.Default) {
                         if (!isFirstLoad && !skippedProcess) {
-                            outletsListMutex.withLock {
+                            outletListMutex.withLock {
                                 val outlets = it.mapNotNull { doc ->
                                     val outlet = doc.toObject(Outlet::class.java)
                                     outlet.outletReference = doc.reference.path
@@ -526,7 +532,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                                 }
 
                                 withContext(Dispatchers.Main) {
-                                    berandaAdminViewModel.setOutletsList(outlets)
+                                    berandaAdminViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
                                 }
                             }
                         }
@@ -764,10 +770,9 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 .addOnSuccessListener {
                     Log.d("CheckShimmer", "Tasks.whenAllComplete(tasks) Success")
                     displayAllData()
-                    if (!isCapitalInputShow) {
+                    if (!berandaAdminViewModel.getIsCapitalDialogShow()) {
                         handler.postDelayed({
                             if (isAdded) showCapitalInputDialog()
-
                         }, 300)
                     }
                 }
@@ -849,7 +854,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                                     }
                                     UserEmployeeData::class.java -> berandaAdminViewModel.setEmployeeList(items as List<UserEmployeeData>)
                                     Product::class.java -> berandaAdminViewModel.setProductList(items as List<Product>)
-                                    Outlet::class.java -> berandaAdminViewModel.setOutletsList(items as List<Outlet>)
+                                    Outlet::class.java -> berandaAdminViewModel.setOutletList(items as List<Outlet>, setupDropdown = true, isSavedInstanceStateNull = true)
                                 }
                             }
 
@@ -916,41 +921,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         }
     }
 
-//    private fun getDailyCapitalForTodayUsingCollectionGroup() {
-//        db.collectionGroup("daily_capital")
-//            .whereEqualTo("root_ref", "/barbershops/$userId")
-//            .get()
-//            .addOnSuccessListener { documents ->
-//                for (document in documents) {
-//                    if (document.id == currentMonth) {
-//                        val dailyCapitalMap = document.data
-//                        if (dailyCapitalMap.containsKey(todayDate)) {
-//                            val dailyCapital = dailyCapitalMap[todayDate] as? Map<*, *>
-//                            if (dailyCapital != null) {
-//                                val capital = DailyCapital(
-//                                    uid = dailyCapital["uid"] as String,
-//                                    createdBy = dailyCapital["created_by"] as String,
-//                                    createdOn = dailyCapital["created_on"] as Timestamp,
-//                                    outletCapital = dailyCapital["outlet_capital"] as Int,
-//                                    rootRef = dailyCapital["root_ref"] as String,
-//                                    userJobs = dailyCapital["user_jobs"] as String,
-//                                    userRef = dailyCapital["user_ref"] as String,
-//                                    outletNumber = dailyCapital["outlet_number"] as String
-//                                )
-//                                // Process the capital
-//                                val outlet = outletsList.find { it.uid == capital.outletNumber }
-//                                outlet?.dailyCapitalIsEmpty = false
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                if (outletsList.isNotEmpty()) showCapitalInputDialog(ArrayList(outletsList))
-//            }
-//            .addOnFailureListener { exception ->
-//                Toast.makeText(this, "Error getting daily capital: ${exception.message}", Toast.LENGTH_SHORT).show()
-//            }
-//    }
     @RequiresApi(Build.VERSION_CODES.S)
     private fun showCapitalInputDialog() {
 //        setDialogCapitalStatus(true)
@@ -982,7 +952,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 .commit()
         }
 
-        isCapitalInputShow = true
+        berandaAdminViewModel.setCapitalDialogShow(true)
 //        dialogFragment.show(fragmentManager, "CapitalInputFragment")
     }
 
@@ -1065,7 +1035,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                         WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
                             disableBtnWhenShowDialog(v) {
                                 val manageOutletDirections = BerandaAdminFragmentDirections.actionNavBerandaToManageOutletPage(
-                                    (berandaAdminViewModel.outletsList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()).toTypedArray(), berandaAdminViewModel.userAdminData.value ?: UserAdminData()
+                                    (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()).toTypedArray(), berandaAdminViewModel.userAdminData.value ?: UserAdminData()
                                 )
                                 navController.navigate(manageOutletDirections)
                             }
@@ -1083,7 +1053,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                         WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
                             disableBtnWhenShowDialog(v) {
                                 val dashboardAdminDirections = BerandaAdminFragmentDirections.actionNavBerandaToDashboardAdminPage(
-                                    (berandaAdminViewModel.outletsList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.userAdminData.value ?: UserAdminData()), (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray()
+                                    (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.userAdminData.value ?: UserAdminData()), (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray()
                                 )
                                 navController.navigate(dashboardAdminDirections)
                             }
@@ -1099,23 +1069,26 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, isSendData: Boolean, view: View) {
-        view.isClickable = false
-        currentView = view
-        if (!isNavigating) {
-            isNavigating = true
-            val intent = Intent(context, destination)
-            Log.d("NavigateDashboard", "Send data to $destination")
-            if (isSendData) {
-                intent.putParcelableArrayListExtra(OUTLET_DATA_KEY, ArrayList(berandaAdminViewModel.outletsList.value ?: emptyList()))
-                intent.putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()))
-                intent.putExtra(ADMIN_DATA_KEY, berandaAdminViewModel.userAdminData.value)
-            } else {
-                intent.putExtra(ORIGIN_INTENT_KEY, "BerandaAdminPage")
-            }
-            startActivity(intent)
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, context, false) {
+            view.isClickable = false
+            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(context, destination)
+                Log.d("NavigateDashboard", "Send data to $destination")
+                if (isSendData) {
+                    intent.putParcelableArrayListExtra(OUTLET_DATA_KEY, ArrayList(berandaAdminViewModel.outletList.value ?: emptyList()))
+                    intent.putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()))
+                    intent.putExtra(ADMIN_DATA_KEY, berandaAdminViewModel.userAdminData.value)
+                } else {
+                    intent.putExtra(ORIGIN_INTENT_KEY, "BerandaAdminPage")
+                }
+                startActivity(intent)
 //            (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
-        } else return
+            } else return@setDynamicWindowAllCorner
+        }
     }
 
     private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {

@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -27,6 +28,7 @@ import com.example.barberlink.Adapter.ItemListTagFilteringAdapter
 import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
+import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.Event
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -62,10 +64,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private lateinit var  binding: ActivityBonEmployeePageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
-    private val bonEmployeeViewModel: BonEmployeeViewModel by viewModels()
+    private val bonEmployeeViewModel: BonEmployeeViewModel by viewModels {
+        SaveStateViewModelFactory(this)
+    }
     //private var userCurrentAccumulationBon: Int = 0
     //private var userPreviousAccumulationBon: Int = 0
-    //private lateinit var userEmployeeData: Employee
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: DialogFragment
     private lateinit var calendar: Calendar
@@ -82,8 +85,8 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private var isFirstLoad: Boolean = true
     private var updateListener: Boolean = false
     private var orderBy: String = "Terbaru"
-    private var filterByTag: String = ""
-    private var filterByStatus: String = ""
+    private var filterByTag: String = "Semua"
+    private var filterByStatus: String = "Semua"
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private lateinit var timeStampFilter: Timestamp
@@ -103,7 +106,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         "Terlama"
     )
     private val statusFilteringData: ArrayList<UserFilterCategories> = arrayListOf(
-        UserFilterCategories(tagCategory = "Semua", textContained = ""),
+        UserFilterCategories(tagCategory = "Semua", textContained = "Semua"),
         UserFilterCategories(tagCategory = "Menunggu", textContained = "waiting"),
         UserFilterCategories(tagCategory = "Dibatalkan", textContained = "canceled"),
         UserFilterCategories(tagCategory = "Ditolak", textContained = "rejected"),
@@ -126,16 +129,24 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         super.onCreate(savedInstanceState)
         binding = ActivityBonEmployeePageBinding.inflate(layoutInflater)
 
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         fragmentManager = supportFragmentManager
@@ -146,12 +157,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             // employeeList = savedInstanceState.getParcelableArrayList("employee_list") ?: ArrayList()
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             updateListener = savedInstanceState.getBoolean("update_listener", false)
-            //userEmployeeData = savedInstanceState.getParcelable("user_employee_data") ?: Employee()
             //userCurrentAccumulationBon = savedInstanceState.getInt("user_current_accumulation_bon", 0)
             //userPreviousAccumulationBon = savedInstanceState.getInt("user_previous_accumulation_bon", 0)
-            orderBy = savedInstanceState.getString("order_by", "")
-            filterByTag = savedInstanceState.getString("filter_by", "")
-            filterByStatus = savedInstanceState.getString("filter_by_status", "")
+            orderBy = savedInstanceState.getString("order_by", "Terbaru")
+            filterByTag = savedInstanceState.getString("filter_by", "Semua")
+            filterByStatus = savedInstanceState.getString("filter_by_status", "Semua")
             // extendedStateMap.putAll(savedInstanceState.getSerializable("extended_state_map") as HashMap<String, Boolean>)
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
@@ -166,14 +176,15 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             } else {
                 intent.getParcelableExtra(HomePageCapster.CAPSTER_DATA_KEY) ?: UserEmployeeData()
             }
-            bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, true)
+//            bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, initPage = true, setupDropdown = true, isSavedInstanceStateNull = true)
+            bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, setupDropdown = true, isSavedInstanceStateNull = true)
         }
 
-        bonEmployeeViewModel.initializationPage.observe(this) { isInitialized ->
-            if (isInitialized == true) {
-                init(savedInstanceState)
-            }
-        }
+        init(savedInstanceState)
+//        bonEmployeeViewModel.initializationPage.observe(this) { isInitialized ->
+//            if (isInitialized == true) {
+//            }
+//        }
 
         binding.apply {
             ivNextMonth.setOnClickListener(this@BonEmployeePage)
@@ -213,6 +224,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                 isSaveDataProcess = false
             }
         }
+
+        if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
+        if (savedInstanceState != null) displayDataOrientationChange()
+
+        bonEmployeeViewModel.snackBarMessage.observe(this) { showSnackBar(it) }
     }
 
     private fun resetAllFilteringData(isSameMonth: Boolean) {
@@ -224,8 +240,8 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         tagFilterAdapter.resetTagFIlterCategory()
 
         orderBy = "Terbaru"
-        filterByTag = ""
-        filterByStatus = ""
+        filterByTag = "Semua"
+        filterByStatus = "Semua"
         isSaveDataProcess = false
 
         if (!isSameMonth) {
@@ -277,7 +293,6 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         // outState.putParcelableArrayList("employee_list", employeeList)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("update_listener", updateListener)
-        //outState.putParcelable("user_employee_data", userEmployeeData)
         //outState.putInt("user_current_accumulation_bon", userCurrentAccumulationBon)
         //outState.putInt("user_previous_accumulation_bon", userPreviousAccumulationBon)
         outState.putString("order_by", orderBy)
@@ -296,6 +311,12 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         calendar = Calendar.getInstance()
         maxYear = calendar.get(Calendar.YEAR)
         minYear = maxYear - 4
+
+        if (savedInstanceState == null) {
+            setDateFilterValue(Timestamp(calendar.time))
+        } else {
+            setDateFilterValue(timeStampFilter)
+        }
         listBonAdapter = ItemListEmployeeBonAdapter(db, this@BonEmployeePage, this@BonEmployeePage, bonEmployeeViewModel, this@BonEmployeePage, this@BonEmployeePage, this@BonEmployeePage)
         binding.rvEmployeeListBon.layoutManager = LinearLayoutManager(this@BonEmployeePage, LinearLayoutManager.VERTICAL, false)
         binding.rvEmployeeListBon.adapter = listBonAdapter
@@ -307,7 +328,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         tagFilterAdapter.submitList(bonEmployeeViewModel.tagFilteringCategory.value ?: arrayListOf())
         Log.d("InitialFilter", "============= Initial Filter =============")
         setupAcTvOrderFilter()
-        setupAcTvCapsterName()
+        //setupAcTvCapsterName()
         setupAcTvStatusFilter()
 
         // Inisialisasi kalender untuk mendapatkan tahun dan bulan saat ini
@@ -332,11 +353,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             calendar.get(Calendar.MONTH)
         )
 
-        if (savedInstanceState == null) setDateFilterValue(Timestamp(calendar.time))
-        else setDateFilterValue(timeStampFilter)
-        if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
-
-        bonEmployeeViewModel.snackBarMessage.observe(this) { showSnackBar(it) }
+        bonEmployeeViewModel.setupDropdownFilterWithNullState.observe(this) { isSavedInstanceStateNull ->
+            val setupDropdown = bonEmployeeViewModel.setupDropdownFilter.value ?: false
+            Log.d("CheckShimmer", "setupDropdown $setupDropdown || setupDropdownCapsterWithNullState: $isSavedInstanceStateNull")
+            if (isSavedInstanceStateNull != null) setupDropdownCapster(setupDropdown, isSavedInstanceStateNull)
+        }
 
         bonEmployeeViewModel.employeeListBon.observe(this) { listBon ->
             lifecycleScope.launch(Dispatchers.Default) {
@@ -358,18 +379,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
             Log.d("CheckScroll", "=======")
         }
-
-        if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) getAllData()
-        else {
-            displayDataOrientationChange()
-            // Yang lain ada pengcheckan isFirstLoad sama !isFirstLoad
-            // Tujuannya cuma agar setupListeners() gak double karena dipanggil di dua tempat
-            if (!isFirstLoad && !updateListener) setupListeners(skippedProcess = true)
-        }
     }
 
     private fun displayDataOrientationChange() {
         Log.d("SubmitListCheck", "shimmer in initial change rotation")
+        bonEmployeeViewModel.setupDropdownFilterWithNullState()
         val filteredListBon =  bonEmployeeViewModel.filteredEmployeeListBon.value ?: mutableListOf()
 
         listBonAdapter.submitList(filteredListBon)
@@ -489,13 +503,31 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
 
             }
 
-            binding.acOrderBy.setText(orderBy, false)
-
+            if (binding.acOrderBy.text.toString().isEmpty()) binding.acOrderBy.setText(orderBy, false)
         }
     }
 
-    private fun setupAcTvCapsterName() {
-        binding.acCapsterName.setText(bonEmployeeViewModel.userEmployeeData.value?.fullname, false)
+    private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            bonEmployeeViewModel.userEmployeeData.value?.let { userData ->
+                if (setupDropdown || isSavedInstanceStateNull) {
+                    binding.acCapsterName.setText(userData.fullname, false)
+                }
+            }
+
+            if ((isSavedInstanceStateNull && setupDropdown) || (isShimmerVisible && isFirstLoad)) {
+                Log.d("CheckShimmer", "getAllData()")
+                getAllData()
+            }
+
+            if (!isSavedInstanceStateNull) {
+                if (!isFirstLoad && !updateListener) {
+                    Log.d("CheckShimmer", "setupListeners(skippedProcess = true)")
+                    setupListeners(skippedProcess = true)
+                }
+            }
+        }
+
         Log.d("InitialFilter", "userEmployeeData: ${bonEmployeeViewModel.userEmployeeData.value?.fullname}")
     }
 
@@ -531,7 +563,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                 }
             }
 
-            if (filterByStatus.isEmpty()) binding.acBonStatusFiltering.setText(statusFilteringData[0].tagCategory, false)
+            if (binding.acBonStatusFiltering.text.toString().isEmpty()) binding.acBonStatusFiltering.setText(filterByStatus, false)
         }
     }
 
@@ -698,7 +730,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         }
 
         // Filter tambahan berdasarkan filterByStatus jika tidak kosong
-        val filteredByStatus = if (filterByStatus.isNotEmpty()) {
+        val filteredByStatus = if (filterByStatus != "Semua") {
             filteredByTag.filter { it.bonStatus == filterByStatus }
         } else {
             filteredByTag
@@ -755,7 +787,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                         outletRef = ""
                     }
                     userEmployeeData?.let {
-                        bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, false)
+                        bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, setupDropdown = false, isSavedInstanceStateNull = true)
                     }
 
                     if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {

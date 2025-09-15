@@ -110,7 +110,7 @@ class QueueExecutionFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        queueExecutionViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
+        queueExecutionViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
                 currentReservation = reservation.deepCopy(
                     copyCreatorDetail = false,

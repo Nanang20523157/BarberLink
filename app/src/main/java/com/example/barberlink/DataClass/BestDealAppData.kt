@@ -2,6 +2,7 @@ package com.example.barberlink.DataClass
 
 import android.os.Parcelable
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 
@@ -9,7 +10,12 @@ import kotlinx.parcelize.Parcelize
 data class BestDealApp(
     @get:PropertyName("description") @set:PropertyName("description") var description: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 @Parcelize
 data class ListBestDealApp(
@@ -27,11 +33,21 @@ data class ListBestDealApp(
     @get:PropertyName("target") @set:PropertyName("target") var target: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
 //    @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 
 @Parcelize
 data class BestDealAppCategory(
     @get:PropertyName("category_name") @set:PropertyName("category_name") var categoryName: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}
 

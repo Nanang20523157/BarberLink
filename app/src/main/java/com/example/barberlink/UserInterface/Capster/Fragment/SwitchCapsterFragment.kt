@@ -32,9 +32,11 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
+import com.example.barberlink.UserInterface.Capster.ViewModel.SwitchCapsterViewModel
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentSwitchQueueBinding
 import com.google.firebase.firestore.FirebaseFirestore
@@ -42,6 +44,7 @@ import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -59,12 +62,18 @@ private const val ARG_PARAM5 = "outletSelected"
 class SwitchCapsterFragment : DialogFragment() {
     private var _binding: FragmentSwitchQueueBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val switchCapsterViewModel: QueueControlViewModel by activityViewModels()
+    private val queueControlViewModel: QueueControlViewModel by activityViewModels()
+    private val switchCapsterViewModel: SwitchCapsterViewModel by activityViewModels {
+        SaveStateViewModelFactory(requireActivity())
+    }
     private lateinit var context: Context
     private var duplicateReservation: Reservation? = null
     private var currentReservation: Reservation? = null
     private var capsterData: UserEmployeeData? = null
     private var isFirstLoad: Boolean = true
+    private var uidDropdownPosition: String = "----------------"
+    private var textDropdownCapsterName: String = "Semua"
+    private var isOrientationChanged: Boolean = false
     //private var serviceList: ArrayList<Service>? = null
     //private var bundlingList: ArrayList<BundlingPackage>? = null
     //private var outletSelected: Outlet? = null
@@ -93,10 +102,16 @@ class SwitchCapsterFragment : DialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) {
+            isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             capsterData = savedInstanceState.getParcelable("capster_data")
             initialUidCapster = savedInstanceState.getString("initial_uid_capster", "")
             duplicateReservation = savedInstanceState.getParcelable("duplicate_reservation")
+            uidDropdownPosition = savedInstanceState.getString("uid_dropdown_position", "----------------")
+            textDropdownCapsterName = savedInstanceState.getString("text_dropdown_capster_name", "Semua")
+            isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
+
+            switchCapsterViewModel.setupDropdownFilterWithNullState()
         }
 //        arguments?.let {
 //            currentReservation = it.getParcelable(ARG_PARAM1)
@@ -147,7 +162,7 @@ class SwitchCapsterFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.tvEmployeeName.isSelected = true
         showToast("Pilih capster pengganti melalui Dropdown yang tersedia")
-        switchCapsterViewModel.userEmployeeData.observe(viewLifecycleOwner) { employee ->
+        queueControlViewModel.userEmployeeData.observe(viewLifecycleOwner) { employee ->
             if (employee != null) {
                 if (initialUidCapster.isEmpty()) { initialUidCapster = employee.uid }
                 if (capsterData == null || initialUidCapster == capsterData?.uid) {
@@ -162,7 +177,7 @@ class SwitchCapsterFragment : DialogFragment() {
             }
         }
 
-        switchCapsterViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
+        queueControlViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
                 currentReservation = reservation
                 Log.d("SwitchTagFragment", "TT Current Reservation: $reservation")
@@ -177,19 +192,25 @@ class SwitchCapsterFragment : DialogFragment() {
                     )
                 }
                 Log.d("SwitchTagFragment", "TT Price Before Change: $priceBeforeChange || Price After Change: $priceAfterChange")
-                switchCapsterViewModel.setReservationDataChange(binding.switchAdjustPrice.isChecked)
+                queueControlViewModel.setReservationDataChange(binding.switchAdjustPrice.isChecked)
             }
         }
 
-        switchCapsterViewModel.reservationDataChange.observe(viewLifecycleOwner) { adjustPrice ->
+        queueControlViewModel.reservationDataChange.observe(viewLifecycleOwner) { adjustPrice ->
             if (adjustPrice != null) {
                 updateReservationData(adjustPrice)
             }
         }
 
+        switchCapsterViewModel.setupDropdownFilterWithNullState.observe(viewLifecycleOwner) { isSavedInstanceStateNull ->
+            val setupDropdown = switchCapsterViewModel.setupDropdownFilter.value ?: false
+            Log.d("CheckShimmer", "setupDropdown $setupDropdown || setupDropdownCapsterWithNullState: $isSavedInstanceStateNull")
+            if (isSavedInstanceStateNull != null) setupDropdownCapster(setupDropdown, isSavedInstanceStateNull)
+        }
+
         getAndListenCapsterData()
         binding.switchAdjustPrice.setOnCheckedChangeListener { _, isChecked: Boolean ->
-            switchCapsterViewModel.setReservationDataChange(isChecked)
+            queueControlViewModel.setReservationDataChange(isChecked)
         }
         binding.btnSaveChanges.setOnClickListener {
             checkNetworkConnection {
@@ -278,9 +299,13 @@ class SwitchCapsterFragment : DialogFragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putBoolean("is_first_load", isFirstLoad)
         outState.putParcelable("capster_data", capsterData)
         outState.putString("initial_uid_capster", initialUidCapster)
         outState.putParcelable("duplicate_reservation", duplicateReservation)
+        outState.putString("uid_dropdown_position", uidDropdownPosition)
+        outState.putString("text_dropdown_capster_name", textDropdownCapsterName)
+        outState.putBoolean("is_orientation_changed", true)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -323,9 +348,193 @@ class SwitchCapsterFragment : DialogFragment() {
 //        return Pair(copiedServices, copiedBundlings)
 //    }
 
+    private fun getAndListenCapsterData() {
+        queueControlViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.listEmployees.isEmpty()) {
+                showToast("Anda belum menambahkan daftar capster untuk outlet")
+                return
+            }
+
+            Log.d("SwitchTagFragment", "Listening to: ${outletSelected.rootRef}/divisions/capster/employees")
+            // Hapus listener sebelumnya jika ada
+            if (::capsterListener.isInitialized) {
+                capsterListener.remove()
+            }
+
+            capsterListener = db.document(outletSelected.rootRef)
+                .collection("divisions")
+                .document("capster")
+                .collection("employees")
+                .addSnapshotListener { documents, exception ->
+                    exception?.let {
+                        showToast("Error listening to capster data: ${exception.message}")
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            if (!isOrientationChanged) {
+                                val outletData = queueControlViewModel.outletSelected.value ?: return@launch
+                                val employeeUidList = outletData.listEmployees
+
+                                val newCapsterList = it.mapNotNull { document ->
+                                    document.toObject(UserEmployeeData::class.java).apply {
+                                        userRef = document.reference.path
+                                        outletRef = outletData.outletReference
+                                    }.takeIf { it.uid in employeeUidList && it.availabilityStatus }
+                                }
+
+                                withContext(Dispatchers.Main) {
+                                    // queueControlViewModel.setCapsterList(newCapsterList)
+                                    if (newCapsterList.isNotEmpty()) {
+                                        if (capsterData != null && initialUidCapster != capsterData?.uid) {
+                                            capsterData = newCapsterList.find { it.uid == capsterData?.uid }
+                                        }
+                                    } else showToast("Tidak ditemukan data capster yang sesuai")
+
+                                    if (isFirstLoad) switchCapsterViewModel.setCapsterList(newCapsterList, setupDropdown = true, isSavedInstanceStateNull = true)
+                                    else switchCapsterViewModel.setCapsterList(newCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
+                                }
+                            } else isOrientationChanged = false
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            switchCapsterViewModel.capsterList.value?.let { capsterList ->
+                val capsterItemDropdown = capsterList
+                    .distinctBy { it.fullname }
+                    .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
+                    .ifEmpty { listOf(UserEmployeeData(uid = "---", fullname = "---")) }
+
+                val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
+                val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
+                binding.acCapsterName.setAdapter(adapter)
+
+                binding.acCapsterName.setOnItemClickListener { _, _, position, _ ->
+                    val dataCapster = capsterItemDropdown[position]
+                    binding.acCapsterName.setText(dataCapster.fullname, false)
+                    uidDropdownPosition = dataCapster.uid
+                    textDropdownCapsterName = dataCapster.fullname
+
+                    triggeredDataChange(dataCapster)
+                }
+
+                if (setupDropdown) {
+                    val dataCapster = capsterItemDropdown.first()
+                    binding.acCapsterName.setText(dataCapster.fullname, false)
+                    uidDropdownPosition = dataCapster.uid
+                    textDropdownCapsterName = dataCapster.fullname
+
+                    triggeredDataChange(dataCapster)
+                } else {
+                    if (isSavedInstanceStateNull) {
+                        val selectedIndex = capsterItemDropdown.indexOfFirst {
+                            it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                        }.takeIf { it != -1 } ?: -1
+                        val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
+                        if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                        uidDropdownPosition = dataCapster.uid
+                        textDropdownCapsterName = dataCapster.fullname
+
+                        triggeredDataChange(dataCapster)
+                    } else {
+                        Log.d("CheckShimmer", "setup dropdown by orientationChange")
+                    }
+                }
+            }
+
+            isFirstLoad = false
+        }
+
+    }
+
+    private fun triggeredDataChange(dataCapster: UserEmployeeData) {
+        dataCapster.let {
+            displayCapsterData(it)
+            adjustOrderItemData(queueControlViewModel.duplicateServiceList.value ?: emptyList(), queueControlViewModel.duplicateBundlingPackageList.value ?: emptyList(), it.uid)
+
+            if (initialUidCapster != it.uid) {
+                if (textDropdownCapsterName != "---") {
+                    setBtnNextToEnableState()
+                    showToast("Anda memilih ${it.fullname} sebagai capster pengganti.")
+                } else {
+                    setBtnNextToDisableState()
+                    showToast("Tidak ada data yang sesuai untuk ${binding.acCapsterName.text.toString().trim()}")
+                }
+            } else {
+                setBtnNextToDisableState()
+                showToast("Anda tidak dapat memilih diri Anda sendiri sebagai capster penganti.")
+            }
+
+            duplicateReservation?.apply {
+                capsterInfo?.capsterName = it.fullname
+                capsterInfo?.capsterRef = it.userRef
+                capsterInfo?.shareProfit = this.capsterInfo?.shareProfit ?: 0
+            }
+            capsterData = it
+
+            queueControlViewModel.setReservationDataChange(binding.switchAdjustPrice.isChecked)
+        }
+    }
+
+    private fun adjustOrderItemData(
+        serviceList: List<Service>,
+        bundlingList: List<BundlingPackage>,
+        capsterUid: String
+    ) {
+        bundlingList.onEach { bundling ->
+            // Perhitungan results_share_format dan applyToGeneral pada bundling
+            bundling.priceToDisplay = calculatePriceToDisplay(
+                basePrice = bundling.packagePrice,
+                resultsShareFormat = bundling.resultsShareFormat,
+                resultsShareAmount = bundling.resultsShareAmount,
+                applyToGeneral = bundling.applyToGeneral,
+                userId = capsterUid
+            )
+            Log.d("CheckAdapter", "Service Data: ${bundling.packageName} - ${bundling.bundlingQuantity} - ${bundling.priceToDisplay}")
+        }
+
+        serviceList.onEach { service ->
+            // Perhitungan results_share_format dan applyToGeneral pada service
+            service.priceToDisplay = calculatePriceToDisplay(
+                basePrice = service.servicePrice,
+                resultsShareFormat = service.resultsShareFormat,
+                resultsShareAmount = service.resultsShareAmount,
+                applyToGeneral = service.applyToGeneral,
+                userId = capsterUid
+            )
+            Log.d("CheckAdapter", "Service Data: ${service.serviceName} - ${service.serviceQuantity} - ${service.priceToDisplay}")
+        }
+
+        queueControlViewModel.setDuplicateServiceList(serviceList, false)
+        queueControlViewModel.setDuplicateBundlingPackageList(bundlingList, false)
+
+    }
+
+    private fun setBtnNextToDisableState() {
+        with(binding) {
+            btnSaveChanges.isEnabled = false
+            btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
+            btnSaveChanges.setTypeface(null, Typeface.NORMAL)
+            btnSaveChanges.setTextColor(resources.getColor(R.color.white))
+        }
+    }
+
+    private fun setBtnNextToEnableState() {
+        with(binding) {
+            btnSaveChanges.isEnabled = true
+            btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
+            btnSaveChanges.setTypeface(null, Typeface.BOLD)
+            btnSaveChanges.setTextColor(resources.getColor(R.color.green_lime_wf))
+        }
+    }
+
     private fun updateReservationData(isChecked: Boolean) {
-        val serviceList = switchCapsterViewModel.duplicateServiceList.value
-        val bundlingList = switchCapsterViewModel.duplicateBundlingPackageList.value
+        val serviceList = queueControlViewModel.duplicateServiceList.value
+        val bundlingList = queueControlViewModel.duplicateBundlingPackageList.value
         if (isChecked) {
             val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), capsterData?.uid ?: "----------------")
             val orderInfo = updateOrderInfoList(serviceList ?: emptyList(), bundlingList ?: emptyList())
@@ -394,157 +603,6 @@ class SwitchCapsterFragment : DialogFragment() {
         } else {
             basePrice
         }
-    }
-
-    private fun setBtnNextToDisableState() {
-        with(binding) {
-            btnSaveChanges.isEnabled = false
-            btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
-            btnSaveChanges.setTypeface(null, Typeface.NORMAL)
-            btnSaveChanges.setTextColor(resources.getColor(R.color.white))
-        }
-    }
-
-    private fun setBtnNextToEnableState() {
-        with(binding) {
-            btnSaveChanges.isEnabled = true
-            btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
-            btnSaveChanges.setTypeface(null, Typeface.BOLD)
-            btnSaveChanges.setTextColor(resources.getColor(R.color.green_lime_wf))
-        }
-    }
-
-    private fun getAndListenCapsterData() {
-        switchCapsterViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.listEmployees.isEmpty()) {
-                showToast("Anda belum menambahkan daftar capster untuk outlet")
-                return
-            }
-
-            Log.d("SwitchTagFragment", "Listening to: ${outletSelected.rootRef}/divisions/capster/employees")
-            // Hapus listener sebelumnya jika ada
-            if (::capsterListener.isInitialized) {
-                capsterListener.remove()
-            }
-
-            capsterListener = db.document(outletSelected.rootRef)
-                .collection("divisions")
-                .document("capster")
-                .collection("employees")
-                .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to capster data: ${exception.message}")
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            val outletData = switchCapsterViewModel.outletSelected.value ?: return@launch
-                            val employeeUidList = outletData.listEmployees
-
-                            val newCapsterList = it.mapNotNull { document ->
-                                document.toObject(UserEmployeeData::class.java).apply {
-                                    userRef = document.reference.path
-                                    outletRef = outletData.outletReference
-                                }.takeIf { it.uid in employeeUidList }
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                // switchCapsterViewModel.setCapsterList(newCapsterList)
-                                if (newCapsterList.isNotEmpty()) {
-                                    if (capsterData != null && initialUidCapster != capsterData?.uid) {
-                                        capsterData = newCapsterList.find { it.uid == capsterData?.uid }
-                                    }
-                                    setupDropdownCapster(newCapsterList)
-                                } else {
-                                    showToast("Tidak ditemukan data capster yang sesuai")
-                                }
-                            }
-                        }
-                    }
-                }
-        }
-    }
-
-    private fun setupDropdownCapster(capsterList: List<UserEmployeeData>) {
-        // Create a list of capster names from the capsterList
-        val capsterNames = capsterList.map { it.fullname }
-
-        // Create an ArrayAdapter for the dropdown
-        val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, capsterNames)
-
-        // Set the adapter to the AutoCompleteTextView
-        binding.acCapsterName.setAdapter(adapter)
-
-        // Set a listener to handle capster selection
-        binding.acCapsterName.onItemClickListener = null
-        binding.acCapsterName.setOnItemClickListener { parent, _, position, _ ->
-            val selectedName = parent.getItemAtPosition(position).toString()
-            binding.acCapsterName.setText(selectedName, false)
-            // Find the selected Employee object from capsterList
-            val selectedCapster = capsterList.find { it.fullname == selectedName }
-            // Display the capster data if the selectedCapster is found
-            selectedCapster?.let {
-                displayCapsterData(it)
-                adjustOrderItemData(switchCapsterViewModel.duplicateServiceList.value ?: emptyList(), switchCapsterViewModel.duplicateBundlingPackageList.value ?: emptyList(), it.uid)
-
-                if (initialUidCapster != it.uid) {
-                    setBtnNextToEnableState()
-                    showToast("Anda memilih ${it.fullname} sebagai capster pengganti.")
-                } else {
-                    setBtnNextToDisableState()
-                    showToast("Anda tidak dapat memilih diri Anda sendiri sebagai capster penganti.")
-                }
-
-                duplicateReservation?.apply {
-                    capsterInfo?.capsterName = it.fullname
-                    capsterInfo?.capsterRef = it.userRef
-                    capsterInfo?.shareProfit = this.capsterInfo?.shareProfit ?: 0
-                }
-                capsterData = it
-
-                switchCapsterViewModel.setReservationDataChange(binding.switchAdjustPrice.isChecked)
-            }
-        }
-
-//        if (!isFirstLoad) {
-//            binding.acCapsterName.setText(capsterData?.fullname, false)
-//            capsterData?.let { displayCapsterData(it) }
-//        }
-        isFirstLoad = false
-    }
-
-    private fun adjustOrderItemData(
-        serviceList: List<Service>,
-        bundlingList: List<BundlingPackage>,
-        capsterUid: String
-    ) {
-        bundlingList.onEach { bundling ->
-            // Perhitungan results_share_format dan applyToGeneral pada bundling
-            bundling.priceToDisplay = calculatePriceToDisplay(
-                basePrice = bundling.packagePrice,
-                resultsShareFormat = bundling.resultsShareFormat,
-                resultsShareAmount = bundling.resultsShareAmount,
-                applyToGeneral = bundling.applyToGeneral,
-                userId = capsterUid ?: "----------------"
-            )
-            Log.d("CheckAdapter", "Service Data: ${bundling.packageName} - ${bundling.bundlingQuantity} - ${bundling.priceToDisplay}")
-        }
-
-        serviceList.onEach { service ->
-            // Perhitungan results_share_format dan applyToGeneral pada service
-            service.priceToDisplay = calculatePriceToDisplay(
-                basePrice = service.servicePrice,
-                resultsShareFormat = service.resultsShareFormat,
-                resultsShareAmount = service.resultsShareAmount,
-                applyToGeneral = service.applyToGeneral,
-                userId = capsterUid ?: "----------------"
-            )
-            Log.d("CheckAdapter", "Service Data: ${service.serviceName} - ${service.serviceQuantity} - ${service.priceToDisplay}")
-        }
-
-        switchCapsterViewModel.setDuplicateServiceList(serviceList, false)
-        switchCapsterViewModel.setDuplicateBundlingPackageList(bundlingList, false)
-
     }
 
     private fun calculateTotalShareProfit(
@@ -644,10 +702,16 @@ class SwitchCapsterFragment : DialogFragment() {
         val reviewCount = 2134
 
         with(binding) {
-            tvEmployeeName.text = userEmployeeData.fullname
             val username = userEmployeeData.username.ifEmpty { "---" }
-            tvUsername.text = root.context.getString(R.string.username_template, username)
-            tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
+            if (textDropdownCapsterName != "---") {
+                tvEmployeeName.text = userEmployeeData.fullname
+                tvUsername.text = root.context.getString(R.string.username_template, username)
+                tvReviewsAmount.text = root.context.getString(R.string.template_number_of_reviews, reviewCount)
+            } else {
+                tvEmployeeName.text = "----------------"
+                tvUsername.text = "???"
+                tvReviewsAmount.text = "?? Reviews"
+            }
 
             Log.d("Gender", "Gender: ${userEmployeeData.gender}")
             setUserGender(userEmployeeData.gender)
@@ -782,14 +846,22 @@ class SwitchCapsterFragment : DialogFragment() {
     private fun setUserRole(role: String) {
         with(binding) {
             tvRole.text = role
-            if (role == "Capster") {
-                tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
-            } else if (role == "Kasir") {
-                tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
-            } else if (role == "Keamanan") {
-                tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
-            } else if (role == "Administrator") {
-                tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
+            when (role) {
+                "Capster" -> {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
+                }
+                "Kasir" -> {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
+                }
+                "Keamanan" -> {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
+                }
+                "Administrator" -> {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
+                }
+                else -> {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.dark_black_gradation))
+                }
             }
         }
 
@@ -809,7 +881,7 @@ class SwitchCapsterFragment : DialogFragment() {
         _binding = null
 
         if (::capsterListener.isInitialized) capsterListener.remove()
-//        switchCapsterViewModel.clearCapsterList()
+//        queueControlViewModel.clearCapsterList()
         lifecycleListener?.let {
             viewLifecycleOwner.lifecycle.removeObserver(it)
         }
@@ -817,9 +889,9 @@ class SwitchCapsterFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        switchCapsterViewModel.clearDuplicateServiceList()
-        switchCapsterViewModel.clearDuplicateBundlingPackageList()
-        switchCapsterViewModel.setCurrentReservationData(null)
+        queueControlViewModel.clearDuplicateServiceList()
+        queueControlViewModel.clearDuplicateBundlingPackageList()
+        queueControlViewModel.setCurrentReservationData(null)
     }
 
     companion object {

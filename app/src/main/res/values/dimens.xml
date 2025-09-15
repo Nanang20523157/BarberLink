@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?><!-- dimens.xml -->
 <resources>
-    <dimen name="recycler_height_large">325dp</dimen>
+    <dimen name="recycler_height_large">427dp</dimen>
     <dimen name="start_corner_radius">26dp</dimen>
 
     <dimen name="activity_horizontal_margin">16dp</dimen>
@@ -12,5 +12,6 @@
     <dimen name="dp_1">1dp</dimen>
     <dimen name="dp_128_5">128.5dp</dimen>
     <dimen name="dp_0">0dp</dimen>
+    <dimen name="text_margin">16dp</dimen>
 
 </resources>
