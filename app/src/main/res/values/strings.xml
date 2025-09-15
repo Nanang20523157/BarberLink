@@ -134,6 +134,7 @@
     <string name="last_update_label">terakhir diperbarui:</string>
     <string name="revoke_btn">Revoke</string>
     <string name="question_mark">\?????</string>
+    <string name="difference_value_default">\???</string>
     <string name="empty_member_status">\????</string>
     <string name="toolbar_booking_page">Booking Page</string>
     <string name="tgl_label">Tgl</string>
@@ -306,6 +307,7 @@
     <string name="outlet_name_cannot_be_empty">Nama outlet tidak boleh kosong.</string>
     <string name="outlet_name_was_not_found">Nama outlet tidak ditemukan.</string>
     <string name="daily_capital_cannot_be_empty">Besaran modal tidak boleh kosong.</string>
+    <string name="there_was_a_problem_with_the_selected_outlet">Terjadi masalah pada data outlet yang dipilih.</string>
     <string name="daily_capital_must_be_a_number">Besaran modal harus berupa angka nominal.</string>
     <string name="bon_amount_cannot_be_empty">Nominal pinjaman tidak boleh kosong.</string>
     <string name="bon_amount_must_be_a_number">Nominal pinjaman harus berupa angka.</string>
@@ -499,16 +501,20 @@
     <string name="_04">04</string>
     <string name="manual_report_title">Manual Report</string>
     <string name="_05">05</string>
-    <string name="thr_title">THR</string>
+    <string name="holiday_allowance_title">THR</string>
     <string name="_06">06</string>
     <string name="severance_pay_title">Pesangon</string>
     <string name="_07">07</string>
+    <string name="unknown_text"><![CDATA[&#63;&#63;&#63;]]></string>
+    <string name="unknown_reviews"><![CDATA[&#63;&#63; Reviews]]></string>
     <string name="additional_holiday_replacement">Tambahan Ganti Libur</string>
     <string name="subtotal_title">SubTotal:</string>
     <string name="rp_plus_200_000_000">+Rp 200.000.000</string>
     <string name="expense_label_text">PENGELUARAN</string>
-    <string name="employee_bon_title">Bon Pegawai</string>
+    <string name="employee_bon_title">Potongan Bon Bulanan</string>
     <string name="money_loan_title">Pinjaman Jangka Panjang</string>
+    <string name="overtime_pay_title">Uang Lembur</string>
+    <string name="employee_installment_title">Angsuran Pegawai</string>
     <string name="salary_deduction_of_holiday_title">Potongan Ganti Libur</string>
     <string name="rp_minus_20_000_000">-Rp 20.000.000</string>
     <string name="employee_information_label">Data Pegawai</string>
@@ -602,4 +608,6 @@
     <string name="btn_text_set_data">Tetapkan</string>
     <string name="label_other_income">Pendapatan Lainnya</string>
     <string name="btn_invalid_report">Invalid</string>
+    <string name="label_product_purchasing_price">Harga Beli Produk</string>
+    <string name="list_next_queue_text"><![CDATA[Selanjutnya >>>>>>>>>>]]></string>
 </resources>

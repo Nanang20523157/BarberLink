@@ -194,41 +194,123 @@
 
                     </androidx.constraintlayout.widget.ConstraintLayout>
 
-                    <TextView
-                        android:id="@+id/tvBonsAndReceivables"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/label_product_selling_price"
-                        android:textSize="14.5sp"
-                        android:textStyle="bold"
-                        android:paddingVertical="5dp"
-                        android:paddingHorizontal="10dp"
-                        android:layout_marginTop="10dp"
-                        android:layout_marginStart="5dp"
+                    <LinearLayout
+                        android:id="@+id/llProductSellingPrice"
+                        android:layout_width="match_parent"
+                        android:layout_height="45dp"
+                        android:orientation="horizontal"
                         android:layout_alignParentTop="true"
-                        android:layout_alignParentStart="true"
-                        android:layout_marginHorizontal="10dp"/>
+                        android:layout_alignParentStart="true">
 
-                    <RelativeLayout
+                        <TextView
+                            android:id="@+id/tvProductSellingPrice"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/label_product_selling_price"
+                            android:textSize="13.5sp"
+                            android:textStyle="bold"
+                            android:paddingVertical="5dp"
+                            android:paddingHorizontal="10dp"
+                            android:layout_marginTop="5dp"
+                            android:layout_marginStart="6dp"
+                            android:layout_marginHorizontal="10dp"/>
+
+                        <TextView
+                            android:id="@+id/tvAdjustPrice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="marquee"
+                            android:singleLine="true"
+                            android:marqueeRepeatLimit="marquee_forever"
+                            android:layout_marginStart="7dp"
+                            android:fontFamily="@font/arial_medium"
+                            android:text="@string/switch_text_edit"
+                            android:textSize="12sp"
+                            android:layout_marginTop="5dp"/>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchAdjustPrice"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:scaleX="0.48"
+                            android:scaleY="0.48"
+                            style="@style/Widget.App.Switch"
+                            android:layout_marginStart="-7dp"
+                            android:layout_marginEnd="4dp"
+                            android:layout_marginTop="7dp"/>
+
+                    </LinearLayout>
+
+                    <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="3dp">
+                        android:layout_marginTop="-5dp">
+
+<!--                        android:layout_height="60dp"-->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/wrapperProductPrice"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="3.5dp"
+                            app:hintEnabled="false"
+                            app:hintTextColor="@color/black"
+                            android:textColorHint="#b0b0b0"
+                            android:hint="@string/hint_product_purchase_price"
+                            app:placeholderText="Harga Beli Produk"
+                            app:placeholderTextColor="#b0b0b0"
+                            app:errorEnabled="true"
+                            app:boxStrokeErrorColor="@color/red"
+                            app:errorIconDrawable="@drawable/ic_error"
+                            app:errorIconTint="@color/red"
+                            app:errorTextColor="@color/red"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            app:boxCornerRadiusBottomStart="9dp"
+                            app:boxCornerRadiusBottomEnd="9dp"
+                            app:boxCornerRadiusTopEnd="9dp"
+                            app:boxCornerRadiusTopStart="9dp"
+                            app:boxBackgroundColor="#00FFFFFF"
+                            app:boxBackgroundMode="outline"
+                            android:layout_marginTop="0.3dp"
+                            app:prefixText="Rp"
+                            android:visibility="visible"
+                            app:prefixTextColor="@color/black"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:prefixTextAppearance="@style/PrefixTextAppearance"
+                            app:helperText="Ini contoh teks error!!!"
+                            app:helperTextTextColor="@color/red">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etNominalProductPriceType"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:drawableTint="@android:color/transparent"
+                                android:drawableStart="@drawable/ic_money"
+                                android:drawablePadding="10dp"
+                                android:inputType="number|numberDecimal"
+                                android:text="@string/text_0"
+                                android:textSize="23sp"
+                                android:textColor="@color/black"
+                                android:layout_marginHorizontal="10dp"/>
+
+                        </com.google.android.material.textfield.TextInputLayout>
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cvPriceProduct"
+                            android:id="@+id/cvProductPrice"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginHorizontal="14.5dp"
                             android:layout_marginTop="1dp"
                             android:elevation="18dp"
                             app:cardCornerRadius="7.61dp"
+                            android:visibility="gone"
                             android:outlineAmbientShadowColor="@color/black"
                             android:outlineSpotShadowColor="@color/black"
                             app:layout_constraintEnd_toEndOf="parent">
 
                             <!-- AutoCompleteTextView for Dropdown -->
                             <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/inputLayoutPriceProduct"
+                                android:id="@+id/inputLayoutProductPrice"
                                 android:layout_width="wrap_content"
                                 android:layout_height="match_parent"
                                 android:layout_gravity="center"
@@ -252,7 +334,7 @@
                                 app:prefixTextAppearance="@style/PrefixTextAppearance">
 
                                 <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/etNominalPriceProduct"
+                                    android:id="@+id/etNominalProductPriceDisplay"
                                     android:layout_width="wrap_content"
                                     android:layout_height="match_parent"
                                     android:layout_gravity="center"
@@ -272,31 +354,34 @@
 
                         </androidx.cardview.widget.CardView>
 
-                    </RelativeLayout>
+                    </FrameLayout>
 
-                    <RelativeLayout
+                    <TextView
+                        android:id="@+id/tvProductPurchasingPrice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp">
+                        android:text="@string/label_product_purchasing_price"
+                        android:textSize="13.5sp"
+                        android:textStyle="bold"
+                        android:paddingVertical="5dp"
+                        android:paddingHorizontal="10dp"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginStart="6dp"
+                        android:layout_marginHorizontal="10dp"/>
 
-                        <androidx.cardview.widget.CardView
-                            android:layout_width="match_parent"
-                            android:layout_marginTop="-12dp"
-                            android:layout_height="2dp"
-                            android:layout_marginHorizontal="20dp"
-                            android:layout_alignStart="@id/wrapperNominalInstallment"
-                            android:layout_alignEnd="@id/wrapperNominalInstallment"
-                            android:layout_below="@id/wrapperNominalInstallment"
-                            android:layout_centerHorizontal="true"
-                            android:elevation="0dp"
-                            app:cardBackgroundColor="@color/charcoal_grey_background"/>
+<!--                    android:layout_marginTop="10dp"-->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="0dp"
+                        android:orientation="vertical">
 
                         <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/wrapperNominalInstallment"
+                            android:id="@+id/wrapperPurchasePrice"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginHorizontal="13.5dp"
-                            app:hintEnabled="true"
+                            android:layout_marginHorizontal="3.5dp"
+                            app:hintEnabled="false"
                             app:hintTextColor="@color/black"
                             android:textColorHint="#b0b0b0"
                             android:hint="@string/hint_product_purchase_price"
@@ -317,10 +402,12 @@
                             app:prefixText="Rp"
                             app:prefixTextColor="@color/black"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                            app:prefixTextAppearance="@style/PrefixTextAppearance">
+                            app:prefixTextAppearance="@style/PrefixTextAppearance"
+                            app:helperText="Ini contoh teks error!!!"
+                            app:helperTextTextColor="@color/red">
 
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etNominalInstallment"
+                                android:id="@+id/etNominalPurchasePrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:drawableTint="@android:color/transparent"
@@ -329,43 +416,54 @@
                                 android:inputType="number|numberDecimal"
                                 android:text="@string/text_0"
                                 android:textSize="23sp"
-                                android:textColor="@color/black"/>
+                                android:textColor="@color/black"
+                                android:layout_marginHorizontal="10dp"/>
 
                         </com.google.android.material.textfield.TextInputLayout>
 
-                    </RelativeLayout>
-
-                    <!-- Information Text -->
-                    <LinearLayout
-                        android:id="@+id/llInfo"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="-6dp"
-                        android:layout_marginHorizontal="15dp"
-                        android:orientation="horizontal"
-                        android:visibility="gone"
-                        android:gravity="center">
-
-                        <ImageView
-                            android:id="@+id/ivInfo"
-                            android:layout_width="15dp"
-                            android:layout_height="15dp"
-                            android:layout_marginStart="-1.5dp"
-                            android:layout_marginTop="0.5dp"
-                            android:src="@drawable/ic_error"/>
-
-                        <TextView
-                            android:id="@+id/tvInfo"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="2dp"
-                            android:layout_marginTop="0.4dp"
-                            android:fontFamily="@font/opensans_regular"
-                            android:text="@string/data_secure"
-                            android:textColor="@color/red"
-                            android:textSize="10sp" />
+<!--                        android:layout_marginTop="-12dp"-->
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="match_parent"
+                            android:layout_marginTop="10dp"
+                            android:layout_height="2dp"
+                            android:layout_marginHorizontal="20dp"
+                            android:layout_centerHorizontal="true"
+                            android:elevation="0dp"
+                            app:cardBackgroundColor="@color/charcoal_grey_background"/>
 
                     </LinearLayout>
+
+                    <!-- Information Text -->
+<!--                    <LinearLayout-->
+<!--                        android:id="@+id/llInfo"-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="-6dp"-->
+<!--                        android:layout_marginHorizontal="15dp"-->
+<!--                        android:orientation="horizontal"-->
+<!--                        android:visibility="gone"-->
+<!--                        android:gravity="center">-->
+
+<!--                        <ImageView-->
+<!--                            android:id="@+id/ivInfo"-->
+<!--                            android:layout_width="15dp"-->
+<!--                            android:layout_height="15dp"-->
+<!--                            android:layout_marginStart="-1.5dp"-->
+<!--                            android:layout_marginTop="0.5dp"-->
+<!--                            android:src="@drawable/ic_error"/>-->
+
+<!--                        <TextView-->
+<!--                            android:id="@+id/tvInfo"-->
+<!--                            android:layout_width="wrap_content"-->
+<!--                            android:layout_height="wrap_content"-->
+<!--                            android:layout_marginStart="2dp"-->
+<!--                            android:layout_marginTop="0.4dp"-->
+<!--                            android:fontFamily="@font/opensans_regular"-->
+<!--                            android:text="@string/data_secure"-->
+<!--                            android:textColor="@color/red"-->
+<!--                            android:textSize="10sp" />-->
+
+<!--                    </LinearLayout>-->
 
                     <!-- Finish Button -->
                     <com.google.android.material.button.MaterialButton

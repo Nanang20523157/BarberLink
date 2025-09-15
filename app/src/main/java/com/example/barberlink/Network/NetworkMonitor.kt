@@ -14,6 +14,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -23,6 +24,8 @@ object NetworkMonitor {
 
     private lateinit var appContext: Context
     private lateinit var connectivityManager: ConnectivityManager
+    // Tambahkan variabel untuk menyimpan callback
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var isConnected = false
     private var lostConnection = false
     private var duplicateToast = false
@@ -48,7 +51,16 @@ object NetworkMonitor {
         appContext = context.applicationContext
         connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        val networkCallback = setupNetworkCallback()
+        // Gunakan registerDefaultNetworkCallback untuk API 24+
+        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+
+        observeConnectionChanges()
+//        startPeriodicPingCheck()
+    }
+
+    private fun setupNetworkCallback(): ConnectivityManager.NetworkCallback =
+        object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 isConnected = true
                 lostConnection = false
@@ -85,13 +97,6 @@ object NetworkMonitor {
             }
         }
 
-        // Gunakan registerDefaultNetworkCallback untuk API 24+
-        connectivityManager.registerDefaultNetworkCallback(networkCallback)
-
-        observeConnectionChanges()
-//        startPeriodicPingCheck()
-    }
-
     private fun updateConnection(value: Boolean) {
         Log.d("NetMonitor", "UPDATE STATE")
         _isOnline.value = value
@@ -119,9 +124,11 @@ object NetworkMonitor {
     }
 
     private fun recheckInternetConnection() {
+        if (checkConnectionJob?.isActive == true) return // sudah berjalan
+
         checkConnectionJob = scope.launch {
             countDown = 2
-            while (true) {
+            while (isActive) {
                 delay(500) // Cek setiap 10 detik
 
                 val reachable = try {
@@ -279,6 +286,17 @@ object NetworkMonitor {
         currentToast?.cancel()
         currentToast = null
         lastMessage = null
+    }
+
+    // Fungsi untuk menghentikan monitor
+    fun stopMonitoring() {
+        checkConnectionJob?.cancel()
+        checkConnectionJob = null
+    }
+
+    // Fungsi untuk memulai monitor lagi
+    fun startMonitoring() {
+        recheckInternetConnection()
     }
 
 

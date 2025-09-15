@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -80,16 +81,24 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         super.onCreate(savedInstanceState)
         binding = ActivityManageOutletPageBinding.inflate(layoutInflater)
 
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         setNavigationCallback(object : NavigationCallback {
@@ -127,7 +136,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                 }
 
                 employeesMutex.withLock {
-                    val employeeList = args.employeeList.toCollection(ArrayList())
+                    val employeeList = args.employeeList
+                        .filter { employee -> employee.role == "Capster" }
+                        .toCollection(ArrayList())
+
                     manageOutletViewModel.setEmployeeList(employeeList)
                 }
 
@@ -268,7 +280,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         this.skippedProcess = skippedProcess
         if (skippedProcess) remainingListeners.set(2)
         listenToEmployeeData()
-        listenToOutletsData()
+        listenToOutletList()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
@@ -304,6 +316,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                     if (!isFirstLoad && !skippedProcess) {
                         val newUserEmployeeListData = it.mapNotNull { document ->
                             document.toObject(UserEmployeeData::class.java)
+                                .takeIf { employee -> employee.role == "Capster" }
                         }
 
                         // Update employeeList dengan data baru
@@ -339,7 +352,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             }
     }
 
-    private fun listenToOutletsData() {
+    private fun listenToOutletList() {
         if (::outletListener.isInitialized) {
             outletListener.remove()
         }

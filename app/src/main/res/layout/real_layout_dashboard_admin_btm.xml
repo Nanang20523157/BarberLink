@@ -74,7 +74,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    tools:text="@string/rp_3_900_000"
+                    tools:text="Rp -"
                     android:textColor="@color/black"
                     android:textStyle="bold"
                     android:textSize="16.5sp"
@@ -238,7 +238,7 @@
                         android:layout_marginStart="5dp"
                         android:layout_marginTop="13dp"
                         android:layout_marginBottom="13dp"
-                        tools:text="@string/difference_amount_template"
+                        tools:text="@string/difference_value_default"
                         android:textColor="@color/green_btn"
                         android:textStyle="bold"
                         android:textSize="12sp" />
@@ -467,7 +467,7 @@
                         android:fontFamily="@font/arial_bold"
                         android:textColor="@color/black"
                         android:textSize="22sp"
-                        tools:text="1200" />
+                        tools:text="--" />
 
                     <!--    android:layout_marginTop="-5dp"    -->
 
@@ -913,9 +913,9 @@
                                 android:id="@+id/incomingOrderCounting"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
+                                android:layout_marginStart="7dp"
                                 android:layout_marginBottom="13dp"
-                                tools:text="120"
+                                tools:text="--"
                                 android:textColor="@color/black"
                                 android:textStyle="bold"
                                 android:textSize="16.5sp"

@@ -61,7 +61,7 @@
                 android:layout_below="@id/rvFilterByCategory"
                 android:layout_marginTop="6dp"
                 tools:itemCount="5"
-                tools:listitem="@layout/item_list_manual_report_adapter"/>
+                tools:listitem="@layout/item_list_admin_manual_report_adapter"/>
 
         </RelativeLayout>
 

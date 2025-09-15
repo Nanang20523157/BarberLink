@@ -2,6 +2,7 @@ package com.example.barberlink.DataClass
 
 import android.os.Parcelable
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.RawValue
@@ -17,6 +18,11 @@ data class DailyCapital(
     @get:PropertyName("location_point") @set:PropertyName("location_point") var locationPoint: LocationPoint? = null,
     @get:PropertyName("data_creator") @set:PropertyName("data_creator") var dataCreator: @RawValue DataCreator<UserData>? = null,
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyCreatorDetails: Boolean,
         copyCreatorOperationalHour: Boolean = false,

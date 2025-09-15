@@ -12,6 +12,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
@@ -74,7 +75,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private lateinit var viewModelFactory: ShareDataViewModelFactory
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: AddNewCustomerFragment
-    private var remainingListeners = AtomicInteger(5)
+    private var remainingListeners = AtomicInteger(6)
     private var setUpObserverIsDone: Boolean = false
 
 //    private lateinit var capsterSelected: UserEmployeeData
@@ -100,7 +101,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private lateinit var serviceAdapter: ItemListServiceBookingAdapter
     private lateinit var bundlingAdapter: ItemListPackageBookingAdapter
     private lateinit var customerAdapter: ItemListCustomerAdapter
-    private lateinit var outletListener: ListenerRegistration
+    private lateinit var dataOutletListener: ListenerRegistration
+    private lateinit var listOutletListener: ListenerRegistration
     private lateinit var serviceListener: ListenerRegistration
     private lateinit var bundlingListener: ListenerRegistration
     private lateinit var customerSelectedListener: ListenerRegistration
@@ -121,6 +123,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         super.onCreate(savedInstanceState)
         binding = ActivityBarberBookingPageBinding.inflate(layoutInflater)
 
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
@@ -139,13 +143,19 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
             binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
         }
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         Log.d("ScanAll", "A1")
@@ -208,7 +218,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         )
 
         if (savedInstanceState == null) bookingPageViewModel.setCustomerSelected(customerGuestAccount)
-        init(savedInstanceState == null, capsterSelected)
+        init(savedInstanceState, capsterSelected)
         if (savedInstanceState == null || (isShimmerAllVisible && isShimmerCustomerVisible && isFirstLoad)) getAllData()
         else {
             Log.d("ScanAll", "K1")
@@ -414,7 +424,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         // outState.putParcelableArray("filtered_result", filteredResult.toTypedArray())
     }
 
-    private fun init(isSavedInstanceStateNull: Boolean, capsterSelected: UserEmployeeData) {
+    private fun init(savedInstanceState: Bundle?, capsterSelected: UserEmployeeData) {
         with(binding) {
             Log.d("ScanAll", "J1")
             serviceAdapter = ItemListServiceBookingAdapter(this@BarberBookingPage, false)
@@ -441,12 +451,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             rvListCustomer.layoutManager = LinearLayoutManager(this@BarberBookingPage, LinearLayoutManager.HORIZONTAL, false)
             rvListCustomer.adapter = customerAdapter
 
-            if (isSavedInstanceStateNull || isShimmerAllVisible) showShimmer(true)
+            if (savedInstanceState == null || isShimmerAllVisible) showShimmer(true)
 //            if (isShimmerCustomerVisible) customerAdapter.setShimmer(true)
 
             capsterName.text = capsterSelected.fullname.ifEmpty { "???" }
 //            capsterPrice.text = NumberUtils.toKFormat(capsterSelected.specializationCost)
-            if (isSavedInstanceStateNull) displayBottomPopUp(0)
+            if (savedInstanceState == null) displayBottomPopUp(0)
             else displayBottomPopUp(bookingPageViewModel.itemSelectedCounting.value ?: 0)
 
             val isRandomCapster = capsterSelected.uid == "----------------"
@@ -943,10 +953,11 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private fun setupListeners(skippedProcess: Boolean = false) {
         Log.d("ScanAll", "LL1")
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(5)
+        if (skippedProcess) remainingListeners.set(6)
         listenToCustomerList()
         listenToCapsterSelected()
         listenToOutletData()
+        listenToOutletList()
         listenToServicesData()
         listenToBundlingPackagesData()
 
@@ -1084,15 +1095,66 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
     }
 
-
-    private fun listenToOutletData() {
+    private fun listenToOutletList() {
         bookingPageViewModel.outletSelected.value?.let { outletSelected ->
-            if (::outletListener.isInitialized) {
-                outletListener.remove()
+            if (::listOutletListener.isInitialized) {
+                listOutletListener.remove()
             }
             var decrementGlobalListener = false
 
-            outletListener = db.document(outletSelected.rootRef)
+            listOutletListener = db.document(outletSelected.rootRef)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    exception?.let {
+                        showToast("Error listening to outlets data: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        val metadata = it.metadata
+
+                        lifecycleScope.launch(Dispatchers.Default) {
+                            if (!isFirstLoad && !skippedProcess) {
+                                val outlets = it.mapNotNull { doc ->
+                                    val outlet = doc.toObject(Outlet::class.java)
+                                    outlet.outletReference = doc.reference.path
+                                    outlet
+                                }
+
+                                withContext(Dispatchers.Main) {
+                                    Log.d("DataExecution", "re setup dropdown by outletlist listener")
+                                    bookingPageViewModel.setOutletList(outlets)
+
+                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                                        showLocalToast()
+                                    }
+                                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                                }
+
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+
+    private fun listenToOutletData() {
+        bookingPageViewModel.outletSelected.value?.let { outletSelected ->
+            if (::dataOutletListener.isInitialized) {
+                dataOutletListener.remove()
+            }
+            var decrementGlobalListener = false
+
+            dataOutletListener = db.document(outletSelected.rootRef)
                 .collection("outlets")
                 .document(outletSelected.uid)
                 .addSnapshotListener { documents, exception ->
@@ -1451,14 +1513,23 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     ): Deferred<List<T>> = lifecycleScope.async(Dispatchers.IO) {
         val querySnapshot = db.collection(collectionPath).get().await()
         val items = querySnapshot.mapNotNull { doc ->
-            val item = doc.toObject(dataClass).takeIf { filterIds.contains(doc.id) }?.let {
-                if (it is UserCustomerData) {
-                    it.apply { userRef = doc.reference.path }
+            when (val item = doc.toObject(dataClass)) {
+                is Outlet -> {
+                    item.outletReference = doc.reference.path
+                    item
                 }
-                it
+                is UserCustomerData -> {
+                    if (filterIds.contains(doc.id)) {
+                        item.userRef = doc.reference.path
+                        item
+                    } else null
+                }
+                else -> {
+                    if (filterIds.contains(doc.id)) item else null
+                }
             }
-            item
         }
+
 
         withContext(Dispatchers.Main) {
 //            if (listToUpdate != null) {
@@ -1493,6 +1564,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             val serviceFilterIds = outletSelected.listServices
             val bundlingFilterIds = outletSelected.listBundling
             val customerFilterIds = outletSelected.listCustomers?.map { it.uidCustomer }
+            val outletFilterIds = emptyList<String>()
             Log.d("CustomerInOutlet", "CustomerInOutlet: $customerFilterIds")
 
             lifecycleScope.launch(Dispatchers.Default) {
@@ -1561,15 +1633,25 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     }
                 }
 
+                val outletDeferred = getCollectionDataDeferred(
+                    collectionPath = "${outletSelected.rootRef}/outlets",
+                    emptyMessage = "No outlet data found",
+                    dataClass = Outlet::class.java,
+                    filterIds = outletFilterIds, // Fetch all
+                    showError = true
+                ) { outletList ->
+                    bookingPageViewModel.setOutletList(outletList)
+                }
+
                 val deferredList = mutableListOf<Deferred<List<*>>>().apply {
                     add(serviceDeferred)
                     add(bundlingDeferred)
                     customerDeferred?.let { add(it) }
+                    add(outletDeferred)
                 }
 
                 try {
                     deferredList.awaitAll()
-
                     withContext(Dispatchers.Main) {
                         // filterCustomer("", false)
                         Log.d("CacheChecking", "FILTERING FROM SUCCESS GET ALL DATA")
@@ -1801,12 +1883,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         isNavigating = false
         currentView?.isClickable = true
         if (!::capsterListener.isInitialized) Log.d("ListenerCheck", "BBP Capster Listener is not initialized || isFirstLoad: $isFirstLoad")
-        if (!::outletListener.isInitialized) Log.d("ListenerCheck", "BBP Outlet Listener is not initialized || isFirstLoad: $isFirstLoad")
+        if (!::dataOutletListener.isInitialized) Log.d("ListenerCheck", "BBP Outlet Listener is not initialized || isFirstLoad: $isFirstLoad")
+        if (!::listOutletListener.isInitialized) Log.d("ListenerCheck", "BBP List Outlet Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!::serviceListener.isInitialized) Log.d("ListenerCheck", "BBP Service Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!::bundlingListener.isInitialized) Log.d("ListenerCheck", "BBP Bundling Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!::customerListListener.isInitialized) Log.d("ListenerCheck", "BBP Customer List Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!isRecreated) {
-            if ((!::capsterListener.isInitialized || !::outletListener.isInitialized || !::serviceListener.isInitialized || !::bundlingListener.isInitialized || !::customerListListener.isInitialized) && !isFirstLoad) {
+            if ((!::capsterListener.isInitialized || !::dataOutletListener.isInitialized || !::listOutletListener.isInitialized || !::serviceListener.isInitialized || !::bundlingListener.isInitialized || !::customerListListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -1827,7 +1910,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         bookingPageViewModel.clearState()
 //        Toast.makeText(this, "BBP ??D21 order", Toast.LENGTH_SHORT).show()
         if (::capsterListener.isInitialized) capsterListener.remove()
-        if (::outletListener.isInitialized) outletListener.remove()
+        if (::dataOutletListener.isInitialized) dataOutletListener.remove()
+        if (::listOutletListener.isInitialized) listOutletListener.remove()
         if (::serviceListener.isInitialized) serviceListener.remove()
         if (::bundlingListener.isInitialized) bundlingListener.remove()
         if (::customerSelectedListener.isInitialized) customerSelectedListener.remove()

@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AccelerateInterpolator
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
@@ -98,7 +99,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     private var isUidHiddenText: Boolean = true
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
-    private var isCapitalInputShow = false
     private val pointDummy = 9999
     private var currentToastMessage: String? = null
 
@@ -142,12 +142,13 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         Log.d("BackStackCount", backStackCount.toString())
         if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
         else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
-        isCapitalInputShow = savedInstanceState?.getBoolean("is_capital_input_show", false) ?: false
         shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         super.onCreate(savedInstanceState)
         binding = ActivityHomePageCapsterBinding.inflate(layoutInflater)
 
+        // Set window background sesuai tema
+        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
@@ -166,14 +167,20 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
             binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
         }
-        // Set window background sesuai tema
-        WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
             Log.d("CheckShimmer", "Animate First Load HPC >>> isRecreated: false")
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
 
         setNavigationCallback(object : NavigationCallback {
@@ -292,6 +299,8 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 else showShimmer(isShimmerVisible)
                 if (!isShimmerVisible) productAdapter.notifyDataSetChanged()
                 if (isFirstLoad) setupListeners()
+
+                binding.swipeRefreshLayout.isRefreshing = false
             }
         }
 
@@ -342,7 +351,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
 
-        outState.putBoolean("is_capital_input_show", isCapitalInputShow)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_uid_hidden_text", isUidHiddenText)
@@ -357,10 +365,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(5)
+        if (skippedProcess) remainingListeners.set(8)
 //        listenSpecificOutletData()
         listenToUserCapsterData()
-        listenToOutletsData()
+        listenToOutletList()
         listenToReservationsData()
         listenToAppointmentsData()
         listenToManualReportData()
@@ -521,7 +529,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         }
     }
 
-    private fun listenToOutletsData() {
+    private fun listenToOutletList() {
         homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
             if (::outletListener.isInitialized) {
                 outletListener.remove()
@@ -548,7 +556,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                                         outlet.outletReference = doc.reference.path
                                         outlet
                                     }
-                                    homePageViewModel.setOutletsList(outlets)
+                                    homePageViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
                                 }
                             }
 
@@ -1006,6 +1014,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                                 async {
                                     manualReportResult?.let { result ->
                                         reservationListMutex.withLock {
+                                            //setOutletList
                                             homePageViewModel.iterateManualReportData(result)
                                         }
                                     }
@@ -1035,12 +1044,11 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                             withContext(Dispatchers.Main) {
                                 Log.d("CheckShimmer", "getAllData Success")
                                 displayEmployeeData()
-                                if (!isCapitalInputShow) {
+                                if (!homePageViewModel.getIsCapitalDialogShow()) {
                                     handler.postDelayed({
                                         showCapitalInputDialog()
                                     }, 300)
                                 }
-                                binding.swipeRefreshLayout.isRefreshing = false
                             }
                         }
                     }
@@ -1050,7 +1058,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                             homePageViewModel.setUserAccumulationBon(-999)
                         }
                         displayEmployeeData()
-                        binding.swipeRefreshLayout.isRefreshing = false
                         showToast("Error getting data: ${e.message}")
                     }
             }
@@ -1136,7 +1143,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 .commit()
         }
 
-        isCapitalInputShow = true
+        homePageViewModel.setCapitalDialogShow(true)
 //        dialogFragment.show(fragmentManager, "CapitalInputFragment")
     }
 
@@ -1209,7 +1216,9 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                     navigatePage(this@HomePageCapster, SettingPageScreen::class.java, false, realLayout.ivSettings)
                 }
                 R.id.fabInputCapital -> {
-                    showCapitalInputDialog()
+                    if (!isShimmerVisible) {
+                        showCapitalInputDialog()
+                    } else {}
                 }
                 R.id.fabAddManualReport -> {
                     showToast("Manual report feature is under development...")
@@ -1255,7 +1264,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 isNavigating = true
                 val intent = Intent(context, destination)
                 if (isSendData) {
-                    intent.putParcelableArrayListExtra(OUTLET_LIST_KEY, ArrayList(homePageViewModel.outletsList.value ?: emptyList()))
+                    intent.putParcelableArrayListExtra(OUTLET_LIST_KEY, ArrayList(homePageViewModel.outletList.value ?: emptyList()))
                     intent.putExtra(CAPSTER_DATA_KEY, homePageViewModel.userEmployeeData.value)
 //                CoroutineScope(Dispatchers.Default).launch {
 //                    val todayReservations: List<Reservation>

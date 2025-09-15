@@ -1,6 +1,7 @@
 package com.example.barberlink.DataClass
 
 import android.os.Parcelable
+import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 
@@ -12,4 +13,9 @@ data class DataCategories(
     @get:PropertyName("category_name") @set:PropertyName("category_name") var categoryName: String = "",
     @get:PropertyName("intended_for") @set:PropertyName("intended_for") var intendedFor: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
-) : Parcelable
+) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+}

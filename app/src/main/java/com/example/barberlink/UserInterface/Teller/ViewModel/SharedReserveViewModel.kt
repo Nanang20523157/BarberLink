@@ -32,6 +32,9 @@ class SharedReserveViewModel : ViewModel() {
     private val _servicesList = MutableLiveData<List<Service>>().apply { value = listOf() }
     val servicesList: LiveData<List<Service>> = _servicesList
 
+    private val _outletList = MutableLiveData<List<Outlet>>().apply { value = emptyList() }
+    val outletList: LiveData<List<Outlet>> = _outletList
+
     private val _customerList = MutableLiveData<List<UserCustomerData>>().apply { value = listOf() }
     val customerList: LiveData<List<UserCustomerData>> = _customerList
 
@@ -99,6 +102,10 @@ class SharedReserveViewModel : ViewModel() {
     fun setOutletSelected(outlet: Outlet) {
         Log.d("ScanAll", "A2")
         _outletSelected.value = outlet
+    }
+
+    fun setOutletList(outletList: List<Outlet>) {
+        _outletList.value = outletList
     }
 
     fun setCapsterSelected(capster: UserEmployeeData?) {

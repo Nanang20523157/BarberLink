@@ -27,6 +27,11 @@ data class UserCustomerData(
     @get:Exclude @set:Exclude var guestAccount: Boolean = false,
     @get:Exclude @set:Exclude override var userRef: String = ""
 ) : Parcelable, UserData {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyReminder: Boolean,
         copyNotification: Boolean
@@ -88,6 +93,10 @@ data class NotificationReminder(
     @get:PropertyName("data_timestamp") @set:PropertyName("data_timestamp") var dataTimestamp: Timestamp = Timestamp.now(),
     @get:PropertyName("is_send_notify") @set:PropertyName("is_send_notify") var isSendNotify: Boolean = false
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
 
     fun deepCopy(): NotificationReminder {
         return NotificationReminder(

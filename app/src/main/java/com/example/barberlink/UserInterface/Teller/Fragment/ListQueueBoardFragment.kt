@@ -71,7 +71,7 @@ class ListQueueBoardFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        queueAdapter = ItemListQueueBoardAdapter(4)
+        queueAdapter = ItemListQueueBoardAdapter(3)
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
         queueAdapter.setShimmer(true)
@@ -89,6 +89,14 @@ class ListQueueBoardFragment : DialogFragment() {
 
                 // Set currentQueue ke adapter
                 queueAdapter.setCurrentQueue(currentQueue)
+                if (!isFirstLoad) queueAdapter.notifyDataSetChanged()
+            }
+        }
+
+        queueBoardViewModel.capsterWaitingQueues.observe(viewLifecycleOwner) { capsterWaitingQueues ->
+            capsterWaitingQueues?.let {
+                // Set capsterWaitingQueues ke adapter
+                queueAdapter.setCapsterWaitingQueues(it)
                 if (!isFirstLoad) queueAdapter.notifyDataSetChanged()
             }
         }

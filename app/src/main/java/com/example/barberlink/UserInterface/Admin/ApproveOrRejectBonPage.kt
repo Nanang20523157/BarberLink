@@ -11,6 +11,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.ContextThemeWrapper
 import android.view.View
+import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -27,6 +28,7 @@ import com.example.barberlink.Adapter.ItemListTagFilteringAdapter
 import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
+import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
@@ -55,13 +57,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
 class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemListTagFilteringAdapter.OnItemClicked, ItemListApprovalBonAdapter.OnItemClicked, ItemListApprovalBonAdapter.OnProcessUpdateCallback, ItemListApprovalBonAdapter.DisplayThisToastMessage {
     private lateinit var binding: ActivityApproveOrRejectBonPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
-    private val approveRejectViewModel: BonEmployeeViewModel by viewModels()
+    private val approveRejectViewModel: BonEmployeeViewModel by viewModels {
+        SaveStateViewModelFactory(this)
+    }
     //private var userCurrentAccumulationBon: MutableMap<String, Int> = mutableMapOf()
     //private var userPreviousAccumulationBon: MutableMap<String, Int> = mutableMapOf()
     // private lateinit var userAdminData: UserAdminData
@@ -80,13 +85,14 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     private lateinit var adapter: ArrayAdapter<String>
     private var userAdminUID: String = ""
 
-    private var capsterKeyword: String = ""
-    private var textInputDropdown: String = ""
+    private var capsterKeyword: String = "Semua"
+    private var uidDropdownPosition: String = "----------------"
+    private var textDropdownCapsterName: String = "Semua"
     private var isFirstLoad: Boolean = true
     private var updateListener: Boolean = false
     private var orderBy: String = "Terbaru"
-    private var filterByTag: String = ""
-    private var filterByStatus: String = ""
+    private var filterByTag: String = "Semua"
+    private var filterByStatus: String = "Semua"
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private lateinit var timeStampFilter: Timestamp
@@ -100,7 +106,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         "Terlama"
     )
     private val statusFilteringData: ArrayList<UserFilterCategories> = arrayListOf(
-        UserFilterCategories(tagCategory = "Semua", textContained = ""),
+        UserFilterCategories(tagCategory = "Semua", textContained = "Semua"),
         UserFilterCategories(tagCategory = "Menunggu", textContained = "waiting"),
         UserFilterCategories(tagCategory = "Dibatalkan", textContained = "canceled"),
         UserFilterCategories(tagCategory = "Ditolak", textContained = "rejected"),
@@ -176,16 +182,24 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         super.onCreate(savedInstanceState)
         binding = ActivityApproveOrRejectBonPageBinding.inflate(layoutInflater)
 
-        // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Set window background sesuai tema
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
+        // Set sudut dinamis sesuai perangkat
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
-            val fadeInAnimation = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
-            binding.mainContent.startAnimation(fadeInAnimation)
+            binding.mainContent.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            val fadeIn = AnimationUtils.loadAnimation(this, R.anim.fade_in_content)
+            fadeIn.setAnimationListener(object : Animation.AnimationListener {
+                override fun onAnimationStart(animation: Animation) {}
+                override fun onAnimationRepeat(animation: Animation) {}
+                override fun onAnimationEnd(animation: Animation) {
+                    binding.mainContent.setLayerType(View.LAYER_TYPE_NONE, null)
+                }
+            })
+            binding.mainContent.startAnimation(fadeIn)
         }
 
         fragmentManager = supportFragmentManager
@@ -197,13 +211,15 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             // employeeList = savedInstanceState.getParcelableArrayList("employee_list") ?: ArrayList()
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             updateListener = savedInstanceState.getBoolean("update_listener", false)
-            capsterKeyword = savedInstanceState.getString("capster_keyword", "")
+            capsterKeyword = savedInstanceState.getString("capster_keyword", "Semua")
+            uidDropdownPosition = savedInstanceState.getString("uid_dropdown_position", "----------------")
+            textDropdownCapsterName = savedInstanceState.getString("text_dropdown_capster_name", "Semua")
             // userAdminData = savedInstanceState.getParcelable("user_admin_data") ?: UserAdminData()
             //userCurrentAccumulationBon = savedInstanceState.getSerializable("user_current_accumulation_bon") as MutableMap<String, Int>
             //userPreviousAccumulationBon = savedInstanceState.getSerializable("user_previous_accumulation_bon") as MutableMap<String, Int>
-            orderBy = savedInstanceState.getString("order_by", "")
-            filterByTag = savedInstanceState.getString("filter_by", "")
-            filterByStatus = savedInstanceState.getString("filter_by_status", "")
+            orderBy = savedInstanceState.getString("order_by", "Terbaru")
+            filterByTag = savedInstanceState.getString("filter_by", "Semua")
+            filterByStatus = savedInstanceState.getString("filter_by_status", "Semua")
             // extendedStateMap.putAll(savedInstanceState.getSerializable("extended_state_map") as HashMap<String, Boolean>)
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
@@ -212,7 +228,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             isCapsterDropdownFocus = savedInstanceState.getBoolean("is_capster_dropdown_focus", false)
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
-            textInputDropdown = savedInstanceState.getString("text_input_dropdown", "") ?: ""
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
@@ -225,40 +240,15 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             ivBack.setOnClickListener(this@ApproveOrRejectBonPage)
         }
 
-        approveRejectViewModel.reSetupDropdownCapster.observe(this) { reSetup ->
-            if (reSetup == true) setupAcTvCapsterName()
-        }
-
-        approveRejectViewModel.employeeListBon.observe(this) { listBon ->
-            lifecycleScope.launch(Dispatchers.Default) {
-                Log.d("BonData", "ini filtering")
-                val filteredList = filteringByCategorySelected(listBon)
-                approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
-            }
-        }
-
-        approveRejectViewModel.filteredEmployeeListBon.observe(this) { filteredListBon ->
-            Log.d("BonData", "ini display")
-            listApprovalAdapter.submitList(filteredListBon) {
-                // Callback ini dipanggil setelah submitList selesai memproses dan menampilkan data
-                if (!isRecreated) showShimmer(false)
-                else showShimmer(isShimmerVisible)
-            }
-            binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
-        }
-
         if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) getListEmployeeData()
-        else {
-            displayDataOrientationChange()
-            // Yang lain ada pengcheckan isFirstLoad sama !isFirstLoad
-            // Tujuannya cuma agar setupListeners() gak double karena dipanggil di dua tempat
-            if (!isFirstLoad && !updateListener) setupListeners(skippedProcess = true)
-        }
 
         supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
             val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
             if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
         }
+
+        if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
+        if (savedInstanceState != null) displayDataOrientationChange()
 
     }
 
@@ -301,7 +291,8 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("update_listener", updateListener)
         outState.putString("capster_keyword", capsterKeyword)
-        outState.putString("text_input_dropdown", textInputDropdown)
+        outState.putString("uid_dropdown_position", uidDropdownPosition)
+        outState.putString("text_dropdown_capster_name", textDropdownCapsterName)
         // outState.putParcelable("user_admin_data", userAdminData)
         //outState.putSerializable("user_current_accumulation_bon", HashMap(userCurrentAccumulationBon))
         //outState.putSerializable("user_previous_accumulation_bon", HashMap(userPreviousAccumulationBon))
@@ -324,6 +315,12 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         calendar = Calendar.getInstance()
         maxYear = calendar.get(Calendar.YEAR)
         minYear = maxYear - 4
+
+        if (savedInstanceState == null) {
+            setDateFilterValue(Timestamp(calendar.time))
+        } else {
+            setDateFilterValue(timeStampFilter)
+        }
         listApprovalAdapter = ItemListApprovalBonAdapter(db, this@ApproveOrRejectBonPage, this@ApproveOrRejectBonPage, this@ApproveOrRejectBonPage, this@ApproveOrRejectBonPage, this@ApproveOrRejectBonPage)
         binding.rvEmployeeListBon.layoutManager = LinearLayoutManager(this@ApproveOrRejectBonPage, LinearLayoutManager.VERTICAL, false)
         binding.rvEmployeeListBon.adapter = listApprovalAdapter
@@ -359,8 +356,8 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     binding.acCapsterName.setSelection(capitalized.length)
                 }
 
-                val keywords = listOf("Semua", "Semu", "Sem", "Se", "S")
-                val textKey = if (capitalized in keywords) "" else capitalized
+                val keywords = listOf("Semua", "Semu", "Sem", "Se", "S", "")
+                val textKey = if (capitalized in keywords) "Semua" else capitalized
                 Log.d("textKey", textKey)
                 // Menangani perubahan teks di sini
                 // if ((queueTrackerViewModel.capsterNames.value?.contains(textKey.toString()) == true || textKey.toString().isEmpty()) && textKey.toString() != keyword) {
@@ -410,16 +407,41 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             calendar.get(Calendar.MONTH)
         )
 
-        if (savedInstanceState == null) setDateFilterValue(Timestamp(calendar.time))
-        else setDateFilterValue(timeStampFilter)
-        if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
+        approveRejectViewModel.setupDropdownFilterWithNullState.observe(this@ApproveOrRejectBonPage) { isSavedInstanceStateNull ->
+            val setupDropdown = approveRejectViewModel.setupDropdownFilter.value ?: false
+            Log.d("CheckShimmer", "setupDropdown $setupDropdown || setupDropdownCapsterWithNullState: $isSavedInstanceStateNull")
+            if (isSavedInstanceStateNull != null) setupDropdownCapster(setupDropdown, isSavedInstanceStateNull)
+        }
+
+        approveRejectViewModel.employeeListBon.observe(this) { listBon ->
+            lifecycleScope.launch(Dispatchers.Default) {
+                Log.d("BonData", "ini filtering")
+                val filteredList = filteringByCategorySelected(listBon)
+                approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
+            }
+        }
+
+        approveRejectViewModel.filteredEmployeeListBon.observe(this) { filteredListBon ->
+            Log.d("BonData", "ini display")
+            listApprovalAdapter.submitList(filteredListBon) {
+                // Callback ini dipanggil setelah submitList selesai memproses dan menampilkan data
+                if (!isRecreated) showShimmer(false)
+                else showShimmer(isShimmerVisible)
+            }
+            if (textDropdownCapsterName == "---") showToast("Tidak ada data yang sesuai untuk ${binding.acCapsterName.text.toString().trim()}")
+            binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
+        }
     }
 
     private fun setupTextFieldInputType(s: String, isRecreated: Boolean) {
         if (!isRecreated) {
-            val capsterName = approveRejectViewModel.capsterNames.value ?: emptyList()
-            isCompleteSearch = (capsterName + "Semua").any { it == s }
-            textInputDropdown = s
+            val capsterList = approveRejectViewModel.capsterList.value ?: emptyList()
+            val modifiedCapsterList = mutableListOf(UserEmployeeData(uid = "Semua", fullname = "Semua"))
+            modifiedCapsterList.addAll(capsterList)
+            val selectedCapster: UserEmployeeData? = modifiedCapsterList.find { it.fullname == s }
+            isCompleteSearch = selectedCapster != null
+            uidDropdownPosition = selectedCapster?.uid ?: "----------------"
+            textDropdownCapsterName = s
 
             if (isCompleteSearch || s.isEmpty()) {
                 Log.d("BindingFocus", "isCompleteSearch: true")
@@ -452,7 +474,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
 
     private fun displayDataOrientationChange() {
         Log.d("SubmitListCheck", "shimmer in initial change rotation")
-        approveRejectViewModel.setReSetupDropdownCapster(true)
+        approveRejectViewModel.setupDropdownFilterWithNullState()
         val filteredListBon =  approveRejectViewModel.filteredEmployeeListBon.value ?: mutableListOf()
 
         listApprovalAdapter.submitList(filteredListBon)
@@ -496,59 +518,98 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                 }
             }
 
-            binding.acOrderBy.setText(orderBy, false)
+            if (binding.acOrderBy.text.toString().isEmpty()) binding.acOrderBy.setText(orderBy, false)
         }
     }
 
-    private fun setupAcTvCapsterName() {
+    private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
-            approveRejectViewModel.capsterNames.value.let {
-                if (it?.isNotEmpty() == true) {
-                    // Tambahkan pilihan "All" di indeks pertama
-                    val modifiedCapsterNames = mutableListOf("Semua")
-                    modifiedCapsterNames.addAll(it)
-                    Log.d("EnterQTP", "Modified Capster Names: $modifiedCapsterNames")
+            approveRejectViewModel.capsterList.value?.let { capsterList ->
+                val capsterItemDropdown = buildList {
+                    add(UserEmployeeData(uid = "Semua", fullname = "Semua"))
+                    addAll(
+                        capsterList
+                            .distinctBy { it.fullname }
+                            .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
+                    )
+                }
+                val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
+                // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
+                adapter = ArrayAdapter(this@ApproveOrRejectBonPage, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
+                // Set adapter ke AutoCompleteTextView
+                binding.acCapsterName.setAdapter(adapter)
+                binding.acCapsterName.threshold = 0
+                binding.acCapsterName.setOnFocusChangeListener { _, state ->
+                    isCapsterDropdownFocus = state
+                    Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
+                }
 
-                    // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
-                    adapter = ArrayAdapter(this@ApproveOrRejectBonPage, android.R.layout.simple_dropdown_item_1line, modifiedCapsterNames)
+                if (setupDropdown) {
+                    val dataCapster = capsterItemDropdown.first()
+                    binding.acCapsterName.setText(dataCapster.fullname, false)
+                    capsterKeyword = dataCapster.fullname
+                    uidDropdownPosition = dataCapster.uid
+                    textDropdownCapsterName = dataCapster.fullname
+                } else {
+                    if (isSavedInstanceStateNull) {
+                        if (isCompleteSearch) {
+                            val selectedIndex = capsterItemDropdown.indexOfFirst {
+                                it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                            }.takeIf { it != -1 } ?: -1
+                            Log.d("CheckShimmer", "setup dropdown by uidDropdownPosition index: $selectedIndex")
+                            val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
+                            if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                            capsterKeyword = dataCapster.fullname
+                            uidDropdownPosition = dataCapster.uid
+                            textDropdownCapsterName = dataCapster.fullname
 
-                    // Set adapter ke AutoCompleteTextView
-                    binding.acCapsterName.setAdapter(adapter)
-                    binding.acCapsterName.threshold = 0
-                    binding.acCapsterName.setOnFocusChangeListener { _, state ->
-                        isCapsterDropdownFocus = state
-                        Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
-                    }
-
-                    if (isFirstLoad) {
-                        // Langsung set nilai "All" di AutoCompleteTextView
-                        if (textInputDropdown.isEmpty()) {
-                            Log.d("BindingFocus", "empty")
-                            binding.acCapsterName.setText(getString(R.string.all_text), false)
+                            //dashboardViewModel.refreshAllListData()
+                            //if (textDropdownCapsterName == "---")
+                            val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
+                            approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
                         }
-                        else {
-                            Log.d("BindingFocus", "not empty")
-                            binding.acCapsterName.setText(textInputDropdown, false)
-                        }
-
-                        binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
                     } else {
-                        Log.d("BindingFocus", "textInputDropdown $textInputDropdown || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
-                        if (isCompleteSearch || textInputDropdown.isEmpty()) {
-                            binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-                        } else {
-                            binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
-                            adapter.filter.filter(textInputDropdown)
-                        }
-                        if (isPopUpDropdownShow) {
-                            Log.d("BindingFocus", "LLL")
-                            binding.acCapsterName.showDropDown()
-                        }
+                        Log.d("CheckShimmer", "setup dropdown by orientationChange")
+                    }
+                }
+
+                val textDropdownSelected = binding.acCapsterName.text.toString().trim()
+                if (isFirstLoad) {
+                    // Langsung set nilai "All" di AutoCompleteTextView
+                    if (textDropdownSelected.isEmpty()) {
+                        Log.d("BindingFocus", "empty")
+                        binding.acCapsterName.setText(getString(R.string.all_text), false)
                     }
 
-                    Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
-                    if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
-                    startPopupObserver()
+                    binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
+                } else {
+                    Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
+                    if (isCompleteSearch || textDropdownSelected.isEmpty()) {
+                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                    } else {
+                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                        adapter.filter.filter(textDropdownCapsterName)
+                    }
+                    if (isPopUpDropdownShow) {
+                        Log.d("BindingFocus", "LLL")
+                        binding.acCapsterName.showDropDown()
+                    }
+                }
+
+                Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
+                if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
+                startPopupObserver()
+
+                if ((isSavedInstanceStateNull && setupDropdown) || (isShimmerVisible && isFirstLoad)) {
+                    Log.d("CheckShimmer", "getAllData()")
+                    getAllData()
+                }
+
+                if (!isSavedInstanceStateNull) {
+                    if (!isFirstLoad && !updateListener) {
+                        Log.d("CheckShimmer", "setupListeners(skippedProcess = true)")
+                        setupListeners(skippedProcess = true)
+                    }
                 }
             }
         }
@@ -574,7 +635,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                 binding.acBonStatusFiltering.setText(selectedCategory, false)
 
                 // Simpan nilai textContained ke filterByStatus
-                filterByStatus = selectedFilter?.textContained ?: ""
+                filterByStatus = selectedFilter?.textContained ?: "Semua"
 
                 // Jalankan filtering di background thread
                 lifecycleScope.launch(Dispatchers.Default) {
@@ -585,7 +646,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                 }
             }
 
-            if (filterByStatus.isEmpty()) binding.acBonStatusFiltering.setText(statusFilteringData[0].tagCategory, false)
+            if (binding.acBonStatusFiltering.text.toString().isEmpty()) binding.acBonStatusFiltering.setText(filterByStatus, false)
         }
     }
 
@@ -645,20 +706,13 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                         }
                     } else {
                         employeeListMutex.withLock {
-                            approveRejectViewModel.addCapsterList(newCapsterList)
-                            approveRejectViewModel.addCapsterNames(newCapsterNames)
+                            approveRejectViewModel.setCapsterList(newCapsterList, setupDropdown = true, isSavedInstanceStateNull = true)
                             Log.d("CacheChecking", "ADD CAPSTER LIST FROM GET CAPSTER")
                         }
                     }
-
-                    withContext(Dispatchers.Main) {
-                        approveRejectViewModel.setReSetupDropdownCapster(true)
-                        getAllData()
-                    }
                 }
             }.addOnFailureListener {
-                approveRejectViewModel.setReSetupDropdownCapster(true)
-                getAllData()
+                approveRejectViewModel.setCapsterList(emptyList(), setupDropdown = true, isSavedInstanceStateNull = true)
                 showToast("Gagal mengambil daftar pegawai")
             }
     }
@@ -786,22 +840,30 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
 
     private suspend fun filteringByCategorySelected(bonList: List<BonEmployeeData>): MutableList<BonEmployeeData> {
         employeeListMutex.withLock {
+            // Ambil daftar userRef capster dari capsterList
+            val capsterRefs = approveRejectViewModel.capsterList.value?.map { it.userRef } ?: emptyList()
+
+            // Langkah 1: Filter hanya bon yang userRef-nya cocok dengan capsterList
+            val bonFilteredByCapsterRefs = bonList.filter { bon ->
+                bon.dataCreator?.userRef in capsterRefs
+            }
+
             // Filter berdasarkan filterByTag
             val filteredByTag = when (filterByTag) {
-                "From Installment", "From Salary" -> bonList.filter { it.returnType == filterByTag }
-                "Lunas", "Belum Bayar", "Terangsur" -> bonList.filter { it.returnStatus == filterByTag }
-                else -> bonList
+                "From Installment", "From Salary" -> bonFilteredByCapsterRefs.filter { it.returnType == filterByTag }
+                "Lunas", "Belum Bayar", "Terangsur" -> bonFilteredByCapsterRefs.filter { it.returnStatus == filterByTag }
+                else -> bonFilteredByCapsterRefs
             }
 
             // Filter tambahan berdasarkan filterByStatus jika tidak kosong
-            val filteredByStatus = if (filterByStatus.isNotEmpty()) {
+            val filteredByStatus = if (filterByStatus != "Semua") {
                 filteredByTag.filter { it.bonStatus == filterByStatus }
             } else {
                 filteredByTag
             }
 
             // Filter berdasarkan capsterKeyword (Diperbaiki)
-            val capsterFiltered = if (capsterKeyword.isNotEmpty()) {
+            val capsterFiltered = if (capsterKeyword != "Semua") {
                 // Cari semua capster yang mengandung capsterKeyword
                 val matchingCapsters = approveRejectViewModel.capsterList.value
                     ?.filter { capster ->
@@ -812,10 +874,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     }
                     ?.map { it.userRef }
                     ?: emptyList()
-//                val matchingCapsters = approveRejectViewModel.capsterList.value
-//                    ?.filter { it.fullname.contains(capsterKeyword, ignoreCase = true) }
-//                    ?.map { it.userRef }
-//                    ?: emptyList()
 
                 // Filter hanya jika ada capster yang cocok
                 if (matchingCapsters.isNotEmpty()) {
@@ -887,14 +945,11 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                             }.unzip()
 
                             employeeListMutex.withLock {
-                                approveRejectViewModel.addCapsterList(newCapsterList)
-                                approveRejectViewModel.addCapsterNames(newCapsterNames)
+                                approveRejectViewModel.setCapsterList(newCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
                                 Log.d("CacheChecking", "ADD CAPSTER LIST FROM LISTEN EMPLOYEE")
                             }
 
                             withContext(Dispatchers.Main) {
-                                approveRejectViewModel.setReSetupDropdownCapster(true)
-
                                 if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
                                     showLocalToast()
                                 }
@@ -1255,7 +1310,8 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                         ?: -999
                     approveRejectViewModel.setUserCurrentAccumulationBon(userAccumulationBonCurr)
                     approveRejectViewModel.setUserPreviousAccumulationBon(userAccumulationBonPrev)
-                    approveRejectViewModel.setUserEmployeeData(userData, null)
+//                    approveRejectViewModel.setUserEmployeeData(userData, initPage = null, setupDropdown = null, isSavedInstanceStateNull = null)
+                    approveRejectViewModel.setUserEmployeeData(userData, setupDropdown = null, isSavedInstanceStateNull = null)
                     approveRejectViewModel.setBonEmployeeData(item)
                     showRecordInstallmentDialog()
                 }

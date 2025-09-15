@@ -11,11 +11,11 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
-import com.example.barberlink.databinding.ItemListQueueBoardAdapterBinding
-import com.example.barberlink.databinding.ShimmerLayoutListQueueBoardBinding
+import com.example.barberlink.databinding.ItemListQueueResetAdapterBinding
+import com.example.barberlink.databinding.ShimmerLayoutListQueueResetBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListQueueBoardAdapter(
+class ItemListQueueResetAdapter(
     private val shimmerItemCount: Int
 ) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
@@ -24,13 +24,6 @@ class ItemListQueueBoardAdapter(
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private lateinit var currentQueue: Map<String, String>
-    private lateinit var capsterWaitingQueues: Map<String, List<String>>
-    // Dummy data saat map kosong
-    private val dummyCapsterWaitingQueues: Map<String, List<String>> = mapOf(
-        "pVWmALmoKcZf9ODiuMosGKFuuqS2" to listOf("03", "04", "09"),
-        "6PX1QsNy41WvlPAS2rnxSS0xz8J2" to listOf("01"),
-        "kHS5OFfTnWbD7WgaF7PoGZJMl8g2" to listOf("02", "05")
-    )
 
     fun stopAllShimmerEffects() {
         if (shimmerViewList.isNotEmpty()) {
@@ -45,10 +38,6 @@ class ItemListQueueBoardAdapter(
         this.currentQueue = value
     }
 
-    fun setCapsterWaitingQueues(value: Map<String, List<String>>) {
-        capsterWaitingQueues = value
-    }
-
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
     }
@@ -59,10 +48,10 @@ class ItemListQueueBoardAdapter(
             recyclerView = parent as RecyclerView
         }
         return if (viewType == VIEW_TYPE_SHIMMER) {
-            val shimmerBinding = ShimmerLayoutListQueueBoardBinding.inflate(inflater, parent, false)
+            val shimmerBinding = ShimmerLayoutListQueueResetBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
         } else {
-            val binding = ItemListQueueBoardAdapterBinding.inflate(inflater, parent, false)
+            val binding = ItemListQueueResetAdapterBinding.inflate(inflater, parent, false)
             ItemViewHolder(binding)
         }
     }
@@ -115,7 +104,7 @@ class ItemListQueueBoardAdapter(
 
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutListQueueBoardBinding) :
+    inner class ShimmerViewHolder(private val binding: ShimmerLayoutListQueueResetBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(userEmployeeData: UserEmployeeData) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -125,7 +114,7 @@ class ItemListQueueBoardAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListQueueBoardAdapterBinding) :
+    inner class ItemViewHolder(private val binding: ItemListQueueResetAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(userEmployeeData: UserEmployeeData) {
@@ -136,12 +125,12 @@ class ItemListQueueBoardAdapter(
                 tvEmployeeName.isSelected = true
                 tvEmployeeName.text = userEmployeeData.fullname
                 // Set queue number based on the employee's uid
-                var queueNumber = currentQueue[userEmployeeData.uid] ?: "00" // Jika tidak ada data, tampilkan "N/A"
+                var queueNumber = currentQueue[userEmployeeData.uid] ?: "--" // Jika tidak ada data, tampilkan "N/A"
                 queueNumber = if (userEmployeeData.availabilityStatus) {
-                    if (queueNumber == "00") "00"
+                    if (queueNumber == "00") "--"
                     else queueNumber
                 } else {
-                    "00"
+                    "--"
                 }
                 tvQueueNumber.text = queueNumber
 
@@ -164,40 +153,6 @@ class ItemListQueueBoardAdapter(
                     ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
                 }
 
-                // === NEW: render next queues dari capsterWaitingQueues ===
-                // catatan: guard untuk lateinit yang belum di-set
-                val nextQueues: List<String> = try {
-                    capsterWaitingQueues[userEmployeeData.uid].orEmpty()
-                } catch (_: UninitializedPropertyAccessException) {
-                    emptyList()
-                }
-
-                if (nextQueues.isEmpty()) {
-                    tvNextQueueOne.text = "xx"
-                    tvNextQueueTwo.text = "xx"
-
-                    tvNextQueueOne.setTextColor(ContextCompat.getColor(root.context, R.color.magenta))
-                    tvNextQueueTwo.setTextColor(ContextCompat.getColor(root.context, R.color.magenta))
-                } else {
-                    // ambil maksimal 2 item pertama
-                    val first = nextQueues.getOrNull(0)
-                    val second = nextQueues.getOrNull(1)
-
-                    tvNextQueueOne.text = first ?: "xx"
-                    tvNextQueueTwo.text = second ?: "xx"
-
-                    if (first == null) {
-                        tvNextQueueOne.setTextColor(ContextCompat.getColor(root.context, R.color.magenta))
-                    } else {
-                        tvNextQueueOne.setTextColor(ContextCompat.getColor(root.context, R.color.black))
-                    }
-
-                    if (second == null) {
-                        tvNextQueueTwo.setTextColor(ContextCompat.getColor(root.context, R.color.magenta))
-                    } else {
-                        tvNextQueueTwo.setTextColor(ContextCompat.getColor(root.context, R.color.black))
-                    }
-                }
             }
         }
     }

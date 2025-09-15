@@ -11,6 +11,7 @@ import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.Path
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ShapeDrawable
 import android.os.Build
 import android.util.Log
@@ -87,7 +88,9 @@ object WindowInsetsHandler {
         window.setBackgroundDrawable(ColorDrawable(backgroundColor))
     }
 
-    // Fungsi untuk mengatur sudut window secara dinamis
+    private fun topRadii(r: Float) =
+        floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+
     @RequiresApi(Build.VERSION_CODES.S)
     fun setDynamicWindowAllCorner(
         view: View,
@@ -95,97 +98,58 @@ object WindowInsetsHandler {
         isOnResume: Boolean,
         onComplete: (() -> Unit)? = null
     ) {
-        // Langkah 1: Set nilai awal corner
         val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        var radius = windowManager.currentWindowMetrics.windowInsets.getRoundedCorner(
-            RoundedCorner.POSITION_TOP_LEFT
-        )?.radius?.toFloat() ?: -999f // Default radius jika tidak tersedia
+        var radius = windowManager.currentWindowMetrics.windowInsets
+            .getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: -999f
+        radius = if (radius != -999f) radius - 5f else 50f
 
-        if (radius != -999f) radius -= 5f // Kurangi radius agar tidak terlalu besar
-        else radius = 50f // Default radius jika tidak tersedia
+        val activity = context as Activity
+        val decorView = activity.window.decorView as ViewGroup
 
-        // Tambahkan ke root view
-        val decorView = (context as Activity).window.decorView as ViewGroup
+        // cache sekali
+        val curvedView = decorView.findViewWithTag<View>("curvedView")
+        val initialColor = (curvedView?.background as? ShapeDrawable)?.paint?.color
+            ?: activity.window.statusBarColor
 
-        if (isOnResume) {
-            // Atur radius awal sebelum animasi dimulai
-            view.apply {
-                outlineProvider = object : ViewOutlineProvider() {
-                    override fun getOutline(view: View, outline: Outline) {
-                        outline.setRoundRect(0, 0, width, height, radius) // Radius awal
-                    }
-                }
-                clipToOutline = radius > 0f // Terapkan kliping berdasarkan outline
-                invalidateOutline() // Pastikan outline diperbarui
+        // pakai satu GradientDrawable, set top-only radii
+        val curvedBg = (curvedView?.background as? GradientDrawable) ?: GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(initialColor)
+            cornerRadii = topRadii(if (isOnResume) radius else 0f)
+        }
+        curvedView?.background = curvedBg
+
+        // single provider yang bisa di-update
+        class RoundedProvider(var r: Float) : ViewOutlineProvider() {
+            override fun getOutline(v: View, o: Outline) {
+                o.setRoundRect(0, 0, v.width, v.height, r)
             }
-            Log.d("WinWinWin", "Insert: SetDynamicWindowAllCorner")
+        }
+        val provider = RoundedProvider(if (isOnResume) radius else 0f)
+        view.outlineProvider = provider
+        view.clipToOutline = provider.r > 0f
+        view.invalidateOutline()
 
-            // Animasi perubahan radius ke 0f
-            if (::animator.isInitialized) {
-                animator.cancel()
-            }
-            animator = ValueAnimator.ofFloat(radius, 0f).apply {
-                duration = 250
-                startDelay = 800 // Penundaan sebelum animasi dimulai
-                addUpdateListener { animation ->
-                    // Cari apakah sudah ada curvedView sebelumnya
-                    val existingCurvedView = decorView.findViewWithTag<View>("curvedView")
-                    val initialColor = (existingCurvedView?.background as? ShapeDrawable)?.paint?.color
-                        ?: context.window.statusBarColor
-
-                    val animatedRadius = animation.animatedValue as Float
-                    view.apply {
-                        outlineProvider = object : ViewOutlineProvider() {
-                            override fun getOutline(view: View, outline: Outline) {
-                                outline.setRoundRect(0, 0, width, height, animatedRadius)
-                            }
-                        }
-                        clipToOutline = animatedRadius > 0f
-                        invalidateOutline() // Memastikan outline diperbarui
-                    }
-
-                    existingCurvedView?.let { curvedView ->
-                        curvedView.background =
-                            StatusBarDisplayHandler.createCurvedBackground(initialColor, animatedRadius)
-                    }
-                }
-            }
+        if (::animator.isInitialized) animator.cancel()
+        animator = if (isOnResume) {
+            ValueAnimator.ofFloat(radius, 0f).apply { duration = 250; startDelay = 800 }
         } else {
-            if (::animator.isInitialized) {
-                animator.cancel()
-            }
-            animator = ValueAnimator.ofFloat(0f, radius).apply {
-                duration = 250
-                addUpdateListener { animation ->
-                    // Cari apakah sudah ada curvedView sebelumnya
-                    val existingCurvedView = decorView.findViewWithTag<View>("curvedView")
-                    val initialColor = (existingCurvedView?.background as? ShapeDrawable)?.paint?.color
-                        ?: context.window.statusBarColor
+            ValueAnimator.ofFloat(0f, radius).apply { duration = 250 }
+        }
 
-                    val animatedRadius = animation.animatedValue as Float
-                    view.apply {
-                        outlineProvider = object : ViewOutlineProvider() {
-                            override fun getOutline(view: View, outline: Outline) {
-                                outline.setRoundRect(0, 0, width, height, animatedRadius)
-                            }
-                        }
-                        clipToOutline = animatedRadius > 0f
-                        invalidateOutline() // Memastikan outline diperbarui
-                    }
+        animator.addUpdateListener { a ->
+            val r = a.animatedValue as Float
+            // samakan Satu Sumber Kebenaran radius untuk outline & bg
+            provider.r = r
+            view.clipToOutline = r > 0f
+            view.invalidateOutline()
 
-                    existingCurvedView?.let { curvedView ->
-                        curvedView.background =
-                            StatusBarDisplayHandler.createCurvedBackground(initialColor, animatedRadius)
-                    }
-                }
-            }
-            Log.d("WinWinWin", "Insert: SetDynamicWindowAllCorner radius: 0")
+            curvedBg.cornerRadii = topRadii(r)
+            curvedView?.invalidate()
         }
 
         animator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) { // Perbaikan tipe
-                onComplete?.invoke()
-            }
+            override fun onAnimationEnd(animation: Animator) { onComplete?.invoke() }
         })
         animator.start()
     }

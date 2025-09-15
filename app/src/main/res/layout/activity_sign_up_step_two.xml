@@ -168,7 +168,7 @@
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/wrapperBarbershopName"
                             android:layout_width="match_parent"
-                            android:layout_height="45dp"
+                            android:layout_height="wrap_content"
                             android:layout_below="@id/tvBarbershopNameLabel"
                             android:layout_marginHorizontal="14dp"
                             android:gravity="start"
@@ -179,7 +179,8 @@
                             app:errorIconTint="@color/red"
                             app:errorTextColor="@color/red"
                             app:boxStrokeColor="@color/green_lime_wf"
-                            android:layout_marginTop="10dp">
+                            android:layout_marginTop="10dp"
+                            app:helperText="Ini contoh teks error!!!">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etBarbershopName"

@@ -13,8 +13,11 @@ import com.example.barberlink.Helper.Event
 open class InputFragmentViewModel(state: SavedStateHandle) : ViewModel() {
     private val savedStateHandle = state
 
-    private val _outletsList = MutableLiveData<List<Outlet>>().apply { value = mutableListOf() }
-    open val outletsList: LiveData<List<Outlet>> = _outletsList
+    private val _inputAmountValue = MutableLiveData<Int?>()
+    val inputAmountValue: LiveData<Int?> = _inputAmountValue
+
+    protected val _outletList = MutableLiveData<List<Outlet>>().apply { value = mutableListOf() }
+    val outletList: LiveData<List<Outlet>> = _outletList
 
     var selectedCardId: MutableLiveData<Int?> = savedStateHandle.getLiveData("selectedCardId")
     var selectedTextId: MutableLiveData<Int?> = savedStateHandle.getLiveData("selectedTextId")
@@ -25,19 +28,34 @@ open class InputFragmentViewModel(state: SavedStateHandle) : ViewModel() {
     private val _moneyAmount = MutableLiveData<Event<String>>()
     val moneyAmount: LiveData<Event<String>> = _moneyAmount
 
-    private val _userAdminData = MutableLiveData<UserAdminData>()
-    open val userAdminData: LiveData<UserAdminData> = _userAdminData
+    protected val _setupDropdownFilter = MutableLiveData<Boolean?>()
+    val setupDropdownFilter: LiveData<Boolean?> = _setupDropdownFilter
 
-    private val _userEmployeeData = MutableLiveData<UserEmployeeData?>()
-    open val userEmployeeData: LiveData<UserEmployeeData?> = _userEmployeeData
+    protected val _setupDropdownFilterWithNullState = MutableLiveData<Boolean?>()
+    val setupDropdownFilterWithNullState: LiveData<Boolean?> = _setupDropdownFilterWithNullState
+
+    protected val _userAdminData = MutableLiveData<UserAdminData>()
+    val userAdminData: LiveData<UserAdminData> = _userAdminData
+
+    protected val _userEmployeeData = MutableLiveData<UserEmployeeData?>()
+    val userEmployeeData: LiveData<UserEmployeeData?> = _userEmployeeData
+
+    protected val _outletSelected = MutableLiveData<Outlet?>()
+    val outletSelected: LiveData<Outlet?> = _outletSelected
+
+    open fun setOutletSelected(outlet: Outlet?) {}
 
     fun showInputSnackBar(money: String, message: String) {
         _moneyAmount.value = Event(money)
         _snackBarInputMessage.value = Event(message)
     }
 
-    fun saveSelectedCard(cardId: Int?, textId: Int?) {
+    fun saveSelectedCard(cardId: Int?, textId: Int?, capitalAmount: Int?) {
         savedStateHandle["selectedCardId"] = cardId
         savedStateHandle["selectedTextId"] = textId
+        _inputAmountValue.value = capitalAmount
     }
+
+    open fun setupDropdownFilterWithNullState() {}
 }
+

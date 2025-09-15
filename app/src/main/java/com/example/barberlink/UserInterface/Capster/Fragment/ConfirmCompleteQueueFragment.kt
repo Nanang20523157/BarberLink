@@ -51,11 +51,9 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     private val confirmQueueViewModel: QueueControlViewModel by activityViewModels()
     private lateinit var context: Context
     private var currentReservation: Reservation? = null
-    // TNODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
 
     private var previousText: String = ""
+    private var previousCursorPosition: Int = 0
     private var isPaymentAmountValid = false
     private var finalCashBackAmount: String = ""
     private var userInputAmount: String = "0"
@@ -67,6 +65,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     private var lifecycleListener: DefaultLifecycleObserver? = null
     private lateinit var textWatcher: TextWatcher
     private var inputManualCheckOne: (() -> Unit)? = null
+    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
 
     private val binding get() = _binding!!
     private var myCurrentToast: Toast? = null
@@ -81,6 +80,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState != null) {
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
+            previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
             isPaymentAmountValid = savedInstanceState.getBoolean("is_capital_amount_valid", false)
             finalCashBackAmount = savedInstanceState.getString("final_cash_back_amount", "") ?: ""
             userInputAmount = savedInstanceState.getString("user_input_amount", "0") ?: "0"
@@ -122,7 +122,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        confirmQueueViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
+        confirmQueueViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
                 currentReservation = reservation
                 binding.apply {
@@ -131,18 +131,20 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             }
         }
         if (isOrientationChanged) {
-            if (textErrorForPayment.isNotEmpty() && textErrorForPayment != "undefined") {
-                isPaymentAmountValid = false
-                binding.llInfo.visibility = View.VISIBLE
-                binding.tvInfo.text = textErrorForPayment
-                setFocus(binding.etMoneyAmount)
-            } else {
-                isPaymentAmountValid = textErrorForPayment != "undefined"
-                binding.llInfo.visibility = View.GONE
-                binding.tvInfo.text = textErrorForPayment
-            }
+            inputManualCheckOne = {
+                if (textErrorForPayment.isNotEmpty() && textErrorForPayment != "undefined") {
+                    isPaymentAmountValid = false
+                    binding.llInfo.visibility = View.VISIBLE
+                    binding.tvInfo.text = textErrorForPayment
+                    setFocus(binding.etMoneyAmount)
+                } else {
+                    isPaymentAmountValid = textErrorForPayment != "undefined"
+                    binding.llInfo.visibility = View.GONE
+                    binding.tvInfo.text = textErrorForPayment
+                }
 
-            if (textErrorForPayment == "undefined") binding.etMoneyAmount.requestFocus()
+                if (textErrorForPayment == "undefined") binding.etMoneyAmount.requestFocus()
+            }
         }
         setupEditTextListeners()
 
@@ -193,37 +195,42 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
 
         binding.btnYes.setOnClickListener {
-            var originalString = userInputAmount
-            if (userInputAmount.contains(".")) {
-                originalString = originalString.replace(".", "")
-            }
+            if (isPaymentAmountValid) {
+                checkNetworkConnection {
+//                    val moneyAmount = userInputAmount
+//                    val clearText = moneyAmount.replace(".", "")
+//                    val formattedAmount = clearText.toIntOrNull()
 
-            if (originalString[0] == '0' && originalString.length > 1 || originalString == "0") {
-                isPaymentAmountValid = validateMoneyInput(true)
-            } else {
-                // Tambahkan nilai finalCashBackAmount ke dalam hasil fragment
-                if (isPaymentAmountValid) {
-                    checkNetworkConnection {
-                        val moneyAmount = userInputAmount
-                        val clearText = moneyAmount.replace(".", "")
-                        val formattedAmount = clearText.toIntOrNull()
-
-                        if (formattedAmount != null) {
-                            setFragmentResult(
-                                "confirm_result_data",
-                                bundleOf(
-                                    "user_payment_amount" to NumberUtils.numberToCurrency(formattedAmount.toDouble()), // Nilai uang yang dibayar
-                                    "cash_back_amount" to finalCashBackAmount, // Nilai uang kembalian
-                                    "dismiss_dialog" to true
-                                )
+                    val formattedAmount = format.parse(userInputAmount)?.toInt()
+                    if (formattedAmount != null) {
+                        setFragmentResult(
+                            "confirm_result_data",
+                            bundleOf(
+                                "user_payment_amount" to NumberUtils.numberToCurrency(formattedAmount.toDouble()), // Nilai uang yang dibayar
+                                "cash_back_amount" to finalCashBackAmount, // Nilai uang kembalian
+                                "dismiss_dialog" to true
                             )
-                        }
-
+                        )
                         dismiss()
                         parentFragmentManager.popBackStack()
+                    } else {
+                        showToast("Input tidak valid karena menghasilkan null")
+                        setFocus(binding.etMoneyAmount)
                     }
-                } else showToast("Please input a valid amount")
+                }
+            } else {
+                showToast("Mohon periksa kembali data yang dimasukkan")
+                setFocus(binding.etMoneyAmount)
             }
+//            var originalString = userInputAmount
+//            if (userInputAmount.contains(".")) {
+//                originalString = originalString.replace(".", "")
+//            }
+//            if (originalString[0] == '0' && originalString.length > 1 || originalString == "0") {
+//                isPaymentAmountValid = validateMoneyInput(true)
+//            } else {
+//                // Tambahkan nilai finalCashBackAmount ke dalam hasil fragment
+//            }
         }
 
         binding.btnNo.setOnClickListener {
@@ -277,6 +284,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString("previous_text", previousText)
+        outState.putInt("previous_cursor_position", previousCursorPosition)
         outState.putBoolean("is_capital_amount_valid", isPaymentAmountValid)
         outState.putString("final_cash_back_amount", finalCashBackAmount)
         outState.putString("user_input_amount", userInputAmount)
@@ -325,6 +333,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     previousText = s.toString()
+                    previousCursorPosition = etMoneyAmount.selectionStart
                 }
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -351,20 +360,25 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                                 originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                             }
 
-                            val parsed = originalString.replace(".", "")
-                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-                            val formatted = if (previousText == "0") {
-                                format.format(parsed.toIntOrNull() ?: 0L)
-                            } else {
-                                formatWithDotsKeepingLeadingZeros(parsed)
-                            }
+//                            val parsed = originalString.replace(".", "")
+//                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+//                            val formatted = if (previousText == "0") {
+//                                format.format(parsed.toIntOrNull() ?: 0L)
+//                            } else {
+//                                formatWithDotsKeepingLeadingZeros(parsed)
+//                            }
+                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val formatted = format.format(parsed)
 
                             // Set the text
                             etMoneyAmount.setText(formatted)
                             userInputAmount = formatted
 
                             // Calculate the new cursor position
-                            val newCursorPosition = cursorPosition + (formatted.length - s.length)
+                            //val newCursorPosition = cursorPosition + (formatted.length - s.length)
+                            val newCursorPosition = if (formatted == previousText) {
+                                previousCursorPosition
+                            } else cursorPosition + (formatted.length - s.length)
 
                             // Ensure the new cursor position is within the bounds of the new text
                             val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
@@ -391,11 +405,11 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
     }
 
-    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
-        val reversed = number.reversed()
-        val grouped = reversed.chunked(3).joinToString(".")
-        return grouped.reversed()
-    }
+//    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
+//        val reversed = number.reversed()
+//        val grouped = reversed.chunked(3).joinToString(".")
+//        return grouped.reversed()
+//    }
 
     private fun validateMoneyInput(checkLeadingZeros: Boolean): Boolean {
         with (binding) {
@@ -420,7 +434,8 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                 textErrorForPayment = getString(R.string.your_value_entered_not_valid)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForPayment
-                val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
+                //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
+                val nominal = format.format(formattedAmount)
                 confirmQueueViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)

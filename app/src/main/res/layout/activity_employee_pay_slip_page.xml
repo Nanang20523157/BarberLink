@@ -463,7 +463,7 @@
                                 </com.google.android.material.card.MaterialCardView>
 
                                 <com.google.android.material.card.MaterialCardView
-                                    android:id="@+id/cvBasicSalary"
+                                    android:id="@+id/cvEmployeeSalary"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="5dp"
@@ -481,7 +481,7 @@
                                         android:background="@drawable/background_filter_date_report">
 
                                         <com.google.android.material.card.MaterialCardView
-                                            android:id="@+id/cvNumberBasicSalary"
+                                            android:id="@+id/cvNumberEmployeeSalary"
                                             android:layout_width="49dp"
                                             android:layout_height="wrap_content"
                                             app:cardCornerRadius="8dp"
@@ -492,7 +492,7 @@
                                             app:layout_constraintBottom_toBottomOf="parent">
 
                                             <TextView
-                                                android:id="@+id/tvNumberBasicSalary"
+                                                android:id="@+id/tvNumberEmployeeSalary"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="wrap_content"
                                                 android:text="@string/_01"
@@ -504,7 +504,7 @@
                                         </com.google.android.material.card.MaterialCardView>
 
                                         <TextView
-                                            android:id="@+id/tvBasicSalary"
+                                            android:id="@+id/tvEmployeeSalary"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
                                             android:text="@string/basic_salary_title"
@@ -516,7 +516,7 @@
                                             android:textStyle="bold"
                                             android:textSize="15sp"
                                             app:layout_constraintTop_toTopOf="parent"
-                                            app:layout_constraintStart_toEndOf="@id/cvNumberBasicSalary"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberEmployeeSalary"
                                             app:layout_constraintEnd_toEndOf="parent"
                                             app:layout_constraintBottom_toBottomOf="parent"/>
 
@@ -526,15 +526,15 @@
                                 </com.google.android.material.card.MaterialCardView>
 
                                 <androidx.cardview.widget.CardView
-                                    android:id="@+id/cvQuantityBasicSalary"
+                                    android:id="@+id/cvQuantityEmployeeSalary"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="5dp"
                                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                                     app:cardCornerRadius="8dp"
                                     app:cardElevation="0dp"
-                                    app:layout_constraintStart_toEndOf="@id/cvBasicSalary"
-                                    app:layout_constraintTop_toTopOf="@id/cvBasicSalary"
+                                    app:layout_constraintStart_toEndOf="@id/cvEmployeeSalary"
+                                    app:layout_constraintTop_toTopOf="@id/cvEmployeeSalary"
                                     app:layout_constraintEnd_toEndOf="parent">
 
                                     <androidx.constraintlayout.widget.ConstraintLayout
@@ -543,7 +543,7 @@
                                         android:background="@drawable/background_filter_date_report">
 
                                         <TextView
-                                            android:id="@+id/tvQuantityBasicSalary"
+                                            android:id="@+id/tvQuantityEmployeeSalary"
                                             android:layout_width="60dp"
                                             android:layout_height="wrap_content"
                                             android:text="@string/_1000x"
@@ -556,7 +556,7 @@
                                             app:layout_constraintBottom_toBottomOf="parent" />
 
                                         <androidx.cardview.widget.CardView
-                                            android:id="@+id/cvNominalBasicSalary"
+                                            android:id="@+id/cvNominalEmployeeSalary"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
                                             android:layout_marginStart="-5dp"
@@ -566,14 +566,14 @@
                                             app:cardCornerRadius="7.61dp"
                                             android:outlineAmbientShadowColor="@color/black"
                                             android:outlineSpotShadowColor="@color/black"
-                                            app:layout_constraintTop_toTopOf="@id/tvQuantityBasicSalary"
-                                            app:layout_constraintStart_toEndOf="@id/tvQuantityBasicSalary"
-                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityBasicSalary"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityEmployeeSalary"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityEmployeeSalary"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityEmployeeSalary"
                                             app:layout_constraintEnd_toEndOf="parent">
 
                                             <!-- AutoCompleteTextView for Dropdown -->
                                             <com.google.android.material.textfield.TextInputLayout
-                                                android:id="@+id/inputLayoutBasicSalary"
+                                                android:id="@+id/inputLayoutEmployeeSalary"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="match_parent"
                                                 app:hintEnabled="false"
@@ -595,7 +595,7 @@
                                                 app:prefixTextAppearance="@style/PrefixTextAppearance3">
 
                                                 <com.google.android.material.textfield.TextInputEditText
-                                                    android:id="@+id/etNominalBasicSalary"
+                                                    android:id="@+id/etNominalEmployeeSalary"
                                                     android:layout_width="match_parent"
                                                     android:layout_height="match_parent"
                                                     android:drawableTint="@android:color/transparent"
@@ -626,7 +626,7 @@
                                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                                     app:cardCornerRadius="8dp"
                                     app:cardElevation="0dp"
-                                    app:layout_constraintTop_toBottomOf="@id/cvBasicSalary"
+                                    app:layout_constraintTop_toBottomOf="@id/cvEmployeeSalary"
                                     app:layout_constraintStart_toStartOf="@id/cvNumberIncome"
                                     app:layout_constraintEnd_toEndOf="@id/cvIncomeLabel">
 
@@ -1124,7 +1124,7 @@
                                             android:id="@+id/tvTHRIncome"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
-                                            android:text="@string/thr_title"
+                                            android:text="@string/holiday_allowance_title"
                                             android:gravity="start|center_vertical"
                                             android:paddingHorizontal="10dp"
                                             android:singleLine="true"
@@ -1388,7 +1388,7 @@
                                 </androidx.cardview.widget.CardView>
 
                                 <com.google.android.material.card.MaterialCardView
-                                    android:id="@+id/cvAdditionalHolidayReplacement"
+                                    android:id="@+id/cvOvertimePay"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="5dp"
@@ -1406,7 +1406,7 @@
                                         android:background="@drawable/background_filter_date_report">
 
                                         <com.google.android.material.card.MaterialCardView
-                                            android:id="@+id/cvNumberAdditionalHolidayReplacement"
+                                            android:id="@+id/cvNumberOvertimePay"
                                             android:layout_width="49dp"
                                             android:layout_height="wrap_content"
                                             app:cardCornerRadius="8dp"
@@ -1417,7 +1417,7 @@
                                             app:layout_constraintBottom_toBottomOf="parent">
 
                                             <TextView
-                                                android:id="@+id/tvNumberAdditionalHolidayReplacement"
+                                                android:id="@+id/tvNumberOvertimePay"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="wrap_content"
                                                 android:text="@string/_07"
@@ -1429,10 +1429,10 @@
                                         </com.google.android.material.card.MaterialCardView>
 
                                         <TextView
-                                            android:id="@+id/tvAdditionalHolidayReplacement"
+                                            android:id="@+id/tvOvertimePay"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
-                                            android:text="@string/additional_holiday_replacement"
+                                            android:text="@string/overtime_pay_title"
                                             android:gravity="start|center_vertical"
                                             android:paddingHorizontal="10dp"
                                             android:singleLine="true"
@@ -1441,7 +1441,7 @@
                                             android:textStyle="bold"
                                             android:textSize="15sp"
                                             app:layout_constraintTop_toTopOf="parent"
-                                            app:layout_constraintStart_toEndOf="@id/cvNumberAdditionalHolidayReplacement"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberOvertimePay"
                                             app:layout_constraintEnd_toEndOf="parent"
                                             app:layout_constraintBottom_toBottomOf="parent"/>
 
@@ -1450,15 +1450,15 @@
                                 </com.google.android.material.card.MaterialCardView>
 
                                 <androidx.cardview.widget.CardView
-                                    android:id="@+id/cvQuantityAdditionalHolidayReplacement"
+                                    android:id="@+id/cvQuantityOvertimePay"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_marginStart="5dp"
                                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                                     app:cardCornerRadius="8dp"
                                     app:cardElevation="0dp"
-                                    app:layout_constraintStart_toEndOf="@id/cvAdditionalHolidayReplacement"
-                                    app:layout_constraintTop_toTopOf="@id/cvAdditionalHolidayReplacement"
+                                    app:layout_constraintStart_toEndOf="@id/cvOvertimePay"
+                                    app:layout_constraintTop_toTopOf="@id/cvOvertimePay"
                                     app:layout_constraintEnd_toEndOf="parent">
 
                                     <androidx.constraintlayout.widget.ConstraintLayout
@@ -1467,7 +1467,7 @@
                                         android:background="@drawable/background_filter_date_report">
 
                                         <TextView
-                                            android:id="@+id/tvQuantityAdditionalHolidayReplacement"
+                                            android:id="@+id/tvQuantityOvertimePay"
                                             android:layout_width="60dp"
                                             android:layout_height="wrap_content"
                                             android:text="@string/triple_dash"
@@ -1480,7 +1480,7 @@
                                             app:layout_constraintBottom_toBottomOf="parent" />
 
                                         <androidx.cardview.widget.CardView
-                                            android:id="@+id/cvNominalAdditionalHolidayReplacement"
+                                            android:id="@+id/cvNominalOvertimePay"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
                                             android:layout_marginStart="-5dp"
@@ -1490,14 +1490,14 @@
                                             app:cardCornerRadius="7.61dp"
                                             android:outlineAmbientShadowColor="@color/black"
                                             android:outlineSpotShadowColor="@color/black"
-                                            app:layout_constraintTop_toTopOf="@id/tvQuantityAdditionalHolidayReplacement"
-                                            app:layout_constraintStart_toEndOf="@id/tvQuantityAdditionalHolidayReplacement"
-                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityAdditionalHolidayReplacement"
+                                            app:layout_constraintTop_toTopOf="@id/tvQuantityOvertimePay"
+                                            app:layout_constraintStart_toEndOf="@id/tvQuantityOvertimePay"
+                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityOvertimePay"
                                             app:layout_constraintEnd_toEndOf="parent">
 
                                             <!-- AutoCompleteTextView for Dropdown -->
                                             <com.google.android.material.textfield.TextInputLayout
-                                                android:id="@+id/inputLayoutAdditionalHolidayReplacement"
+                                                android:id="@+id/inputLayoutOvertimePay"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="match_parent"
                                                 app:hintEnabled="false"
@@ -1519,7 +1519,7 @@
                                                 app:prefixTextAppearance="@style/PrefixTextAppearance3">
 
                                                 <com.google.android.material.textfield.TextInputEditText
-                                                    android:id="@+id/etNominalAdditionalHolidayReplacement"
+                                                    android:id="@+id/etNominalOvertimePay"
                                                     android:layout_width="match_parent"
                                                     android:layout_height="match_parent"
                                                     android:drawableTint="@android:color/transparent"
@@ -1549,7 +1549,7 @@
                                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                                     app:cardCornerRadius="8dp"
                                     app:cardElevation="0dp"
-                                    app:layout_constraintTop_toBottomOf="@id/cvQuantityAdditionalHolidayReplacement"
+                                    app:layout_constraintTop_toBottomOf="@id/cvQuantityOvertimePay"
                                     app:layout_constraintStart_toStartOf="parent"
                                     app:layout_constraintEnd_toEndOf="parent">
 
@@ -1877,7 +1877,7 @@
                                 </androidx.cardview.widget.CardView>
 
                                 <com.google.android.material.card.MaterialCardView
-                                    android:id="@+id/cvMoneyLoan"
+                                    android:id="@+id/cvEmployeeInstallment"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="5dp"
@@ -1895,7 +1895,7 @@
                                         android:background="@drawable/background_filter_date_report">
 
                                         <com.google.android.material.card.MaterialCardView
-                                            android:id="@+id/cvNumberMoneyLoan"
+                                            android:id="@+id/cvNumberEmployeeInstallment"
                                             android:layout_width="49dp"
                                             android:layout_height="wrap_content"
                                             app:cardCornerRadius="8dp"
@@ -1906,7 +1906,7 @@
                                             app:layout_constraintBottom_toBottomOf="parent">
 
                                             <TextView
-                                                android:id="@+id/tvNumberMoneyLoan"
+                                                android:id="@+id/tvNumberEmployeeInstallment"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="wrap_content"
                                                 android:text="@string/_02"
@@ -1918,10 +1918,10 @@
                                         </com.google.android.material.card.MaterialCardView>
 
                                         <TextView
-                                            android:id="@+id/tvMoneyLoan"
+                                            android:id="@+id/tvEmployeeInstallment"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
-                                            android:text="@string/money_loan_title"
+                                            android:text="@string/employee_installment_title"
                                             android:gravity="start|center_vertical"
                                             android:paddingHorizontal="10dp"
                                             android:singleLine="true"
@@ -1930,7 +1930,7 @@
                                             android:textStyle="bold"
                                             android:textSize="15sp"
                                             app:layout_constraintTop_toTopOf="parent"
-                                            app:layout_constraintStart_toEndOf="@id/cvNumberMoneyLoan"
+                                            app:layout_constraintStart_toEndOf="@id/cvNumberEmployeeInstallment"
                                             app:layout_constraintEnd_toEndOf="parent"
                                             app:layout_constraintBottom_toBottomOf="parent"/>
 
@@ -1939,54 +1939,69 @@
                                 </com.google.android.material.card.MaterialCardView>
 
                                 <androidx.cardview.widget.CardView
-                                    android:id="@+id/cvQuantityMoneyLoan"
+                                    android:id="@+id/cvQuantityEmployeeInstallment"
                                     android:layout_width="0dp"
-                                    android:layout_height="wrap_content"
+                                    android:layout_height="0dp"
                                     android:layout_marginStart="5dp"
+                                    android:layout_marginTop="-0.5dp"
+                                    android:layout_marginBottom="-0.5dp"
                                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                                     app:cardCornerRadius="8dp"
                                     app:cardElevation="0dp"
-                                    app:layout_constraintStart_toEndOf="@id/cvMoneyLoan"
-                                    app:layout_constraintTop_toTopOf="@id/cvMoneyLoan"
-                                    app:layout_constraintEnd_toEndOf="parent">
+                                    app:layout_constraintStart_toEndOf="@id/cvEmployeeInstallment"
+                                    app:layout_constraintTop_toTopOf="@id/cvEmployeeInstallment"
+                                    app:layout_constraintEnd_toEndOf="parent"
+                                    app:layout_constraintBottom_toBottomOf="@id/cvEmployeeInstallment">
 
                                     <androidx.constraintlayout.widget.ConstraintLayout
                                         android:layout_width="match_parent"
-                                        android:layout_height="wrap_content"
+                                        android:layout_height="match_parent"
                                         android:background="@drawable/background_filter_date_report">
 
-                                        <TextView
-                                            android:id="@+id/tvQuantityMoneyLoan"
-                                            android:layout_width="60dp"
+                                        <com.google.android.material.card.MaterialCardView
+                                            android:id="@+id/btnSelectInstallment"
+                                            android:layout_width="wrap_content"
                                             android:layout_height="wrap_content"
-                                            android:text="@string/triple_dash"
-                                            android:textSize="15sp"
-                                            android:textStyle="bold"
-                                            android:gravity="center"
-                                            android:paddingVertical="10dp"
+                                            app:cardCornerRadius="8dp"
+                                            android:layout_marginStart="2.75dp"
+                                            app:cardElevation="1dp"
+                                            android:backgroundTint="@color/black_font_color"
                                             app:layout_constraintTop_toTopOf="parent"
                                             app:layout_constraintStart_toStartOf="parent"
-                                            app:layout_constraintBottom_toBottomOf="parent" />
+                                            app:layout_constraintBottom_toBottomOf="parent">
+
+                                            <TextView
+                                                android:layout_width="wrap_content"
+                                                android:layout_height="wrap_content"
+                                                android:text="@string/btn_select"
+                                                android:paddingHorizontal="13dp"
+                                                android:paddingVertical="10dp"
+                                                android:textSize="11sp"
+                                                android:textColor="@color/green_lime_wf"
+                                                android:textStyle="bold"
+                                                android:gravity="center"/>
+
+                                        </com.google.android.material.card.MaterialCardView>
 
                                         <androidx.cardview.widget.CardView
-                                            android:id="@+id/cvNominalMoneyLoan"
+                                            android:id="@+id/cvNominalEmployeeInstallment"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
-                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginStart="4dp"
                                             android:layout_marginEnd="2.5dp"
                                             android:layout_marginVertical="2.5dp"
                                             android:elevation="18dp"
                                             app:cardCornerRadius="7.61dp"
                                             android:outlineAmbientShadowColor="@color/black"
                                             android:outlineSpotShadowColor="@color/black"
-                                            app:layout_constraintTop_toTopOf="@id/tvQuantityMoneyLoan"
-                                            app:layout_constraintStart_toEndOf="@id/tvQuantityMoneyLoan"
-                                            app:layout_constraintBottom_toBottomOf="@id/tvQuantityMoneyLoan"
+                                            app:layout_constraintTop_toTopOf="parent"
+                                            app:layout_constraintStart_toEndOf="@id/btnSelectInstallment"
+                                            app:layout_constraintBottom_toBottomOf="parent"
                                             app:layout_constraintEnd_toEndOf="parent">
 
                                             <!-- AutoCompleteTextView for Dropdown -->
                                             <com.google.android.material.textfield.TextInputLayout
-                                                android:id="@+id/inputLayoutMoneyLoan"
+                                                android:id="@+id/inputLayoutEmployeeInstallment"
                                                 android:layout_width="match_parent"
                                                 android:layout_height="match_parent"
                                                 app:hintEnabled="false"
@@ -2008,7 +2023,7 @@
                                                 app:prefixTextAppearance="@style/PrefixTextAppearance3">
 
                                                 <com.google.android.material.textfield.TextInputEditText
-                                                    android:id="@+id/etNominalMoneyLoan"
+                                                    android:id="@+id/etNominalEmployeeInstallment"
                                                     android:layout_width="match_parent"
                                                     android:layout_height="match_parent"
                                                     android:drawableTint="@android:color/transparent"
@@ -2039,7 +2054,7 @@
                                     app:cardBackgroundColor="@color/light_grey_horizons_background"
                                     app:cardCornerRadius="8dp"
                                     app:cardElevation="0dp"
-                                    app:layout_constraintTop_toBottomOf="@id/cvMoneyLoan"
+                                    app:layout_constraintTop_toBottomOf="@id/cvEmployeeInstallment"
                                     app:layout_constraintStart_toStartOf="@id/cvNumberExpense"
                                     app:layout_constraintEnd_toEndOf="@id/cvExpenseLabel">
 
@@ -2126,7 +2141,7 @@
                                             android:id="@+id/cvNominalSalaryDeductionOfHoliday"
                                             android:layout_width="0dp"
                                             android:layout_height="0dp"
-                                            android:layout_marginStart="-5dp"
+                                            android:layout_marginStart="-6dp"
                                             android:layout_marginEnd="2.5dp"
                                             android:layout_marginVertical="2.5dp"
                                             android:elevation="18dp"
@@ -2240,7 +2255,7 @@
 
                             <View
                                 android:layout_width="match_parent"
-                                android:layout_height="250dp"
+                                android:layout_height="175dp"
                                 android:layout_below="@id/wrapperExpenseLabel"/>
 
                         </RelativeLayout>
@@ -2266,7 +2281,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/bottomFloatArea"
         android:layout_width="match_parent"
-        android:layout_height="250dp"
+        android:layout_height="wrap_content"
         android:gravity="center"
         android:paddingTop="25dp"
         android:elevation="10dp"
@@ -2274,57 +2289,6 @@
         android:layout_gravity="bottom|center_horizontal"
         android:clipToPadding="false"
         android:clipChildren="false">
-
-<!--        <TextView-->
-<!--            android:id="@+id/accumulateEmployeeSalaryLabel"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:textColor="@color/black"-->
-<!--            android:text="Akumulasi Gaji Karyawan"-->
-<!--            android:textSize="15sp"-->
-<!--            android:layout_marginStart="10dp"-->
-<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
-<!--            app:layout_constraintTop_toTopOf="parent" />-->
-
-<!--        <TextView-->
-<!--            android:id="@+id/accumulateEmployeeSalaryValue"-->
-<!--            android:layout_width="0dp"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:textColor="@color/black"-->
-<!--            android:text="Rp 20.000.000"-->
-<!--            android:layout_marginTop="2dp"-->
-<!--            android:textSize="23sp"-->
-<!--            android:textStyle="bold"-->
-<!--            android:layout_marginHorizontal="10dp"-->
-<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
-<!--            app:layout_constraintTop_toBottomOf="@id/accumulateEmployeeSalaryLabel"-->
-<!--            app:layout_constraintEnd_toEndOf="@id/btnSave"/>-->
-
-<!--        <TextView-->
-<!--            android:id="@+id/moneyLoanLongTempLabel"-->
-<!--            android:layout_width="wrap_content"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:textColor="@color/black"-->
-<!--            android:text="Pinjaman Jangka Panjang"-->
-<!--            android:textSize="15sp"-->
-<!--            android:layout_marginTop="4dp"-->
-<!--            android:layout_marginStart="10dp"-->
-<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
-<!--            app:layout_constraintTop_toBottomOf="@id/accumulateEmployeeSalaryValue" />-->
-
-<!--        <TextView-->
-<!--            android:id="@+id/moneyLoanLongTempValue"-->
-<!--            android:layout_width="0dp"-->
-<!--            android:layout_height="wrap_content"-->
-<!--            android:textColor="@color/alpha_magenta"-->
-<!--            android:text="Rp 20.000.000"-->
-<!--            android:layout_marginTop="2dp"-->
-<!--            android:textSize="23sp"-->
-<!--            android:textStyle="bold"-->
-<!--            android:layout_marginHorizontal="10dp"-->
-<!--            app:layout_constraintStart_toStartOf="@id/btnSave"-->
-<!--            app:layout_constraintTop_toBottomOf="@id/moneyLoanLongTempLabel"-->
-<!--            app:layout_constraintEnd_toEndOf="@id/btnSave"/>-->
 
         <androidx.cardview.widget.CardView
             android:id="@+id/cvAccumulateEmployeeSalary"
@@ -2338,7 +2302,8 @@
             app:cardBackgroundColor="@color/light_grey_horizons_background"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="@id/btnSave"
-            app:layout_constraintEnd_toEndOf="@id/btnSave">
+            app:layout_constraintEnd_toEndOf="@id/btnSave"
+            app:layout_constraintBottom_toTopOf="@id/btnSave">
 
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="match_parent"
@@ -2379,58 +2344,7 @@
 
         </androidx.cardview.widget.CardView>
 
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cvMoneyLoanLongTerm"
-            android:layout_width="0dp"
-            android:layout_height="60dp"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="15dp"
-            android:layout_marginHorizontal="2dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="1dp"
-            app:cardBackgroundColor="@color/light_grey_horizons_background"
-            app:layout_constraintTop_toBottomOf="@id/cvAccumulateEmployeeSalary"
-            app:layout_constraintStart_toStartOf="@id/btnSave"
-            app:layout_constraintEnd_toEndOf="@id/btnSave">
 
-            <androidx.appcompat.widget.LinearLayoutCompat
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/MoneyLoanLongTermLabel"
-                    android:layout_width="130dp"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:layout_marginStart="1.5dp"
-                    android:layout_marginVertical="1.3dp"
-                    android:paddingHorizontal="15dp"
-                    android:background="@drawable/background_income_from_service"
-                    android:gravity="center"
-                    android:text="Pinjaman Jangka Panjang"
-                    android:textColor="@color/black"
-                    android:textSize="11sp"
-                    android:textStyle="bold"/>
-
-                <TextView
-                    android:id="@+id/MoneyLoanLongTermValue"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginHorizontal="20dp"
-                    android:singleLine="true"
-                    android:ellipsize="marquee"
-                    android:marqueeRepeatLimit="marquee_forever"
-                    android:layout_gravity="center"
-                    tools:text="@string/rp_13_900_000"
-                    android:textColor="@color/alpha_magenta"
-                    android:textStyle="bold"
-                    android:textSize="21sp" />
-
-            </androidx.appcompat.widget.LinearLayoutCompat>
-
-        </androidx.cardview.widget.CardView>
 
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/btnSave"

@@ -30,6 +30,11 @@ data class ProductSales(
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var dataRef: String = ""
 ) : Parcelable {
+    // Mencegah field stability ikut terserialisasi ke Firestore
+    @get:Exclude
+    val stability: Int
+        get() = 0
+
     fun deepCopy(
         copyCreatorDetail: Boolean,
         copyCreatorWithReminder: Boolean,

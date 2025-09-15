@@ -66,6 +66,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     private var userRemainingBon: Int = 0
     private var bonInstallmentString: String = ""
     private var previousText: String = ""
+    private var previousCursorPosition: Int = 0
     private var isInSaveProcess: Boolean = false
     private var isFirstLoad: Boolean = true
     private var isOrientationChanged: Boolean = false
@@ -84,6 +85,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     private var textErrorForInstallment = "undefined"
     private var isProcessUpdatingData: Boolean = false
     private var currentToastMessage: String? = null
+    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
     // This property is only valid between onCreateView and
     // onDestroyView.
 
@@ -107,6 +109,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             userRemainingBon = savedInstanceState.getInt("user_remaining_bon", 0)
             bonInstallmentString = savedInstanceState.getString("bon_installment_string", "") ?: ""
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
+            previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
             isInSaveProcess = savedInstanceState.getBoolean("is_in_save_process", false)
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
@@ -170,22 +173,13 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                 bonEmployeeData = bonData
                 if (!isOrientationChanged) {
                     val previousInstallment = binding.etNominalInstallment.text.toString().ifEmpty { "0" }
-                    if (bonEmployeeData.returnStatus == context.getString(R.string.status_bon_paid_off)) {
-                        binding.etNominalInstallment.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
-                    } else {
-                        binding.etNominalInstallment.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.installmentsBon.toString()))
-                    }
-                    binding.etNominalInstallment.text?.let { binding.etNominalInstallment.setSelection(it.length) }
-                    if (binding.etNominalInstallment.isFocused) {
-                        binding.etNominalInstallment.clearFocus()
-
-                        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                        imm.hideSoftInputFromWindow(binding.etNominalInstallment.windowToken, 0)
-                    }
+                    setInitialInputForm()
                     if (isFirstLoad) init()
                     else { if (!isInSaveProcess) showToast("Mendeteksi perubahan pada data Bon pegawai.") }
-                    binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
-                    binding.etNominalRemainingBon.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.remainingBon.toString()))
+                    //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
+                    binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
+                    binding.etNominalRemainingBon.setText(format.format(bonEmployeeData.bonDetails.remainingBon))
+                    //binding.etNominalRemainingBon.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.remainingBon.toString()))
                     bonInstallmentString = binding.etNominalInstallment.text.toString()
                     if (bonInstallmentString != "0") {
                         isBonInstallmentValid = validateInstallmentInput(true)
@@ -205,7 +199,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                     Log.d("textErrorForInstallment", "eaffae")
                     init()
                     // PERLU DI LAKUKAN SETTEXT KARENA HALAMAN INI TIDAK LANGSUNG MELAKUKAN SETUP PADA SAAT ONVIEWCREATED SECARA LANGSUNG MELAINKAN HARUS MENUNGGU BONEMPLOYEEDATA DARI OBSERVER SEHINGGA PROSES PENGECHECKAN AWAL DARI LISTENER LAMA TERLEWATKAN
-                    binding.etNominalInstallment.setText(formatWithDotsKeepingLeadingZeros(binding.etNominalInstallment.text.toString().ifEmpty { "0" }))
+                    //binding.etNominalInstallment.setText(binding.etNominalInstallment.text.toString().ifEmpty { "0" })
                 }
                 isInSaveProcess = false
             }
@@ -262,6 +256,23 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         recordInstallmentViewModel.snackBarInputMessage.observe(this) { showSnackBar(it) }
     }
 
+    private fun setInitialInputForm() {
+        if (bonEmployeeData.returnStatus == context.getString(R.string.status_bon_paid_off)) {
+            //binding.etNominalInstallment.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
+            binding.etNominalInstallment.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
+        } else {
+            //binding.etNominalInstallment.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.installmentsBon.toString()))
+            binding.etNominalInstallment.setText(format.format(bonEmployeeData.bonDetails.installmentsBon))
+        }
+        binding.etNominalInstallment.text?.let { binding.etNominalInstallment.setSelection(it.length) }
+        if (binding.etNominalInstallment.isFocused) {
+            binding.etNominalInstallment.clearFocus()
+
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(binding.etNominalInstallment.windowToken, 0)
+        }
+    }
+
     private fun showLocalToast() {
         if (localToast == null) {
             localToast = Toast.makeText(context, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
@@ -296,6 +307,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         outState.putInt("user_remaining_bon", userRemainingBon)
         outState.putString("bon_installment_string", bonInstallmentString)
         outState.putString("previous_text", previousText)
+        outState.putInt("previous_cursor_position", previousCursorPosition)
         outState.putBoolean("is_in_save_process", isInSaveProcess)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("is_orientation_changed", true)
@@ -464,24 +476,30 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             when (v?.id) {
                 R.id.btnSave -> {
                     if (validateInputs()) {
-                        checkNetworkConnection {
-                            var originalString = bonInstallmentString
-                            if (bonInstallmentString.contains(".")) {
-                                originalString = originalString.replace(".", "")
-                            }
-                            val formattedAmount = originalString.toInt()
-                            if (originalString[0] == '0' && originalString.length > 1) {
-                                isBonInstallmentValid = validateInstallmentInput(true)
-                            } else {
+                        val formattedAmount = format.parse(bonInstallmentString)?.toInt()
+                        if (formattedAmount != null) {
+                            checkNetworkConnection {
                                 disableBtnWhenShowDialog(v) {
                                     saveEmployeeBon(formattedAmount)
                                 }
                             }
+                        } else {
+                            showToast("Input tidak valid karena menghasilkan null")
+                            setFocus(binding.etNominalInstallment)
                         }
+
+//                        var originalString = bonInstallmentString
+//                        if (bonInstallmentString.contains(".")) {
+//                            originalString = originalString.replace(".", "")
+//                        }
+//                        val formattedAmount = originalString.toInt()
+//                        if (originalString[0] == '0' && originalString.length > 1) {
+//                            isBonInstallmentValid = validateInstallmentInput(true)
+//                        } else { }
                     } else {
                         showToast("Mohon periksa kembali data yang dimasukkan")
                         //if (!isBonInstallmentValid) isBonInstallmentValid = validateInstallmentInput(true)
-                        if (!isBonInstallmentValid) setFocus(binding.etNominalInstallment)
+                        setFocus(binding.etNominalInstallment)
                     }
                 }
             }
@@ -572,6 +590,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     previousText = s.toString()
+                    previousCursorPosition = etNominalInstallment.selectionStart
                 }
 
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -599,20 +618,25 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                                 originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                             }
 
-                            val parsed = originalString.replace(".", "")
-                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-                            val formatted = if (previousText == "0") {
-                                format.format(parsed.toIntOrNull() ?: 0L)
-                            } else {
-                                formatWithDotsKeepingLeadingZeros(parsed)
-                            }
+//                            val parsed = originalString.replace(".", "")
+//                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+//                            val formatted = if (previousText == "0") {
+//                                format.format(parsed.toIntOrNull() ?: 0L)
+//                            } else {
+//                                formatWithDotsKeepingLeadingZeros(parsed)
+//                            }
+                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val formatted = format.format(parsed)
 
                             // Set the text
                             etNominalInstallment.setText(formatted)
                             bonInstallmentString = formatted
 
                             // Calculate the new cursor position
-                            val newCursorPosition = cursorPosition + (formatted.length - s.length)
+                            //val newCursorPosition = cursorPosition + (formatted.length - s.length)
+                            val newCursorPosition = if (formatted == previousText) {
+                                previousCursorPosition
+                            } else cursorPosition + (formatted.length - s.length)
 
                             // Ensure the new cursor position is within the bounds of the new text
                             val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
@@ -621,17 +645,26 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                             etNominalInstallment.setSelection(boundedCursorPosition)
 
                             val userBon = bonEmployeeData.bonDetails.nominalBon
-                            val userInstallment = parsed.toIntOrNull() ?: 0
-                            userRemainingBon = userBon - userInstallment
+                            userRemainingBon = userBon - parsed
                             if (userRemainingBon >= 0) {
-                                etNominalRemainingBon.setText(formatWithDotsKeepingLeadingZeros(userRemainingBon.toString()))
-                                etNominalRemainingBon.setTextColor(ContextCompat.getColor(context, R.color.black))
+                                etNominalRemainingBon.setText(format.format(userRemainingBon))
+                                etNominalRemainingBon.setTextColor(
+                                    ContextCompat.getColor(
+                                        context,
+                                        R.color.black
+                                    )
+                                )
                             } else {
                                 val bonAsPositive =
                                     kotlin.math.abs(userRemainingBon) // ambil nilai positifnya
-                                val formattedBon = "- " + formatWithDotsKeepingLeadingZeros(bonAsPositive.toString())
+                                val formattedBon = "- " + format.format(bonAsPositive)
                                 etNominalRemainingBon.setText(formattedBon)
-                                etNominalRemainingBon.setTextColor(ContextCompat.getColor(context, R.color.red))
+                                etNominalRemainingBon.setTextColor(
+                                    ContextCompat.getColor(
+                                        context,
+                                        R.color.red
+                                    )
+                                )
                             }
                         } catch (e: IllegalArgumentException) {
                             e.printStackTrace()
@@ -654,11 +687,11 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
-        val reversed = number.reversed()
-        val grouped = reversed.chunked(3).joinToString(".")
-        return grouped.reversed()
-    }
+//    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
+//        val reversed = number.reversed()
+//        val grouped = reversed.chunked(3).joinToString(".")
+//        return grouped.reversed()
+//    }
 
     private fun validateInputs(): Boolean {
         return isBonInstallmentValid
@@ -687,7 +720,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                 textErrorForInstallment = getString(R.string.your_value_entered_not_valid)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForInstallment
-                val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
+                //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
+                val nominal = format.format(formattedAmount)
                 recordInstallmentViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
@@ -754,7 +788,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
         recordInstallmentViewModel.setUserPreviousAccumulationBon(null)
         recordInstallmentViewModel.setUserCurrentAccumulationBon(null)
-        recordInstallmentViewModel.setUserEmployeeData(null, null)
+//        recordInstallmentViewModel.setUserEmployeeData(null, initPage = null, setupDropdown = null, isSavedInstanceStateNull = null)
+        recordInstallmentViewModel.setUserEmployeeData(null, setupDropdown = null, isSavedInstanceStateNull = null)
         recordInstallmentViewModel.setBonEmployeeData(null)
     }
 
