@@ -89,25 +89,9 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         with(binding) {
             when (v?.id) {
                 R.id.btnSignIn -> {
-//                    if (imageBarbershop.alpha.toInt() == 0) {
-//                        imageBarbershop.alpha = 1f // Tampilkan ImageView
-//                        wvGifBarbershop.apply {
-//                            clearCache(true)
-//                            clearHistory()
-//                            loadUrl("about:blank")
-//                        }
-//                    }
                     navigatePage(this@LandingPage, SelectUserRolePage::class.java, btnSignIn)
                 }
                 R.id.btnSignUp -> {
-//                    if (imageBarbershop.alpha.toInt() == 0) {
-//                        imageBarbershop.alpha = 1f // Tampilkan ImageView
-//                        wvGifBarbershop.apply {
-//                            clearCache(true)
-//                            clearHistory()
-//                            loadUrl("about:blank")
-//                        }
-//                    }
                     navigatePage(this@LandingPage, SignUpStepOne::class.java, btnSignUp)
                 }
                 else -> {}
@@ -131,16 +115,6 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
                 overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
     }
 
     private fun animateLandingPage() {
@@ -181,6 +155,16 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
             animatorSet.start()
         }, 900)
 
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
     }
 
     override fun onDestroy() {

@@ -8,7 +8,7 @@ import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.RawValue
 
 @Parcelize
-data class Reservation(
+data class ReservationData(
 //    @get:PropertyName("applicant_capster_ref") @set:PropertyName("applicant_capster_ref") var applicantCapsterRef: String = "",
     @get:PropertyName("share_profit_capster_ref") @set:PropertyName("share_profit_capster_ref") var shareProfitCapsterRef: String = "",
     @get:PropertyName("field_to_filtering") @set:PropertyName("field_to_filtering") var fieldToFiltering: String = "",
@@ -48,8 +48,8 @@ data class Reservation(
         copyCreatorWithReminder: Boolean,
         copyCreatorWithNotification: Boolean,
         copyCapsterDetail: Boolean
-    ): Reservation {
-        return Reservation(
+    ): ReservationData {
+        return ReservationData(
 //            applicantCapsterRef = this.applicantCapsterRef,
             shareProfitCapsterRef = this.shareProfitCapsterRef,
             fieldToFiltering = this.fieldToFiltering,

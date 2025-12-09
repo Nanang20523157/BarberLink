@@ -252,19 +252,20 @@
                                     android:clipChildren="false">
 
                                     <!-- RecyclerView -->
+
                                     <androidx.recyclerview.widget.RecyclerView
                                         android:id="@+id/rvListCapster"
                                         android:layout_width="match_parent"
                                         android:layout_height="match_parent"
-                                        tools:itemCount="4"
                                         android:layout_marginTop="5dp"
                                         android:layout_marginBottom="110dp"
-                                        tools:listitem="@layout/item_list_select_capster_adapter"
+                                        android:clipChildren="false"
+                                        android:clipToPadding="false"
+                                        android:nestedScrollingEnabled="false"
                                         android:orientation="vertical"
                                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                                        android:clipToPadding="false"
-                                        android:clipChildren="false"
-                                        android:nestedScrollingEnabled="false"/>
+                                        tools:itemCount="4"
+                                        tools:listitem="@layout/item_list_select_capster_adapter" />
 
                                     <TextView
                                         android:id="@+id/tvEmptyCapster"

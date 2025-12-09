@@ -13,18 +13,17 @@ import com.google.firebase.storage.FirebaseStorage
 class RegisterViewModelFactory(
     private val db: FirebaseFirestore,
     private val storage: FirebaseStorage,
-    private val auth: FirebaseAuth,
-    private val context: Context
+    private val auth: FirebaseAuth
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(StepOneViewModel::class.java)) {
-            return StepOneViewModel(db, storage, auth, context) as T
+            return StepOneViewModel(db, storage, auth) as T
         }
         if (modelClass.isAssignableFrom(StepTwoViewModel::class.java)) {
-            return StepTwoViewModel(db, storage, auth, context) as T
+            return StepTwoViewModel(db, storage, auth) as T
         }
         if (modelClass.isAssignableFrom(StepThreeViewModel::class.java)) {
-            return StepThreeViewModel(db, storage, auth, context) as T
+            return StepThreeViewModel(db, storage, auth) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

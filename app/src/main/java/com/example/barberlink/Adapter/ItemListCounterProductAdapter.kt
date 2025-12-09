@@ -39,6 +39,9 @@ class ItemListCounterProductAdapter : ListAdapter<Product, RecyclerView.ViewHold
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val product = getItem(position)
             (holder as ItemViewHolder).bind(product)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Product()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -89,7 +92,11 @@ class ItemListCounterProductAdapter : ListAdapter<Product, RecyclerView.ViewHold
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutCounterProductBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(product: Product) {
+
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListCounterProductAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {

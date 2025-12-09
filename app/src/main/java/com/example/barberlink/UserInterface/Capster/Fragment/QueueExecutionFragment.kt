@@ -22,7 +22,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.ItemInfo
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Network.NetworkMonitor
@@ -47,7 +47,7 @@ class QueueExecutionFragment : DialogFragment() {
     private var _binding: FragmentQueueExecutionBinding? = null
     private val queueExecutionViewModel: QueueControlViewModel by activityViewModels()
     private lateinit var context: Context
-    private var currentReservation: Reservation? = null
+    private var currentReservationData: ReservationData? = null
     private var capsterData: UserEmployeeData? = null
     //private var serviceList: ArrayList<Service>? = null
     //private var bundlingList: ArrayList<BundlingPackage>? = null
@@ -110,23 +110,23 @@ class QueueExecutionFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        queueExecutionViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+        queueExecutionViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
-                currentReservation = reservation.deepCopy(
+                currentReservationData = reservation.deepCopy(
                     copyCreatorDetail = false,
                     copyCreatorWithReminder = false,
                     copyCreatorWithNotification = false,
                     copyCapsterDetail = true,
                 )
 
-                isRandomCapster = (currentReservation?.capsterInfo?.capsterRef ?: "").isEmpty()
-                priceBeforeChange = currentReservation?.paymentDetail?.finalPrice ?: 0
+                isRandomCapster = (currentReservationData?.capsterInfo?.capsterRef ?: "").isEmpty()
+                priceBeforeChange = currentReservationData?.paymentDetail?.finalPrice ?: 0
                 accumulatedItemPrice = queueExecutionViewModel.duplicateBundlingPackageList.value?.sumOf { bundling -> bundling.bundlingQuantity * bundling.priceToDisplay }?.let { result ->
                     queueExecutionViewModel.duplicateServiceList.value?.sumOf { service -> service.serviceQuantity * service.priceToDisplay }
                         ?.plus(result)
                 } ?: 0
 
-                priceAfterChange = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+                priceAfterChange = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
 
                 binding.apply {
                     if (isRandomCapster) {
@@ -135,7 +135,7 @@ class QueueExecutionFragment : DialogFragment() {
                         val formattedText1: Spanned =
                             HtmlCompat.fromHtml(htmlText1, HtmlCompat.FROM_HTML_MODE_LEGACY)
                         tvMessage.text = formattedText1
-                        tvQueueNumber.text = getString(R.string.template_queue_number, currentReservation?.queueNumber)
+                        tvQueueNumber.text = getString(R.string.template_queue_number, currentReservationData?.queueNumber)
 
                         val text2 = getString(R.string.estimation_price_change)
                         val htmlText2 = String.format(text2)
@@ -157,14 +157,14 @@ class QueueExecutionFragment : DialogFragment() {
                         }
                     } else {
                         tvMessage.text = getString(R.string.request_confirmation_execution_queue)
-                        tvQueueNumber.text = getString(R.string.template_queue_number, currentReservation?.queueNumber)
+                        tvQueueNumber.text = getString(R.string.template_queue_number, currentReservationData?.queueNumber)
 
                         val text = getString(R.string.subtotal_reservation_bill)
                         val htmlText = String.format(text)
                         val formattedText: Spanned =
                             HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
                         tvSectionTitle.text = formattedText
-                        tvPriceBefore.text = numberToCurrency(currentReservation?.paymentDetail?.finalPrice?.toDouble() ?: 0.0)
+                        tvPriceBefore.text = numberToCurrency(currentReservationData?.paymentDetail?.finalPrice?.toDouble() ?: 0.0)
                         tvPriceBefore.setTextColor(root.context.resources.getColor(R.color.green_btn))
                     }
                 }
@@ -183,7 +183,7 @@ class QueueExecutionFragment : DialogFragment() {
                     val serviceList = queueExecutionViewModel.duplicateServiceList.value
                     val bundlingList = queueExecutionViewModel.duplicateBundlingPackageList.value
 
-                    currentReservation?.apply {
+                    currentReservationData?.apply {
                         shareProfitCapsterRef = capsterData?.userRef ?: ""
                         capsterInfo?.capsterName = capsterData?.fullname ?: ""
                         capsterInfo?.capsterRef = capsterData?.userRef ?: ""
@@ -195,10 +195,10 @@ class QueueExecutionFragment : DialogFragment() {
                     }
                 }
 
-                currentReservation?.queueStatus = "process"
+                currentReservationData?.queueStatus = "process"
 
                 setFragmentResult("execution_result_data", bundleOf(
-                    "reservation_data" to currentReservation,
+                    "reservation_data" to currentReservationData,
                     "is_random_capster" to isRandomCapster,
                     "dismiss_dialog" to true
                 ))
@@ -425,9 +425,7 @@ class QueueExecutionFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        queueExecutionViewModel.clearDuplicateServiceList()
-        queueExecutionViewModel.clearDuplicateBundlingPackageList()
-        queueExecutionViewModel.setCurrentReservationData(null)
+        queueExecutionViewModel.clearFragmentData()
     }
 
     companion object {
@@ -435,15 +433,15 @@ class QueueExecutionFragment : DialogFragment() {
          * Use this factory method to create a new instance of
          * this fragment using the provided parameters.
          *
-         * @param currentReservation Parameter 1.
+         * @param currentReservationData Parameter 1.
          * @param param2 Parameter 2.
          * @return A new instance of fragment RandomExecutionFragment.
          */
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, serviceList: ArrayList<Service>, bundlingList: ArrayList<BundlingPackage>, capsterData: UserEmployeeData) =
+        fun newInstance(currentReservationData: ReservationData, serviceList: ArrayList<Service>, bundlingList: ArrayList<BundlingPackage>, capsterData: UserEmployeeData) =
             QueueExecutionFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putParcelableArrayList(ARG_PARAM2, serviceList)
                     putParcelableArrayList(ARG_PARAM3, bundlingList)
                     putParcelable(ARG_PARAM4, capsterData)

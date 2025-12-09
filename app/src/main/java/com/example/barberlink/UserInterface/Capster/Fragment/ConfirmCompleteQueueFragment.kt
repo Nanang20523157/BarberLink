@@ -24,7 +24,7 @@ import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.Helper.Event
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
@@ -32,7 +32,9 @@ import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewMo
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentConfirmCompleteQueueBinding
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -50,7 +52,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     private var _binding: FragmentConfirmCompleteQueueBinding? = null
     private val confirmQueueViewModel: QueueControlViewModel by activityViewModels()
     private lateinit var context: Context
-    private var currentReservation: Reservation? = null
+    private var currentReservationData: ReservationData? = null
 
     private var previousText: String = ""
     private var previousCursorPosition: Int = 0
@@ -122,9 +124,9 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        confirmQueueViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+        confirmQueueViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
-                currentReservation = reservation
+                currentReservationData = reservation
                 binding.apply {
                     tvQueueNumber.text = getString(R.string.template_queue_number, reservation.queueNumber)
                 }
@@ -206,8 +208,9 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                         setFragmentResult(
                             "confirm_result_data",
                             bundleOf(
-                                "user_payment_amount" to NumberUtils.numberToCurrency(formattedAmount.toDouble()), // Nilai uang yang dibayar
+                                "reservation_data" to currentReservationData,
                                 "cash_back_amount" to finalCashBackAmount, // Nilai uang kembalian
+                                "user_payment_amount" to NumberUtils.numberToCurrency(formattedAmount.toDouble()), // Nilai uang yang dibayar
                                 "dismiss_dialog" to true
                             )
                         )
@@ -258,26 +261,22 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d("CheckPion", "isOrientationChanged = BB")
-        isOrientationChanged = false
-    }
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    context,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -416,7 +415,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             val moneyAmount = userInputAmount
             val clearText = moneyAmount.replace(".", "")
             val formattedAmount = clearText.toIntOrNull()
-            val finalPrice = currentReservation?.paymentDetail?.finalPrice ?: 0
+            val finalPrice = currentReservationData?.paymentDetail?.finalPrice ?: 0
 
             return if (moneyAmount.isEmpty() || moneyAmount == "0") {
                 textErrorForPayment = getString(R.string.amount_of_money_cannot_be_empty)
@@ -468,6 +467,12 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
+    override fun onResume() {
+        super.onResume()
+        Log.d("CheckPion", "isOrientationChanged = BB")
+        isOrientationChanged = false
+    }
+
     override fun onStop() {
         super.onStop()
         if (requireActivity().isChangingConfigurations) {
@@ -517,10 +522,10 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, param2: String? = null) =
+        fun newInstance(currentReservationData: ReservationData, param2: String? = null) =
             ConfirmCompleteQueueFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putString(ARG_PARAM2, param2)
                 }
             }

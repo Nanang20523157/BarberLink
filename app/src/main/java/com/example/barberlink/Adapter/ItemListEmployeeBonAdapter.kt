@@ -6,44 +6,64 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.OnLifecycleEvent
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BonEmployeeData
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.BonEmployeePage
 import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.example.barberlink.databinding.ItemListEmployeeBonAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeBonBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.lang.ref.WeakReference
 
 class ItemListEmployeeBonAdapter(
-    private val dbReference: FirebaseFirestore,
+    private val db: FirebaseFirestore,
     private val itemClicked: OnItemClicked,
     private val lifecycleOwner: LifecycleOwner,
     private val viewModel: BonEmployeeViewModel,
     private val callbackUpdate: OnProcessUpdateCallback,
     private val callbackToast: DisplayThisToastMessage,
     private val activity: BonEmployeePage
-) : ListAdapter<BonEmployeeData, RecyclerView.ViewHolder>(ListBonDiffCallback()), LifecycleObserver {
+) :
+    BaseCleanableAdapter,
+    ListAdapter<BonEmployeeData, RecyclerView.ViewHolder>(ListBonDiffCallback()), LifecycleObserver {
+    // ---- WEAK REFERENCES (prevent long-life reference) ----
+    private val dbRef = WeakReference(db)
+    private val itemClickRef = WeakReference(itemClicked)
+    private val lifecycleOwnerRef = WeakReference(lifecycleOwner)
+    private val viewModelRef = WeakReference(viewModel)
+    private val callbackUpdateRef = WeakReference(callbackUpdate)
+    private val callbackToastRef = WeakReference(callbackToast)
+    private val activityRef = WeakReference(activity)
+    private var recyclerViewRef: WeakReference<RecyclerView>? = null
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 3
-    private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var isOnline = false
-
     private var isDestroyed = false
     private val handler = Handler(Looper.getMainLooper())
 
@@ -59,22 +79,15 @@ class ItemListEmployeeBonAdapter(
         fun displayThisToast(message: String)
     }
 
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
-            }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
-        }
-    }
-
     init {
-        lifecycleOwner.lifecycle.addObserver(this)
-
-        lifecycleOwner.lifecycleScope.launch {
-            NetworkMonitor.isOnline.collect { status ->
-                isOnline = status
-                notifyDataSetChanged()
+        lifecycleOwnerRef.get()?.let { owner ->
+            owner.lifecycleScope.launch {
+                owner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    NetworkMonitor.isOnline.collect { status ->
+                        isOnline = status
+                        notifyDataSetChanged()
+                    }
+                }
             }
         }
     }
@@ -83,15 +96,21 @@ class ItemListEmployeeBonAdapter(
         this.lastScrollPosition = position
     }
 
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef = WeakReference(recyclerView)
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+    }
+
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        if (recyclerView == null) {
-            recyclerView = parent as RecyclerView
-        }
         return if (viewType == VIEW_TYPE_SHIMMER) {
             val shimmerBinding = ShimmerLayoutEmployeeBonBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
@@ -118,7 +137,8 @@ class ItemListEmployeeBonAdapter(
     fun setShimmer(shimmer: Boolean) {
         if (isShimmer == shimmer) return
 
-        val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+        val rv = recyclerViewRef?.get()
+        val layoutManager = rv?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             var step = "one"
@@ -133,13 +153,18 @@ class ItemListEmployeeBonAdapter(
         }
 
         isShimmer = shimmer
-        currentList.forEachIndexed { index, bonData ->
-            Log.d("SuccessBon", "$index >>> ${bonData.uid} || ${bonData.bonDetails.nominalBon}")
+        // saat shimmer ON → jangan clear (biarkan shimmerViewHolder collect data)
+        if (!shimmer) {
+            // saat shimmer OFF (tampilkan data real)
+            shimmerViewList.forEach { it.stopShimmer() }
+            shimmerViewList.clear()
         }
+        // ⬇️ ini yang benar: mode tampilan berubah total
         notifyDataSetChanged()
 
-        recyclerView?.post {
-            val itemCount = recyclerView?.adapter?.itemCount ?: 0
+        rv?.post {
+            val layoutManager2 = recyclerViewRef?.get()?.layoutManager as? LinearLayoutManager ?: return@post
+            val itemCount = recyclerViewRef?.get()?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
@@ -151,28 +176,21 @@ class ItemListEmployeeBonAdapter(
             // Validasi posisi target
             if (positionToScroll in 0 until itemCount) {
                 Log.e("RecyclerView", "Target position: $positionToScroll")
-                layoutManager?.scrollToPosition(positionToScroll)
+                layoutManager2.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
-
     }
 
     fun letScrollToLastPosition() {
-        Log.d("ObjectReferences", "ItemListCollapseQueueAdapter >>>>>>>>")
-        // Log apakah recyclerView null
-        if (recyclerView == null) {
-            Log.e("ObjectReferences", "recyclerView is null")
-        } else {
-            Log.d("ObjectReferences", "recyclerView is not null")
-        }
+        Log.d("ObjectReferences", "ItemListApprovalBonAdapter >>>>>>>>")
+        waitForRecyclerView { recyclerView ->
+            val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return@waitForRecyclerView
 
-        waitForRecyclerView {
-            val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
-            recyclerView?.post {
-                val itemCount = recyclerView?.adapter?.itemCount ?: 0
+            recyclerView.post {
+                val itemCount = recyclerView.adapter?.itemCount ?: 0
                 val positionToScroll = if (isShimmer) {
                     minOf(lastScrollPosition, shimmerItemCount - 1)
                 } else {
@@ -182,17 +200,16 @@ class ItemListEmployeeBonAdapter(
                 // Validasi posisi target
                 if (positionToScroll in 0 until itemCount) {
                     Log.d("ObjectReferences", "adapter: $lastScrollPosition")
-                    layoutManager?.scrollToPosition(positionToScroll)
+                    layoutManager.scrollToPosition(positionToScroll)
                 } else {
                     // Log untuk debugging
                     Log.e("ObjectReferences", "Invalid target position: $positionToScroll, itemCount: $itemCount")
                 }
             }
         }
-
     }
 
-    private fun waitForRecyclerView(action: () -> Unit) {
+    private fun waitForRecyclerView(action: (RecyclerView) -> Unit) {
         val checkInterval = 50L
 
         handler.post(object : Runnable {
@@ -202,8 +219,9 @@ class ItemListEmployeeBonAdapter(
                     return
                 }
 
-                if (recyclerView != null) {
-                    action()
+                val rv = recyclerViewRef?.get()
+                if (rv != null) {
+                    action(rv)
                 } else {
                     handler.postDelayed(this, checkInterval)
                 }
@@ -211,7 +229,7 @@ class ItemListEmployeeBonAdapter(
         })
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutEmployeeBonBinding) :
+    inner class ShimmerViewHolder(val binding: ShimmerLayoutEmployeeBonBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(bonData: BonEmployeeData) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -221,11 +239,11 @@ class ItemListEmployeeBonAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListEmployeeBonAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    inner class ItemViewHolder(val binding: ItemListEmployeeBonAdapterBinding) :
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(bonData: BonEmployeeData) {
-            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+//            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
                 tvPaymentTypeInfo.isSelected = true
@@ -308,7 +326,9 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData, adapterPosition, "canceled")
+                    lifecycleOwnerRef.get()?.lifecycleScope?.launch {
+                        updateBonStatus(bonData, "canceled")
+                    }
                 }
 
                 btnReSubmit.setOnClickListener {
@@ -318,7 +338,9 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData, adapterPosition, "waiting")
+                    lifecycleOwnerRef.get()?.lifecycleScope?.launch {
+                        updateBonStatus(bonData, "waiting")
+                    }
                 }
 
                 btnDelete.setOnClickListener {
@@ -328,11 +350,18 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    deleteBonItem(bonData, adapterPosition)
+                    val position = bindingAdapterPosition
+                    if (position == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    val isLastItem = position == currentList.lastIndex
+
+                    lifecycleOwnerRef.get()?.lifecycleScope?.launch {
+                        deleteBonItem(bonData, isLastItem)
+                    }
                 }
 
                 btnEdit.setOnClickListener {
-                    itemClicked.onItemClickListener(bonData)
+                    itemClickRef.get()?.onItemClickListener(bonData)
                 }
             }
         }
@@ -358,44 +387,138 @@ class ItemListEmployeeBonAdapter(
 
         }
 
+        private suspend fun updateBonStatus(
+            bonData: BonEmployeeData,
+            newStatus: String
+        ) {
+            activityRef.get()?.showProgressBar(true) // Nyalakan progress bar
+            val bonRef = dbRef.get()
+                ?.collection("${bonData.rootRef}/employee_bon")
+                ?.document(bonData.uid)
+
+            callbackUpdateRef.get()?.onProcessUpdate(true)
+
+            // Jalankan di coroutine agar non-blocking
+            withContext(Dispatchers.IO) {
+                val success = try {
+                    // 🔥 Offline-aware Firestore update
+                    bonRef?.let {
+                        bonRef.update("bon_status", newStatus)
+                            .awaitWriteWithOfflineFallback(tag = "UpdateBonStatus")
+                    } ?: run { throw NullPointerException("Database Reference is null.") }
+                } catch (e: Exception) {
+                    Logger.e("UpdateBonStatus", "❌ Error: ${e.message}")
+                    false
+                }
+
+                withContext(Dispatchers.Main) {
+                    activityRef.get()?.showProgressBar(false)
+
+                    if (!success) {
+                        callbackUpdateRef.get()?.onProcessUpdate(false)
+                        callbackToastRef.get()?.displayThisToast(
+                            "Gagal memperbarui status. Periksa koneksi internet Anda."
+                        )
+                    }
+                }
+            }
+        }
+
+        private suspend fun deleteBonItem(
+            bonData: BonEmployeeData,
+            isLastPosition: Boolean
+        ) {
+            activityRef.get()?.showProgressBar(true)
+
+            val bonRef = dbRef.get()
+                ?.collection("${bonData.rootRef}/employee_bon")
+                ?.document(bonData.uid)
+
+            callbackUpdateRef.get()?.onProcessUpdate(true)
+
+            withContext(Dispatchers.IO) {
+                val success = try {
+                    // 🔥 Offline-aware Firestore delete
+                    bonRef?.let {
+                        bonRef.delete()
+                            .awaitWriteWithOfflineFallback(tag = "DeleteBonItem")
+                    } ?: run { throw NullPointerException("Database Reference is null.") }
+                } catch (e: Exception) {
+                    Logger.e("DeleteBonItem", "❌ Error: ${e.message}")
+                    false
+                }
+
+                withContext(Dispatchers.Main) {
+                    activityRef.get()?.showProgressBar(false)
+
+                    if (success) {
+                        viewModelRef.get()?.setDataBonDeleted(bonData.copy(
+                            isDeleteLastPosition = isLastPosition
+                        ), "Bon Pegawai Berhasil Dihapus")
+                    } else {
+                        callbackUpdateRef.get()?.onProcessUpdate(false)
+                        callbackToastRef.get()?.displayThisToast(
+                            "Gagal menghapus data. Periksa koneksi internet Anda."
+                        )
+                    }
+                }
+            }
+        }
+
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivPhotoProfile)
+            binding.ivPhotoProfile.setImageDrawable(null)
+        }
+
     }
 
-    private fun updateBonStatus(bonData: BonEmployeeData, position: Int, newStatus: String) {
-        activity.showProgressBar(true) // Nyalakan progress bar
+    override fun cleanUp() {
+        isDestroyed = true
 
-        val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
+        // Stop shimmer + release shimmer containers
+        shimmerViewList.forEach { view ->
+            view.stopShimmer()
+            view.setShimmer(null)
+        }
+        shimmerViewList.clear()
 
-        bonRef.update("bon_status", newStatus)
-            .addOnSuccessListener {
-                callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
-            }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
-                callbackToast.displayThisToast("Gagal memperbarui status: ${e.message}")
-            }
-            .addOnCompleteListener {
-                activity.showProgressBar(false) // Matikan progress bar setelah selesai
-            }
+        // Stop Glide on all visible ViewHolders
+        recyclerViewRef?.get()?.children?.forEach { child ->
+            val holder = recyclerViewRef?.get()?.getChildViewHolder(child)
+            if (holder is CleanableViewHolder) holder.clear()
+        }
+
+        // Cancel pending handler callbacks
+        handler.removeCallbacksAndMessages(null)
+
+        // Release adapter dataset to break Watchers in DiffUtil
+        submitList(null)
+
+        // Clear WeakReferences in safe order
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+
+        // Clear WeakReferences
+        dbRef.clear()
+        itemClickRef.clear()
+        lifecycleOwnerRef.clear()
+        viewModelRef.clear()
+        callbackToastRef.clear()
+        callbackUpdateRef.clear()
+        activityRef.clear()
+
+        Log.d("AdapterCleanUp", "ItemListEmployeeBonAdapter cleaned successfully.")
     }
 
-    private fun deleteBonItem(bonData: BonEmployeeData, position: Int) {
-        bonData.itemPosition = position
-        activity.showProgressBar(true) // Nyalakan progress bar
 
-        val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
-
-        bonRef.delete()
-            .addOnSuccessListener {
-                callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
-                viewModel.setDataBonDeleted(bonData, "Bon Pegawai Berhasil Dihapus")
-            }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
-                callbackToast.displayThisToast("Gagal menghapus data: ${e.message}")
-            }
-            .addOnCompleteListener {
-                activity.showProgressBar(false) // Matikan progress bar setelah selesai
-            }
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is ShimmerViewHolder) {
+            holder.binding.shimmerViewContainer.stopShimmer()
+            shimmerViewList.remove(holder.binding.shimmerViewContainer)
+        } else if (holder is CleanableViewHolder) {
+            holder.clear()
+        }
     }
 
     companion object {

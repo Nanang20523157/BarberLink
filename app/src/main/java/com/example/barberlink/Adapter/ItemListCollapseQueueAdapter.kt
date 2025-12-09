@@ -7,50 +7,44 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat.getColor
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.OnLifecycleEvent
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
 import com.example.barberlink.databinding.ItemListNumberQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListNumberQueueBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import java.lang.ref.WeakReference
 
 class ItemListCollapseQueueAdapter(
     private val itemClicked: OnItemClicked,
-    private val lifecycleOwner: LifecycleOwner,
     private val callbackToast: DisplayThisToastMessage
-) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()), LifecycleObserver {
+) :
+    BaseCleanableAdapter,
+    ListAdapter<ReservationData, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
+    // ---------- Weak References ----------
+    private val itemClickRef = WeakReference(itemClicked)
+    private val callbackToastRef = WeakReference(callbackToast)
+    private var recyclerViewRef: WeakReference<RecyclerView>? = null
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private var shimmerItemCount = 4
-    private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var blockAllUserClickAction: Boolean = false
-
     private var isDestroyed = false
     private val handler = Handler(Looper.getMainLooper())
-
-    init {
-        lifecycleOwner.lifecycle.addObserver(this)
-    }
 
     interface DisplayThisToastMessage {
         fun displayThisToast(message: String)
     }
 
-    fun stopAllShimmerEffects() {
-        shimmerViewList.forEach {
-            it.stopShimmer()
-        }
-        shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
+    interface OnItemClicked {
+        fun onItemClickListener(reservationData: ReservationData, rootView: View, position: Int)
     }
 
     fun setlastScrollPosition(position: Int) {
@@ -61,12 +55,17 @@ class ItemListCollapseQueueAdapter(
         this.shimmerItemCount = size
     }
 
-    interface OnItemClicked {
-        fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
-    }
-
     fun setBlockStatusUI(value: Boolean) {
         this.blockAllUserClickAction = value
+    }
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef = WeakReference(recyclerView)
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -75,9 +74,6 @@ class ItemListCollapseQueueAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        if (recyclerView == null) {
-            recyclerView = parent as RecyclerView
-        }
         return if (viewType == VIEW_TYPE_SHIMMER) {
             val shimmerBinding = ShimmerLayoutListNumberQueueBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
@@ -93,7 +89,7 @@ class ItemListCollapseQueueAdapter(
             (holder as ItemViewHolder).bind(reservation)
         } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
             // Call bind for ShimmerViewHolder
-            (holder as ShimmerViewHolder).bind(Reservation()) // Pass a dummy Reservation if needed
+            (holder as ShimmerViewHolder).bind(ReservationData()) // Pass a dummy Reservation if needed
         }
         Log.d("CheckListQueue", "@@@")
     }
@@ -105,8 +101,8 @@ class ItemListCollapseQueueAdapter(
     fun setShimmer(shimmer: Boolean) {
         if (isShimmer == shimmer) return
 
-        val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
-        Log.d("TagScroll", "adapter isShimmer: $isShimmer")
+        val rv = recyclerViewRef?.get()
+        val layoutManager = rv?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             var step = "one"
@@ -116,49 +112,49 @@ class ItemListCollapseQueueAdapter(
                 step = "two"
             }
             lastScrollPosition++
-            Log.v("TagScroll", "product step: $step")
-        } else {
-            Log.d("TagScroll", "lastScrollPosition: $lastScrollPosition")
+            Log.v("RecyclerView", "employee step: $step")
+            Log.d("RecyclerView", "isShimmer BonEmployeeData: $isShimmer, lastScrollPosition: $lastScrollPosition")
         }
 
         isShimmer = shimmer
-        Log.d("DisDisDIs", "4444 beta")
+        // saat shimmer ON → jangan clear (biarkan shimmerViewHolder collect data)
+        if (!shimmer) {
+            // saat shimmer OFF (tampilkan data real)
+            shimmerViewList.forEach { it.stopShimmer() }
+            shimmerViewList.clear()
+        }
+        // ⬇️ ini yang benar: mode tampilan berubah total
         notifyDataSetChanged()
 
-        recyclerView?.post {
-            val itemCount = recyclerView?.adapter?.itemCount ?: 0
+        rv?.post {
+            val layoutManager2 = recyclerViewRef?.get()?.layoutManager as? LinearLayoutManager ?: return@post
+            val itemCount = recyclerViewRef?.get()?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
+                Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
+                Log.d("RecyclerView", "86: shimmer employee off")
                 lastScrollPosition
             }
 
             // Validasi posisi target
-            Log.d("TagScroll", "positionToScroll: $positionToScroll || itemCount: $itemCount")
             if (positionToScroll in 0 until itemCount) {
-                Log.d("TagScroll", "adapter Queue: $lastScrollPosition")
-                layoutManager?.scrollToPosition(positionToScroll)
+                Log.e("RecyclerView", "Target position: $positionToScroll")
+                layoutManager2.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
-
     }
 
     fun letScrollToLastPosition() {
         Log.d("ObjectReferences", "ItemListCollapseQueueAdapter >>>>>>>>")
-        // Log apakah recyclerView null
-        if (recyclerView == null) {
-            Log.e("ObjectReferences", "recyclerView is null")
-        } else {
-            Log.d("ObjectReferences", "recyclerView is not null")
-        }
+        waitForRecyclerView { recyclerView ->
+            val layoutManager = recyclerView.layoutManager as? LinearLayoutManager ?: return@waitForRecyclerView
 
-        waitForRecyclerView {
-            val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
-            recyclerView?.post {
-                val itemCount = recyclerView?.adapter?.itemCount ?: 0
+            recyclerView.post {
+                val itemCount = recyclerView.adapter?.itemCount ?: 0
                 val positionToScroll = if (isShimmer) {
                     minOf(lastScrollPosition, shimmerItemCount - 1)
                 } else {
@@ -168,17 +164,16 @@ class ItemListCollapseQueueAdapter(
                 // Validasi posisi target
                 if (positionToScroll in 0 until itemCount) {
                     Log.d("ObjectReferences", "adapter: $lastScrollPosition")
-                    layoutManager?.scrollToPosition(positionToScroll)
+                    layoutManager.scrollToPosition(positionToScroll)
                 } else {
                     // Log untuk debugging
                     Log.e("ObjectReferences", "Invalid target position: $positionToScroll, itemCount: $itemCount")
                 }
             }
         }
-
     }
 
-    private fun waitForRecyclerView(action: () -> Unit) {
+    private fun waitForRecyclerView(action: (RecyclerView) -> Unit) {
         val checkInterval = 50L
 
         handler.post(object : Runnable {
@@ -188,8 +183,9 @@ class ItemListCollapseQueueAdapter(
                     return
                 }
 
-                if (recyclerView != null) {
-                    action()
+                val rv = recyclerViewRef?.get()
+                if (rv != null) {
+                    action(rv)
                 } else {
                     handler.postDelayed(this, checkInterval)
                 }
@@ -199,7 +195,7 @@ class ItemListCollapseQueueAdapter(
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(reservation: Reservation) {
+        fun bind(reservationData: ReservationData) {
             shimmerViewList.add(binding.shimmerTvQueueNumber)
             if (!binding.shimmerTvQueueNumber.isShimmerStarted) {
                 binding.shimmerTvQueueNumber.startShimmer()
@@ -214,21 +210,21 @@ class ItemListCollapseQueueAdapter(
     inner class ItemViewHolder(private val binding: ItemListNumberQueueAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(reservation: Reservation) {
-            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+        fun bind(reservationData: ReservationData) {
+            //if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
                 binding.tvCurrentQueueNumber.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
                 val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
                 binding.tvQueueNumberPrefix.text = root.context.getString(R.string.template_number_prefix, formattedNumber)
-                binding.tvCurrentQueueNumber.text = reservation.queueNumber
+                binding.tvCurrentQueueNumber.text = reservationData.queueNumber
 //                tvQueueNumber.text = reservation.queueNumber.toString()
 //                tvCustomerName.text = reservation.customerName
 //                tvServiceName.text = reservation.serviceName
 //                tvServiceTime.text = reservation.serviceTime.toString()
 
-                when (reservation.queueStatus) {
+                when (reservationData.queueStatus) {
                     "waiting" -> {
                         setStatusWaiting()
                     }
@@ -248,8 +244,11 @@ class ItemListCollapseQueueAdapter(
 
                 cvQueueNumber.setOnClickListener {
                     if (!blockAllUserClickAction) {
-                        itemClicked.onItemClickListener(reservation, root, adapterPosition)
-                    } else callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!")
+                        val position = bindingAdapterPosition
+                        if (position == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                        itemClickRef.get()?.onItemClickListener(reservationData, root, position)
+                    } else callbackToastRef.get()?.displayThisToast("Tolong tunggu sampai proses selesai!!!")
                 }
             }
         }
@@ -301,10 +300,30 @@ class ItemListCollapseQueueAdapter(
         }
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    fun onDestroy() {
+    override fun cleanUp() {
+        // Tandai adapter sudah tidak hidup
         isDestroyed = true
-        handler.removeCallbacksAndMessages(null) // Hentikan semua callback
+
+        // Stop semua shimmer animation and release shimmer views
+        shimmerViewList.forEach { view ->
+            view.stopShimmer()
+            view.setShimmer(null)
+        }
+        shimmerViewList.clear()
+
+        // Stop all pending UI tasks
+        handler.removeCallbacksAndMessages(null)
+
+        // Clear list so adapter releases references
+        submitList(null)
+
+        // Clear WeakReferences in safe order
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+
+        // Release event/callback references
+        itemClickRef.clear()
+        callbackToastRef.clear()
     }
 
     companion object {
@@ -312,12 +331,12 @@ class ItemListCollapseQueueAdapter(
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class ReservationDiffCallback : DiffUtil.ItemCallback<Reservation>() {
-        override fun areItemsTheSame(oldItem: Reservation, newItem: Reservation): Boolean {
+    class ReservationDiffCallback : DiffUtil.ItemCallback<ReservationData>() {
+        override fun areItemsTheSame(oldItem: ReservationData, newItem: ReservationData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Reservation, newItem: Reservation): Boolean {
+        override fun areContentsTheSame(oldItem: ReservationData, newItem: ReservationData): Boolean {
             return oldItem == newItem
         }
     }

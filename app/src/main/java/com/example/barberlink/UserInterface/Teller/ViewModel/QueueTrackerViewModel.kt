@@ -4,12 +4,42 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 
 class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
+
+    val listenerOutletListMutex =  ReentrantCoroutineMutex()
+    val listenerCapsterListMutex = ReentrantCoroutineMutex()
+    val listenerReservationsMutex = ReentrantCoroutineMutex()
+    val capsterListMutex = ReentrantCoroutineMutex()
+    val reservationMutex = ReentrantCoroutineMutex()
+    val animationMutex = ReentrantCoroutineMutex()
+
+    // =========================================================
+    // === UTILITAS DASAR
+    // =========================================================
+
+    private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
+        withContext(Dispatchers.Main) { value = newValue }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.addItem(item: T) {
+        val updated = (value ?: mutableListOf()).apply { add(item) }
+        updateOnMain(updated)
+    }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.clearList() =
+        updateOnMain(mutableListOf())
+
+    // =======================================================================
 
     sealed class PendingCalculation {
         data object None : PendingCalculation()
@@ -19,17 +49,9 @@ class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _pendingCalculation = MutableLiveData<PendingCalculation>(PendingCalculation.None)
     val pendingCalculation: LiveData<PendingCalculation> = _pendingCalculation
 
-    fun setPendingCalculation(isAllData: Boolean) {
-        _pendingCalculation.postValue(PendingCalculation.Recalculate(isAllData))
-    }
-
-    fun clearPendingCalculation() {
-        _pendingCalculation.postValue(PendingCalculation.None)
-    }
-
     // LiveData for reservations and capsters
-    private val _reservationList = MutableLiveData<List<Reservation>>(emptyList())
-    val reservationList: LiveData<List<Reservation>> = _reservationList
+    private val _reservationDataList = MutableLiveData<List<ReservationData>>(emptyList())
+    val reservationDataList: LiveData<List<ReservationData>> = _reservationDataList
 
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
@@ -61,114 +83,149 @@ class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _capsterWaitingQueues = MutableLiveData<Map<String, List<String>>>(emptyMap())
     val capsterWaitingQueues: LiveData<Map<String, List<String>>> = _capsterWaitingQueues
 
-    fun setCapsterWaitingQueues(data: Map<String, List<String>>) {
-        _capsterWaitingQueues.postValue(data)
+    suspend fun setPendingCalculation(isAllData: Boolean) {
+        withContext(Dispatchers.Main) {
+            _pendingCalculation.postValue(PendingCalculation.Recalculate(isAllData))
+        }
     }
 
-//    private val _reSetupDropdownCapster = MutableLiveData<Boolean?>()
-//    val reSetupDropdownCapster: LiveData<Boolean?> = _reSetupDropdownCapster
-
-    fun setUpdateUIBoard(withShimmer: Boolean?) {
-        _updateUIBoard.postValue(withShimmer)
+    suspend fun clearPendingCalculation() {
+        withContext(Dispatchers.Main) {
+            _pendingCalculation.postValue(PendingCalculation.None)
+        }
     }
 
-    fun setCalculateDataReservation(isAllData: Boolean?) {
-        _calculateDataReservation.postValue(isAllData)
+    suspend fun setCapsterWaitingQueues(data: Map<String, List<String>>) {
+        withContext(Dispatchers.Main) {
+            _capsterWaitingQueues.postValue(data)
+        }
     }
 
-//    fun setReSetupDropdownCapster(reSetup: Boolean) {
-//        _reSetupDropdownCapster.postValue(reSetup)
-//    }
-
-    override fun setOutletSelected(outlet: Outlet?) {
-        _outletSelected.postValue(outlet)
+    suspend fun setUpdateUIBoard(withShimmer: Boolean?) {
+        withContext(Dispatchers.Main) {
+            _updateUIBoard.postValue(withShimmer)
+        }
     }
 
-    fun setCapsterList(
+    suspend fun setCalculateDataReservation(isAllData: Boolean?) {
+        withContext(Dispatchers.Main) {
+            _calculateDataReservation.postValue(isAllData)
+        }
+    }
+
+    override suspend fun setOutletSelected(outlet: Outlet?) {
+        withContext(Dispatchers.Main) {
+            _outletSelected.postValue(outlet)
+        }
+    }
+
+    suspend fun setCapsterList(
         capsterList: List<UserEmployeeData>,
         setupDropdown: Boolean?,
         isSavedInstanceStateNull: Boolean?
     ) {
         Log.d("CacheChecking", "setCapsterList --> capsterList size: ${capsterList.size}")
-        _capsterList.postValue(capsterList)
-        _setupDropdownFilter.postValue(setupDropdown)
-        _setupDropdownFilterWithNullState.postValue(isSavedInstanceStateNull)
+        withContext(Dispatchers.Main) {
+            _capsterList.postValue(capsterList)
+            _setupDropdownFilter.postValue(setupDropdown)
+            _setupDropdownFilterWithNullState.postValue(isSavedInstanceStateNull)
+        }
     }
 
-    fun updateCapsterList(capsterList: List<UserEmployeeData>) {
-        _capsterList.postValue(capsterList)
+    suspend fun updateCapsterList(capsterList: List<UserEmployeeData>) {
+        withContext(Dispatchers.Main) {
+            _capsterList.postValue(capsterList)
+        }
     }
 
-    override fun setupDropdownFilterWithNullState() {
-        _setupDropdownFilter.postValue(false)
-        _setupDropdownFilterWithNullState.postValue(false)
+    override suspend fun setupDropdownFilterWithNullState() {
+        withContext(Dispatchers.Main) {
+            _setupDropdownFilter.postValue(false)
+            _setupDropdownFilterWithNullState.postValue(false)
+        }
         Log.d("ObjectReferences", "neptunes 5")
     }
 
-//    fun addCapsterNames(capsterNames: List<String>) {
-//        Log.d("CacheChecking", "addCapsterNames --> capsterNames size: ${capsterNames.size}")
-//        _capsterNames.postValue(capsterNames)
-//    }
-
-    fun triggerFilteringDataCapster(withShimmer: Boolean?) {
-        _letsFilteringDataCapster.postValue(withShimmer)
+    suspend fun triggerFilteringDataCapster(withShimmer: Boolean?) {
+        withContext(Dispatchers.Main) {
+            _letsFilteringDataCapster.postValue(withShimmer)
+        }
     }
 
-    fun setFilteredCapsterList(filteredCapsterList: List<UserEmployeeData>) {
+    suspend fun setFilteredCapsterList(filteredCapsterList: List<UserEmployeeData>) {
         Log.d("CacheChecking", "setFilteredCapsterList --> filteredCapsterList size: ${filteredCapsterList.size}")
-        _filteredCapsterList.postValue(filteredCapsterList)
+        withContext(Dispatchers.Main) {
+            _filteredCapsterList.postValue(filteredCapsterList)
+        }
     }
 
-    fun setCapsterToDisplay(withShimmer: Boolean?) {
-        _displayFilteredCapsterResult.postValue(withShimmer)
+    suspend fun setCapsterToDisplay(withShimmer: Boolean?) {
+        withContext(Dispatchers.Main) {
+            _displayFilteredCapsterResult.postValue(withShimmer)
+        }
+    }
+
+    suspend fun setCapsterWaitingCount(capsterWaitingCount: Map<String, Int>) {
+        withContext(Dispatchers.Main) {
+            _capsterWaitingCount.postValue(capsterWaitingCount)
+        }
+    }
+
+    suspend fun setCurrentQueue(currentQueue: Map<String, String>) {
+        withContext(Dispatchers.Main) {
+            _currentQueue.postValue(currentQueue)
+        }
+    }
+
+    suspend fun setReservationList(reservationDataList: List<ReservationData>, isAllData: Boolean?) {
+        Log.d("CacheChecking", "addReservationList --> reservationList size: ${reservationDataList.size}")
+        withContext(Dispatchers.Main) {
+            _reservationDataList.postValue(reservationDataList)
+            _calculateDataReservation.postValue(isAllData)
+        }
+    }
+
+    suspend fun clearCapsterList() {
+        withContext(Dispatchers.Main) {
+            _capsterList.postValue(emptyList())
+        }
+    }
+
+    suspend fun clearCapsterWaitingCount() {
+        withContext(Dispatchers.Main) {
+            _capsterWaitingCount.postValue(emptyMap())
+        }
+    }
+
+    suspend fun clearCurrentQueue() {
+        withContext(Dispatchers.Main) {
+            _currentQueue.postValue(emptyMap())
+        }
+    }
+
+    suspend fun clearReservationList() {
+        withContext(Dispatchers.Main) {
+            _reservationDataList.postValue(emptyList())
+        }
+    }
+
+    suspend fun removeCapsterWaitingCountByKey(key: String) {
+        withContext(Dispatchers.Main) {
+            val currentMap = capsterWaitingCount.value?.toMutableMap()
+            if (currentMap != null) {
+                currentMap.remove(key)
+                _capsterWaitingCount.postValue(currentMap)
+            }
+        }
     }
 
     fun clearState() {
-        _letsFilteringDataCapster.value = null
-        _displayFilteredCapsterResult.value = null
-        _updateUIBoard.value = null
-        _calculateDataReservation.value = null
-//        _reSetupDropdownCapster.value = null
-    }
-
-    fun setCapsterWaitingCount(capsterWaitingCount: Map<String, Int>) {
-        _capsterWaitingCount.postValue(capsterWaitingCount)
-    }
-
-    fun setCurrentQueue(currentQueue: Map<String, String>) {
-        _currentQueue.postValue(currentQueue)
-    }
-
-    fun setReservationList(reservationList: List<Reservation>, isAllData: Boolean?) {
-        Log.d("CacheChecking", "addReservationList --> reservationList size: ${reservationList.size}")
-        _reservationList.postValue(reservationList)
-        _calculateDataReservation.postValue(isAllData)
-    }
-
-    fun clearCapsterList() {
-        _capsterList.postValue(emptyList())
-    }
-
-//    fun clearCapsterNames() {
-//        _capsterNames.postValue(emptyList())
-//    }
-
-    fun clearCapsterWaitingCount() {
-        _capsterWaitingCount.postValue(emptyMap())
-    }
-
-    fun clearCurrentQueue() {
-        _currentQueue.postValue(emptyMap())
-    }
-
-    fun clearReservationList() {
-        _reservationList.postValue(emptyList())
-    }
-
-    fun removeCapsterWaitingCountByKey(key: String) {
-        val currentMap = capsterWaitingCount.value?.toMutableMap()
-        currentMap?.remove(key)
-        _capsterWaitingCount.postValue(currentMap)
+        viewModelScope.launch {
+            _letsFilteringDataCapster.postValue(null)
+            _displayFilteredCapsterResult.postValue(null)
+            _updateUIBoard.postValue(null)
+            _calculateDataReservation.postValue(null)
+        }
     }
 
 

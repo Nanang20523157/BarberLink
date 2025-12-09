@@ -11,16 +11,19 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListSelectOutletAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutSelectOutletCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListDestinationAdapter(
-    private val itemClicked: OnItemClicked
-) : ListAdapter<Outlet, RecyclerView.ViewHolder>(DestinationDiffCallback()) {
+    private var itemClicked: OnItemClicked?
+) :
+    BaseCleanableAdapter,
+    ListAdapter<Outlet, RecyclerView.ViewHolder>(DestinationDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
@@ -28,15 +31,6 @@ class ItemListDestinationAdapter(
 
     interface OnItemClicked {
         fun onItemClickListener(outlet: Outlet)
-    }
-
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
-            }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
-        }
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -117,7 +111,7 @@ class ItemListDestinationAdapter(
     }
 
     inner class ItemViewHolder(private val binding: ItemListSelectOutletAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(outlet: Outlet) {
             val reviewCount = 2134
@@ -145,14 +139,19 @@ class ItemListDestinationAdapter(
                 }
 
                 cvMainInfoOutlet.setOnClickListener {
-                    itemClicked.onItemClickListener(outlet)
+                    itemClicked?.onItemClickListener(outlet)
                 }
 
                 btnSelectOutlet.setOnClickListener {
-                    itemClicked.onItemClickListener(outlet)
+                    itemClicked?.onItemClickListener(outlet)
                 }
 
             }
+        }
+
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivOutlet)
+            binding.ivOutlet.setImageDrawable(null)
         }
 
     }
@@ -177,6 +176,29 @@ class ItemListDestinationAdapter(
                 tvStatusOutlet.setTextColor(root.context.getColor(R.color.magenta))
             }
         }
+    }
+
+    override fun cleanUp() {
+        // 1. stop shimmer
+        shimmerViewList.forEach { it.stopShimmer() }
+        shimmerViewList.clear()
+
+        // 2. detach list
+        submitList(emptyList())
+
+        // 3. remove rv reference
+        recyclerView = null
+
+        // 4. release callback (mencegah Activity leak)
+        // jika itemClicked perlu dipakai ulang, jangan null,
+        // tapi untuk kasus Anda: dipanggil hanya di onDestroy -> WAJIB null
+        itemClicked = null
+    }
+
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is CleanableViewHolder) holder.clear()
     }
 
     companion object {

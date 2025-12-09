@@ -29,15 +29,22 @@ import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
 import com.example.barberlink.Factory.SaveStateViewModelFactory
+import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Helper.safeBinding
+import com.example.barberlink.Helper.safeLaunch
+import com.example.barberlink.Helper.safeToast
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.Fragment.RecordInstallmentFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils
+import com.example.barberlink.Utils.DateComparisonUtils.isSameMonth
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.databinding.ActivityApproveOrRejectBonPageBinding
 import com.google.android.gms.tasks.Task
@@ -49,12 +56,11 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
+import com.yourapp.utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -84,7 +90,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var adapter: ArrayAdapter<String>
     private var userAdminUID: String = ""
-
     private var capsterKeyword: String = "Semua"
     private var uidDropdownPosition: String = "----------------"
     private var textDropdownCapsterName: String = "Semua"
@@ -97,8 +102,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     private var isShimmerVisible: Boolean = false
     private lateinit var timeStampFilter: Timestamp
     private var isProcessUpdatingData: Boolean = false
-    private var currentToastMessage: String? = null
-
     private lateinit var listApprovalAdapter: ItemListApprovalBonAdapter
     private lateinit var tagFilterAdapter: ItemListTagFilteringAdapter
     private var orderFilteringData: ArrayList<String> = arrayListOf(
@@ -117,11 +120,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var nextPrevBonListener: ListenerRegistration
     private lateinit var textWatcher: TextWatcher
-    private val listBonMutex = Mutex()
-    private val employeeListMutex = Mutex()
-    private var localToast: Toast? = null
-    private var myCurrentToast: Toast? = null
-
     private var isUserTyping: Boolean = false
     private var isCapsterDropdownFocus: Boolean = false
     private var isPopUpDropdownShow: Boolean = false
@@ -229,7 +227,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
 
         init(savedInstanceState)
@@ -250,34 +247,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
         if (savedInstanceState != null) displayDataOrientationChange()
 
-    }
-
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(this@ApproveOrRejectBonPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
-        }
-    }
-
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@ApproveOrRejectBonPage,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -308,9 +277,9 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putBoolean("is_complete_search", isCompleteSearch)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun init(savedInstanceState: Bundle?) {
         calendar = Calendar.getInstance()
         maxYear = calendar.get(Calendar.YEAR)
@@ -328,7 +297,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         tagFilterAdapter = ItemListTagFilteringAdapter(this@ApproveOrRejectBonPage, approveRejectViewModel)
         binding.rvFilterByCategory.layoutManager = LinearLayoutManager(this@ApproveOrRejectBonPage, LinearLayoutManager.HORIZONTAL, false)
         binding.rvFilterByCategory.adapter = tagFilterAdapter
-        tagFilterAdapter.addAdapterReference(tagFilterAdapter)
         tagFilterAdapter.submitList(approveRejectViewModel.tagFilteringCategory.value ?: arrayListOf())
         setupAcTvOrderFilter()
         setupAcTvStatusFilter()
@@ -366,8 +334,8 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     //showShimmer(true)
                     Log.d("animateLoop", "Calculate Queue TextWatcher")
                     // calculateQueueData(keyword.isEmpty())
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        listBonMutex.withLock {
+                    safeLaunch(Dispatchers.Default) {
+                        approveRejectViewModel.listBonMutex.withStateLock {
                             val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
                             approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
                         }
@@ -395,7 +363,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                 calendar.set(Calendar.MONTH, selectedMonth)
                 // Atur hari ke hari pertama dalam bulan yang dipilih
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
-                if (!DateComparisonUtils.isSameMonth(calendar.time, timeStampFilter.toDate())) {
+                if (!isSameMonth(calendar.time, timeStampFilter.toDate())) {
                     setDateFilterValue(Timestamp(calendar.time))
                     showShimmer(true)
                     binding.mainContent.smoothScrollTo(0, 0)
@@ -414,23 +382,34 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         }
 
         approveRejectViewModel.employeeListBon.observe(this) { listBon ->
-            lifecycleScope.launch(Dispatchers.Default) {
-                Log.d("BonData", "ini filtering")
-                val filteredList = filteringByCategorySelected(listBon)
-                approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
+            safeLaunch(Dispatchers.Default) {
+                approveRejectViewModel.listBonMutex.withStateLock {
+                    val filteredList = filteringByCategorySelected(listBon)
+                    approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
+                }
             }
         }
 
         approveRejectViewModel.filteredEmployeeListBon.observe(this) { filteredListBon ->
-            Log.d("BonData", "ini display")
-            listApprovalAdapter.submitList(filteredListBon) {
-                // Callback ini dipanggil setelah submitList selesai memproses dan menampilkan data
-                if (!isRecreated) showShimmer(false)
-                else showShimmer(isShimmerVisible)
-            }
-            if (textDropdownCapsterName == "---") showToast("Tidak ada data yang sesuai untuk ${binding.acCapsterName.text.toString().trim()}")
-            binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
+            val isScrollingView = approveRejectViewModel.letScrollToLastPosition
+            if (isScrollingView != null) {
+                Log.d("BonData", "ini display")
+                listApprovalAdapter.submitList(filteredListBon) {
+                    // Callback ini dipanggil setelah submitList selesai memproses dan menampilkan data
+                    showShimmer(false)
+                }
+                if (textDropdownCapsterName == "---") safeToast()?.show("Tidak ada data yang sesuai untuk ${binding.acCapsterName.text.toString().trim()}")
+                if (isScrollingView) listApprovalAdapter.letScrollToLastPosition()
+                binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
+            } else safeLaunch { approveRejectViewModel.setScrollToLastPositionState(false, null) }
         }
+
+        approveRejectViewModel.tagFilteringCategory.observe(this) { list ->
+            // matikan notify
+            // tagFilterAdapter.notifyDataSetChanged()
+            tagFilterAdapter.submitList(list)
+        }
+
     }
 
     private fun setupTextFieldInputType(s: String, isRecreated: Boolean) {
@@ -473,181 +452,180 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
     private fun displayDataOrientationChange() {
-        Log.d("SubmitListCheck", "shimmer in initial change rotation")
-        approveRejectViewModel.setupDropdownFilterWithNullState()
-        val filteredListBon =  approveRejectViewModel.filteredEmployeeListBon.value ?: mutableListOf()
+        safeLaunch {
+            Log.d("SubmitListCheck", "shimmer in initial change rotation")
+            approveRejectViewModel.setupDropdownFilterWithNullState()
+            val filteredListBon = approveRejectViewModel.filteredEmployeeListBon.value ?: mutableListOf()
 
-        listApprovalAdapter.submitList(filteredListBon)
-        showShimmer(false)
-        listApprovalAdapter.letScrollToLastPosition()
-        binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
-        Log.d("Inkonsisten", "display dari change rotation")
-    }
-
-    private fun setupAcTvOrderFilter() {
-        lifecycleScope.launch(Dispatchers.Main) {
-            // Create an ArrayAdapter using the outlet names
-            val adapter =
-                ArrayAdapter(this@ApproveOrRejectBonPage, android.R.layout.simple_dropdown_item_1line, orderFilteringData)
-
-            // Set the adapter to the AutoCompleteTextView
-            binding.acOrderBy.setAdapter(adapter)
-            // Memastikan dropdown terbuka ketika diklik
-            binding.acOrderBy.setOnClickListener {
-                binding.acOrderBy.showDropDown()
-            }
-
-            binding.acOrderBy.setOnItemClickListener { parent, _, position, _ ->
-                val userSelected = parent.getItemAtPosition(position).toString()
-                binding.acOrderBy.setText(userSelected, false)
-                orderBy = userSelected
-
-                if (userSelected == "Terbaru") {
-                    // Urutkan data terbaru
-                    binding.ivSortByTimes.setImageResource(R.drawable.ic_sort_by_newest)
-                } else {
-                    // Urutkan data terlama
-                    binding.ivSortByTimes.setImageResource(R.drawable.ic_sort_by_oldest)
-                }
-
-                lifecycleScope.launch(Dispatchers.Default) {
-                    listBonMutex.withLock {
-                        val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
-                        approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
-                    }
-                }
-            }
-
-            if (binding.acOrderBy.text.toString().isEmpty()) binding.acOrderBy.setText(orderBy, false)
+            approveRejectViewModel.setScrollToLastPositionState(true, filteredListBon)
+            Log.d("Inkonsisten", "display dari change rotation")
         }
     }
 
+    private fun setupAcTvOrderFilter() {
+        // Create an ArrayAdapter using the outlet names
+        val adapter = ArrayAdapter(
+            this@ApproveOrRejectBonPage,
+            android.R.layout.simple_dropdown_item_1line,
+            orderFilteringData
+        )
+
+        // Set the adapter to the AutoCompleteTextView
+        binding.acOrderBy.setAdapter(adapter)
+        // Memastikan dropdown terbuka ketika diklik
+        binding.acOrderBy.setOnClickListener {
+            binding.acOrderBy.showDropDown()
+        }
+
+        binding.acOrderBy.setOnItemClickListener { parent, _, position, _ ->
+            val userSelected = parent.getItemAtPosition(position).toString()
+
+            binding.acOrderBy.setText(userSelected, false)
+            orderBy = userSelected
+            binding.ivSortByTimes.setImageResource(
+                if (userSelected == "Terbaru") R.drawable.ic_sort_by_newest
+                else R.drawable.ic_sort_by_oldest
+            )
+
+            safeLaunch(Dispatchers.Default) {
+                approveRejectViewModel.listBonMutex.withStateLock {
+                    val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
+                    approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
+                }
+            }
+        }
+
+        if (binding.acOrderBy.text.toString().isEmpty()) binding.acOrderBy.setText(orderBy, false)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
-        lifecycleScope.launch(Dispatchers.Main) {
-            approveRejectViewModel.capsterList.value?.let { capsterList ->
-                val capsterItemDropdown = buildList {
-                    add(UserEmployeeData(uid = "Semua", fullname = "Semua"))
-                    addAll(
-                        capsterList
-                            .distinctBy { it.fullname }
-                            .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
-                    )
-                }
-                val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
-                // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
-                adapter = ArrayAdapter(this@ApproveOrRejectBonPage, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
-                // Set adapter ke AutoCompleteTextView
-                binding.acCapsterName.setAdapter(adapter)
-                binding.acCapsterName.threshold = 0
-                binding.acCapsterName.setOnFocusChangeListener { _, state ->
-                    isCapsterDropdownFocus = state
-                    Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
-                }
+        approveRejectViewModel.capsterList.value?.let { capsterList ->
+            val capsterItemDropdown = buildList {
+                add(UserEmployeeData(uid = "Semua", fullname = "Semua"))
+                addAll(
+                    capsterList
+                        .distinctBy { it.fullname }
+                        .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
+                )
+            }
+            val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
+            // Buat ArrayAdapter menggunakan daftar nama capster yang sudah dimodifikasi
+            adapter = ArrayAdapter(this@ApproveOrRejectBonPage, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
+            // Set adapter ke AutoCompleteTextView
+            binding.acCapsterName.setAdapter(adapter)
+            binding.acCapsterName.threshold = 0
+            binding.acCapsterName.setOnFocusChangeListener { _, state ->
+                isCapsterDropdownFocus = state
+                Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
+            }
 
-                if (setupDropdown) {
-                    val dataCapster = capsterItemDropdown.first()
-                    binding.acCapsterName.setText(dataCapster.fullname, false)
-                    capsterKeyword = dataCapster.fullname
-                    uidDropdownPosition = dataCapster.uid
-                    textDropdownCapsterName = dataCapster.fullname
-                } else {
-                    if (isSavedInstanceStateNull) {
-                        if (isCompleteSearch) {
-                            val selectedIndex = capsterItemDropdown.indexOfFirst {
-                                it.uid.equals(uidDropdownPosition, ignoreCase = true)
-                            }.takeIf { it != -1 } ?: -1
-                            Log.d("CheckShimmer", "setup dropdown by uidDropdownPosition index: $selectedIndex")
-                            val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
-                            if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
-                            capsterKeyword = dataCapster.fullname
-                            uidDropdownPosition = dataCapster.uid
-                            textDropdownCapsterName = dataCapster.fullname
+            if (setupDropdown) {
+                val dataCapster = capsterItemDropdown.first()
+                binding.acCapsterName.setText(dataCapster.fullname, false)
+                capsterKeyword = dataCapster.fullname
+                uidDropdownPosition = dataCapster.uid
+                textDropdownCapsterName = dataCapster.fullname
+            } else {
+                if (isSavedInstanceStateNull) {
+                    if (isCompleteSearch) {
+                        // selectedIndex == -1 ketika ....
+                        val selectedIndex = capsterItemDropdown.indexOfFirst {
+                            it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                        }.takeIf { it != -1 } ?: -1
+                        Log.d("CheckShimmer", "setup dropdown by uidDropdownPosition index: $selectedIndex")
+                        val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
+                        if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                        capsterKeyword = dataCapster.fullname
+                        uidDropdownPosition = dataCapster.uid
+                        textDropdownCapsterName = dataCapster.fullname
 
-                            //dashboardViewModel.refreshAllListData()
-                            //if (textDropdownCapsterName == "---")
-                            val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
-                            approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
+                        //dashboardViewModel.refreshAllListData()
+                        //if (textDropdownCapsterName == "---")
+                        safeLaunch(Dispatchers.Default) {
+                            approveRejectViewModel.listBonMutex.withStateLock {
+                                val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
+                                approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
+                            }
                         }
-                    } else {
-                        Log.d("CheckShimmer", "setup dropdown by orientationChange")
                     }
-                }
-
-                val textDropdownSelected = binding.acCapsterName.text.toString().trim()
-                if (isFirstLoad) {
-                    // Langsung set nilai "All" di AutoCompleteTextView
-                    if (textDropdownSelected.isEmpty()) {
-                        Log.d("BindingFocus", "empty")
-                        binding.acCapsterName.setText(getString(R.string.all_text), false)
-                    }
-
-                    binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
                 } else {
-                    Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
-                    if (isCompleteSearch || textDropdownSelected.isEmpty()) {
-                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-                    } else {
-                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
-                        adapter.filter.filter(textDropdownCapsterName)
-                    }
-                    if (isPopUpDropdownShow) {
-                        Log.d("BindingFocus", "LLL")
-                        binding.acCapsterName.showDropDown()
-                    }
+                    Log.d("CheckShimmer", "setup dropdown by orientationChange")
+                }
+            }
+
+            val textDropdownSelected = binding.acCapsterName.text.toString().trim()
+            if (isFirstLoad) {
+                // Langsung set nilai "All" di AutoCompleteTextView
+                if (textDropdownSelected.isEmpty()) {
+                    Log.d("BindingFocus", "empty")
+                    binding.acCapsterName.setText(getString(R.string.all_text), false)
                 }
 
-                Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
-                if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
-                startPopupObserver()
-
-                if ((isSavedInstanceStateNull && setupDropdown) || (isShimmerVisible && isFirstLoad)) {
-                    Log.d("CheckShimmer", "getAllData()")
-                    getAllData()
+                binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
+            } else {
+                Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
+                if (isCompleteSearch || textDropdownSelected.isEmpty()) {
+                    binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                } else {
+                    binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                    adapter.filter.filter(textDropdownCapsterName)
                 }
+                if (isPopUpDropdownShow) {
+                    Log.d("BindingFocus", "LLL")
+                    binding.acCapsterName.showDropDown()
+                }
+            }
 
-                if (!isSavedInstanceStateNull) {
-                    if (!isFirstLoad && !updateListener) {
-                        Log.d("CheckShimmer", "setupListeners(skippedProcess = true)")
-                        setupListeners(skippedProcess = true)
-                    }
+            Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
+            if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
+            startPopupObserver()
+
+            if ((isSavedInstanceStateNull && setupDropdown) || (isShimmerVisible && isFirstLoad)) {
+                Log.d("CheckShimmer", "getAllData()")
+                getAllData()
+            }
+
+            if (!isSavedInstanceStateNull) {
+                if (!isFirstLoad && !updateListener) {
+                    Log.d("CheckShimmer", "setupListeners(skippedProcess = true)")
+                    setupListeners(skippedProcess = true)
                 }
             }
         }
     }
 
     private fun setupAcTvStatusFilter() {
-        lifecycleScope.launch(Dispatchers.Main) {
-            // Buat adapter menggunakan tagCategory sebagai tampilan dropdown
-            val adapter = ArrayAdapter(
-                this@ApproveOrRejectBonPage,
-                android.R.layout.simple_dropdown_item_1line,
-                statusFilteringData.map { it.tagCategory }
-            )
+        // Buat adapter menggunakan tagCategory sebagai tampilan dropdown
+        val adapter = ArrayAdapter(
+            this@ApproveOrRejectBonPage,
+            android.R.layout.simple_dropdown_item_1line,
+            statusFilteringData.map { it.tagCategory }
+        )
 
-            // Set adapter ke AutoCompleteTextView
-            binding.acBonStatusFiltering.setAdapter(adapter)
+        // Set adapter ke AutoCompleteTextView
+        binding.acBonStatusFiltering.setAdapter(adapter)
 
-            binding.acBonStatusFiltering.setOnItemClickListener { parent, _, position, _ ->
-                val selectedCategory = parent.getItemAtPosition(position).toString()
-                val selectedFilter = statusFilteringData.find { it.tagCategory == selectedCategory }
+        binding.acBonStatusFiltering.setOnItemClickListener { parent, _, position, _ ->
+            val selectedCategory = parent.getItemAtPosition(position).toString()
+            val selectedFilter = statusFilteringData.find { it.tagCategory == selectedCategory }
 
-                // Update teks di dropdown
-                binding.acBonStatusFiltering.setText(selectedCategory, false)
+            // Update teks di dropdown
+            binding.acBonStatusFiltering.setText(selectedCategory, false)
 
-                // Simpan nilai textContained ke filterByStatus
-                filterByStatus = selectedFilter?.textContained ?: "Semua"
+            // Simpan nilai textContained ke filterByStatus
+            filterByStatus = selectedFilter?.textContained ?: "Semua"
 
-                // Jalankan filtering di background thread
-                lifecycleScope.launch(Dispatchers.Default) {
-                    listBonMutex.withLock {
-                        val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
-                        approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
-                    }
+            // Jalankan filtering di background thread
+            safeLaunch(Dispatchers.Default) {
+                approveRejectViewModel.listBonMutex.withStateLock {
+                    val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
+                    approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
                 }
             }
-
-            if (binding.acBonStatusFiltering.text.toString().isEmpty()) binding.acBonStatusFiltering.setText(filterByStatus, false)
         }
+
+        if (binding.acBonStatusFiltering.text.toString().isEmpty()) binding.acBonStatusFiltering.setText(filterByStatus, false)
     }
 
     private fun setDateFilterValue(timestamp: Timestamp) {
@@ -685,161 +663,195 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun getListEmployeeData() {
-        db.collectionGroup("employees")
-            .whereEqualTo("root_ref", "barbershops/$userAdminUID")
-            .get()
-            .addOnSuccessListener { documents ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    val (newCapsterList, newCapsterNames) = documents.documents.mapNotNull { document ->
-                        document.toObject(UserEmployeeData::class.java)?.apply {
-                            userRef = document.reference.path
-                            outletRef = ""
-                        }?.let { employee ->
-                            employee to employee.fullname
-                        }
-                    }.unzip()
+        safeLaunch(Dispatchers.IO) {
+            approveRejectViewModel.employeeListMutex.withStateLock {
+                userAdminUID.let {
+                    if (it.isEmpty()) {
+                        approveRejectViewModel.setCapsterList(emptyList(), setupDropdown = true, isSavedInstanceStateNull = true)
+                        safeToast()?.show("User data is not valid.")
+                        return@let
+                    }
 
-                    if (newCapsterList.isEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            showToast("Tidak ditemukan daftar pegawai")
+                    try {
+                        val snapshot = db.collectionGroup("employees")
+                            .whereEqualTo("root_ref", "barbershops/$userAdminUID")
+                            .get()
+                            .awaitGetWithOfflineFallback(tag = "GetListEmployeeData")
+
+                        safeLaunch(Dispatchers.Default) {
+                            if (snapshot != null) {
+                                val documents = snapshot.documents
+                                val (newCapsterList, _) = documents.mapNotNull { document ->
+                                    document.toObject(UserEmployeeData::class.java)?.apply {
+                                        userRef = document.reference.path
+                                        outletRef = ""
+                                    }?.let { employee -> employee to employee.fullname }
+                                }.unzip()
+
+                                if (newCapsterList.isEmpty()) {
+                                    safeToast()?.show("Tidak ditemukan daftar pegawai")
+                                }
+                                approveRejectViewModel.setCapsterList(
+                                    newCapsterList,
+                                    setupDropdown = true,
+                                    isSavedInstanceStateNull = true
+                                )
+                                Log.d("CacheChecking", "✅ ADD CAPSTER LIST FROM awaitGetWithOfflineFallback")
+                            } else {
+                                approveRejectViewModel.setCapsterList(emptyList(), setupDropdown = true, isSavedInstanceStateNull = true)
+                                safeToast()?.show("Gagal mengambil daftar pegawai.")
+                            }
                         }
-                    } else {
-                        employeeListMutex.withLock {
-                            approveRejectViewModel.setCapsterList(newCapsterList, setupDropdown = true, isSavedInstanceStateNull = true)
-                            Log.d("CacheChecking", "ADD CAPSTER LIST FROM GET CAPSTER")
-                        }
+                    } catch (e: Exception) {
+                        approveRejectViewModel.setCapsterList(emptyList(), setupDropdown = true, isSavedInstanceStateNull = true)
+                        safeToast()?.show("Error: ${e.message}")
                     }
                 }
-            }.addOnFailureListener {
-                approveRejectViewModel.setCapsterList(emptyList(), setupDropdown = true, isSavedInstanceStateNull = true)
-                showToast("Gagal mengambil daftar pegawai")
             }
-    }
-
-    private fun getAllData() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            val timeToDelay = if (NetworkMonitor.isOnline.value) 300L else 600L
-            delay(timeToDelay)
-            val tasks = listOf(
-                getAllBonData(),
-                getNextAndPreviousRemainingBon()
-            )
-
-            Tasks.whenAllComplete(tasks)
-                .addOnCompleteListener {
-                    if (isFirstLoad && !updateListener) setupListeners()
-                    if (updateListener) setupListeners(skippedProcess = true)
-                }
         }
     }
 
-    private fun getAllBonData(): Task<QuerySnapshot> {
-        val taskCompletionSource = TaskCompletionSource<QuerySnapshot>()
-        val bonRef = db.collection("barbershops/${userAdminUID}/employee_bon")
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun getAllData() {
+        safeLaunch(Dispatchers.IO) {
+            approveRejectViewModel.allDataMutex.withStateLock {
+                val timeToDelay = if (NetworkMonitor.isOnline.value) 300L else 600L
+                delay(timeToDelay)
 
-        bonRef.whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-            .whereLessThanOrEqualTo("timestamp_created", startOfNextMonth)
-            .get()
-            .addOnSuccessListener { documents ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    val bonList = mutableListOf<BonEmployeeData>()
-                    val tempAccumulationBon = mutableMapOf<String, Int>()
+                try {
+                    // Jalankan kedua proses secara paralel
+                    val allBonDeferred = async { getAllBonData() }
+                    val prevNextBonDeferred = async { getNextAndPreviousRemainingBon() }
 
-                    documents.forEach { doc ->
-                        doc.toObject(BonEmployeeData::class.java).let { data ->
-                            bonList.add(data)
-                            val userRef = data.dataCreator?.userRef ?: ""
-                            // ✅ Hanya akumulasi jika returnStatus memenuhi syarat
-                            if (data.returnStatus == "Belum Bayar" || data.returnStatus == "Terangsur") {
+                    // Tunggu keduanya selesai
+                    awaitAll(allBonDeferred, prevNextBonDeferred)
+
+                } catch (e: Exception) {
+                    Log.e("BonData", "❌ Error di getAllData(): ${e.message}", e)
+                    safeToast()?.show("Gagal memuat data: ${e.message}")
+                } finally {
+                    safeLaunch(Dispatchers.Main) {
+                        if (isFirstLoad && !updateListener) setupListeners()
+                        if (updateListener) setupListeners(skippedProcess = true)
+                    }
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun getAllBonData() {
+        approveRejectViewModel.listBonMutex.withStateLock {
+            userAdminUID.let {
+                if (it.isEmpty()) {
+                    approveRejectViewModel.setEmployeeCurrentAccumulationBon(mutableMapOf("error" to -999))
+                    approveRejectViewModel.setEmployeeListBon(mutableListOf())
+                    safeToast()?.show("User data is not valid.")
+                    return@let
+                }
+
+                try {
+                    val snapshot = db.collection("barbershops/$userAdminUID/employee_bon")
+                        .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                        .whereLessThanOrEqualTo("timestamp_created", startOfNextMonth)
+                        .get()
+                        .awaitGetWithOfflineFallback(tag = "GetAllBonData")
+
+                    safeLaunch(Dispatchers.Default) {
+                        if (snapshot != null) {
+                            val documents = snapshot.documents
+                            val bonList = mutableListOf<BonEmployeeData>()
+                            val tempAccumulationBon = mutableMapOf<String, Int>()
+
+                            documents.forEach { document ->
+                                val data = document.toObject(BonEmployeeData::class.java)
+                                data?.let {
+                                    bonList.add(data)
+                                    val userRef = data.dataCreator?.userRef ?: ""
+                                    if (data.returnStatus in listOf("Belum Bayar", "Terangsur")) {
+                                        tempAccumulationBon[userRef] =
+                                            (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
+                                    }
+                                }
+                            }
+
+                            if (bonList.isEmpty()) safeToast()?.show("Tidak ditemukan daftar hutang pegawai")
+                            approveRejectViewModel.setEmployeeCurrentAccumulationBon(tempAccumulationBon)
+                            approveRejectViewModel.setEmployeeListBon(bonList.toMutableList())
+
+                            Log.d("CacheChecking", "✅ ADD BON LIST FROM awaitGetWithOfflineFallback")
+                        } else {
+                            approveRejectViewModel.setEmployeeCurrentAccumulationBon(mutableMapOf("error" to -999))
+                            approveRejectViewModel.setEmployeeListBon(mutableListOf())
+                            safeToast()?.show("Gagal mengambil daftar hutang pegawai.")
+                        }
+                    }
+                } catch (e: Exception) {
+                    approveRejectViewModel.setEmployeeCurrentAccumulationBon(mutableMapOf("error" to -999))
+                    approveRejectViewModel.setEmployeeListBon(mutableListOf())
+                    safeToast()?.show("Error mengambil data bon: ${e.message}")
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun getNextAndPreviousRemainingBon() {
+        userAdminUID.let {
+            if (it.isEmpty()) {
+                approveRejectViewModel.setEmployeePreviousAccumulationBon(mutableMapOf("error" to -999))
+                safeToast()?.show("User data is not valid.")
+                return@let
+            }
+
+            try {
+                val snapshot = db.collection("barbershops/$userAdminUID/employee_bon")
+                    .where(
+                        Filter.and(
+                            Filter.or(
+                                Filter.lessThan("timestamp_created", startOfMonth),
+                                Filter.greaterThanOrEqualTo("timestamp_created", startOfNextMonth)
+                            ),
+                            Filter.greaterThan("bon_details.remaining_bon", 0),
+                            Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
+                        )
+                    )
+                    .get()
+                    .awaitGetWithOfflineFallback(tag = "GetNextAndPreviousRemainingBon")
+
+                safeLaunch(Dispatchers.Default) {
+                    if (snapshot != null) {
+                        val documents = snapshot.documents
+                        val tempAccumulationBon = mutableMapOf<String, Int>()
+
+                        documents.forEach { document ->
+                            val data = document.toObject(BonEmployeeData::class.java)
+                            data?.let {
+                                val userRef = data.dataCreator?.userRef ?: ""
                                 tempAccumulationBon[userRef] =
                                     (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
                             }
                         }
-                    }
 
-                    if (bonList.isEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            showToast("Tidak ditemukan daftar hutang pegawai")
-                        }
-                    }
-
-                    listBonMutex.withLock {
-//                        userCurrentAccumulationBon.clear()
-//                        userCurrentAccumulationBon.putAll(tempAccumulationBon)
-                        approveRejectViewModel.setEmployeeCurrentAccumulationBon(tempAccumulationBon)
-                        approveRejectViewModel.setEmployeeListBon(bonList.toMutableList())
-                    }
-
-                    taskCompletionSource.setResult(documents)
-                }
-            }
-            .addOnFailureListener { exception ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    listBonMutex.withLock {
-//                        userCurrentAccumulationBon.clear()
-//                        userCurrentAccumulationBon["error"] = -999  // 🔴 Menandai error
-                        approveRejectViewModel.setEmployeeCurrentAccumulationBon(mutableMapOf("error" to -999))
-                        approveRejectViewModel.setEmployeeListBon(mutableListOf())
-                    }
-
-                    withContext(Dispatchers.Main) {
-                        showToast("Gagal mengambil daftar hutang pegawai")
+                        approveRejectViewModel.setEmployeePreviousAccumulationBon(tempAccumulationBon)
+                        Log.d("CacheChecking", "✅ ADD PREVIOUS BON LIST FROM awaitGetWithOfflineFallback")
+                    } else {
+                        approveRejectViewModel.setEmployeePreviousAccumulationBon(mutableMapOf("error" to -999))
+                        safeToast()?.show("Gagal mengambil data bon sebelumnya.")
                     }
                 }
-                taskCompletionSource.setException(exception)
-            }
-
-        return taskCompletionSource.task
-    }
-
-    private fun getNextAndPreviousRemainingBon(): Task<QuerySnapshot> {
-        val taskCompletionSource = TaskCompletionSource<QuerySnapshot>()
-        val bonRef = db.collection("barbershops/${userAdminUID}/employee_bon")
-
-        bonRef.where(
-            Filter.and(
-                Filter.or(
-                    Filter.lessThan("timestamp_created", startOfMonth),  // Bulan sebelum
-                    Filter.greaterThanOrEqualTo("timestamp_created", startOfNextMonth) // Bulan sesudah
-                ),
-                Filter.greaterThan("bon_details.remaining_bon", 0),
-                Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
-            )
-        ).get()
-            .addOnSuccessListener { documents ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    val tempAccumulationBon = mutableMapOf<String, Int>()
-
-                    documents.forEach { doc ->
-                        doc.toObject(BonEmployeeData::class.java).let { data ->
-                            val userRef = data.dataCreator?.userRef ?: ""
-                            // ✅ Hanya akumulasi jika returnStatus memenuhi syarat
-                            tempAccumulationBon[userRef] =
-                                (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
-                        }
-                    }
-
-//                    userPreviousAccumulationBon.clear()
-//                    userPreviousAccumulationBon.putAll(tempAccumulationBon)
-                    approveRejectViewModel.setEmployeePreviousAccumulationBon(tempAccumulationBon)
-                    taskCompletionSource.setResult(documents)
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.e("ListenerBonCheck", "Error: $exception")
-//                userPreviousAccumulationBon.clear()
-//                userPreviousAccumulationBon["error"] = -999  // 🔴 Menandai error
+            } catch (e: Exception) {
+                Log.e("ListenerBonCheck", "Error: ${e.message}")
                 approveRejectViewModel.setEmployeePreviousAccumulationBon(mutableMapOf("error" to -999))
-                showToast("Gagal mengkalkulasikan data hutang pegawai")
-                taskCompletionSource.setException(exception)
+                safeToast()?.show("Error kalkulasi bon pegawai: ${e.message}")
             }
-
-        return taskCompletionSource.task
+        }
     }
 
     private suspend fun filteringByCategorySelected(bonList: List<BonEmployeeData>): MutableList<BonEmployeeData> {
-        employeeListMutex.withLock {
+        approveRejectViewModel.employeeListMutex.withStateLock {
             // Ambil daftar userRef capster dari capsterList
             val capsterRefs = approveRejectViewModel.capsterList.value?.map { it.userRef } ?: emptyList()
 
@@ -902,7 +914,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         listenNextAndPreviousRemainingBon()
 
         // Tambahkan logika sinkronisasi di sini
-        lifecycleScope.launch {
+        safeLaunch {
             while (remainingListeners.get() > 0) {
                 delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
             }
@@ -914,208 +926,218 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
     private fun listenEmployeeListData() {
-        if (::employeeListener.isInitialized) {
-            employeeListener.remove()
-        }
-        var decrementGlobalListener = false
+        // jika listener maka tidak perlu ada pemberitahuan untuk (employeeUidList) kosong
+        userAdminUID.let {
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
+            }
 
-        employeeListener = db.collectionGroup("employees")
-            .whereEqualTo("root_ref", "barbershops/$userAdminUID")
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to employee data: ${it.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    val metadata = it.metadata
+            if (it.isEmpty()) {
+                employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                    if (!isFirstLoad && !skippedProcess) {
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            val (newCapsterList, newCapsterNames) = it.documents.mapNotNull { document ->
-                                document.toObject(UserEmployeeData::class.java)?.apply {
-                                    userRef = document.reference.path
-                                    outletRef = ""
-                                }?.let { employee ->
-                                    employee to employee.fullname
+            employeeListener = db.collectionGroup("employees")
+                .whereEqualTo("root_ref", "barbershops/$userAdminUID")
+                .addSnapshotListener { documents, exception ->
+                    safeLaunch(Dispatchers.Main) {
+                        approveRejectViewModel.listenerEmployeeListMutex.withStateLock {
+                            exception?.let {
+                                safeToast()?.show("Error listening to employee data: ${it.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
-                            }.unzip()
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    safeLaunch(Dispatchers.Default)  {
+                                        val (newCapsterList, _) = docs.documents.mapNotNull { document ->
+                                            document.toObject(UserEmployeeData::class.java)?.apply {
+                                                userRef = document.reference.path
+                                                outletRef = ""
+                                            }?.let { employee ->
+                                                employee to employee.fullname
+                                            }
+                                        }.unzip()
 
-                            employeeListMutex.withLock {
-                                approveRejectViewModel.setCapsterList(newCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
-                                Log.d("CacheChecking", "ADD CAPSTER LIST FROM LISTEN EMPLOYEE")
+                                        approveRejectViewModel.employeeListMutex.withStateLock {
+                                            approveRejectViewModel.setCapsterList(newCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
+                                            Log.d("CacheChecking", "ADD CAPSTER LIST FROM LISTEN EMPLOYEE")
+                                        }
+                                    }
+                                }
                             }
 
-                            withContext(Dispatchers.Main) {
-                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                    showLocalToast()
-                                }
-                                isProcessUpdatingData = false
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
                             }
-
                         }
                     }
                 }
-
-                if (!decrementGlobalListener) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
-            }
+        }
     }
 
     private fun listenAllBonData() {
-        if (::listBonListener.isInitialized) {
-            listBonListener.remove()
-        }
-        var decrementGlobalListener = false
+        userAdminUID.let {
+            if (::listBonListener.isInitialized) {
+                listBonListener.remove()
+            }
 
-        listBonListener = db.collection("barbershops/${userAdminUID}/employee_bon")
-            .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-            .whereLessThanOrEqualTo("timestamp_created", startOfNextMonth)
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-//                    userCurrentAccumulationBon.clear()
-//                    userCurrentAccumulationBon["error"] = -999
-                    approveRejectViewModel.setEmployeeCurrentAccumulationBon(mutableMapOf("error" to -999))
-                    showToast("Error listening to bon data: ${it.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    val metadata = it.metadata
+            if (it.isEmpty()) {
+                listBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad && !skippedProcess) {
-                            val bonList = mutableListOf<BonEmployeeData>()
-                            val tempAccumulationBon = mutableMapOf<String, Int>()
+            listBonListener = db.collection("barbershops/${userAdminUID}/employee_bon")
+                .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                .whereLessThanOrEqualTo("timestamp_created", startOfNextMonth)
+                .addSnapshotListener { documents, exception ->
+                    safeLaunch(Dispatchers.Main) {
+                        approveRejectViewModel.listenerCurrentBonMutex.withStateLock {
+                            val metadata = documents?.metadata
+                            exception?.let {
+                                approveRejectViewModel.setEmployeeCurrentAccumulationBon(mutableMapOf("error" to -999))
+                                safeToast()?.show("Error listening to bon data: ${it.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@safeLaunch
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    safeLaunch(Dispatchers.Default) {
+                                        val bonList = mutableListOf<BonEmployeeData>()
+                                        val tempAccumulationBon = mutableMapOf<String, Int>()
 
-                            Log.d("BonData", "ini listener")
-                            documents.forEach { doc ->
-                                doc.toObject(BonEmployeeData::class.java).let { data ->
-                                    bonList.add(data)
-                                    val userRef = data.dataCreator?.userRef ?: ""
-                                    // ✅ Hanya akumulasi jika returnStatus memenuhi syarat
-                                    if (data.returnStatus == "Belum Bayar" || data.returnStatus == "Terangsur") {
-                                        tempAccumulationBon[userRef] =
-                                            (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
+                                        Log.d("BonData", "ini listener")
+                                        docs.forEach { document ->
+                                            document.toObject(BonEmployeeData::class.java).let { data ->
+                                                bonList.add(data)
+                                                val userRef = data.dataCreator?.userRef ?: ""
+                                                // ✅ Hanya akumulasi jika returnStatus memenuhi syarat
+                                                if (data.returnStatus == "Belum Bayar" || data.returnStatus == "Terangsur") {
+                                                    tempAccumulationBon[userRef] =
+                                                        (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
+                                                }
+                                            }
+                                        }
+
+                                        approveRejectViewModel.listBonMutex.withStateLock {
+                                            val employeeData = approveRejectViewModel.userEmployeeData.value
+                                            if (employeeData != null) {
+                                                val currentNominalBon = approveRejectViewModel.userCurrentAccumulationBon.value ?: -999
+                                                val tempNominalBon = if (tempAccumulationBon.isEmpty()) 0 else tempAccumulationBon[employeeData.userRef] ?: -999
+                                                if (tempNominalBon != currentNominalBon && tempNominalBon != -999) {
+                                                    Log.d("CheckAccumulation", "Current Accumulation Bon New: ${tempAccumulationBon[employeeData.userRef]}")
+                                                    Log.d("CheckAccumulation", "Current Accumulation Bon Old: $currentNominalBon")
+                                                    approveRejectViewModel.setUserCurrentAccumulationBon(tempNominalBon)
+                                                }
+                                            }
+                                            approveRejectViewModel.setEmployeeCurrentAccumulationBon(tempAccumulationBon)
+                                            Log.d("EnableStateSwitch", "==========================")
+                                            approveRejectViewModel.setEmployeeListBon(bonList.toMutableList())
+                                        }
                                     }
                                 }
                             }
 
-                            listBonMutex.withLock {
-//                                userCurrentAccumulationBon.clear()
-//                                userCurrentAccumulationBon.putAll(tempAccumulationBon)
-                                val employeeData = approveRejectViewModel.userEmployeeData.value
-                                if (employeeData != null) {
-                                    val currentNominalBon = approveRejectViewModel.userCurrentAccumulationBon.value ?: -999
-                                    val tempNominalBon = if (tempAccumulationBon.isEmpty()) 0 else tempAccumulationBon[employeeData.userRef] ?: -999
-                                    if (tempNominalBon != currentNominalBon && tempNominalBon != -999) {
-                                        Log.d("CheckAccumulation", "Current Accumulation Bon New: ${tempAccumulationBon[employeeData.userRef]}")
-                                        Log.d("CheckAccumulation", "Current Accumulation Bon Old: $currentNominalBon")
-                                        approveRejectViewModel.setUserCurrentAccumulationBon(tempAccumulationBon[employeeData.userRef] ?: 0)
-                                    }
-                                }
-                                approveRejectViewModel.setEmployeeCurrentAccumulationBon(tempAccumulationBon)
-                                Log.d("EnableStateSwitch", "==========================")
-                                approveRejectViewModel.setEmployeeListBon(bonList.toMutableList())
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
                             }
 
-                            withContext(Dispatchers.Main) {
-                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                    showLocalToast()
-                                }
-                                isProcessUpdatingData = false
+                            if (metadata?.hasPendingWrites() == true && metadata.isFromCache && isProcessUpdatingData) {
+                                safeToast()?.showLocal("Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.")
                             }
+                            isProcessUpdatingData = false // Reset flag setelah menampilkan toast
                         }
                     }
                 }
-
-                if (!decrementGlobalListener) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
-            }
+        }
     }
 
     private fun listenNextAndPreviousRemainingBon() {
-        if (::nextPrevBonListener.isInitialized) {
-            nextPrevBonListener.remove()  // Hapus listener lama jika sudah ada
-        }
-        var decrementGlobalListener = false
-
-        val bonRef = db.collection("barbershops/${userAdminUID}/employee_bon")
-
-        nextPrevBonListener = bonRef.where(
-            Filter.and(
-                Filter.or(
-                    Filter.lessThan("timestamp_created", startOfMonth),
-                    Filter.greaterThanOrEqualTo("timestamp_created", startOfNextMonth)
-                ),
-                Filter.greaterThan("bon_details.remaining_bon", 0),
-                Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
-            )
-        ).addSnapshotListener { documents, exception ->
-            exception?.let {
-//                userPreviousAccumulationBon.clear()
-//                userPreviousAccumulationBon["error"] = -999
-                approveRejectViewModel.setEmployeePreviousAccumulationBon(mutableMapOf("error" to -999))
-                showToast("Error listening to previous/next bon data: ${it.message}")
-                if (!decrementGlobalListener) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
-                return@addSnapshotListener
+        userAdminUID.let {
+            if (::nextPrevBonListener.isInitialized) {
+                nextPrevBonListener.remove()  // Hapus listener lama jika sudah ada
             }
-            documents?.let {
-                val metadata = it.metadata
 
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!isFirstLoad && !skippedProcess) {
-                        val tempAccumulationBon = mutableMapOf<String, Int>()
+            if (it.isEmpty()) {
+                nextPrevBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                        documents.forEach { doc ->
-                            doc.toObject(BonEmployeeData::class.java).let { data ->
-                                val userRef = data.dataCreator?.userRef ?: ""
-                                // ✅ Hanya akumulasi jika returnStatus memenuhi syarat
-                                tempAccumulationBon[userRef] =
-                                    (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
+            val bonRef = db.collection("barbershops/${userAdminUID}/employee_bon")
+
+            nextPrevBonListener = bonRef.where(
+                Filter.and(
+                    Filter.or(
+                        Filter.lessThan("timestamp_created", startOfMonth),
+                        Filter.greaterThanOrEqualTo("timestamp_created", startOfNextMonth)
+                    ),
+                    Filter.greaterThan("bon_details.remaining_bon", 0),
+                    Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
+                )
+            ).addSnapshotListener { documents, exception ->
+                safeLaunch(Dispatchers.Main) {
+                    approveRejectViewModel.listenerNextPrevMutex.withStateLock {
+                        exception?.let {
+                            approveRejectViewModel.setEmployeePreviousAccumulationBon(mutableMapOf("error" to -999))
+                            safeToast()?.show("Error listening to previous/next bon data: ${it.message}")
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                            return@safeLaunch
+                        }
+                        documents?.let { docs ->
+                            if (!isFirstLoad && !skippedProcess) {
+                                safeLaunch(Dispatchers.Default) {
+                                    val tempAccumulationBon = mutableMapOf<String, Int>()
+
+                                    docs.forEach { document ->
+                                        document.toObject(BonEmployeeData::class.java).let { data ->
+                                            val userRef = data.dataCreator?.userRef ?: ""
+                                            // ✅ Hanya akumulasi jika returnStatus memenuhi syarat
+                                            tempAccumulationBon[userRef] =
+                                                (tempAccumulationBon[userRef] ?: 0) + data.bonDetails.remainingBon
+                                        }
+                                    }
+
+                                    val employeeData = approveRejectViewModel.userEmployeeData.value
+                                    if (employeeData != null) {
+                                        val previousNominalBon = approveRejectViewModel.userPreviousAccumulationBon.value ?: -999
+                                        val tempNominalBon = if (tempAccumulationBon.isEmpty()) 0 else tempAccumulationBon[employeeData.userRef] ?: -999
+                                        if (tempNominalBon != previousNominalBon && tempNominalBon != -999) {
+                                            Log.d("CheckAccumulation", "Previous Accumulation Bon New: ${tempAccumulationBon[employeeData.userRef]}")
+                                            Log.d("CheckAccumulation", "Previous Accumulation Bon Old: $previousNominalBon")
+                                            approveRejectViewModel.setUserPreviousAccumulationBon(tempNominalBon)
+                                        }
+                                    }
+                                    approveRejectViewModel.setEmployeePreviousAccumulationBon(tempAccumulationBon)
+                                }
                             }
                         }
 
-//                        userPreviousAccumulationBon.clear()
-//                        userPreviousAccumulationBon.putAll(tempAccumulationBon)
-                        val employeeData = approveRejectViewModel.userEmployeeData.value
-                        if (employeeData != null) {
-                            val previousNominalBon = approveRejectViewModel.userPreviousAccumulationBon.value ?: -999
-                            val tempNominalBon = if (tempAccumulationBon.isEmpty()) 0 else tempAccumulationBon[employeeData.userRef] ?: -999
-                            if (tempNominalBon != previousNominalBon && tempNominalBon != -999) {
-                                Log.d("CheckAccumulation", "Previous Accumulation Bon New: ${tempAccumulationBon[employeeData.userRef]}")
-                                Log.d("CheckAccumulation", "Previous Accumulation Bon Old: $previousNominalBon")
-                                approveRejectViewModel.setUserPreviousAccumulationBon(tempAccumulationBon[employeeData.userRef] ?: 0)
-                            }
-                        }
-                        approveRejectViewModel.setEmployeePreviousAccumulationBon(tempAccumulationBon)
-
-                        withContext(Dispatchers.Main) {
-                            if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                showLocalToast()
-                            }
-                            isProcessUpdatingData = false
+                        // Kurangi counter pada snapshot pertama
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
                         }
                     }
                 }
-            }
-
-            if (!decrementGlobalListener) {
-                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                decrementGlobalListener = true
             }
         }
     }
@@ -1159,10 +1181,11 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
     private fun showShimmer(isShow: Boolean) {
-        binding.tvEmptyBON.visibility = if (isShow) View.GONE else View.VISIBLE
+        if (isShow) binding.tvEmptyBON.visibility = View.GONE
         listApprovalAdapter.setShimmer(isShow)
         isShimmerVisible = isShow
-        if (!isShow) listApprovalAdapter.notifyDataSetChanged()
+        // matikan notify
+        // if (!isShow) listApprovalAdapter.noyDataSetChanged()
     }
 
     fun showProgressBar(show: Boolean) {
@@ -1201,6 +1224,24 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+//        BarberLinkApp.sessionManager.setActivePage("Admin")
+        Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        if (!isRecreated) {
+            if ((!::employeeListener.isInitialized || !::listBonListener.isInitialized || !::nextPrevBonListener.isInitialized) && !isFirstLoad) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                safeToast()?.show("Sesi telah berakhir silahkan masuk kembali")
+            }
+        }
+        isRecreated = false
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     @Deprecated("Deprecated in Java")
@@ -1219,25 +1260,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
 
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-//        BarberLinkApp.sessionManager.setActivePage("Admin")
-        Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        if (!isRecreated) {
-            if ((!::employeeListener.isInitialized || !::listBonListener.isInitialized || !::nextPrevBonListener.isInitialized) && !isFirstLoad) {
-                val intent = Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
-            }
-        }
-        isRecreated = false
-    }
-
     override fun onPause() {
         Log.d("CheckLifecycle", "==================== ON PAUSE MANAGE-OUTLET  =====================")
         super.onPause()
@@ -1251,10 +1273,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         if (isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        localToast?.cancel()
-        myCurrentToast?.cancel()
-        localToast = null
-        currentToastMessage = null
+        safeToast()?.cancel()
     }
 
     private fun clearBackStack() {
@@ -1264,21 +1283,27 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-        listApprovalAdapter.stopAllShimmerEffects()
+        binding.rvFilterByCategory.adapter = null
+        binding.rvEmployeeListBon.adapter = null
+        tagFilterAdapter.cleanUp()
+        listApprovalAdapter.cleanUp()
 
         // Hapus listener untuk menghindari memory leak
         binding.acCapsterName.removeTextChangedListener(textWatcher)
         handler.removeCallbacksAndMessages(null)
+
+        approveRejectViewModel.clearState()
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::listBonListener.isInitialized) listBonListener.remove()
         if (::nextPrevBonListener.isInitialized) nextPrevBonListener.remove()
+
+        super.onDestroy()
     }
 
     override fun onItemClickListener(item: UserFilterCategories) {
         filterByTag = item.textContained
-        lifecycleScope.launch(Dispatchers.Default) {
-            listBonMutex.withLock {
+        safeLaunch(Dispatchers.Default) {
+            approveRejectViewModel.listBonMutex.withStateLock {
                 val filteredList = filteringByCategorySelected(approveRejectViewModel.employeeListBon.value ?: mutableListOf())
                 approveRejectViewModel.setFilteredEmployeeListBon(filteredList)
             }
@@ -1290,13 +1315,13 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
     override fun displayThisToast(message: String) {
-        showToast(message)
+        safeToast()?.show(message)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onItemClickListener(item: BonEmployeeData) {
-        lifecycleScope.launch {
-            employeeListMutex.withLock {
+        safeLaunch(Dispatchers.Main) {
+            approveRejectViewModel.employeeListMutex.withStateLock {
                 val userData = approveRejectViewModel.capsterList.value?.find { it.userRef == item.dataCreator?.userRef }
                 if (userData != null) {
 //                    val userAccumulationBon = if ((userCurrentAccumulationBon["error"]
@@ -1320,3 +1345,49 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
 }
+
+// Catatan Penting
+// 1. memperbaiki check network connection
+// 2. memperbaiki lifecycle.launch ke safeLauch
+// 3. memmodifikasi function suspend untuk login dan register
+// 4. memperbaiki seluruh clenUp di adapter agar tidak memory leak
+// 5. memperbaiki skema notifyDataChange dan submitList
+// 6. memperbaiki dan melakukan pengcheckan untuk seluruh await get
+// 7. memodifikasi seluruh operasi database ke viewModel
+// 8. menyentuh seluruh activity dan fragment yang belum mendapat perubahan function susupend di viewModelnya (termasuh migrasi suspend toast di halamannya meskipun sekarang diubah lagi ke safeToast)
+// 9. mengchek seluruh operasi queueControl apakah bisa dilakukan saat offline
+// 10. check safeSnackbar di semua halaman
+// 11. check safeBinding di semua halaman
+// 12. check deleting restore scroll to end position di bonEmployeePage
+// 13. migreasi mutex ke viewModel
+// 14. migrasi ke safeNavigation dan safeDialogFragment
+
+/**
+ *To Do List:
+ * 1) field stability pada capital (kemungkinan akibat set merge)
+ * 2) orientasi change dan listener pada capital
+ * 3) data pada dashboard bulan lalu sepertinya tidak tercounting
+ * 4) check kembali sign in & sign up (logout juga)
+ * 5) hilangkan fitur reset currentQueue pada "Manage Outlet"
+ * 6) data capster pada queue_tracker tidak muncul
+ * 7) queue_tracker dan queue_control perlu dirombak terutama bagian (Queue Numbernya)
+ * 8) check perubahan text pada dropdown terutama saat listener => capster ataupun outlet
+ * 9) hilangkan map value current queue pada DATA OUTLETS
+ * 10) pastikan tidak ada force close
+ * 11) check kembali data yang tampil berdasarkan dropdown dan perubahan tanggal
+ * 12) check typed dropdown pada approve bon dan add bon capster
+ * 13) check kondisi --- pada queue_control, switch capster, queue_tracker, dashboard, approve bon, add bon capster, daily capital
+ * 14) check kondisi offline apakah terjadi kendala Ketika menampilkan data pertama (terutama Queue Tracker) =>> keluar WARNING atau TIDAK
+ * 15) checkConnection saat user menekan snackbar Queue Control
+ * 16) tanya chatgpt untuk membiarkan snackbar (undo dan try again) tetap tampil pada saat menunggu koneksi terutama ketika mekanisme penyimpanan local tidak berjalan (artinya snackar harus tetap tampil sampai sinyal ada atau Ketika user ingin menghilangkannya dengan melakukan action di luar -> Ketika button action di sentuh kalok gak ada sinyal keluar "WARNING SINYAL")
+ * 17) Warning Mekanisme Penyimpanan Local
+ * 18) check apakah updateCurrentQueue, updateCountDevice dapat berjalan dengan baik Ketika offline
+ * 19) check apakah semua proses di queue control dapat dijalankan secara offline => kemarin sering terjadi error
+ * 20) check orientasi saat pick profile di sign up 2 (profile harusnya tidak hilang Ketika sudah di pick)
+ * 21) check apakah Semua fitur Manage Outlet berjalan dengan baik setelah dihilangkan current Queuenya
+ * 22) hilangkan antrian total, complate, current, dan sisa di queue_tracker
+ * 23) implementasikan manual report
+ * 24) implementasikan slip gaji pegawai
+ * 25) check ulang implemtasi add bon dan approve bon dengan filtering bulan agustus
+ * 26) migrasi semua kode dengan memanfaatkan viewModel (setelah pengcheckan dengan mekanisme penyimpanan local dikerjakan)
+ */

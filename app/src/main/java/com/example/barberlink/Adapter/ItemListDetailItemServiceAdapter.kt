@@ -40,6 +40,9 @@ class ItemListDetailItemServiceAdapter : ListAdapter<Service, RecyclerView.ViewH
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val service = getItem(position)
             (holder as ItemViewHolder).bind(service)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Service()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -83,7 +86,11 @@ class ItemListDetailItemServiceAdapter : ListAdapter<Service, RecyclerView.ViewH
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutDetailItemServiceBinding) :
-        RecyclerView.ViewHolder(binding.root)
+        RecyclerView.ViewHolder(binding.root) {
+        fun bind(service: Service) {
+
+        }
+    }
 
     inner class ItemViewHolder(private val binding: ItemListDetailItemServiceAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {

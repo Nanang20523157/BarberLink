@@ -5,46 +5,51 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Service
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListServiceBookingAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutServiceBookingBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import java.lang.ref.WeakReference
 
 class ItemListServiceBookingAdapter(
     private val itemClicked: OnItemClicked,
     private val disableCounting: Boolean,
 ) : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
+    private val itemClickRef = WeakReference(itemClicked)
+    private var recyclerViewRef: WeakReference<RecyclerView>? = null
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var capsterRef: String = ""
     private var isShimmer = true
     private val shimmerItemCount = 4
-    private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
+    interface OnItemClicked {
+        fun onItemClickListener(service: Service, addCount: Boolean)
+
+    }
 
     fun setCapsterRef(capsterRef: String) {
         this.capsterRef = capsterRef
     }
 
-    interface OnItemClicked {
-        fun onItemClickListener(service: Service, index: Int, addCount: Boolean)
-
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef = WeakReference(recyclerView)
     }
 
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
-            }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
-        }
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -53,9 +58,6 @@ class ItemListServiceBookingAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        if (recyclerView == null) {
-            recyclerView = parent as RecyclerView
-        }
         return if (viewType == VIEW_TYPE_SHIMMER) {
             val shimmerBinding = ShimmerLayoutServiceBookingBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
@@ -82,7 +84,8 @@ class ItemListServiceBookingAdapter(
     fun setShimmer(shimmer: Boolean) {
         if (isShimmer == shimmer) return
 
-        val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+        val rv = recyclerViewRef?.get()
+        val layoutManager = rv?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
@@ -92,28 +95,38 @@ class ItemListServiceBookingAdapter(
         }
 
         isShimmer = shimmer
+        // saat shimmer ON → jangan clear (biarkan shimmerViewHolder collect data)
+        if (!shimmer) {
+            // saat shimmer OFF (tampilkan data real)
+            shimmerViewList.forEach { it.stopShimmer() }
+            shimmerViewList.clear()
+        }
+        // ⬇️ ini yang benar: mode tampilan berubah total
         notifyDataSetChanged()
 
-        recyclerView?.post {
-            val itemCount = recyclerView?.adapter?.itemCount ?: 0
+        rv?.post {
+            val layoutManager2 = recyclerViewRef?.get()?.layoutManager as? LinearLayoutManager ?: return@post
+            val itemCount = recyclerViewRef?.get()?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
+                Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
+                Log.d("RecyclerView", "86: shimmer employee off")
                 lastScrollPosition
             }
 
             // Validasi posisi target
             if (positionToScroll in 0 until itemCount) {
-                layoutManager?.scrollToPosition(positionToScroll)
+                Log.e("RecyclerView", "Target position: $positionToScroll")
+                layoutManager2.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
-
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutServiceBookingBinding) :
+    inner class ShimmerViewHolder(val binding: ShimmerLayoutServiceBookingBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(service: Service) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -123,11 +136,11 @@ class ItemListServiceBookingAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListServiceBookingAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    inner class ItemViewHolder(val binding: ItemListServiceBookingAdapterBinding) :
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(service: Service) {
-            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+            // if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with (binding) {
                 tvServiceName.isSelected = true
@@ -151,33 +164,27 @@ class ItemListServiceBookingAdapter(
                 btnDefault.visibility = if (service.defaultItem) View.VISIBLE else View.GONE
 
                 btnSelectOrder.setOnClickListener {
-                     service.serviceQuantity = 1
-                     notifyItemChanged(adapterPosition)
-//                    val updatedService = service.copy(serviceQuantity = 1)
-//                    val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
-//                    submitList(updatedList)
-                    itemClicked.onItemClickListener(service, adapterPosition, addCount = true)
+                    val updatedService = service.copy(
+                        serviceQuantity = 1
+                    )
+                    itemClickRef.get()?.onItemClickListener(updatedService, addCount = true)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
-                     service.serviceQuantity++
-                     notifyItemChanged(adapterPosition)
-//                    val updatedService = service.copy(serviceQuantity = service.serviceQuantity + 1)
-//                    val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
-//                    submitList(updatedList)
-                    itemClicked.onItemClickListener(service, adapterPosition, addCount = true)
+                    val updatedService = service.copy(
+                        serviceQuantity = service.serviceQuantity + 1
+                    )
+                    itemClickRef.get()?.onItemClickListener(updatedService, addCount = true)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
                 minusButton.setOnClickListener {
                     if (service.serviceQuantity > 0) {
-                         service.serviceQuantity--
-                         notifyItemChanged(adapterPosition)
-//                        val updatedService = service.copy(serviceQuantity = service.serviceQuantity - 1)
-//                        val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
-//                        submitList(updatedList)
-                        itemClicked.onItemClickListener(service, adapterPosition, addCount = false)
+                        val updatedService = service.copy(
+                            serviceQuantity = service.serviceQuantity - 1
+                        )
+                        itemClickRef.get()?.onItemClickListener(updatedService, addCount = false)
                     }
                 }
 
@@ -202,6 +209,47 @@ class ItemListServiceBookingAdapter(
                 }
 
             }
+        }
+
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivIconService)
+            binding.ivIconService.setImageDrawable(null)
+        }
+    }
+
+    fun cleanUp() {
+        // Stop shimmer & release references
+        shimmerViewList.forEach { view ->
+            view.stopShimmer()
+            view.setShimmer(null)
+        }
+        shimmerViewList.clear()
+
+        // Clear Glide resources (visible holders only)
+        recyclerViewRef?.get()?.children?.forEach { child ->
+            val holder = recyclerViewRef?.get()?.getChildViewHolder(child)
+            if (holder is CleanableViewHolder) holder.clear()
+        }
+
+        // Submit empty list (break object references to ViewModel list)
+        submitList(null)
+
+        // Clear WeakRefs
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+
+        // Release event/callback references
+        itemClickRef.clear()
+    }
+
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is ShimmerViewHolder) {
+            holder.binding.shimmerViewContainer.stopShimmer()
+            shimmerViewList.remove(holder.binding.shimmerViewContainer)
+        } else if (holder is CleanableViewHolder) {
+            holder.clear()
         }
     }
 

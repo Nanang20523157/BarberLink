@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,11 +47,15 @@ object NetworkMonitor {
     val errorMessage: StateFlow<String> get() = _errorMessage
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     fun init(context: Context) {
         appContext = context.applicationContext
         connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
+        if (networkCallback != null) {
+            connectivityManager.unregisterNetworkCallback(networkCallback!!)
+        }
         val networkCallback = setupNetworkCallback()
         // Gunakan registerDefaultNetworkCallback untuk API 24+
         connectivityManager.registerDefaultNetworkCallback(networkCallback)
@@ -109,7 +114,7 @@ object NetworkMonitor {
             Log.d("NetMonitor", "Checking internet connection...")
             val reachable = try {
                 Log.d("NetMonitor", "AA +++")
-                withContext(Dispatchers.IO) {
+                withContext(Dispatchers.Default) {
                     InetAddress.getByName("8.8.8.8").isReachable(500)
                 }
             } catch (e: IOException) {
@@ -133,7 +138,7 @@ object NetworkMonitor {
 
                 val reachable = try {
                     Log.d("NetMonitor", "BB +++")
-                    withContext(Dispatchers.IO) {
+                    withContext(Dispatchers.Default) {
                         InetAddress.getByName("8.8.8.8").isReachable(500)
                     }
                 } catch (e: IOException) {
@@ -247,7 +252,7 @@ object NetworkMonitor {
     }
 
     private fun internalShowToast(message: String, isFromScheduling: Boolean) {
-        CoroutineScope(Dispatchers.Main).launch {
+        mainScope.launch {
             currentToast?.cancel()
             currentToast = Toast.makeText(appContext, message, Toast.LENGTH_SHORT)
             lastMessage = message
@@ -267,7 +272,7 @@ object NetworkMonitor {
     }
 
     fun showToast(message: String, force: Boolean = false) {
-        CoroutineScope(Dispatchers.Main).launch {
+        mainScope.launch {
             if (force && message != lastMessage) {
                 currentToast?.cancel()
                 currentToast = Toast.makeText(appContext, message, Toast.LENGTH_SHORT)
@@ -292,6 +297,7 @@ object NetworkMonitor {
     fun stopMonitoring() {
         checkConnectionJob?.cancel()
         checkConnectionJob = null
+        mainScope.coroutineContext.cancelChildren()
     }
 
     // Fungsi untuk memulai monitor lagi

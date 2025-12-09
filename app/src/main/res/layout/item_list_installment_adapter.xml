@@ -113,7 +113,7 @@
                         app:useMaterialThemeColors="false"
                         app:buttonTint="@color/green_btn"
                         android:layout_marginTop="5dp"
-                        android:layout_marginEnd="6dp"/>
+                        android:layout_marginEnd="7dp"/>
 
                 </LinearLayout>
 

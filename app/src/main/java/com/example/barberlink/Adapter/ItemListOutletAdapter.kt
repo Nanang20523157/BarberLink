@@ -8,6 +8,7 @@ import android.view.animation.Animation
 import android.view.animation.RotateAnimation
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
@@ -17,19 +18,26 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Admin.ManageOutletPage
 import com.example.barberlink.Utils.CodeGeneratorUtils
 import com.example.barberlink.Utils.CopyUtils
 import com.example.barberlink.Utils.DateComparisonUtils
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ItemListManageOutletAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageOutletCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ItemListOutletAdapter(
     private val vegaManager: VegaLayoutManager,
@@ -38,10 +46,12 @@ class ItemListOutletAdapter(
     private val lifecycleOwner: LifecycleOwner,
     private val callbackUpdate: OnProcessUpdateCallback,
     private val callbackToast: DisplayThisToastMessage,
-    private val isDialogVisibleProvider: () -> Boolean
-) : ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
+    private val isDialogVisibleProvider: () -> Boolean,
+    private val activity: ManageOutletPage
+) :
+    BaseCleanableAdapter,
+    ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null
@@ -49,7 +59,7 @@ class ItemListOutletAdapter(
     private var isRestoring = false
     private var isOnline = false
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val userEmployeeDataList: MutableList<UserEmployeeData> = mutableListOf()
+    private val employeeList: MutableList<UserEmployeeData> = mutableListOf()
 
     interface OnQueueResetListener {
         fun onQueueResetRequested(outlet: Outlet, index: Int)
@@ -67,15 +77,6 @@ class ItemListOutletAdapter(
         fun displayThisToast(message: String)
     }
 
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
-            }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
-        }
-    }
-
     init {
         lifecycleOwner.lifecycleScope.launch {
             NetworkMonitor.isOnline.collect { status ->
@@ -87,9 +88,9 @@ class ItemListOutletAdapter(
         }
     }
 
-    fun setEmployeeList(userEmployeeDataList: MutableList<UserEmployeeData>) {
-        this.userEmployeeDataList.clear()
-        this.userEmployeeDataList.addAll(userEmployeeDataList)
+    fun setEmployeeList(employeeList: MutableList<UserEmployeeData>) {
+        this.employeeList.clear()
+        this.employeeList.addAll(employeeList)
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -169,7 +170,7 @@ class ItemListOutletAdapter(
     }
 
     inner class ItemViewHolder(val binding: ItemListManageOutletAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(outlet: Outlet) {
             val reviewCount = 2134
@@ -220,10 +221,6 @@ class ItemListOutletAdapter(
                     }
                     // Jika sedang dalam proses restore, abaikan listener
                     if (isRestoring) return@setOnCheckedChangeListener
-//                    outlet.openStatus = isChecked
-//                    recyclerView?.post {
-//                        notifyItemChanged(adapterPosition)
-//                    }
 
                     // Jika kondisi di atas tidak terpenuhi, lanjutkan ke fungsi berikutnya
                     setStatusOutlet(isChecked, binding)
@@ -243,7 +240,7 @@ class ItemListOutletAdapter(
 
                         if (sumOfCurrentQueue > 0) {
                             // Filter hanya employee yang terdaftar pada outlet
-                            val filteredEmployeeList = userEmployeeDataList.filter { it.uid in outlet.listEmployees }
+                            val filteredEmployeeList = employeeList.filter { it.uid in outlet.listEmployees }
 
                             // Periksa apakah ada employee yang tersedia di outlet ini
                             val hasAvailableEmployee = filteredEmployeeList.any { it.availabilityStatus }
@@ -261,7 +258,7 @@ class ItemListOutletAdapter(
                     // save data
                     if (!skip) {
                         Log.d("SwitchAnomali", "!Skip $isChecked")
-                        updateOutletStatus(outlet, isChecked, binding)
+                        updateOutletStatus(outlet, isChecked)
                     }
                 }
 
@@ -330,7 +327,6 @@ class ItemListOutletAdapter(
                     Log.d("TestCLickMore", "OriginalHeight ${binding.root.height} || New Height: $newHeight")
 
                     vegaManager.setItemExpanded(adapterPosition, !isCollapse, newHeight) // <-- Panggil fungsi ini
-
                 }
 
                 btnGenerateCode.setOnClickListener {
@@ -345,7 +341,7 @@ class ItemListOutletAdapter(
                     binding.tvAksesCode.text = result
                     setButtonAccessCode(result, Timestamp.now(), binding)
                     // saveData
-                    updateOutletAccessCode(outlet, result, binding)
+                    updateOutletAccessCode(outlet, result)
 
                     if (code == root.context.getString(R.string.default_empty_code_access)) {
                         // Generate code
@@ -358,6 +354,11 @@ class ItemListOutletAdapter(
                 }
 
             }
+        }
+
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivOutlet)
+            binding.ivOutlet.setImageDrawable(null)
         }
 
     }
@@ -384,7 +385,7 @@ class ItemListOutletAdapter(
         val outlet = getItem(index)
         val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
         if (binding != null) {
-            updateOutletStatus(outlet, !outlet.openStatus, binding)
+            updateOutletStatus(outlet, !outlet.openStatus)
         }
     }
 
@@ -399,57 +400,96 @@ class ItemListOutletAdapter(
         return binding.root.measuredHeight
     }
 
-    private fun updateOutletStatus(outlet: Outlet, isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {
-        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
+    private fun updateOutletStatus(
+        outlet: Outlet,
+        isOpen: Boolean
+    ) {
+        val outletRef = db.document(outlet.rootRef)
+            .collection("outlets")
+            .document(outlet.uid)
 
         val isSameDay = DateComparisonUtils.isSameDay(
             Timestamp.now().toDate(),
             outlet.timestampModify.toDate()
         )
-        // Create a new map with the same keys as currentQueue, but all values set to "00"
-        val updatedCurrentQueue = if (isOpen && isSameDay) outlet.currentQueue ?: emptyMap()
-        else outlet.currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
 
-        Log.d("IsOpen", "outlet: ${outlet.openStatus} || isOpen: $isOpen || updatedCurrentQueue: ${updatedCurrentQueue}")
+        // Tentukan nilai current_queue baru
+        val updatedCurrentQueue = if (isOpen && isSameDay)
+            outlet.currentQueue ?: emptyMap()
+        else
+            outlet.currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
 
-        // Update the outlet status and current queue in Firestore
-        outletRef.update(mapOf(
-            "open_status" to isOpen,
-            "current_queue" to updatedCurrentQueue, // Update currentQueue to all "00"
-            "timestamp_modify" to Timestamp.now()
-        ))
-            .addOnSuccessListener {
-                // Jika sama berarti berhasil diubah
-                if (isOpen == outlet.openStatus) {
-                    callbackUpdate.onProcessUpdate(true)
-                    callbackToast.displayThisToast("Outlet status updated")
-                    Log.d("IsOpen", "Show Toast")
+        Log.d("IsOpen", "outlet: ${outlet.openStatus} || isOpen: $isOpen || updatedCurrentQueue: $updatedCurrentQueue")
+
+        callbackUpdate.onProcessUpdate(true)
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            val success = try {
+                outletRef.update(
+                    mapOf(
+                        "open_status" to isOpen,
+                        "current_queue" to updatedCurrentQueue,
+                        "timestamp_modify" to Timestamp.now()
+                    )
+                ).awaitWriteWithOfflineFallback(tag = "UpdateOutletStatus")
+            } catch (e: Exception) {
+                Logger.e("UpdateOutletStatus", "❌ Error: ${e.message}")
+                false
+            }
+
+            withContext(Dispatchers.Main) {
+                if (success) {
+                    // Update berhasil, baik server maupun lokal
+                    if (isOpen == outlet.openStatus) {
+                        callbackToast.displayThisToast("Status outlet berhasil diperbarui")
+                        Log.d("IsOpen", "Show Toast")
+                    } else {
+                        callbackUpdate.onProcessUpdate(false)
+                        Log.d("IsOpen", "No Toast")
+                    }
                 } else {
+                    // Update gagal total
                     callbackUpdate.onProcessUpdate(false)
-                    Log.d("IsOpen", "No Toast")
+                    callbackToast.displayThisToast(
+                        "Gagal memperbarui status. Periksa koneksi internet Anda."
+                    )
                 }
             }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false)
-                callbackToast.displayThisToast("Failed to update status: ${e.message}")
-            }
+        }
     }
 
+    private fun updateOutletAccessCode(
+        outlet: Outlet,
+        newCode: String
+    ) {
+        val outletRef = db.document(outlet.rootRef)
+            .collection("outlets")
+            .document(outlet.uid)
 
-    private fun updateOutletAccessCode(outlet: Outlet, newCode: String, binding: ItemListManageOutletAdapterBinding) {
-        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
-        outletRef.update(mapOf(
-            "outlet_access_code" to newCode,
-            "last_updated" to Timestamp.now()
-        ))
-            .addOnSuccessListener {
-                callbackUpdate.onProcessUpdate(true)
-                callbackToast.displayThisToast("Outlet access code updated")
+        callbackUpdate.onProcessUpdate(true)
+        activity.lifecycleScope.launch(Dispatchers.IO) {
+            val success = try {
+                outletRef.update(
+                    mapOf(
+                        "outlet_access_code" to newCode,
+                        "last_updated" to Timestamp.now()
+                    )
+                ).awaitWriteWithOfflineFallback(tag = "UpdateOutletAccessCode")
+            } catch (e: Exception) {
+                Logger.e("UpdateOutletAccessCode", "❌ Error: ${e.message}")
+                false
             }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false)
-                callbackToast.displayThisToast("Failed to update access code: ${e.message}")
+
+            withContext(Dispatchers.Main) {
+                if (success) {
+                    callbackToast.displayThisToast("Kode akses outlet berhasil diperbarui")
+                } else {
+                    callbackUpdate.onProcessUpdate(false)
+                    callbackToast.displayThisToast(
+                        "Gagal memperbarui kode akses. Periksa koneksi internet Anda."
+                    )
+                }
             }
+        }
     }
 
     private fun setStatusOutlet(isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {
@@ -499,6 +539,44 @@ class ItemListOutletAdapter(
                 )
             }
         }
+    }
+
+    override fun cleanUp() {
+        // 1. Stop shimmer
+        shimmerViewList.forEach { it.stopShimmer() }
+        shimmerViewList.clear()
+
+        // 2. Clear Glide untuk item yang masih terlihat
+        recyclerView?.children?.forEach { view ->
+            val holder = recyclerView?.getChildViewHolder(view)
+            if (holder is ItemViewHolder) {
+                Glide.with(holder.binding.root.context).clear(holder.binding.ivOutlet)
+                holder.binding.ivOutlet.setImageDrawable(null)
+            }
+        }
+
+        // 3. Kosongkan data list
+        submitList(emptyList())
+
+        // 4. Lepaskan referensi RecyclerView
+        recyclerView?.adapter = null
+        recyclerView?.layoutManager = null
+        recyclerView = null
+
+        // 5. Null-kan semua callback & reference berat
+        vegaManager = null
+        itemClicked = null
+        listener = null
+        callbackUpdate = null
+        callbackToast = null
+        isDialogVisibleProvider = null
+        activity = null
+    }
+
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is CleanableViewHolder) holder.clear()
     }
 
     companion object {

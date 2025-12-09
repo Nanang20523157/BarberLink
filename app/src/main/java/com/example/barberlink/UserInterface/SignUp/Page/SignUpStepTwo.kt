@@ -103,7 +103,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
+        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth)
         stepTwoViewModel = ViewModelProvider(this, registerViewModelFactory)[StepTwoViewModel::class.java]
         if (!isRecreated) {
             @Suppress("DEPRECATION")
@@ -512,16 +512,6 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
     private fun setupEditTextListeners() {
         with(binding) {
             textWatcher1 = object : TextWatcher {
@@ -670,11 +660,14 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-
-        binding.etBarbershopName.removeTextChangedListener(textWatcher1)
-        binding.etBarbershopEmail.removeTextChangedListener(textWatcher2)
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -685,6 +678,13 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
             }
         } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        binding.etBarbershopName.removeTextChangedListener(textWatcher1)
+        binding.etBarbershopEmail.removeTextChangedListener(textWatcher2)
     }
 
     companion object {

@@ -1,29 +1,51 @@
 package com.example.barberlink.Adapter
 
+import android.os.Looper
 import android.util.Log
 import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.Product
+import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemAnalyticsProductAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutAnalyticsProductBinding
+import com.facebook.shimmer.ShimmerFrameLayout
+import java.lang.ref.WeakReference
 
-class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(ProductDiffCallback()) {
+class ItemAnalyticsProductAdapter() :
+    BaseCleanableAdapter,
+    ListAdapter<Product, RecyclerView.ViewHolder>(ProductDiffCallback()) {
+    private var recyclerViewRef: WeakReference<RecyclerView>? = null
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private var isShimmer = true
     private val shimmerItemCount = 3
-    private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var outletName = ""
 
     fun setOutletName(name: String) {
         outletName = name
+    }
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        recyclerViewRef = WeakReference(recyclerView)
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -32,9 +54,6 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        if (recyclerView == null) {
-            recyclerView = parent as RecyclerView
-        }
         return if (viewType == VIEW_TYPE_SHIMMER) {
             val shimmerBinding = ShimmerLayoutAnalyticsProductBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
@@ -48,6 +67,9 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val product = getItem(position)
             (holder as ItemViewHolder).bind(product)
+        } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
+            // Call bind for ShimmerViewHolder
+            (holder as ShimmerViewHolder).bind(Product()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -58,7 +80,8 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
     fun setShimmer(shimmer: Boolean) {
         if (isShimmer == shimmer) return
 
-        val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+        val rv = recyclerViewRef?.get()
+        val layoutManager = rv?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             var step = "one"
@@ -73,10 +96,18 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
         }
 
         isShimmer = shimmer
+        // saat shimmer ON → jangan clear (biarkan shimmerViewHolder collect data)
+        if (!shimmer) {
+            // saat shimmer OFF (tampilkan data real)
+            shimmerViewList.forEach { it.stopShimmer() }
+            shimmerViewList.clear()
+        }
+        // ⬇️ ini yang benar: mode tampilan berubah total
         notifyDataSetChanged()
 
-        recyclerView?.post {
-            val itemCount = recyclerView?.adapter?.itemCount ?: 0
+        rv?.post {
+            val layoutManager2 = recyclerViewRef?.get()?.layoutManager as? LinearLayoutManager ?: return@post
+            val itemCount = recyclerViewRef?.get()?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
                 Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
@@ -88,22 +119,30 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
             // Validasi posisi target
             if (positionToScroll in 0 until itemCount) {
                 Log.e("RecyclerView", "Target position: $positionToScroll")
-                layoutManager?.scrollToPosition(positionToScroll)
+                layoutManager2.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
-
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutAnalyticsProductBinding) :
-        RecyclerView.ViewHolder(binding.root)
-
-    inner class ItemViewHolder(private val binding: ItemAnalyticsProductAdapterBinding) :
+    inner class ShimmerViewHolder(val binding: ShimmerLayoutAnalyticsProductBinding) :
         RecyclerView.ViewHolder(binding.root) {
+        fun bind(product: Product) {
+            shimmerViewList.add(binding.shimmerViewContainer)
+            if (!binding.shimmerViewContainer.isShimmerStarted) {
+                binding.shimmerViewContainer.startShimmer()
+            }
+        }
+    }
+
+    inner class ItemViewHolder(val binding: ItemAnalyticsProductAdapterBinding) :
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(product: Product) {
+            // if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with(binding) {
                 tvProductName.isSelected = true
                 tvProductName.text = product.productName
@@ -136,6 +175,43 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
             }
         }
 
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivProduct)
+            binding.ivProduct.setImageDrawable(null)
+        }
+
+    }
+
+    override fun cleanUp() {
+        // Stop shimmer animations
+        shimmerViewList.forEach { view ->
+            view.stopShimmer()
+            view.setShimmer(null)
+        }
+        shimmerViewList.clear()
+
+        // Cleanup Glide for visible items
+        recyclerViewRef?.get()?.children?.forEach { child ->
+            val holder = recyclerViewRef?.get()?.getChildViewHolder(child)
+            if (holder is ItemViewHolder) holder.clear()
+        }
+
+        // Clear list so adapter releases references
+        submitList(null)
+
+        // Release RecyclerView reference safely
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is ShimmerViewHolder) {
+            holder.binding.shimmerViewContainer.stopShimmer()
+            shimmerViewList.remove(holder.binding.shimmerViewContainer)
+        } else if (holder is CleanableViewHolder) {
+            holder.clear()
+        }
     }
 
     companion object {

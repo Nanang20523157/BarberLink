@@ -25,20 +25,21 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignIn.ViewModel.SelectOutletViewModel
+import com.example.barberlink.Utils.Concurrency.withStateLock
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivitySelectOutletDestinationBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.OnItemClicked, FormAccessCodeFragment.OnClearBackStackListener {
     private lateinit var binding: ActivitySelectOutletDestinationBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val selectOutletViewModel: SelectOutletViewModel by viewModels()
-
     // private val outletsList = mutableListOf<Outlet>()
     // private var filteredResult: List<Outlet> = emptyList()
     private var isFirstLoad: Boolean = true
@@ -47,13 +48,11 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private var currentToastMessage: String? = null
-
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: FormAccessCodeFragment
     private lateinit var outletAdapter: ItemListDestinationAdapter
     private lateinit var outletListener: ListenerRegistration
     private var shouldClearBackStack = true
-    private val outletsMutex = Mutex()
     private var isRecreated: Boolean = false
     private var myCurrentToast: Toast? = null
 
@@ -142,22 +141,6 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             })
         }
 
-//        selectOutletViewModel.outletList.observe(this) {
-//            val shimmerState = selectOutletViewModel.isDisableShimmer.value ?: true
-//            displayAllData(shimmerState)
-//        }
-
-//        selectOutletViewModel.filteredOutletList.observe(this) { filteredResult ->
-//            val shimmerState = selectOutletViewModel.isDisableShimmer.value ?: true
-//            outletAdapter.submitList(filteredResult)
-//            binding.tvEmptyOutlet.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
-//            if (shimmerState) {
-//                outletAdapter.setShimmer(false)
-//                isShimmerVisible = false
-//            }
-//            else outletAdapter.notifyDataSetChanged()
-//        }
-
         selectOutletViewModel.letsFilteringDataOutlet.observe(this) { withShimmer ->
             if (withShimmer != null) filterOutlets(keyword, withShimmer)
         }
@@ -182,20 +165,22 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@SelectOutletDestination,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    this@SelectOutletDestination,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -217,23 +202,6 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        // WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        if (!isRecreated) {
-            if (!::outletListener.isInitialized && !isFirstLoad) {
-                val intent = Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
-            }
-        }
-        isRecreated = false
-    }
-
     private fun listenToOutletList(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
         if (::outletListener.isInitialized) {
@@ -242,29 +210,33 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
         outletListener = db.collectionGroup("outlets")
             .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to outlets data: ${exception.message}")
-                    this@SelectOutletDestination.isFirstLoad = false
-                    this@SelectOutletDestination.skippedProcess = false
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!this@SelectOutletDestination.isFirstLoad && !this@SelectOutletDestination.skippedProcess) {
-                            val outlets = it.mapNotNull { doc ->
-                                val outlet = doc.toObject(Outlet::class.java).apply {
-                                    outletReference = doc.reference.path
-                                }
-                                if (!outlet.hiddenOutlet) outlet else null
-                            }
-
-                            outletsMutex.withLock {
-                                selectOutletViewModel.setOutletList(outlets.toMutableList())
-                                selectOutletViewModel.triggerFilteringDataOutlet(false)
-                            }
-                        } else {
+                lifecycleScope.launch {
+                    selectOutletViewModel.listenerOutletListMutex.withStateLock {
+                        exception?.let {
+                            showToast("Error listening to outlets data: ${exception.message}")
                             this@SelectOutletDestination.isFirstLoad = false
                             this@SelectOutletDestination.skippedProcess = false
+                            return@withStateLock
+                        }
+                        documents?.let { docs ->
+                            if (!this@SelectOutletDestination.isFirstLoad && !this@SelectOutletDestination.skippedProcess) {
+                                withContext(Dispatchers.Default) {
+                                    val outlets = docs.mapNotNull { document ->
+                                        val outlet = document.toObject(Outlet::class.java).apply {
+                                            outletReference = document.reference.path
+                                        }
+                                        if (!outlet.hiddenOutlet) outlet else null
+                                    }
+
+                                    selectOutletViewModel.outletsMutex.withStateLock {
+                                        selectOutletViewModel.setOutletList(outlets.toMutableList())
+                                        selectOutletViewModel.triggerFilteringDataOutlet(false)
+                                    }
+                                }
+                            } else {
+                                this@SelectOutletDestination.isFirstLoad = false
+                                this@SelectOutletDestination.skippedProcess = false
+                            }
                         }
                     }
                 }
@@ -272,34 +244,54 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     }
 
     private fun getAllOutletsData() {
-        db.collectionGroup("outlets").get()
-            .addOnSuccessListener { snapshot ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    val outlets = snapshot.mapNotNull { doc ->
-                        val outlet = doc.toObject(Outlet::class.java)
-                        outlet.outletReference = doc.reference.path
-                        if (!outlet.hiddenOutlet) outlet else null // Filter hanya outlet yang tidak tersembunyi
+        lifecycleScope.launch(Dispatchers.IO) {
+            // 🔹 Ambil data dengan offline fallback
+            val snapshot = try {
+                db.collectionGroup("outlets")
+                    .get()
+                    .awaitGetWithOfflineFallback(tag = "GetAllOutlets")
+            } catch (e: Exception) {
+                Logger.e("GetAllOutlets", "🔥 Exception: ${e.message}")
+                null
+            }
+
+            if (snapshot != null) {
+                val documents = snapshot.documents
+
+                // 🔹 Proses data snapshot
+                val outlets = snapshot.documents.mapNotNull { document ->
+                    val outlet = document.toObject(Outlet::class.java)?.apply {
+                        outletReference = document.reference.path
                     }
 
-                    outletsMutex.withLock {
-                        selectOutletViewModel.setOutletList(outlets.toMutableList())
-                    }
+                    if (outlet != null && !outlet.hiddenOutlet) outlet else null
+                }
 
+                // 🔹 Update ViewModel dengan mutex
+                selectOutletViewModel.outletsMutex.withStateLock {
+                    selectOutletViewModel.setOutletList(outlets.toMutableList())
+                }
+
+                // 🔹 Update UI di Main Thread
+                withContext(Dispatchers.Main) {
                     displayAllData()
                 }
+            } else {
+                withContext(Dispatchers.Main) {
+                    displayAllData()
+                    showToast("Gagal mengambil data outlet.")
+                }
             }
-            .addOnFailureListener { exception ->
-                displayAllData()
-                showToast("Error getting outlets: ${exception.message}")
-            }
+        }
     }
 
-
     private fun displayAllData() {
-        // filterOutlets(keyword, shimmerState)  // Update UI with the data
-        selectOutletViewModel.triggerFilteringDataOutlet(true)
+        lifecycleScope.launch {
+            // filterOutlets(keyword, shimmerState)  // Update UI with the data
+            selectOutletViewModel.triggerFilteringDataOutlet(true)
 
-        if (isFirstLoad) listenToOutletList()
+            if (isFirstLoad) listenToOutletList()
+        }
     }
 
 
@@ -308,7 +300,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
 
             // Use mutex to ensure thread safety when accessing outletsList
-            val filteredResult = outletsMutex.withLock {
+            val filteredResult = selectOutletViewModel.outletsMutex.withStateLock {
                 if (lowerCaseQuery.isEmpty()) {
                     // outletsList
                     selectOutletViewModel.outletList.value ?: emptyList()
@@ -316,33 +308,11 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                     selectOutletViewModel.outletList.value?.filter { outlet ->
                         outlet.outletName.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
                     } ?: emptyList()
-//                    outletsList.filter { outlet ->
-//                        outlet.outletName.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
-//                    }
                 }
             }
 
             selectOutletViewModel.setFilteredOutletList(filteredResult.toMutableList())
             selectOutletViewModel.displayFilteredOutletResult(withShimmer)
-
-//            withContext(Dispatchers.Main) {
-//                outletAdapter.submitList(filteredResult)
-//
-//                // Ubah tinggi layout root
-////                val layoutParams = binding.root.layoutParams
-////                layoutParams.height = if (filteredResult.isEmpty())
-////                    ViewGroup.LayoutParams.MATCH_PARENT
-////                else
-////                    ViewGroup.LayoutParams.WRAP_CONTENT
-////                binding.root.layoutParams = layoutParams
-//                binding.tvEmptyOutlet.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
-//
-//                if (withShimmer) {
-//                    outletAdapter.setShimmer(false)
-//                    isShimmerVisible = false
-//                }
-//                else outletAdapter.notifyDataSetChanged()
-//            }
         }
     }
 
@@ -354,7 +324,8 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
             return
         }
-        selectOutletViewModel.setOutletSelected(outlet)
+
+        lifecycleScope.launch { selectOutletViewModel.setOutletSelected(outlet) }
         dialogFragment = FormAccessCodeFragment.newInstance(loginType)
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
@@ -375,6 +346,25 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 .addToBackStack("FormAccessCodeFragment")
                 .commit()
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        // WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        if (!isRecreated) {
+            if (!::outletListener.isInitialized && !isFirstLoad) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                lifecycleScope.launch {
+                    showToast("Sesi telah berakhir silahkan masuk kembali")
+                }
+            }
+        }
+        isRecreated = false
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -410,22 +400,27 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         currentToastMessage = null
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        outletAdapter.stopAllShimmerEffects()
-
-        selectOutletViewModel.clearState()
-        if (::outletListener.isInitialized) outletListener.remove()
-    }
-
-    override fun onClearBackStackRequested() {
-        shouldClearBackStack = true
-    }
-
     private fun clearBackStack() {
         while (fragmentManager.backStackEntryCount > 0) {
             fragmentManager.popBackStackImmediate()
         }
+    }
+
+    override fun onDestroy() {
+        val adapter = binding.rvOutletList.adapter
+        if (adapter is ItemListDestinationAdapter) adapter.cleanUp()
+        binding.rvOutletList.adapter = null
+        binding.rvOutletList.layoutManager = null
+
+        // end clear
+        selectOutletViewModel.clearState()
+        if (::outletListener.isInitialized) outletListener.remove()
+
+        super.onDestroy()
+    }
+
+    override fun onClearBackStackRequested() {
+        shouldClearBackStack = true
     }
 
 }

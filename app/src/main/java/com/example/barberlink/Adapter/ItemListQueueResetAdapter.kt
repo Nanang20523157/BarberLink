@@ -19,7 +19,6 @@ class ItemListQueueResetAdapter(
     private val shimmerItemCount: Int
 ) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0

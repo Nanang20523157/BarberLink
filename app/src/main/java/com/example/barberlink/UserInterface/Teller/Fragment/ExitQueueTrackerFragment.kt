@@ -98,16 +98,16 @@ class ExitQueueTrackerFragment : DialogFragment() {
         }
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
-
     override fun onResume() {
         super.onResume()
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     companion object {

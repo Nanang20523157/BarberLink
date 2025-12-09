@@ -22,7 +22,6 @@ class ItemListPackageOrdersAdapter(
     private val disableCounting: Boolean,
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var capsterRef: String = ""
     private var isShimmer = true
     private val shimmerItemCount = 3

@@ -9,7 +9,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.Interface.NavigationCallback
 import com.example.barberlink.Manager.SharedGestureManager
 import com.example.barberlink.UserInterface.Capster.Fragment.ListQueueFragment
@@ -25,12 +25,12 @@ class QueueDialogWithGesture(
     private lateinit var sharedGestureManager: SharedGestureManager
 
     fun showQueueDialog(
-        reservationList: List<Reservation>,
+        reservationDataList: List<ReservationData>,
         currentIndexQueue: Int,
     ) {
         // Inisialisasi gesture detection
         sharedGestureManager = SharedGestureManager.getInstance()
-        val dialog = ListQueueFragment.newInstance(ArrayList(reservationList), currentIndexQueue)
+        val dialog = ListQueueFragment.newInstance(ArrayList(reservationDataList), currentIndexQueue)
         dialog.apply {
             setOnDismissListener(object : ListQueueFragment.OnDismissListener {
                 override fun onDialogDismissed() {

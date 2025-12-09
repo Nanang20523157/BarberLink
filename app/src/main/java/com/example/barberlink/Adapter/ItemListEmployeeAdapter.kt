@@ -10,27 +10,21 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListEmployeeAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+class ItemListEmployeeAdapter :
+    BaseCleanableAdapter,
+    ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
-
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
-            }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
-        }
-    }
 
     override fun getItemViewType(position: Int): Int {
         return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
@@ -117,7 +111,7 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
     }
 
     inner class ItemViewHolder(private val binding: ItemListEmployeeAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(userEmployeeData: UserEmployeeData) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
@@ -168,6 +162,28 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
             }
         }
 
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivPhotoProfile)
+            binding.ivPhotoProfile.setImageDrawable(null)
+        }
+
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is CleanableViewHolder) holder.clear()
+    }
+
+    override fun cleanUp() {
+        // 1. stop shimmer safely
+        shimmerViewList.forEach { it.stopShimmer() }
+        shimmerViewList.clear()
+
+        // 2. detach list data agar DiffUtil melepas semua referensi
+        submitList(emptyList())
+
+        // 3. lepaskan recyclerview reference
+        recyclerView = null
     }
 
     companion object {

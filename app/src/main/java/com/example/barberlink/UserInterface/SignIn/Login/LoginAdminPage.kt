@@ -247,37 +247,6 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         return isEmailValid && isPasswordValid
     }
 
-//    private fun isConnectedToInternet(): Boolean {
-//        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-//        val network = connectivityManager.activeNetwork ?: return false
-//        val activeNetwork = connectivityManager.getNetworkCapabilities(network) ?: return false
-//        return when {
-//            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> true
-//            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> true
-//            activeNetwork.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> true
-//            else -> false
-//        }
-//    }
-
-    // Kelas untuk cek internet dengan ping
-//    private class InternetCheck(private val onInternetChecked: (Boolean) -> Unit) : AsyncTask<Void, Void, Boolean>() {
-//        override fun doInBackground(vararg params: Void?): Boolean {
-//            return try {
-//                Log.d("InternetCheck", "Checking internet connection...1")
-//                val ipAddr = java.net.InetAddress.getByName("8.8.8.8") // Ping ke Google DNS
-//                ipAddr.isReachable(3000) // Timeout 3 detik
-//            } catch (e: IOException) {
-//                Log.d("InternetCheck", "Checking internet connection...2")
-//                false
-//            }
-//        }
-//
-//        override fun onPostExecute(result: Boolean) {
-//            Log.d("InternetCheck", "Internet check result: $result")
-//            onInternetChecked(result)
-//        }
-//    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     private fun performLogin() {
         val email = binding.signInEmail.text.toString().trim()
@@ -286,11 +255,6 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         if (!NetworkMonitor.isOnline.value) {
             val errMessage = NetworkMonitor.errorMessage.value
             NetworkMonitor.showToast(errMessage, true)
-//            Toast.makeText(
-//                this,
-//                "Koneksi internet tidak tersedia. Periksa koneksi Anda.",
-//                Toast.LENGTH_SHORT
-//            ).show()
             return
         }
 
@@ -373,9 +337,9 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         db.collectionGroup("employees")
             .whereEqualTo("uid", userId)
             .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (!querySnapshot.isEmpty) {
-                    val document = querySnapshot.documents.firstOrNull()
+            .addOnSuccessListener { snapshot ->
+                if (!snapshot.isEmpty) {
+                    val document = snapshot.documents.firstOrNull()
                     if (document != null) {
                         userEmployeeData = document.toObject(UserEmployeeData::class.java)?.apply {
                             userRef = document.reference.path
@@ -414,7 +378,8 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun fetchUserAdminData(userId: String) {
-        db.collection("barbershops").document(userId).get()
+        db.collection("barbershops").document(userId)
+            .get()
             .addOnSuccessListener { document ->
                 if (document != null) {
                     userAdminData = document.toObject(UserAdminData::class.java).apply {
@@ -485,38 +450,20 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
     private fun validateEmailInput(): Boolean {
         with (binding) {
             val email = signInEmail.text.toString().trim()
             return if (email.isEmpty()) {
                 textErrorForEmail = getString(R.string.empty_text_email_address)
                 setInputState(false, textErrorForEmail, emailCustomError, signInEmail, signInEmailLayout)
-//                emailCustomError.text = getString(R.string.empty_text_email_address)
-//                signInEmailLayout.error = ""
-//                setFocus(signInEmail)
                 false
             } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                 textErrorForEmail = getString(R.string.invalid_text_email_address)
                 setInputState(false, textErrorForEmail, emailCustomError, signInEmail, signInEmailLayout)
-//                emailCustomError.text = getString(R.string.invalid_text_email_address)
-//                signInEmailLayout.error = ""
-//                setFocus(signInEmail)
                 false
             } else {
                 textErrorForEmail = ""
                 setInputState(true, getString(R.string.required), emailCustomError, signInEmail, signInEmailLayout)
-//                emailCustomError.text = getString(R.string.required)
-//                signInEmailLayout.error = null
                 true
             }
         }
@@ -528,22 +475,14 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             return if (password.isEmpty()) {
                 textErrorForPassword = getString(R.string.password_required)
                 setInputState(false, textErrorForPassword, passwordCustomError, signInPassword, signInPasswordLayout)
-//                passwordCustomError.text = getString(R.string.password_required)
-//                signInPasswordLayout.error = ""
-//                setFocus(signInPassword)
                 false
             } else if (password.length < 8) {
                 textErrorForPassword = getString(R.string.password_less_than_8)
                 setInputState(false, textErrorForPassword, passwordCustomError, signInPassword, signInPasswordLayout)
-//                passwordCustomError.text = getString(R.string.password_less_than_8)
-//                signInPasswordLayout.error = ""
-//                setFocus(signInPassword)
                 false
             } else {
                 textErrorForPassword = ""
                 setInputState(true, getString(R.string.required), passwordCustomError, signInPassword, signInPasswordLayout)
-//                passwordCustomError.text = getString(R.string.required)
-//                signInPasswordLayout.error = null
                 true
             }
         }
@@ -553,6 +492,22 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         textViewError.text = message
         wrapperLayout.error = if (message == getString(R.string.required)) null else ""
         if (!isValid) setFocus(editText)
+    }
+
+    private fun setFocus(editText: TextInputEditText) {
+        editText.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -567,12 +522,6 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         super.onDestroy()
         binding.signInEmail.removeTextChangedListener(textWatcher1)
         binding.signInPassword.removeTextChangedListener(textWatcher2)
-    }
-
-    private fun setFocus(editText: TextInputEditText) {
-        editText.requestFocus()
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
     companion object {

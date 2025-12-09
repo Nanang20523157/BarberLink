@@ -131,16 +131,16 @@ class ListQueueBoardFragment : DialogFragment() {
 
         queueBoardViewModel.capsterList.observe(viewLifecycleOwner) { capsterList ->
             // Menggunakan coroutine untuk menunda eksekusi submitList
-            capsterList?.let { originalCapsterList ->
-                val layoutParams = binding.rvListQueue.layoutParams
-                layoutParams.height = if (originalCapsterList.size > 3) {
-                    resources.getDimensionPixelSize(R.dimen.recycler_height_large) // 315dp dalam pixels
-                } else {
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                }
-                binding.rvListQueue.layoutParams = layoutParams
+            lifecycleScope.launch {
+                capsterList?.let { originalCapsterList ->
+                    val layoutParams = binding.rvListQueue.layoutParams
+                    layoutParams.height = if (originalCapsterList.size > 3) {
+                        resources.getDimensionPixelSize(R.dimen.recycler_height_large) // 315dp dalam pixels
+                    } else {
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+                    binding.rvListQueue.layoutParams = layoutParams
 
-                lifecycleScope.launch {
                     // Hitung mundur 800 ms
                     if (isFirstLoad) delay(500)
 

@@ -18,10 +18,14 @@ import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.HomePageViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.FragmentSwitchAvailabilityBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -37,7 +41,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
     private var _binding: FragmentSwitchAvailabilityBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val switchFragmentViewModel: HomePageViewModel by activityViewModels()
-    private var isChangeFromDatabase: Boolean = false
+    private var isDatabaseProcessCompleted: Boolean = true
     private var isOnline = false
     private var currentToastMessage: String? = null
     // This property is only valid between onCreateView and
@@ -68,6 +72,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         currentToastMessage = savedInstanceState?.getString("current_toast_message", null)
+        isDatabaseProcessCompleted = savedInstanceState?.getBoolean("is_database_process_completed", true) ?: true
 //        arguments?.let {
 //            employeeData = it.getParcelable(ARG_PARAM1) ?: Employee()
 //        }
@@ -96,15 +101,18 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
             tvEmployeeName.isSelected = true
             switchFragmentViewModel.userEmployeeData.observe(viewLifecycleOwner) { employeeData ->
                 employeeData?.let {
-                    isChangeFromDatabase = true
+                    Logger.d("AvailableCapster", "OBSERVER >>> availability status: ${employeeData.availabilityStatus}")
                     tvEmployeeName.text = employeeData.fullname
                     loadImageWithGlide(employeeData.photoProfile)
                     switchAvailabilityStatus.isChecked = employeeData.availabilityStatus
                     setAvailabilityStatus(employeeData.availabilityStatus)
+                } ?: run {
+                    Logger.d("AvailableCapster", "userEmployeeData is null")
                 }
             }
 
             switchAvailabilityStatus.setOnCheckedChangeListener { _, isChecked ->
+                Logger.d("AvailableCapster", "CLICK >>> availability status: $isChecked || isOnline: $isOnline || isDatabaseProcessCompleted: $isDatabaseProcessCompleted")
                 if (!isOnline) {
                     switchAvailabilityStatus.isChecked = !isChecked
                     switchAvailabilityStatus.jumpDrawablesToCurrentState()
@@ -114,10 +122,20 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
                     return@setOnCheckedChangeListener // ✅ pakai label bawaan dari interface
                 }
 
-                if (!isChangeFromDatabase) {
-                    setAvailabilityStatus(isChecked)
-                    updateAvailabilityStatus(isChecked)
-                } else isChangeFromDatabase = false
+                switchFragmentViewModel.userEmployeeData.value?.let { userEmployeeData ->
+                    if (isDatabaseProcessCompleted) {
+                        if (isChecked != userEmployeeData.availabilityStatus) {
+                            setAvailabilityStatus(isChecked)
+                            updateAvailabilityStatus(isChecked)
+                        }
+                    } else {
+                        switchAvailabilityStatus.isChecked = !isChecked
+                        switchAvailabilityStatus.jumpDrawablesToCurrentState()
+
+                        showToast("Please wait, previous operation is still in progress")
+                    }
+                }
+
             }
 
         }
@@ -128,55 +146,86 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    context,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putBoolean("is_database_process_completed", isDatabaseProcessCompleted)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun updateAvailabilityStatus(isAvailable: Boolean) {
-        switchFragmentViewModel.userEmployeeData.value?.let { employeeData ->
-            if (employeeData.userRef.isNotEmpty()) {
-                val userRef = db.document(employeeData.userRef)
+        isDatabaseProcessCompleted = false
 
+        val employeeData = switchFragmentViewModel.userEmployeeData.value
+        if (employeeData == null) {
+            Logger.d("AvailableCapster", "❌ Failed Process: userEmployeeData is null")
+            revertAvailabilitySwitch(isAvailable, "Data pengguna tidak ditemukan")
+            return
+        }
+
+        val userRefPath = employeeData.userRef
+        if (userRefPath.isEmpty()) {
+            Logger.d("AvailableCapster", "❌ Failed Process: userRef is empty")
+            revertAvailabilitySwitch(isAvailable, "Data referensi pengguna kosong")
+            return
+        }
+
+        val userRef = db.document(userRefPath)
+        Logger.d("AvailableCapster", "updateAvailabilityStatus >>> userRef: $userRefPath")
+
+        // Jalankan update di coroutine agar aman & non-blocking
+        lifecycleScope.launch(Dispatchers.IO) {
+            val success = try {
                 userRef.update("availability_status", isAvailable)
-                    .addOnSuccessListener {
-                        showToast("Availability status updated successfully")
-                    }
-                    .addOnFailureListener { _ ->
-                        // Revert switch state if update fails
-                        isChangeFromDatabase = true
-                        binding.switchAvailabilityStatus.isChecked = !isAvailable
-                        setAvailabilityStatus(!isAvailable)
-                        showToast("Failed to update availability status")
-                    }
-            } else {
-                isChangeFromDatabase = true
-                binding.switchAvailabilityStatus.isChecked = !isAvailable
-                setAvailabilityStatus(!isAvailable)
-                showToast("Failed to update availability status")
+                    .awaitWriteWithOfflineFallback(tag = "UpdateAvailabilityStatus")
+            } catch (e: Exception) {
+                Logger.e("AvailableCapster", "❌ Exception saat update: ${e.message}")
+                false
+            }
+
+            withContext(Dispatchers.Main) {
+                if (success) {
+                    isDatabaseProcessCompleted = true
+                    Logger.d("AvailableCapster", "✅ Successfully updated (local/server)")
+                    showToast("Status ketersediaan berhasil diperbarui")
+                } else {
+                    Logger.d("AvailableCapster", "❌ Update gagal, revert switch")
+                    revertAvailabilitySwitch(isAvailable, "Gagal memperbarui status ketersediaan")
+                }
             }
         }
     }
 
+    /**
+     * Fungsi bantu untuk mengembalikan switch & state availability saat gagal update.
+     */
+    private fun revertAvailabilitySwitch(isAvailable: Boolean, message: String) {
+        isDatabaseProcessCompleted = true
+        binding.switchAvailabilityStatus.isChecked = !isAvailable
+        setAvailabilityStatus(!isAvailable)
+        showToast(message)
+    }
 
     private fun setAvailabilityStatus(availability: Boolean) {
+        Logger.d("AvailableCapster", "setAvailabilityStatus >>> availability status: $availability")
         if (availability) {
             binding.tvStatus.text = context.getString(R.string.enter_text)
             binding.tvStatus.setTextColor(ContextCompat.getColor(context, R.color.green_btn))

@@ -24,6 +24,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -32,6 +33,9 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.Capster.ViewModel.SelectAccountViewModel
 import com.example.barberlink.databinding.FragmentPinInputBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -118,20 +122,22 @@ class PinInputFragment : DialogFragment() {
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    context,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -240,7 +246,9 @@ class PinInputFragment : DialogFragment() {
                             }
                         }
                     } ?: run {
-                        showToast("PIN pegawai belum diatur. Silakan atur PIN terlebih dahulu.")
+                        lifecycleScope.launch {
+                            showToast("PIN pegawai belum diatur. Silakan atur PIN terlebih dahulu.")
+                        }
                     }
                 }
             }
