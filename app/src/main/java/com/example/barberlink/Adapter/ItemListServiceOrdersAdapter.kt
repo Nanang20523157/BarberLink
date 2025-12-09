@@ -22,7 +22,6 @@ class ItemListServiceOrdersAdapter(
     private val disableCounting: Boolean,
 ) : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var capsterRef: String = ""
     private var isShimmer = true
     private val shimmerItemCount = 4

@@ -22,19 +22,19 @@ open class BaseActivity : AppCompatActivity() {
         Log.d("UserInteraction", "User Interacted")
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (sharedGestureManager.getShouldNavigate()) {
-            sharedGestureManager.performNavigation()
-        }
-    }
-
     fun setNavigationCallback(callback: NavigationCallback) {
         sharedGestureManager.setNavigationCallback(callback, lifecycle)
     }
 
     fun resetInitialValue() {
         sharedGestureManager.resetState()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (sharedGestureManager.getShouldNavigate()) {
+            sharedGestureManager.performNavigation()
+        }
     }
 
     override fun onBackPressed() {

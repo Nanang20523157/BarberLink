@@ -74,7 +74,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
+        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth)
         stepOneViewModel = ViewModelProvider(this, registerViewModelFactory)[StepOneViewModel::class.java]
         originPageFrom = intent.getStringExtra("origin_page_key").toString()
         val userNumberInput = savedInstanceState?.getString("user_number_input") ?: ""
@@ -178,16 +178,6 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
     private fun setupEditTextListeners() {
         textWatcher = object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -272,39 +262,6 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-//    private fun checkPhoneNumberInFirestoreAndNavigate() {
-//        binding.progressBar.visibility = View.VISIBLE
-//        userAdminData = UserAdminData()
-//        userRolesData = UserRolesData()
-//        userCustomerData = UserCustomerData()
-//
-//        formattedPhoneNumber?.let { phoneNumber ->
-//            db.collection("users").document(phoneNumber).get()
-//                .addOnSuccessListener { document ->
-//                    if (document.exists()) {
-//                        document.toObject(UserRolesData::class.java)?.let {
-//                            userRolesData = it
-//                        }
-//
-//                        if (userRolesData?.role == "admin" || userRolesData?.role == "hybrid") {
-//                            binding.progressBar.visibility = View.GONE
-//                            setTextViewToErrorState(R.string.phone_number_already_exists_text)
-//                        } else if (userRolesData?.role == "customer") {
-//                            userRolesData?.customerRef?.let { getDataCustomerReference(it) }
-//                        }
-//                    } else {
-//                        binding.progressBar.visibility = View.GONE
-//                        setTextViewToValidState()
-//                        navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
-//                    }
-//                }
-//                .addOnFailureListener { exception ->
-//                    handleError(exception)
-//                }
-//
-//        }
-//    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, phoneNumber: String?, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
@@ -346,6 +303,16 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onBackPressed() {
         if (!blockAllUserClickAction) {
             WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
@@ -362,65 +329,6 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
 
         binding.etPhoneNumber.removeTextChangedListener(textWatcher)
     }
-
-//    private fun applyAllDataToUserRolesData(document: DocumentSnapshot) {
-//        document.toObject(UserRolesData::class.java)?.let {
-//            userRolesData?.apply {
-//                adminProvider = it.adminProvider
-//                adminRef = it.adminRef
-//                customerProvider = it.customerProvider
-//                customerRef = it.customerRef
-//                role = it.role
-//                uid = it.uid
-//            }
-//        }
-//    }
-
-//    private fun getDataCustomerReference(customerRef: String) {
-//        db.document(customerRef).get()
-//            .addOnSuccessListener { customerDocument ->
-//                binding.progressBar.visibility = View.GONE
-//                if (customerDocument.exists()) {
-//                    customerDocument.toObject(UserCustomerData::class.java)?.let { customerData ->
-//                        customerData.userRef = customerDocument.reference.path
-//                        userCustomerData = customerData
-//                    }
-//
-//                    userAdminData?.apply {
-//                        uid = userCustomerData?.uid.toString()
-//                        imageCompanyProfile = userCustomerData?.photoProfile.toString()
-//                        ownerName = userCustomerData?.fullname.toString()
-//                        email = userCustomerData?.email.toString()
-//                        password = userCustomerData?.password.toString()
-//                    }
-//
-//                    setTextViewToValidState()
-//                    navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
-//                }
-//            }
-//            .addOnFailureListener { exception ->
-//                binding.progressBar.visibility = View.GONE
-//                Toast.makeText(this@SignUpStepOne, "Error accessing customerRef: ${exception.message}", Toast.LENGTH_LONG).show()
-//            }
-//    }
-
-//    private fun applyAllDataToUserCustomerData(document: DocumentSnapshot) {
-//        document.toObject(UserCustomerData::class.java)?.let {
-//            userCustomerData?.apply {
-//                email = it.email
-//                fullname = it.fullname
-//                gender = it.gender
-//                membership = it.membership
-//                password = it.password
-//                phone = it.phone
-//                photoProfile = it.photoProfile
-//                uid = it.uid
-//                username = it.username
-//                appointmentList = it.appointmentList
-//                reservationList = it.reservationList
-//            }
-//        }
-//    }
 
     companion object {
         const val ADMIN_KEY = "admin_key_step_one"

@@ -164,6 +164,18 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        Log.d("CheckLifecycle", "==================== ON RESUME SELECT-ROLE =====================")
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // BarberLinkApp.sessionManager.clearActivePage()
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     @Deprecated("Deprecated in Java",
         ReplaceWith("super.onBackPressed()", "androidx.appcompat.app.AppCompatActivity")
     )
@@ -177,18 +189,6 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 //        intent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
 //        startActivity(intent)
 //        finish() // Menutup SelectUserRolePage agar tidak ada di back stack
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        Log.d("CheckLifecycle", "==================== ON RESUME SELECT-ROLE =====================")
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // BarberLinkApp.sessionManager.clearActivePage()
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
     }
 
     companion object {

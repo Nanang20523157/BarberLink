@@ -28,7 +28,7 @@ import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
@@ -37,7 +37,9 @@ import com.example.barberlink.UserInterface.Capster.SelectAccountPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
 import com.example.barberlink.UserInterface.SignIn.ViewModel.SelectOutletViewModel
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.FragmentFormAccessCodeBinding
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.TaskCompletionSource
@@ -46,8 +48,14 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
@@ -83,8 +91,7 @@ class FormAccessCodeFragment : DialogFragment() {
     private var loginType: String = ""
     private val employeesList = mutableListOf<UserEmployeeData>()
     private val capsterList = mutableListOf<UserEmployeeData>()
-    private val reservationList =  mutableListOf<Reservation>()
-
+    private val reservationDataList =  mutableListOf<ReservationData>()
     private var listener: OnClearBackStackListener? = null
     private lateinit var textWatcher: TextWatcher
     private var inputManualCheckOne: (() -> Unit)? = null
@@ -183,20 +190,22 @@ class FormAccessCodeFragment : DialogFragment() {
         Log.d("CheckPion", "isOrientationChanged = AA")
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    context,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -234,251 +243,301 @@ class FormAccessCodeFragment : DialogFragment() {
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun handleTellerLogin() {
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            val isSameDay = isSameDay(Timestamp.now().toDate(), outletSelected.timestampModify.toDate())
-
-            binding.progressBar.visibility = View.VISIBLE
-            // Jika bukan hari yang sama, perbarui currentQueue dan timestampModify
-            Log.d("TellerSession", "Is same day FORM: $isSameDay")
-            val updateOutletTask = if (!isSameDay) {
-                outletSelected.apply {
-                    currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
-                    timestampModify = Timestamp.now()
-                }
-                outletSelected.let { updateOutletCurrentQueue(it) }
-            } else {
-                Tasks.forResult(null) // Skip updateOutletCurrentQueue jika hari yang sama
-            }
-
-            // Jalankan kedua task secara paralel
-            val getCapsterTask = getCapsterDataTask()
-
-            // Jalankan updateOutletTask dan getCapsterDataTask secara paralel
-            Tasks.whenAllComplete(updateOutletTask, getCapsterTask)
-                .continueWithTask { tasks ->
-                    // Periksa apakah semua task berhasil
-                    val exceptions = tasks.result?.filter { !it.isSuccessful }?.mapNotNull { it.exception }
-                    if (exceptions.isNullOrEmpty()) {
-                        Log.d("TellerSession", "All tasks are successful")
-                        // Semua task sukses, lanjutkan dengan getAllReservationDataTask
-                        getAllReservationDataTask()
-                    } else {
-                        Log.d("TellerSession", "Some tasks are failed")
-                        // Ada task yang gagal, lemparkan exception pertama
-                        Tasks.forException<Void>(exceptions.first())
+        lifecycleScope.launch(Dispatchers.IO) {
+            formAccessViewModel.outletSelected.value?.let { outletSelected ->
+                try {
+                    Logger.d("CheckShimmer", "handleTellerLogin start")
+                    if (outletSelected.rootRef.isEmpty()) {
+                        capsterList.clear()
+                        capsterList.addAll(emptyList())
+                        reservationDataList.clear()
+                        reservationDataList.addAll(emptyList())
+                        Logger.d("CheckShimmer", "Outlet data is not valid.")
+                        handleError("Outlet data is not valid.")
+                        return@launch
                     }
-                }
-                .addOnSuccessListener {
-                    // Semua tugas berhasil, lakukan navigasi
-                    binding.progressBar.visibility = View.GONE
-                    navigatePage(context, QueueTrackerPage::class.java, true, binding.btnNext)
-                }
-                .addOnFailureListener { e ->
+
+                    val isSameDay = isSameDay(Timestamp.now().toDate(), outletSelected.timestampModify.toDate())
+                    withContext(Dispatchers.Main) {
+                        binding.progressBar.visibility = View.VISIBLE
+                    }
+
+                    val deferredTasks = mutableListOf<Deferred<Unit>>().apply {
+                        if (!isSameDay) {
+                            // 1️⃣ Update outlet queue (offline-aware)
+                            outletSelected.apply {
+                                currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
+                                timestampModify = Timestamp.now()
+                            }
+                            add(updateOutletCurrentQueue(outletSelected))
+                        }
+                        // 2️⃣ Ambil data capster (offline-aware)
+                        add(getCapsterDataTask(outletSelected))
+                    }
+
+                    // Jalankan paralel
+                    deferredTasks.awaitAll()
+
+                    // 3️⃣ Ambil reservasi (offline-aware)
+                    val getReservationDeferred = getAllReservationData(outletSelected)
+                    getReservationDeferred.await()
+
+                    withContext(Dispatchers.Main) {
+                        Logger.d("CheckShimmer", "✅ handleTellerLogin all tasks completed")
+                        binding.progressBar.visibility = View.GONE
+                        navigatePage(context, QueueTrackerPage::class.java, true, binding.btnNext)
+                    }
+                } catch (e: Exception) {
+                    capsterList.clear()
+                    capsterList.addAll(emptyList())
+                    reservationDataList.clear()
+                    reservationDataList.addAll(emptyList())
+                    Logger.d("CheckShimmer", "❌ handleTellerLogin error: ${e.message}")
                     handleError("Error during Teller login flow: ${e.message}")
                 }
-        } ?: run {
-            handleError("Outlet not selected.")
+            } ?: run {
+                capsterList.clear()
+                capsterList.addAll(emptyList())
+                reservationDataList.clear()
+                reservationDataList.addAll(emptyList())
+                Logger.d("CheckShimmer", "Outlet data does not exist.")
+                handleError("Outlet data does not exist.")
+            }
         }
     }
 
-    // Kode untuk menampilkan list user to pick pada halaman SelectAccountPage sebelum halaman HomePageCapster
+    // Kode untuk menampilkan list user to pick pada halaman SelectAccountPage sebelum halaman HomePageCapste
+
     @RequiresApi(Build.VERSION_CODES.S)
     private fun getEmployeesData() {
-        binding.progressBar.visibility = View.VISIBLE
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.listEmployees.isEmpty()) {
-                showToast("Anda belum menambahkan daftar karyawan untuk outlet")
-                binding.progressBar.visibility = View.GONE
-                return
-            }
+        lifecycleScope.launch(Dispatchers.IO) {
+            formAccessViewModel.outletSelected.value?.let { outletSelected ->
+                try {
+                    Logger.d("CheckShimmer", "getEmployeesData start")
+                    withContext(Dispatchers.Main) {
+                        binding.progressBar.visibility = View.VISIBLE
+                    }
+                    // untuk pemberitahuan kepada admin agar segera menambahkan daftar pegawai ke outlet
+                    if (outletSelected.rootRef.isEmpty()) {
+                        // ditangani disini listnya karena ngak throw ke parent
+                        employeesList.clear()
+                        employeesList.addAll(emptyList())
+                        Logger.d("CheckShimmer", "Outlet data is not valid.")
+                        handleError("Outlet data is not valid.")
+                        return@launch
+                    }
+                    if (outletSelected.listEmployees.isEmpty()) {
+                        // ditangani disini listnya karena ngak throw ke parent
+                        employeesList.clear()
+                        employeesList.addAll(emptyList())
+                        Logger.d("CheckShimmer", "Daftar karyawan untuk outlet ini belum ditambahkan")
+                        handleError("Daftar karyawan untuk outlet ini belum ditambahkan")
+                        return@launch
+                    }
 
-            // Ambil data awal
-            db.collectionGroup("employees")
-                .whereEqualTo("root_ref", outletSelected.rootRef)
-                .get()
-                .addOnSuccessListener { documents ->
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
+                    val snapshot = db.collectionGroup("employees")
+                        .whereEqualTo("root_ref", outletSelected.rootRef)
+                        .get()
+                        .awaitGetWithOfflineFallback(tag = "GetEmployeesData")
 
-                        val newEmployeesList = documents.mapNotNull { document ->
-                            document.toObject(UserEmployeeData::class.java).apply {
-                                userRef = document.reference.path
-                                outletRef = outletData.outletReference
-                            }.takeIf { it.uid in employeeUidList }
-                        }
+                    withContext(Dispatchers.Default) {
+                        if (snapshot != null) {
+                            formAccessViewModel.outletSelected.value?.let { outletData ->
+                                val documents = snapshot.documents
+                                val employeeUidList = outletData.listEmployees
 
-                        withContext(Dispatchers.Main) {
-                            binding.progressBar.visibility = View.GONE
-                            employeesList.clear()
-                            employeesList.addAll(newEmployeesList)
-                            if (employeesList.isNotEmpty()) {
-                                navigatePage(context, SelectAccountPage::class.java, false, binding.btnNext)
-                            } else {
-                                showToast("Tidak ditemukan data karyawan yang sesuai")
+                                val newEmployeesList = documents.mapNotNull { document ->
+                                    document.toObject(UserEmployeeData::class.java)?.apply {
+                                        userRef = document.reference.path
+                                        outletRef = outletData.outletReference
+                                    }?.takeIf { it.uid in employeeUidList }
+                                }
+
+                                if (newEmployeesList.isEmpty()) {
+                                    showToast("Tidak ditemukan data karyawan yang sesuai")
+                                }
+
+                                withContext(Dispatchers.Main) {
+                                    employeesList.clear()
+                                    employeesList.addAll(newEmployeesList)
+                                    binding.progressBar.visibility = View.GONE
+                                    navigatePage(context, SelectAccountPage::class.java, false, binding.btnNext)
+                                    Logger.d("CheckShimmer", "✅ getEmployeesData found ${newEmployeesList.size} data")
+                                }
+                            } ?: run {
+                                // ditangani disini listnya karena ngak throw ke parent
+                                employeesList.clear()
+                                employeesList.addAll(emptyList())
+                                Logger.d("CheckShimmer", "Outlet data does not exist.")
+                                handleError("Outlet data does not exist.")
                             }
+                        } else {
+                            // ditangani disini listnya karena ngak throw ke parent
+                            employeesList.clear()
+                            employeesList.addAll(emptyList())
+                            handleError("Gagal menemukan data karyawan yang sesuai.")
                         }
                     }
+                } catch (e: Exception) {
+                    // ditangani disini listnya karena ngak throw ke parent
+                    employeesList.clear()
+                    employeesList.addAll(emptyList())
+                    Logger.d("CheckShimmer", "❌ getEmployeesData error: ${e.message}")
+                    handleError("Error getting employees: ${e.message}")
                 }
-                .addOnFailureListener { exception ->
-                    handleError("Error getting employees: ${exception.message}")
-                }
+            } ?: run {
+                // ditangani disini listnya karena ngak throw ke parent
+                employeesList.clear()
+                employeesList.addAll(emptyList())
+                Logger.d("CheckShimmer", "Outlet data does not exist.")
+                handleError("Outlet data does not exist.")
+            }
         }
     }
 
-    private fun updateOutletCurrentQueue(outlet: Outlet): Task<Void> {
-        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
+    private fun updateOutletCurrentQueue(
+        outletSelected: Outlet
+    ): Deferred<Unit> = lifecycleScope.async(Dispatchers.IO) {
+        Logger.d("CheckShimmer", "Update Outlet Status: ${outletSelected.outletName}")
+        val outletRef = db.document(outletSelected.outletReference)
 
-        // Update Firestore
-        return outletRef.update(
+        val success = outletRef.update(
             mapOf(
-                "current_queue" to outlet.currentQueue,
-                "timestamp_modify" to outlet.timestampModify
+                "current_queue" to outletSelected.currentQueue,
+                "timestamp_modify" to outletSelected.timestampModify
             )
-        )
+        ).awaitWriteWithOfflineFallback(tag = "UpdateOutletQueue")
+
+        if (success)
+            Logger.d("CheckShimmer", "✅ updateOutletCurrentQueue success")
+        else
+            throw Exception("❌ updateOutletCurrentQueue gagal total")
+
+        Logger.d("CheckShimmer", "updateOutletCurrentQueue END")
     }
 
-    private fun getCapsterDataTask(): Task<List<UserEmployeeData>> {
-        val taskCompletionSource = TaskCompletionSource<List<UserEmployeeData>>()
+    private fun getCapsterDataTask(
+        outletSelected: Outlet
+    ): Deferred<Unit> = lifecycleScope.async(Dispatchers.IO) {
+        Logger.d("CheckShimmer", "getCapsterDataTask start")
 
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.listEmployees.isEmpty()) {
-                taskCompletionSource.setException(Exception("Anda belum menambahkan daftar capster untuk outlet"))
-                return@let
-            }
+        if (outletSelected.rootRef.isEmpty()) {
+            Logger.d("CheckShimmer", "Outlet data is not valid.")
+            throw IllegalStateException("Outlet data is not valid.")
+        }
 
-            db.document(outletSelected.rootRef)
-                .collection("divisions")
-                .document("capster")
-                .collection("employees")
-                .get()
-                .addOnSuccessListener { documents ->
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
+        if (outletSelected.listEmployees.isEmpty()) {
+            Logger.d("CheckShimmer", "Daftar karyawan untuk outlet ini belum ditambahkan")
+            throw Exception("Daftar karyawan untuk outlet ini belum ditambahkan")
+        }
 
-                        val newCapsterList = documents.mapNotNull { document ->
-                            document.toObject(UserEmployeeData::class.java).apply {
-                                userRef = document.reference.path
-                                outletRef = outletSelected.outletReference
-                            }.takeIf { it.uid in employeeUidList && it.availabilityStatus}
-                        }
+        val snapshot = db.document(outletSelected.rootRef)
+            .collection("divisions")
+            .document("capster")
+            .collection("employees")
+            .get()
+            .awaitGetWithOfflineFallback(tag = "GetCapsterDataTask")
 
-                        if (newCapsterList.isNotEmpty()) {
-                            capsterList.clear()
-                            capsterList.addAll(newCapsterList)
-                            taskCompletionSource.setResult(newCapsterList)
-                        } else {
-                            taskCompletionSource.setException(Exception("Tidak ditemukan data capster yang sesuai"))
-                        }
+        withContext(Dispatchers.Default) {
+            if (snapshot != null) {
+                formAccessViewModel.outletSelected.value?.let { outletData ->
+                    val documents = snapshot.documents
+                    val employeeUidList = outletData.listEmployees
+
+                    val newCapsterList = documents.mapNotNull { document ->
+                        document.toObject(UserEmployeeData::class.java)?.apply {
+                            userRef = document.reference.path
+                            outletRef = outletData.outletReference
+                        }?.takeIf { it.uid in employeeUidList && it.availabilityStatus}
                     }
-                }
-                .addOnFailureListener { exception ->
-                    taskCompletionSource.setException(Exception("Error getting capster: ${exception.message}"))
-                }
-        } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
 
-        return taskCompletionSource.task
+                    if (newCapsterList.isEmpty()) {
+                        showToast("Tidak ditemukan data capster yang sesuai")
+                    }
+
+                    capsterList.clear()
+                    capsterList.addAll(newCapsterList)
+                    Logger.d("CheckShimmer", "✅ getCapsterDataTask found ${newCapsterList.size} data")
+                } ?: run {
+                    Logger.d("CheckShimmer", "Outlet data does not exist.")
+                    throw NullPointerException("Outlet data does not exist.")
+                }
+            } else {
+                Logger.d("CheckShimmer", "Gagal menemukan data capster yang sesuai.")
+                throw NullPointerException("Gagal menemukan data capster yang sesuai.")
+            }
+        }
+
+        Logger.d("CheckShimmer", "getCapsterDataTask END")
     }
 
-//    private fun getAllReservationDataTask(): Task<List<Reservation>> {
-//        val taskCompletionSource = TaskCompletionSource<List<Reservation>>()
-//
-//        outletSelected?.let { outlet ->
-//            val calendar = Calendar.getInstance().apply {
-//                set(Calendar.HOUR_OF_DAY, 0)
-//                set(Calendar.MINUTE, 0)
-//                set(Calendar.SECOND, 0)
-//                set(Calendar.MILLISECOND, 0)
-//            }
-//            val startOfDay = Timestamp(calendar.time)
-//            calendar.add(Calendar.DAY_OF_MONTH, 1)
-//            val startOfNextDay = Timestamp(calendar.time)
-//
-//            db.collection("${outlet.rootRef}/outlets/${outlet.uid}/reservations")
-//                .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfDay)
-//                .whereLessThan("timestamp_to_booking", startOfNextDay)
-//                .get()
-//                .addOnSuccessListener { documents ->
-//                    lifecycleScope.launch(Dispatchers.Default) {
-//                        val newReservationList = documents.mapNotNull { document ->
-//                            document.toObject(Reservation::class.java).apply {
-//                                dataRef = document.reference.path
-//                            }
-//                        }.filter { it.queueStatus !in listOf("pending", "expired") }
-//
-//                        withContext(Dispatchers.Main) {
-//                            reservationList.clear()
-//                            reservationList.addAll(newReservationList)
-//                            taskCompletionSource.setResult(newReservationList)
-//                        }
-//                    }
-//                }
-//                .addOnFailureListener { exception ->
-//                    taskCompletionSource.setException(Exception("Error getting reservations: ${exception.message}"))
-//                }
-//        } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
-//
-//        return taskCompletionSource.task
-//    }
+    private fun getAllReservationData(
+        outletSelected: Outlet
+    ): Deferred<Unit> = lifecycleScope.async(Dispatchers.IO) {
+        Logger.d("CheckShimmer", "getAllReservationData start")
 
-    private fun getAllReservationDataTask(): Task<List<Reservation>> {
-        val taskCompletionSource = TaskCompletionSource<List<Reservation>>()
+        if (outletSelected.rootRef.isEmpty()) {
+            Logger.d("CheckShimmer", "Outlet data is not valid.")
+            throw IllegalStateException("Outlet data is not valid.")
+        }
 
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            val calendar = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            val startOfDay = Timestamp(calendar.time)
-            calendar.add(Calendar.DAY_OF_MONTH, 1)
-            val startOfNextDay = Timestamp(calendar.time)
+        val calendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val startOfDay = Timestamp(calendar.time)
+        calendar.add(Calendar.DAY_OF_MONTH, 1)
+        val startOfNextDay = Timestamp(calendar.time)
 
-            db.collection("${outletSelected.rootRef}/reservations")
-                .where(
-                    Filter.and(
-                        Filter.equalTo("outlet_identifier", outletSelected.uid),
-                        Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
-                        Filter.lessThan("timestamp_to_booking", startOfNextDay)
-                    )
-                ).get()
-                .addOnSuccessListener { documents ->
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
+        val snapshot = db.collection("${outletSelected.rootRef}/reservations")
+            .where(
+                Filter.and(
+                    Filter.equalTo("outlet_identifier", outletSelected.uid),
+                    Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
+                    Filter.lessThan("timestamp_to_booking", startOfNextDay)
+                )
+            )
+            .get()
+            .awaitGetWithOfflineFallback(tag = "GetAllReservationData")
 
-                        val newReservationList = documents.mapNotNull { document ->
-                            val reservation = document.toObject(Reservation::class.java).apply {
-                                dataRef = document.reference.path
-                            }
+        withContext(Dispatchers.Default) {
+            if (snapshot != null) {
+                formAccessViewModel.outletSelected.value?.let { outletData ->
+                    val documents = snapshot.documents
+                    val employeeUidList = outletData.listEmployees
 
-                            val capsterUid = reservation.capsterInfo?.capsterRef
-                                ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
-
-                            // Filter berdasarkan queueStatus dan juga employeeUidList
-                            reservation.takeIf {
-                                it.queueStatus !in listOf("pending", "expired") &&
-                                        capsterUid != null &&
-                                        capsterUid in employeeUidList
-                            }
+                    val newReservationList = documents.mapNotNull { document ->
+                        val reservationData = document.toObject(ReservationData::class.java)?.apply {
+                            dataRef = document.reference.path
                         }
 
+                        val capsterUid = reservationData?.capsterInfo?.capsterRef
+                            ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
 
-                        withContext(Dispatchers.Main) {
-                            reservationList.clear()
-                            reservationList.addAll(newReservationList)
-                            taskCompletionSource.setResult(newReservationList)
+                        // Filter berdasarkan queueStatus dan juga employeeUidList
+                        reservationData?.takeIf {
+                            it.queueStatus !in listOf("pending", "expired") &&
+                                    capsterUid == "" ||
+                                    capsterUid in employeeUidList
                         }
                     }
-                }
-                .addOnFailureListener { exception ->
-                    taskCompletionSource.setException(Exception("Error getting reservations: ${exception.message}"))
-                }
-        } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
 
-        return taskCompletionSource.task
+                    reservationDataList.clear()
+                    reservationDataList.addAll(newReservationList)
+                    Logger.d("CheckShimmer", "✅ getAllReservationData found ${newReservationList.size} data")
+                } ?: run {
+                    Logger.d("CheckShimmer", "Outlet data does not exist.")
+                    throw NullPointerException("Outlet data does not exist.")
+                }
+            } else {
+                Logger.d("CheckShimmer", "Gagal mengambil data reservasi.")
+                throw NullPointerException("Gagal mengambil data reservasi.")
+            }
+        }
+
+        Logger.d("CheckShimmer", "getAllReservationData END")
     }
 
     private fun listenSpecificOutletData(skippedProcess: Boolean = false) {
@@ -487,38 +546,55 @@ class FormAccessCodeFragment : DialogFragment() {
             if (::locationListener.isInitialized) {
                 locationListener.remove()
             }
+            if (outletSelected.rootRef.isEmpty()) {
+                locationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                this@FormAccessCodeFragment.isFirstLoad = false
+                this@FormAccessCodeFragment.skippedProcess = false
+                return
+            }
 
             locationListener = db.document(outletSelected.rootRef)
                 .collection("outlets")
                 .document(outletSelected.uid)
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to outlet data: ${exception.message}")
-                        this@FormAccessCodeFragment.isFirstLoad = false
-                        this@FormAccessCodeFragment.skippedProcess = false
-                        return@addSnapshotListener
-                    }
-
-                    documents?.let {
-                        if (!this@FormAccessCodeFragment.isFirstLoad && !this@FormAccessCodeFragment.skippedProcess && it.exists()) {
-                            val outletData = it.toObject(Outlet::class.java)?.apply {
-                                outletReference = it.reference.path
+                    lifecycleScope.launch {
+                        formAccessViewModel.listenerOutletDataMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to outlet data: ${exception.message}")
+                                this@FormAccessCodeFragment.isFirstLoad = false
+                                this@FormAccessCodeFragment.skippedProcess = false
+                                return@withStateLock
                             }
-                            outletData?.let { outlet ->
-                                // Assign the document reference path to outletReference
-                                formAccessViewModel.setOutletSelected(outlet)
+                            documents?.let { docs ->
+                                if (!this@FormAccessCodeFragment.isFirstLoad && !this@FormAccessCodeFragment.skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            val outletData = docs.toObject(Outlet::class.java)?.apply {
+                                                outletReference = docs.reference.path
+                                            }
+                                            outletData?.let { outlet ->
+                                                // Assign the document reference path to outletReference
+                                                formAccessViewModel.setOutletSelected(outlet)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    this@FormAccessCodeFragment.isFirstLoad = false
+                                    this@FormAccessCodeFragment.skippedProcess = false
+                                }
                             }
-                        } else {
-                            this@FormAccessCodeFragment.isFirstLoad = false
-                            this@FormAccessCodeFragment.skippedProcess = false
                         }
                     }
                 }
+        } ?: run {
+            locationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            this@FormAccessCodeFragment.isFirstLoad = false
+            this@FormAccessCodeFragment.skippedProcess = false
         }
     }
 
-    private fun handleError(message: String) {
-        lifecycleScope.launch {
+    private suspend fun handleError(message: String) {
+        withContext(Dispatchers.Main) {
             binding.progressBar.visibility = View.GONE
             showToast(message)
         }
@@ -559,7 +635,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     // Set extra data untuk aktivitas tujuan
                     intent.apply {
                         putExtra(OUTLET_DATA_KEY, outletSelected)
-                        putParcelableArrayListExtra(RESERVE_DATA_KEY, ArrayList(reservationList))
+                        putParcelableArrayListExtra(RESERVE_DATA_KEY, ArrayList(reservationDataList))
                         putParcelableArrayListExtra(CAPSTER_DATA_KEY, ArrayList(capsterList))
                     }
                     outletSelected?.uid?.let {

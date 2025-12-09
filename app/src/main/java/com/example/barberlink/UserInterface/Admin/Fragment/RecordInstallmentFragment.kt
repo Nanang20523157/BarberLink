@@ -3,6 +3,7 @@ package com.example.barberlink.UserInterface.Admin.Fragment
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -16,6 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
@@ -34,14 +36,19 @@ import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentRecordInstallmentBinding
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
@@ -93,7 +100,6 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     // private var previousCapitalAmount: Long = 0
     private var isNavigating = false
     private var currentView: View? = null
-
     private val binding get() = _binding!!
     // TNODO: Rename and change types of parameters
     private var userEmployeeData: UserEmployeeData? = null
@@ -101,6 +107,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     private var inputManualCheckOne: (() -> Unit)? = null
     private var localToast: Toast? = null
     private var myCurrentToast: Toast? = null
+    private val listenerEmployeeBonMutex = Mutex()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -117,21 +124,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
-//        arguments?.let {
-//            userEmployeeData = it.getParcelable(ARG_PARAM1)
-//            bonAccumulation = it.getInt(ARG_PARAM2)
-//            val bonData = it.getParcelable(ARG_PARAM3) ?: BonEmployeeData()
-//            bonEmployeeData = if (bonData.uid.isNotEmpty()) bonData.deepCopy() else bonData
-//        }
 
         context = requireContext()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        isNavigating = false
-        currentView?.isClickable = true
-        Log.d("CheckPion", "isOrientationChanged = BB")
     }
 
     override fun onCreateView(
@@ -175,7 +169,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                     val previousInstallment = binding.etNominalInstallment.text.toString().ifEmpty { "0" }
                     setInitialInputForm()
                     if (isFirstLoad) init()
-                    else { if (!isInSaveProcess) showToast("Mendeteksi perubahan pada data Bon pegawai.") }
+                    else { if (!isInSaveProcess) lifecycleScope.launch { showToast("Mendeteksi perubahan pada data Bon pegawai.") } }
                     //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
                     binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
                     binding.etNominalRemainingBon.setText(format.format(bonEmployeeData.bonDetails.remainingBon))
@@ -188,10 +182,12 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                         handler.postDelayed({
                             if (isAdded) {
                                 currentSnackbar?.dismiss()
-                                recordInstallmentViewModel.showInputSnackBar(
-                                    previousInstallment,
-                                    getString(R.string.rollback_value, previousInstallment)
-                                )
+                                lifecycleScope.launch {
+                                    recordInstallmentViewModel.showInputSnackBar(
+                                        previousInstallment,
+                                        getString(R.string.rollback_value, previousInstallment)
+                                    )
+                                }
                             }
                         }, 1000)
                     }
@@ -273,31 +269,35 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(context, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
+    private suspend fun showLocalToast() {
+        withContext(Dispatchers.Main) {
+            if (localToast == null) {
+                localToast = Toast.makeText(context, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
+                localToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    localToast = null
+                }, 2000)
+            }
         }
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    context,
+                    message,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -378,36 +378,48 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun listenerEmployeeBon() {
-        if (::employeeBonListener.isInitialized) {
-            employeeBonListener.remove()
-        }
-
-        val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
-
-        employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
-            exception?.let {
-                showToast("Error listening to employee bon data: ${it.message}")
-                isFirstLoad = false
-                return@addSnapshotListener
+        bonEmployeeData.let { bonData ->
+            if (::employeeBonListener.isInitialized) {
+                employeeBonListener.remove()
             }
-            documents?.let {
-                val metadata = it.metadata
 
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if ((!isFirstLoad && !isOrientationChanged && it.exists()) || isProcessUpdatingData) {
-                        val bonData = it.toObject(BonEmployeeData::class.java)
-                        bonData?.let { bon ->
-                            recordInstallmentViewModel.setBonEmployeeData(bon)
+            if (bonData.rootRef.isEmpty()) {
+                employeeBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                isFirstLoad = false
+                return@let
+            }
+            val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
+
+            employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
+                lifecycleScope.launch {
+                    listenerEmployeeBonMutex.withLock {
+                        val metadata = documents?.metadata
+                        exception?.let {
+                            showToast("Error listening to employee bon data: ${it.message}")
+                            isFirstLoad = false
+                            return@withLock
+                        }
+                        documents?.let { docs ->
+                            if ((!isFirstLoad && !isOrientationChanged)) {
+                                if (docs.exists()) {
+                                    withContext(Dispatchers.Default) {
+                                        val bonData = docs.toObject(BonEmployeeData::class.java)
+                                        bonData?.let { bon ->
+                                            recordInstallmentViewModel.setBonEmployeeData(bon)
+                                        }
+                                    }
+                                }
+                            } else {
+                                isFirstLoad = false
+                                Log.d("CheckPion", "isOrientationChanged = AA")
+                                isOrientationChanged = false
+                            }
                         }
 
-                        if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                        if (metadata?.hasPendingWrites() == true && metadata.isFromCache && isProcessUpdatingData) {
                             showLocalToast()
                         }
-                        isProcessUpdatingData = false
-                    } else {
-                        isFirstLoad = false
-                        Log.d("CheckPion", "isOrientationChanged = AA")
-                        isOrientationChanged = false
+                        isProcessUpdatingData = false // Reset flag setelah menampilkan toast
                     }
                 }
             }
@@ -471,6 +483,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         with (binding) {
             when (v?.id) {
@@ -478,30 +491,27 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                     if (validateInputs()) {
                         val formattedAmount = format.parse(bonInstallmentString)?.toInt()
                         if (formattedAmount != null) {
-                            checkNetworkConnection {
-                                disableBtnWhenShowDialog(v) {
-                                    saveEmployeeBon(formattedAmount)
+                            userEmployeeData?.rootRef?.let {
+                                checkNetworkConnection {
+                                    disableBtnWhenShowDialog(v) {
+                                        saveEmployeeBon(formattedAmount)
+                                    }
                                 }
+                            } ?: run {
+                                lifecycleScope.launch { showToast("Gagal menyimpan data karena data pengguna tidak valid!") }
                             }
                         } else {
-                            showToast("Input tidak valid karena menghasilkan null")
+                            lifecycleScope.launch { showToast("Input tidak valid karena menghasilkan null") }
                             setFocus(binding.etNominalInstallment)
                         }
 
-//                        var originalString = bonInstallmentString
-//                        if (bonInstallmentString.contains(".")) {
-//                            originalString = originalString.replace(".", "")
-//                        }
-//                        val formattedAmount = originalString.toInt()
-//                        if (originalString[0] == '0' && originalString.length > 1) {
-//                            isBonInstallmentValid = validateInstallmentInput(true)
-//                        } else { }
                     } else {
-                        showToast("Mohon periksa kembali data yang dimasukkan")
+                        lifecycleScope.launch { showToast("Mohon periksa kembali data yang dimasukkan") }
                         //if (!isBonInstallmentValid) isBonInstallmentValid = validateInstallmentInput(true)
                         setFocus(binding.etNominalInstallment)
                     }
                 }
+                else -> {}
             }
         }
     }
@@ -517,6 +527,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun saveEmployeeBon(userInstallment: Int) {
         val returnStatus = when (userInstallment) {
             bonEmployeeData.bonDetails.nominalBon -> {
@@ -544,32 +555,44 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         saveEmployeeBonToFirestore()
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun saveEmployeeBonToFirestore() {
         binding.progressBar.visibility = View.VISIBLE
         isInSaveProcess = true
+        isProcessUpdatingData = true
 
-        val bonReference = userEmployeeData?.rootRef?.let {
-            db.document(it)
-                .collection("employee_bon")
-        }
+        val bonRef = db.document(userEmployeeData?.rootRef ?: "invalid/rootRef")
+            .collection("employee_bon")
+            .document(bonEmployeeData.uid)
 
-        // Gak Auto keluar karena yang diubah pasti data pada bulan ini
-        bonReference?.document(bonEmployeeData.uid)
-            ?.set(bonEmployeeData)
-            ?.addOnSuccessListener {
-                isProcessUpdatingData = true
-                showToast("User Installment has been updated successfully!")
-            }
-            ?.addOnFailureListener { exception ->
+        // Jalankan coroutine agar tidak blocking UI
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 🔹 Gunakan awaitWriteWithOfflineFallback agar tetap lanjut walau offline
+                val success = bonRef
+                    .set(bonEmployeeData)
+                    .awaitWriteWithOfflineFallback(tag = "SaveEmployeeBon")
+
+                if (success) {
+                    showToast("Berhasil memperbarui data angsuran pengguna.")
+                } else {
+                    isProcessUpdatingData = false
+                    showToast("Gagal memperbarui data angsuran pengguna!")
+                }
+            } catch (e: Exception) {
+                Logger.e("SaveEmployeeBon", "❌ Gagal menyimpan data: ${e.message}")
                 isProcessUpdatingData = false
-                showToast("Failed to update user installment: ${exception.message}")
+                showToast("Gagal memperbarui data angsuran pengguna: ${e.message}")
+            } finally {
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                    isNavigating = false
+                    currentView?.isClickable = true
+                }
             }
-            ?.addOnCompleteListener {
-                binding.progressBar.visibility = View.GONE
-                isNavigating = false
-                currentView?.isClickable = true
-            }
+        }
     }
+
 
     private fun showSnackBar(eventMessage: Event<String>) {
         val message = eventMessage.getContentIfNotHandled() ?: return
@@ -722,10 +745,12 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                 tvInfo.text = textErrorForInstallment
                 //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
                 val nominal = format.format(formattedAmount)
-                recordInstallmentViewModel.showInputSnackBar(
-                    nominal,
-                    context.getString(R.string.re_format_text, nominal)
-                )
+                lifecycleScope.launch {
+                    recordInstallmentViewModel.showInputSnackBar(
+                        nominal,
+                        context.getString(R.string.re_format_text, nominal)
+                    )
+                }
                 setFocus(etNominalInstallment)
                 false
             } else if (formattedAmount > bonEmployeeData.bonDetails.nominalBon) {
@@ -758,6 +783,13 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         } else return
     }
 
+    override fun onResume() {
+        super.onResume()
+        isNavigating = false
+        currentView?.isClickable = true
+        Log.d("CheckPion", "isOrientationChanged = BB")
+    }
+
     override fun onStop() {
         super.onStop()
         if (requireActivity().isChangingConfigurations) {
@@ -786,11 +818,9 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        recordInstallmentViewModel.setUserPreviousAccumulationBon(null)
-        recordInstallmentViewModel.setUserCurrentAccumulationBon(null)
-//        recordInstallmentViewModel.setUserEmployeeData(null, initPage = null, setupDropdown = null, isSavedInstanceStateNull = null)
-        recordInstallmentViewModel.setUserEmployeeData(null, setupDropdown = null, isSavedInstanceStateNull = null)
-        recordInstallmentViewModel.setBonEmployeeData(null)
+        // recordInstallmentViewModel.setUserEmployeeData(null, setupDropdown = null, isSavedInstanceStateNull = null)
+        recordInstallmentViewModel.clearAttacmentData()
+        recordInstallmentViewModel.clearBonEmployeeData()
     }
 
     companion object {

@@ -21,7 +21,6 @@ class ItemListPickUserAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 7
     private var recyclerView: RecyclerView? = null

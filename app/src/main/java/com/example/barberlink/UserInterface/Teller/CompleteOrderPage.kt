@@ -11,7 +11,7 @@ import android.view.animation.AnimationUtils
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.Factory.ShareDataViewModelFactory
 import com.example.barberlink.Helper.Injection
 import com.example.barberlink.Helper.StatusBarDisplayHandler
@@ -23,7 +23,7 @@ import com.example.barberlink.databinding.ActivityCompleteOrderPageBinding
 
 class CompleteOrderPage : AppCompatActivity() {
     private lateinit var binding: ActivityCompleteOrderPageBinding
-    private lateinit var userReservationData: Reservation
+    private lateinit var userReservationData: ReservationData
     private lateinit var completePageViewModel: SharedReserveViewModel
     private lateinit var viewModelFactory: ShareDataViewModelFactory
     // private val servicesList = mutableListOf<Service>()
@@ -67,16 +67,10 @@ class CompleteOrderPage : AppCompatActivity() {
 
         @Suppress("DEPRECATION")
         userReservationData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, Reservation::class.java) ?: Reservation()
+            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, ReservationData::class.java) ?: ReservationData()
         } else {
-            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA) ?: Reservation()
+            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA) ?: ReservationData()
         }
-//        intent.getParcelableArrayListExtra(ReviewOrderPage.SERVICE_DATA_KEY, Service::class.java)?.let {
-//            servicesList.addAll(it)
-//        }
-//        intent.getParcelableArrayListExtra(ReviewOrderPage.BUNDLING_DATA_KEY, BundlingPackage::class.java)?.let {
-//            bundlingPackagesList.addAll(it)
-//        }
 
         setupView()
         binding.realLayout.btnNavigateToHomePage.setOnClickListener {
@@ -89,13 +83,6 @@ class CompleteOrderPage : AppCompatActivity() {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
     }
-
-//    @RequiresApi(Build.VERSION_CODES.S)
-//    override fun onResume() {
-//        super.onResume()
-//        // Set sudut dinamis sesuai perangkat
-//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-//    }
 
     private fun setupView() {
         binding.apply {
@@ -162,6 +149,5 @@ class CompleteOrderPage : AppCompatActivity() {
     companion object {
         const val CAPSTER_NAME_KEY = "capster_name_key"
     }
-
 
 }

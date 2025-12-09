@@ -40,7 +40,6 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     private lateinit var stepThreeViewModel: StepThreeViewModel
     private lateinit var registerViewModelFactory: RegisterViewModelFactory
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
-
     private var isPasswordValid = false
     private var isConfirmPasswordValid = false
     private var textInputPassword: String = ""
@@ -91,7 +90,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
+        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth)
         stepThreeViewModel = ViewModelProvider(this, registerViewModelFactory)[StepThreeViewModel::class.java]
         if (!isRecreated) {
             @Suppress("DEPRECATION")
@@ -326,16 +325,6 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
     private fun setupEditTextListeners() {
         with(binding) {
             textWatcher1 = object : TextWatcher {
@@ -472,6 +461,16 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             btnCreateAccount.setTypeface(null, Typeface.BOLD)
             btnCreateAccount.setTextColor(resources.getColor(R.color.green_lime_wf))
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

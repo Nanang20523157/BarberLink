@@ -101,17 +101,6 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
-        super.onBackPressed()
-        if (auth.currentUser != null) {
-            // navigatePage(this@SignUpSuccess, BerandaAdminActivity::class.java, btnDone)
-            navigatePage(this@SignUpSuccess, MainActivity::class.java, binding.btnDone)
-        } else {
-            navigatePage(this@SignUpSuccess, LoginAdminPage::class.java, binding.btnDone)
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
             view.isClickable = false
@@ -152,6 +141,17 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         currentView?.isClickable = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onBackPressed() {
+        super.onBackPressed()
+        if (auth.currentUser != null) {
+            // navigatePage(this@SignUpSuccess, BerandaAdminActivity::class.java, btnDone)
+            navigatePage(this@SignUpSuccess, MainActivity::class.java, binding.btnDone)
+        } else {
+            navigatePage(this@SignUpSuccess, LoginAdminPage::class.java, binding.btnDone)
+        }
     }
 
     companion object {

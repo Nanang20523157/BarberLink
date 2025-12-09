@@ -3,11 +3,13 @@ package com.example.barberlink.UserInterface.Capster.Fragment
 import android.content.Context
 import android.content.DialogInterface
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -18,7 +20,7 @@ import com.example.barberlink.Adapter.ItemListPackageBookingAdapter
 import com.example.barberlink.Adapter.ItemListServiceBookingAdapter
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.ItemInfo
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
@@ -30,8 +32,11 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -49,18 +54,16 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
     private var _binding: FragmentEditOrderBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val editOrderViewModel: QueueControlViewModel by activityViewModels()
-    private var currentReservation: Reservation? = null
-    private var duplicateReservation: Reservation? = null
+    private var currentReservationData: ReservationData? = null
+    private var duplicateReservationData: ReservationData? = null
     private lateinit var context: Context
     private lateinit var serviceAdapter: ItemListServiceBookingAdapter
     private lateinit var bundlingAdapter: ItemListPackageBookingAdapter
-
     private var isFirstLoad: Boolean = true
     private var userUID: String? = null
     private var useUidApplicantCapsterRef: Boolean = false
     private var priceText: String? = null
     private var paymentMethod: String = ""
-
     private lateinit var behavior: BottomSheetBehavior<View>
     private lateinit var shape: GradientDrawable
     // This property is only valid between onCreateView and
@@ -131,16 +134,17 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         return binding.root
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        serviceAdapter = ItemListServiceBookingAdapter(this@EditOrderFragment, false)
-        bundlingAdapter = ItemListPackageBookingAdapter(this@EditOrderFragment, false)
+        serviceAdapter = ItemListServiceBookingAdapter(this@EditOrderFragment,  false)
+        bundlingAdapter = ItemListPackageBookingAdapter(this@EditOrderFragment,  false)
         binding.apply {
             tvTitle.text = toolbarTitle
             binding.tvPaymentAmount.text = priceText
-            editOrderViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+            editOrderViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
                 if (reservation != null) {
-                    currentReservation = reservation
+                    currentReservationData = reservation
                     paymentMethod = if (savedInstanceState == null) {
                         reservation.paymentDetail.paymentMethod
                     } else {
@@ -154,11 +158,11 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                         "CASHLESS"
                     }
                     binding.tvPaymentMethod.text = textData
-                    userUID = if (useUidApplicantCapsterRef) currentReservation?.shareProfitCapsterRef?.split("/")?.lastOrNull() else currentReservation?.capsterInfo?.capsterRef?.split("/")?.lastOrNull()
+                    userUID = if (useUidApplicantCapsterRef) currentReservationData?.shareProfitCapsterRef?.split("/")?.lastOrNull() else currentReservationData?.capsterInfo?.capsterRef?.split("/")?.lastOrNull()
 
                     serviceAdapter.setCapsterRef(userUID ?: "")
                     bundlingAdapter.setCapsterRef(userUID ?: "")
-                    duplicateReservation = reservation.deepCopy(
+                    duplicateReservationData = reservation.deepCopy(
                         copyCreatorDetail = false,
                         copyCreatorWithReminder = false,
                         copyCreatorWithNotification = false,
@@ -253,7 +257,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             if (reSetup != true) {
                 val copiedList = originalList.toMutableList()
                 if (savedInstanceState == null && reSetup == false) {
-                    val orderInfoList = currentReservation?.itemInfo
+                    val orderInfoList = currentReservationData?.itemInfo
                     orderInfoList?.forEach { orderInfo ->
                         if (orderInfo.nonPackage) {
                             copiedList.find { it.uid == orderInfo.itemRef}.apply {
@@ -281,7 +285,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
                 copiedList.sortByDescending { it.autoSelected || it.defaultItem }
 
-                editOrderViewModel.setDuplicateServiceList(copiedList, true)
+                lifecycleScope.launch { editOrderViewModel.setDuplicateServiceList(copiedList, true) }
             }
         }
 
@@ -290,7 +294,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             if (reSetup != true) {
                 val copiedList = originalList.toMutableList()
                 if (savedInstanceState == null && reSetup == false) {
-                    val orderInfoList = currentReservation?.itemInfo
+                    val orderInfoList = currentReservationData?.itemInfo
                     orderInfoList?.forEach { orderInfo ->
                         if (!orderInfo.nonPackage) {
                             copiedList.find { it.uid == orderInfo.itemRef}.apply {
@@ -318,7 +322,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
                 copiedList.sortByDescending { it.autoSelected || it.defaultItem }
 
-                editOrderViewModel.setDuplicateBundlingPackageList(copiedList, true)
+                lifecycleScope.launch { editOrderViewModel.setDuplicateBundlingPackageList(copiedList, true) }
             }
         }
 
@@ -335,11 +339,11 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                             .plus(result)
                     }
 
-                val finalPrice = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+                val finalPrice = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
                 val orderInfo = createOrderInfoList(serviceList, bundlingList)
 
-                duplicateReservation?.apply {
-                    this.shareProfitCapsterRef = if (useUidApplicantCapsterRef) currentReservation?.shareProfitCapsterRef ?: "" else currentReservation?.capsterInfo?.capsterRef ?: ""
+                duplicateReservationData?.apply {
+                    this.shareProfitCapsterRef = if (useUidApplicantCapsterRef) currentReservationData?.shareProfitCapsterRef ?: "" else currentReservationData?.capsterInfo?.capsterRef ?: ""
                     this.capsterInfo?.shareProfit = totalShareProfit.toInt()
                     this.paymentDetail.subtotalItems = accumulatedItemPrice
                     this.paymentDetail.finalPrice = finalPrice
@@ -348,7 +352,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                     this.itemInfo = orderInfo
                 }
 
-                updateReservation(duplicateReservation ?: return@checkNetworkConnection,
+                updateReservation(duplicateReservationData ?: return@checkNetworkConnection,
                     onSuccess = {
 //                    listener?.hideLoading()
                         Toast.makeText(context, "Reservasi berhasil diperbarui", Toast.LENGTH_SHORT).show()
@@ -380,19 +384,38 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         }
     }
 
-    private fun updateReservation(reservation: Reservation, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
-        val reservationRef = db.document(reservation.dataRef)
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun updateReservation(
+        reservationData: ReservationData,
+        onSuccess: () -> Unit,
+        onFailure: (Exception) -> Unit
+    ) {
+        val reservationRef = db.document(reservationData.dataRef)
 
-        reservationRef.set(reservation)
-            .addOnCompleteListener {
-                if (it.isSuccessful) {
-                    // Update successful
-                    onSuccess()
-                } else {
-                    // Update failed
-                    onFailure(it.exception ?: Exception("Unknown error occurred"))
+        // Jalankan di background thread agar tidak memblokir UI
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 🔹 Menjalankan operasi Firestore dengan dukungan offline
+                val success = reservationRef
+                    .set(reservationData)
+                    .awaitWriteWithOfflineFallback(tag = "UpdateReservation")
+
+                withContext(Dispatchers.Main) {
+                    if (success) {
+                        // ✅ Sukses penuh atau sukses lokal (offline mode)
+                        onSuccess()
+                    } else {
+                        onFailure(Exception("Unknown error occurred"))
+                    }
+                }
+
+            } catch (e: Exception) {
+                // ❌ Jika benar-benar gagal (exception runtime, dataRef salah, dll)
+                withContext(Dispatchers.Main) {
+                    onFailure(e)
                 }
             }
+        }
     }
 
     private fun createOrderInfoList(serviceList: List<Service>, bundlingList: List<BundlingPackage>): List<ItemInfo> {
@@ -540,16 +563,16 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
     override fun onDestroyView() {
         super.onDestroyView()
-        bundlingAdapter.stopAllShimmerEffects()
-        serviceAdapter.stopAllShimmerEffects()
+        binding.rvListServices.adapter = null
+        binding.rvListPaketBundling.adapter = null
+        serviceAdapter.cleanUp()
+        bundlingAdapter.cleanUp()
         _binding = null
 
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        editOrderViewModel.setCurrentReservationData(null)
-        editOrderViewModel.clearDuplicateServiceList()
-        editOrderViewModel.clearDuplicateBundlingPackageList()
+        editOrderViewModel.clearFragmentData()
     }
 
     companion object {
@@ -563,10 +586,10 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, toolbarTitle: String, useUidApplicantCapsterRef: Boolean, priceText: String) =
+        fun newInstance(currentReservationData: ReservationData, toolbarTitle: String, useUidApplicantCapsterRef: Boolean, priceText: String) =
             EditOrderFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putString(ARG_PARAM2, toolbarTitle)
                     putBoolean(ARG_PARAM3, useUidApplicantCapsterRef)
                     putString(ARG_PARAM4, priceText)
@@ -586,7 +609,6 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
     override fun onItemClickListener(
         bundlingPackage: BundlingPackage,
-        index: Int,
         addCount: Boolean
     ) {
         val bundlingList = bundlingAdapter.currentList
@@ -597,12 +619,12 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                     .plus(result)
             }
 
-        val finalPrice = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+        val finalPrice = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
         priceText = numberToCurrency(finalPrice.toDouble())
         binding.tvPaymentAmount.text = priceText
     }
 
-    override fun onItemClickListener(service: Service, index: Int, addCount: Boolean) {
+    override fun onItemClickListener(service: Service, addCount: Boolean) {
         val bundlingList = bundlingAdapter.currentList
         val serviceList = serviceAdapter.currentList
         val accumulatedItemPrice = bundlingList.sumOf { it.bundlingQuantity * it.priceToDisplay }
@@ -611,7 +633,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                     .plus(result)
             }
 
-        val finalPrice = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+        val finalPrice = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
         priceText = numberToCurrency(finalPrice.toDouble())
         binding.tvPaymentAmount.text = priceText
     }

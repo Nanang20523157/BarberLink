@@ -23,7 +23,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:textStyle="bold"
-            android:text="@string/hey_dear"
+            android:text="@string/hey_dear_admin"
             android:letterSpacing="0.003"
             android:textColor="@color/black"
             android:singleLine="true"

@@ -28,14 +28,13 @@ import com.example.barberlink.UserInterface.Admin.Fragment.ResetQueueBoardFragme
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.databinding.ActivityManageOutletPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -59,13 +58,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     private var isShimmerVisible: Boolean = false
     private var isProcessUpdatingData: Boolean = false
     private var currentToastMessage: String? = null
-
     private lateinit var outletListener: ListenerRegistration
     private lateinit var employeeListener: ListenerRegistration
     private val handler = Handler(Looper.getMainLooper())
     private var remainingListeners = AtomicInteger(2)
-    private val outletsMutex = Mutex()
-    private val employeesMutex = Mutex()
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var localToast: Toast? = null
@@ -130,12 +126,12 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
             // Melakukan operasi dengan data tersebut
             lifecycleScope.launch(Dispatchers.Main) {
-                outletsMutex.withLock {
+                manageOutletViewModel.outletsMutex.withStateLock {
                     val outletsList = args.outletList.toCollection(ArrayList())
                     manageOutletViewModel.setOutletList(outletsList)
                 }
 
-                employeesMutex.withLock {
+                manageOutletViewModel.employeesMutex.withStateLock {
                     val employeeList = args.employeeList
                         .filter { employee -> employee.role == "Capster" }
                         .toCollection(ArrayList())
@@ -159,7 +155,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             outletAdapter.notifyDataSetChanged()
         }
 
-        manageOutletViewModel.userEmployeeDataList.observe(this) { employeeList ->
+        manageOutletViewModel.employeeList.observe(this) { employeeList ->
             outletAdapter.setEmployeeList(employeeList)
         }
 
@@ -185,7 +181,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         val myLayoutManager = VegaLayoutManager()
         outletAdapter = ItemListOutletAdapter(myLayoutManager, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, isDialogVisibleProvider = {
             supportFragmentManager.findFragmentByTag("ResetQueueBoardFragment") != null
-        })
+        }, this@ManageOutletPage)
         binding.rvOutletList.layoutManager = myLayoutManager
         binding.rvOutletList.adapter = outletAdapter
 
@@ -224,31 +220,35 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         }
     }
 
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(this@ManageOutletPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
+    private suspend fun showLocalToast() {
+        withContext(Dispatchers.Main) {
+            if (localToast == null) {
+                localToast = Toast.makeText(this@ManageOutletPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
+                localToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    localToast = null
+                }, 2000)
+            }
         }
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@ManageOutletPage,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    this@ManageOutletPage,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -293,160 +293,147 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     private fun listenToEmployeeData() {
-        if (::employeeListener.isInitialized) {
-            employeeListener.remove()
-        }
-        var decrementGlobalListener = false
+        barbershopId.let { uid ->
+            // pemberitahuan untuk belum adanya daftar pegawai (employeeUidList) harusnya ditampilkan saat akan menampilkan dialog
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
+            }
 
-        employeeListener = db.collectionGroup("employees")
-            .whereEqualTo("root_ref", "barbershops/$barbershopId")
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to employee data: ${exception.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    val metadata = it.metadata
+            if (uid.isEmpty()) {
+                employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                    // Jalankan pengolahan data di background thread
-                    if (!isFirstLoad && !skippedProcess) {
-                        val newUserEmployeeListData = it.mapNotNull { document ->
-                            document.toObject(UserEmployeeData::class.java)
-                                .takeIf { employee -> employee.role == "Capster" }
-                        }
-
-                        // Update employeeList dengan data baru
-                        lifecycleScope.launch {
-                            employeesMutex.withLock {
-                                val outletOldData = manageOutletViewModel.outletSelected.value
-                                if (!manageOutletViewModel.capsterList.value.isNullOrEmpty() && outletOldData != null && isDisplayQueueBoard) {
-                                    outletOldData.let { outlet ->
-                                        val capsterList = newUserEmployeeListData.filter {
-                                            it.uid in outlet.listEmployees && it.availabilityStatus
+            employeeListener = db.collectionGroup("employees")
+                .whereEqualTo("root_ref", "barbershops/$barbershopId")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageOutletViewModel.listenerEmployeeDataMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to employee data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                // Jalankan pengolahan data di background thread
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        val newUserEmployeeListData = docs.mapNotNull { document ->
+                                            document.toObject(UserEmployeeData::class.java)
+                                                .takeIf { employee -> employee.role == "Capster" }
                                         }
-                                        manageOutletViewModel.setCapsterList(capsterList)
+
+                                        // Update employeeList dengan data baru
+                                        manageOutletViewModel.employeesMutex.withStateLock {
+                                            val outletOldData = manageOutletViewModel.outletSelected.value
+                                            if (!manageOutletViewModel.capsterList.value.isNullOrEmpty() && outletOldData != null && isDisplayQueueBoard) {
+                                                outletOldData.let { outlet ->
+                                                    val capsterList = newUserEmployeeListData.filter { it ->
+                                                        it.uid in outlet.listEmployees && it.availabilityStatus
+                                                    }
+                                                    manageOutletViewModel.setCapsterList(capsterList)
+                                                }
+                                            }
+                                            manageOutletViewModel.setEmployeeList(newUserEmployeeListData.toMutableList())
+                                        }
                                     }
                                 }
-                                manageOutletViewModel.setEmployeeList(newUserEmployeeListData.toMutableList())
                             }
 
-                            withContext(Dispatchers.Main) {
-                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                    showLocalToast()
-                                    Log.d("LocalSave", "01")
-                                }
-                                isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
                             }
                         }
                     }
 
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
                 }
-            }
+        }
     }
 
     private fun listenToOutletList() {
-        if (::outletListener.isInitialized) {
-            outletListener.remove()
-        }
-        var decrementGlobalListener = false
+        barbershopId.let { uid ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
 
-        outletListener = db.collection("barbershops")
-            .document(barbershopId)
-            .collection("outlets")
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to outlets data: ${exception.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    val metadata = it.metadata
+            if (uid.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                    // Jalankan pengolahan data di background thread
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad && !skippedProcess) {
-                            val newOutletsList = it.mapNotNull { document ->
-                                document.toObject(Outlet::class.java).apply {
-                                    // Cek apakah UID outlet ada di collapseStateMap
-                                    // isCollapseCard = extendedStateMap[uid] ?: true
-                                    isCollapseCard = manageOutletViewModel.extendedStateMap.value?.get(uid) ?: true
-                                    // Assign the document reference path to outletReference
-                                    outletReference = document.reference.path
-                                    Log.d("TestCLickMore", "outletName ${this.outletName} || isCollapseCard: $isCollapseCard")
+            outletListener = db.collection("barbershops")
+                .document(barbershopId)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageOutletViewModel.listenerOutletListMutex.withStateLock {
+                            val metadata = documents?.metadata
+                            exception?.let {
+                                showToast("Error listening to outlets data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
+                                return@withStateLock
                             }
+                            documents?.let { docs ->
+                                // Jalankan pengolahan data di background thread
+                                if (!isFirstLoad && !skippedProcess) {
+                                    lifecycleScope.launch(Dispatchers.Default) {
+                                        val newOutletsList = docs.mapNotNull { document ->
+                                            document.toObject(Outlet::class.java).apply {
+                                                // Cek apakah UID outlet ada di collapseStateMap
+                                                // isCollapseCard = extendedStateMap[uid] ?: true
+                                                isCollapseCard = manageOutletViewModel.extendedStateMap.value?.get(uid) ?: true
+                                                // Assign the document reference path to outletReference
+                                                outletReference = document.reference.path
+                                                Log.d("TestCLickMore", "outletName ${this.outletName} || isCollapseCard: $isCollapseCard")
+                                            }
+                                        }
 
-                            // Update collapseStateMap dengan data baru
-                            // extendedStateMap.clear()
-//                            newOutletsList.forEach { outlet ->
-//                                extendedStateMap[outlet.uid] = outlet.isCollapseCard
-//                            }
-                            withContext(Dispatchers.Main) {
-                                outletsMutex.withLock {
-                                    manageOutletViewModel.setExtendedStateMap(newOutletsList.associateBy({ it.uid }, { it.isCollapseCard }).toMutableMap())
-                                    val outletOldData = manageOutletViewModel.outletSelected.value
-                                    if (outletOldData != null && isDisplayQueueBoard) {
-                                        outletOldData.let { outlet ->
-                                            val outletNewData = newOutletsList.find { it.uid == outlet.uid }
-                                            val capsterList = manageOutletViewModel.userEmployeeDataList.value?.filter {
-                                                it.uid in outlet.listEmployees && it.availabilityStatus
-                                            } ?: emptyList()
+                                        manageOutletViewModel.outletsMutex.withStateLock {
+                                            manageOutletViewModel.setExtendedStateMap(newOutletsList.associateBy({ it.uid }, { it.isCollapseCard }).toMutableMap())
+                                            val outletOldData = manageOutletViewModel.outletSelected.value
+                                            if (outletOldData != null && isDisplayQueueBoard) {
+                                                outletOldData.let { outlet ->
+                                                    val outletNewData = newOutletsList.find { it -> it.uid == outlet.uid }
+                                                    val capsterList = manageOutletViewModel.employeeList.value?.filter { it ->
+                                                        it.uid in outlet.listEmployees && it.availabilityStatus
+                                                    } ?: emptyList()
 
-                                            if (outletNewData != null) manageOutletViewModel.setOutletSelected(outletNewData)
-                                            manageOutletViewModel.setCapsterList(capsterList)
+                                                    if (outletNewData != null) manageOutletViewModel.setOutletSelected(outletNewData)
+                                                    manageOutletViewModel.setCapsterList(capsterList)
+                                                }
+                                            }
+                                            manageOutletViewModel.updateOutletList(newOutletsList.toMutableList())
                                         }
                                     }
-                                    manageOutletViewModel.updateOutletList(newOutletsList.toMutableList())
-                                    // outletsList.clear()
-                                    // outletsList.addAll(newOutletsList)
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                        showLocalToast()
-                                        Log.d("LocalSave", "02")
-                                    }
-                                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
                                 }
                             }
 
-//                            // Update outletsList dengan data baru
-//                            withContext(Dispatchers.Main) {
-//                                // Notify adapter or update UI
-//                                outletAdapter.submitList(outletsList)
-//                                Log.d("TestCLickMore", "extendedStateMap: $extendedStateMap")
-//
-//                                // Ubah tinggi layout root
-////                                val layoutParams = binding.root.layoutParams
-////                                layoutParams.height = if (outletsList.isEmpty())
-////                                    ViewGroup.LayoutParams.MATCH_PARENT
-////                                else
-////                                    ViewGroup.LayoutParams.WRAP_CONTENT
-////                                binding.root.layoutParams = layoutParams
-//                                binding.tvEmptyOutlet.visibility = if (outletsList.isEmpty()) View.VISIBLE else View.GONE
-//
-//                                outletAdapter.notifyDataSetChanged()
-//                            }
-                        }
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
 
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
+                            if (metadata?.hasPendingWrites() == true && metadata.isFromCache && isProcessUpdatingData) {
+                                showLocalToast()
+                            }
+                            isProcessUpdatingData = false // Reset flag setelah menampilkan toast
                         }
                     }
                 }
-            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -473,20 +460,23 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     override fun onQueueResetRequested(outlet: Outlet, index: Int) {
         lifecycleScope.launch(Dispatchers.Default) {
             indexOutlet = index
-            // Ambil daftar karyawan yang cocok dengan uid di employeeUidList dan availabilityStatus == true
-            val capsterList = employeesMutex.withLock {
-                manageOutletViewModel.userEmployeeDataList.value?.filter {
-                    it.uid in outlet.listEmployees && it.availabilityStatus
-                } ?: emptyList()
-//                employeeList.filter {
-//                    it.uid in outlet.listEmployees && it.availabilityStatus
-//                }
+            if (outlet.listEmployees.isEmpty()) {
+                showToast("Daftar karyawan untuk outlet ini belum ditambahkan")
+                return@launch
             }
 
+            // Ambil daftar karyawan yang cocok dengan uid di employeeUidList dan availabilityStatus == true
+            val capsterList = manageOutletViewModel.employeesMutex.withStateLock {
+                manageOutletViewModel.employeeList.value?.filter {
+                    it.uid in outlet.listEmployees && it.availabilityStatus
+                } ?: emptyList()
+            }
+
+            isDisplayQueueBoard = true
+            manageOutletViewModel.setOutletSelected(outlet)
+            manageOutletViewModel.setCapsterList(capsterList)
+
             withContext(Dispatchers.Main) {
-                isDisplayQueueBoard = true
-                manageOutletViewModel.setOutletSelected(outlet)
-                manageOutletViewModel.setCapsterList(capsterList)
                 // Panggil dialog dengan capsterList yang sudah difilter
                 showResetQueueBoardDialog()
             }
@@ -499,7 +489,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     override fun displayThisToast(message: String) {
-        showToast(message)
+        lifecycleScope.launch {
+            showToast(message)
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -534,6 +526,27 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+//        BarberLinkApp.sessionManager.setActivePage("Admin")
+        Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        if (!isRecreated) {
+            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                lifecycleScope.launch {
+                    showToast("Sesi telah berakhir silahkan masuk kembali")
+                }
+            }
+        }
+        isRecreated = false
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         if (fragmentManager.backStackEntryCount > 0) {
@@ -553,25 +566,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             }
         }
 
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-//        BarberLinkApp.sessionManager.setActivePage("Admin")
-        Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        if (!isRecreated) {
-            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
-                val intent = Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
-            }
-        }
-        isRecreated = false
     }
 
     override fun onPause() {

@@ -115,7 +115,7 @@
                                 android:layout_height="65dp"
                                 android:layout_gravity="center_vertical"
                                 android:layout_marginStart="13dp"
-                                android:layout_marginEnd="16dp"
+                                android:layout_marginEnd="10dp"
                                 android:scaleType="centerCrop"
                                 android:contentDescription="@string/user_profile_placeholder_desc"
                                 android:src="@drawable/placeholder_user_profile"

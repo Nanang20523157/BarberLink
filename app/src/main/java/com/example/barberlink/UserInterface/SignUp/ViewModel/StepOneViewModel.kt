@@ -19,8 +19,7 @@ import com.google.firebase.storage.FirebaseStorage
 class StepOneViewModel(
     private val db: FirebaseFirestore,
     private val storage: FirebaseStorage,
-    private val auth: FirebaseAuth,
-    private val context: Context
+    private val auth: FirebaseAuth
 ) : ViewModel() {
 
     private lateinit var userAdminData: UserAdminData
@@ -102,7 +101,8 @@ class StepOneViewModel(
 
         formattedPhoneNumber?.let { phoneNumber ->
             Log.d("TriggerPP", phoneNumber)
-            db.collection("users").document(phoneNumber).get()
+            db.collection("users").document(phoneNumber)
+                .get()
                 .addOnSuccessListener { document ->
                     when {
                         document.exists() -> handleExistingUser(document)
@@ -143,25 +143,17 @@ class StepOneViewModel(
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun checkCustomerExistenceAndAdd(phoneNumber: String) {
-        db.collection("customers").document(phoneNumber).get()
-            .addOnSuccessListener { customerDocument ->
-                if (customerDocument.exists()) {
+        db.collection("customers").document(phoneNumber)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
                     Log.d("TriggerPP", "X4X")
                     userRolesData.role = "undefined"
 
-                    customerDocument.toObject(UserCustomerData::class.java)?.let { customerData ->
-                        customerData.userRef = customerDocument.reference.path
+                    document.toObject(UserCustomerData::class.java)?.let { customerData ->
+                        customerData.userRef = document.reference.path
                         userCustomerData = customerData
                     }
-
-//                    userAdminData?.apply {
-//                        uid = ""
-//                        imageCompanyProfile = ""
-//                        ownerName = userCustomerData?.fullname.toString()
-//                        email = ""
-//                        password = ""
-//                        userRef = userCustomerData?.userRef.toString()
-//                    }
 
                     setupCustomerData()
                 } else {
@@ -178,7 +170,8 @@ class StepOneViewModel(
     @RequiresApi(Build.VERSION_CODES.S)
     private fun getDataReference(reference: String, role: String) {
         Log.d("TriggerUU", "X5X")
-        db.document(reference).get()
+        db.document(reference)
+            .get()
             .addOnSuccessListener { document ->
                 document.takeIf { it.exists() }?.let {
                     when (role) {

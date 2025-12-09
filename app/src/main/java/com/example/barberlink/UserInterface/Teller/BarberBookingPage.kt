@@ -37,6 +37,7 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.ShareDataViewModelFactory
+import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.Injection
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -44,9 +45,11 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.AddNewCustomerFragment
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.toUtcMidnightMillis
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivityBarberBookingPageBinding
@@ -56,13 +59,13 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.Locale
@@ -77,10 +80,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private lateinit var dialogFragment: AddNewCustomerFragment
     private var remainingListeners = AtomicInteger(6)
     private var setUpObserverIsDone: Boolean = false
-
-//    private lateinit var capsterSelected: UserEmployeeData
     private lateinit var timeSelected: Timestamp
-//    private var customerData: UserCustomerData? = null
     private var keyword: String = ""
     private var isFirstLoad: Boolean = true
     private var skippedProcess: Boolean = false
@@ -88,15 +88,10 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private var isShimmerCustomerVisible: Boolean = false
     private var letScrollCustomerRecycleView: Boolean = true
     private var isProcessUpdatingData: Boolean = false
-    private var currentToastMessage: String? = null    // private var customerList = mutableListOf<UserCustomerData>()
-
-    // private var filteredResult: List<UserCustomerData> = emptyList()
+    private var currentToastMessage: String? = null
     private var isNavigating = false
     private var currentView: View? = null
     private var todayDate: String = ""
-    // private val servicesList = mutableListOf<Service>()
-    // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
-    // private val filteredCustomerList = mutableListOf<UserCustomerData>()
     private lateinit var customerGuestAccount: UserCustomerData
     private lateinit var serviceAdapter: ItemListServiceBookingAdapter
     private lateinit var bundlingAdapter: ItemListPackageBookingAdapter
@@ -165,19 +160,15 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         if (savedInstanceState != null) {
             Log.d("ScanAll", "B1")
             // Restore the saved instance state
-//            capsterSelected = savedInstanceState.getParcelable("capster_selected") ?: UserEmployeeData()
             timeSelected = Timestamp(Date(savedInstanceState.getLong("time_selected")))
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerAllVisible = savedInstanceState.getBoolean("is_shimmer_all_visible", false)
             isShimmerCustomerVisible = savedInstanceState.getBoolean("is_shimmer_customer_visible", false)
-//            customerData = savedInstanceState.getParcelable("customer_data")
             keyword = savedInstanceState.getString("keyword", "")
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             letScrollCustomerRecycleView = savedInstanceState.getBoolean("let_scroll_customer_recycle_view", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
-            // customerList = savedInstanceState.getParcelableArrayList("customer_list") ?: mutableListOf()
-            // filteredResult = savedInstanceState.getParcelableArray("filtered_result")?.mapNotNull { it as? UserCustomerData } ?: emptyList()
         }
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
@@ -197,8 +188,10 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 outletSelected = intent.getParcelableExtra(QueueTrackerPage.OUTLET_DATA_KEY) ?: Outlet()
                 capsterSelected = intent.getParcelableExtra(QueueTrackerPage.CAPSTER_DATA_KEY) ?: UserEmployeeData()
             }
-            bookingPageViewModel.setOutletSelected(outletSelected)
-            bookingPageViewModel.setCapsterSelected(capsterSelected)
+            lifecycleScope.launch {
+                bookingPageViewModel.setOutletSelected(outletSelected)
+                bookingPageViewModel.setCapsterSelected(capsterSelected)
+            }
 
             val timeSelectedSeconds = intent.getLongExtra(QueueTrackerPage.TIME_SECONDS_KEY, 0L)
             val timeSelectedNanos = intent.getIntExtra(QueueTrackerPage.TIME_NANOS_KEY, 0)
@@ -217,9 +210,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             guestAccount = true
         )
 
-        if (savedInstanceState == null) bookingPageViewModel.setCustomerSelected(customerGuestAccount)
+        if (savedInstanceState == null) lifecycleScope.launch { bookingPageViewModel.setCustomerSelected(customerGuestAccount) }
         init(savedInstanceState, capsterSelected)
-        if (savedInstanceState == null || (isShimmerAllVisible && isShimmerCustomerVisible && isFirstLoad)) getAllData()
+        if (savedInstanceState == null || (isShimmerAllVisible && isShimmerCustomerVisible && isFirstLoad)) lifecycleScope.launch { getAllData() }
         else {
             Log.d("ScanAll", "K1")
             Log.d("ScrollCustomer", "Enter BBP else")
@@ -236,21 +229,18 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
         // code 1
         supportFragmentManager.setFragmentResultListener("customer_result_data", this) { _, bundle ->
-            Log.d("ScanAll", "M1")
-            val customerData = bundle.getParcelable<UserCustomerData>("customer_data")
-            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
-            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+            lifecycleScope.launch {
+                Log.d("ScanAll", "M1")
+                val customerData = bundle.getParcelable<UserCustomerData>("customer_data")
+                val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+                if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this@BarberBookingPage, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
 
-            customerData?.let { data ->
-                // Sama seperti mutex.withLock
-//                synchronized(customerList) {
-//                    customerList.add(data)
-//                    customerList = customerList.sortedByDescending { it.lastReserve }.toMutableList()
-//                }
-                Log.d("BtnSaveChecking", "Button Save Clicked 5")
-                bookingPageViewModel.addCustomerData(data)
-                val userNumber = PhoneUtils.formatPhoneNumberWithZero(data.phone)
-                binding.searchId.setQuery(userNumber, true)
+                customerData?.let { data ->
+                    Log.d("BtnSaveChecking", "Button Save Clicked 5")
+                    bookingPageViewModel.addCustomerData(data)
+                    val userNumber = PhoneUtils.formatPhoneNumberWithZero(data.phone)
+                    binding.searchId.setQuery(userNumber, true)
+                }
             }
         }
 
@@ -267,7 +257,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (displayAllData != null) {
                 Log.d("ScrollCustomer", "Button Save Clicked 10")
                 if (displayAllData) displayAllData()
-                else bookingPageViewModel.updateDataCustomerOnly()
+                else lifecycleScope.launch { bookingPageViewModel.updateDataCustomerOnly() }
             }
         }
 
@@ -288,38 +278,34 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 ) { it.first }  // Join only the 'first' element of each Pair
                 // Use formattedString as needed
                 binding.orderDetails.text = formattedString
-//                if (!isFirstLoad) {
-//                    bundlingAdapter.notifyDataSetChanged()
-//                    serviceAdapter.notifyDataSetChanged()
-//                }
             }
 
             Log.d("TestAct", "===================")
         }
 
-        bookingPageViewModel.indexBundlingChanged.observe(this) { indexes ->
-            Log.d("ScanAll", "Q1")
-            if (indexes.isNotEmpty()) {
-                indexes.forEach {
-                    bundlingAdapter.notifyItemChanged(it)
-                    val data = bookingPageViewModel.bundlingPackagesList.value?.get(it)
-                    Log.d("TestDataChange", "indexBundlingChanged: DATA ${data?.packageName} [ ${data?.bundlingQuantity} ]")
-                }
-                bookingPageViewModel.resetIndexBundlingChanged()
-            }
-        }
+//        bookingPageViewModel.indexBundlingChanged.observe(this) { indexes ->
+//            Log.d("ScanAll", "Q1")
+//            if (indexes.isNotEmpty()) {
+//                indexes.forEach {
+//                    bundlingAdapter.notifyItemChanged(it)
+//                    val data = bookingPageViewModel.bundlingPackagesList.value?.get(it)
+//                    Log.d("TestDataChange", "indexBundlingChanged: DATA ${data?.packageName} [ ${data?.bundlingQuantity} ]")
+//                }
+//                lifecycleScope.launch { bookingPageViewModel.resetIndexBundlingChanged() }
+//            }
+//        }
 
-        bookingPageViewModel.indexServiceChanged.observe(this) { indexes ->
-            Log.d("ScanAll", "R1")
-            if (indexes.isNotEmpty()) {
-                indexes.forEach {
-                    serviceAdapter.notifyItemChanged(it)
-                    val data = bookingPageViewModel.servicesList.value?.get(it)
-                    Log.d("TestDataChange", "indexServiceChanged: ${data?.serviceName} [ ${data?.serviceQuantity} ]")
-                }
-                bookingPageViewModel.resetIndexServiceChanged()
-            }
-        }
+//        bookingPageViewModel.indexServiceChanged.observe(this) { indexes ->
+//            Log.d("ScanAll", "R1")
+//            if (indexes.isNotEmpty()) {
+//                indexes.forEach {
+//                    serviceAdapter.notifyItemChanged(it)
+//                    val data = bookingPageViewModel.servicesList.value?.get(it)
+//                    Log.d("TestDataChange", "indexServiceChanged: ${data?.serviceName} [ ${data?.serviceQuantity} ]")
+//                }
+//                lifecycleScope.launch { bookingPageViewModel.resetIndexServiceChanged() }
+//            }
+//        }
 
         binding.apply {
             ivBack.setOnClickListener(this@BarberBookingPage)
@@ -338,7 +324,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 override fun onQueryTextChange(newText: String?): Boolean {
                     // Hapus semua karakter non-angka
                     val cleanedText = newText.orEmpty()
-                        .replace("[^\\d]".toRegex(), "")  // Menghapus semua karakter yang bukan digit
+                        .replace("\\D".toRegex(), "")  // Menghapus semua karakter yang bukan digit
 
                     // Format teks menjadi 4 digit-4 digit
                     val formattedText = buildString {
@@ -350,10 +336,6 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         }
                     }
 
-                    // Tampilkan shimmer effect pada adapter
-//                    customerAdapter.setShimmer(true)
-//                    isShimmerCustomerVisible = true
-                    // Update keyword dan filter customer
                     keyword = PhoneUtils.formatPhoneNumberCodeCountry(cleanedText, "+62")  // Menghapus angka 0 di depan)
                     Log.d("ScrollCustomer", "FILTERING FROM QUERY SEARCH")
                     Log.d("ScanAll", "S1")
@@ -373,31 +355,35 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     }
 
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(this@BarberBookingPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
+    private suspend fun showLocalToast() {
+        withContext(Dispatchers.Main) {
+            if (localToast == null) {
+                localToast = Toast.makeText(this@BarberBookingPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
+                localToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    localToast = null
+                }, 2000)
+            }
         }
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@BarberBookingPage,
-                message,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    this@BarberBookingPage,
+                    message,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -414,20 +400,18 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 //        outState.putParcelable("customer_data", customerData) // Jika UserCustomerData implement Parcelable
         outState.putString("keyword", keyword)
         outState.putBoolean("is_first_load", isFirstLoad)
-        // outState.putParcelableArrayList("customer_list", ArrayList(customerList)) // Pastikan tipe Parcelable
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_customer_visible", isShimmerCustomerVisible)
         outState.putBoolean("is_shimmer_all_visible", isShimmerAllVisible)
         outState.putBoolean("let_scroll_customer_recycle_view", letScrollCustomerRecycleView)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
-        // outState.putParcelableArray("filtered_result", filteredResult.toTypedArray())
     }
 
     private fun init(savedInstanceState: Bundle?, capsterSelected: UserEmployeeData) {
         with(binding) {
             Log.d("ScanAll", "J1")
-            serviceAdapter = ItemListServiceBookingAdapter(this@BarberBookingPage, false)
+            serviceAdapter = ItemListServiceBookingAdapter(this@BarberBookingPage,  false)
             serviceAdapter.setCapsterRef(capsterSelected.userRef)
             rvListServices.layoutManager = GridLayoutManager(this@BarberBookingPage, 2, GridLayoutManager.VERTICAL, false)
             rvListServices.adapter = serviceAdapter
@@ -487,8 +471,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 // Ambil posisi dan ukuran llRestQueueFromCapster
                 binding.realLayout.llRestQueueFromCapster.getGlobalVisibleRect(llRestQueueRect)
 
-                Log.d("CheckingOverlap", "llRatingRect.top: ${llRatingRect.top} || llRatingRect.bottom: ${llRatingRect.bottom} || llRatingRect.left: ${llRatingRect.left} || llRatingRect.right: ${llRatingRect.right}")
-                Log.d("CheckingOverlap", "llRestQueueRect.top: ${llRestQueueRect.top} || llRestQueueRect.bottom: ${llRestQueueRect.bottom} || llRestQueueRect.left: ${llRestQueueRect.left} || llRestQueueRect.right: ${llRestQueueRect.right}")
+                // Konversi dp ke pixel
+                val extra = (10 * binding.root.resources.displayMetrics.density).toInt()
+
+                // Expand kedua rect supaya overlap lebih sensitif
+                llRatingRect.inset(-extra, -extra)        // perbesar 5dp ke semua arah
+                llRestQueueRect.inset(-extra, -extra)
+
                 // Periksa apakah kedua view tumpang tindih
                 val isOverlapping = Rect.intersects(llRatingRect, llRestQueueRect)
 
@@ -499,157 +488,127 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     binding.realLayout.tvRating.visibility = View.VISIBLE
                 }
 
-                Log.d("CheckingOverlap", "isOverlapping: $isOverlapping")
+                Log.d(
+                    "CheckingOverlap",
+                    "isOverlapping: $isOverlapping || llRatingRect: $llRatingRect || llRestQueueRect: $llRestQueueRect"
+                )
 
                 // Hapus listener untuk mencegah multiple calls
                 binding.realLayout.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
             }
+
         })
     }
 
     private fun filterCustomer(query: String, displayAllData: Boolean, filteringAllData: Boolean = true) {
         Log.d("ScanAll", "U1")
         lifecycleScope.launch(Dispatchers.Default) {
-            val customerList = bookingPageViewModel.customerList.value ?: emptyList()
-            synchronized(bookingPageViewModel.listLock) {
-                customerList.forEach { it.dataSelected = false }
-            }
+            bookingPageViewModel.customerMutex.withStateLock {
+                val originalList = bookingPageViewModel.customerList.value ?: emptyList()
+                val originalFiltered = bookingPageViewModel.filteredCustomerList.value ?: emptyList()
+                val lowerCaseQuery = query.lowercase(Locale.getDefault())
 
-            val lowerCaseQuery = query.lowercase(Locale.getDefault())
-            Log.d("EnterBBP", "Filter Query: $lowerCaseQuery")
+                val (safeCustomerList, safeFilteredList) =
+                    bookingPageViewModel.cloneSelectionKeepingSharedReference(originalList, originalFiltered, true)
+                // 🔹 Clone-safe agar tidak ganggu adapter
+                Log.d("EnterBBP", "Filter Query: $lowerCaseQuery")
 
-            Log.d("XYZChecking", "letScrollCustomerRecycleView: $letScrollCustomerRecycleView || filteringAllData: $filteringAllData || displayAllData: $displayAllData || query: $query")
-            val filteredResult = synchronized(bookingPageViewModel.listLock) {
+                Log.d("XYZChecking", "letScrollCustomerRecycleView: $letScrollCustomerRecycleView || filteringAllData: $filteringAllData || displayAllData: $displayAllData || query: $query")
                 val baseList = if (lowerCaseQuery.isEmpty()) {
                     if (!filteringAllData) {
-                        bookingPageViewModel.filteredCustomerList.value ?: emptyList()
-                    } else { customerList }
+                        safeFilteredList
+                    } else safeCustomerList
                 } else {
                     if (!filteringAllData) {
-                        bookingPageViewModel.filteredCustomerList.value ?: emptyList()
-                    } else {
-                        customerList.filter { customer ->
-                            customer.phone.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
-                        }
+                        safeFilteredList
+                    } else safeCustomerList.filter { customer ->
+                        customer.phone.lowercase(Locale.getDefault()).contains(lowerCaseQuery)
                     }
                 }
 
                 val sortedList = if (filteringAllData) {
                     baseList.sortedByDescending { it.lastReserve }
+                } else baseList
+
+                val filteredResult = sortedList.take(10).toMutableList()
+
+                var customerData: UserCustomerData?
+                if (filteredResult.size == 1) {
+                    filteredResult[0].dataSelected = true
+                    customerData = filteredResult[0]
                 } else {
-                    baseList
+                    customerData = bookingPageViewModel.customerSelected.value
+                    filteredResult.find { it.uid == customerData?.uid }?.dataSelected = true
                 }
 
-                sortedList.take(10).toMutableList()
-//                baseList.sortedByDescending { it.lastReserve }.take(10).toMutableList()
-            }
-
-            var customerData: UserCustomerData?
-            if (filteredResult.size == 1) {
-                filteredResult[0].dataSelected = true
-                customerData = filteredResult[0]
-            } else {
-                customerData = bookingPageViewModel.customerSelected.value
-                filteredResult.find { it.uid == customerData?.uid }?.dataSelected = true
-            }
-
-            if (letScrollCustomerRecycleView) {
-                val selectedIndex = filteredResult.indexOfFirst { it.dataSelected }
-                if (selectedIndex > 0) {
-                    val selectedItem = filteredResult.removeAt(selectedIndex)
-                    filteredResult.add(0, selectedItem)
+                // Digunakan untuk membawa data customer terpilih ke index 0
+                if (letScrollCustomerRecycleView) {
+                    val selectedIndex = filteredResult.indexOfFirst { it.dataSelected }
+                    if (selectedIndex > 0) {
+                        val selectedItem = filteredResult.removeAt(selectedIndex)
+                        filteredResult.add(0, selectedItem)
+                    }
                 }
-            }
 
-            // Periksa apakah ada elemen dengan dataSelected = true
-            if (filteredResult.none { it.dataSelected }) {
-                customerData = null
-                withContext(Dispatchers.Main) {
+                // Periksa apakah ada elemen dengan dataSelected = true
+                if (filteredResult.none { it.dataSelected }) {
+                    customerData = null
                     bookingPageViewModel.setCustomerSelected(null)
+                } else if (filteredResult.size == 1) {
+                    bookingPageViewModel.setCustomerSelected(customerData)
                 }
-            }
 
-            customerData?.let { listenToCustomerSelectedData(it) }
-
-            withContext(Dispatchers.Main) {
                 Log.d("CacheChecking", "SET CUSTOMER LIST AFTER FILTERING")
-                bookingPageViewModel.setCustomerList(lowerCaseQuery, customerList, false)
+                bookingPageViewModel.setCustomerList(lowerCaseQuery, safeCustomerList, false)
                 Log.d("CacheChecking", "SET FILTERED CUSTOMER LIST AFTER FILTERING")
                 bookingPageViewModel.setFilteredCustomerList(filteredResult)
                 Log.d("ScrollCustomer", "Button Save Clicked 9")
                 bookingPageViewModel.displayAllDataToUI(displayAllData)
+
+                listenToCustomerSelectedData(customerData)
             }
         }
     }
 
-    private fun listenToCustomerSelectedData(customer: UserCustomerData) {
+    private fun listenToCustomerSelectedData(customer: UserCustomerData?) {
         // Remove any existing listener to prevent duplicate listeners
         if (::customerSelectedListener.isInitialized) {
             customerSelectedListener.remove()
         }
 
         // Check if the customer is not the guest account and has a non-empty UID
-        if (customer != customerGuestAccount && customer.uid.isNotEmpty()) {
+        if (customer != null && customer != customerGuestAccount && customer.uid.isNotEmpty()) {
+            Logger.d("DBFirestore", "Listening to customer data changes for UID: ${customer.uid}")
             // Initialize the Firestore listener for the customer document
             customerSelectedListener = db.collection("customers")
                 .document(customer.uid)
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        // Display a Toast message if there is an error listening to customer data
-                        showToast("Error listening to customer data: ${exception.message}")
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        if (it.exists()) {
-                            val metadata = it.metadata
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerCustomerDataMutex.withStateLock {
+                            exception?.let {
+                                // Display a Toast message if there is an error listening to customer data
+                                showToast("Error listening to customer data: ${exception.message}")
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (docs.exists()) {
+                                    withContext(Dispatchers.Default) {
+                                        bookingPageViewModel.customerMutex.withStateLock {
+                                            val oldItem = customer
+                                            val freshData = docs.toObject(UserCustomerData::class.java)?.copy(
+                                                userRef = docs.reference.path,
+                                                dataSelected = oldItem.dataSelected
+                                            ) ?: return@withStateLock
 
-                            lifecycleScope.launch(Dispatchers.Default) {
-                                // Check if the customer document exists
-                                Log.d("ScanAll", "V1")
-                                val updatedCustomer = it.toObject(UserCustomerData::class.java)?.apply {
-                                    // Set the userRef with the document path
-                                    userRef = it.reference.path
-                                }
-                                updatedCustomer?.let { newCustomerData ->
-                                    Log.d("CustomerListener", "Customer data updated: ${newCustomerData.fullname}")
-
-                                    // Replace the existing customer data in customerList
-                                    synchronized(bookingPageViewModel.listLock) {
-                                        val customerList = bookingPageViewModel.customerList.value ?: emptyList()
-                                        val index = customerList.indexOfFirst { it1 -> it1.uid == customer.uid }
-                                        Log.d("FilterCustomer", "index = $index")
-                                        if (index != -1) {
-                                            if (customerList[index] != newCustomerData) {
-                                                val dataToUpdate = customerList[index].apply {
-                                                    userReminder = newCustomerData.userReminder
-                                                    email = newCustomerData.email
-                                                    fullname = newCustomerData.fullname
-                                                    gender = newCustomerData.gender
-                                                    membership = newCustomerData.membership
-                                                    password = newCustomerData.password
-                                                    phone = newCustomerData.phone
-                                                    photoProfile = newCustomerData.photoProfile
-                                                    userNotification = newCustomerData.userNotification
-                                                    uid = newCustomerData.uid
-                                                    username = newCustomerData.username
-                                                    userCoins = newCustomerData.userCoins
-                                                    userRef = newCustomerData.userRef
-                                                }
-                                                lifecycleScope.launch(Dispatchers.Main) {
-                                                    Log.d("CacheChecking", "UPDATE SPECIFIC CUSTOMER DATA FROM LISTENER")
-                                                    bookingPageViewModel.updateCustomerData(dataToUpdate)
-                                                    bookingPageViewModel.setCustomerSelected(dataToUpdate)
-                                                }
+                                            if (oldItem == freshData) {
+                                                Logger.d("DBFirestore", "No changes detected for customer UID: ${freshData.uid}")
+                                                return@withStateLock
                                             }
-                                            Log.d("CustomerListener", "update")
+                                            // freshData sudah final → tinggal push
+                                            bookingPageViewModel.updateCustomerData(freshData)
+                                            bookingPageViewModel.setCustomerSelected(freshData)
+                                            Log.d("CustomerListener", "Updated ${freshData.fullname}")
                                         }
-                                    }
-
-                                    withContext(Dispatchers.Main) {
-                                        if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                            showLocalToast()
-                                        }
-                                        isProcessUpdatingData = false
                                     }
                                 }
                             }
@@ -687,7 +646,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     Log.d("ScrollCustomer", "Enter bundlingPackagesList.observe")
                     Log.d("ScanAll", "Y1")
                     bundlingAdapter.submitList(it)
-                    bundlingAdapter.notifyDataSetChanged()
+                    // matikan notify
+                    // bundlingAdapter.notifyDataSetChanged()
 
                     binding.tvLabelPaketBundling.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
                     binding.rvListPaketBundling.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
@@ -698,7 +658,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     Log.d("ScrollCustomer", "Enter servicesList.observe")
                     Log.d("ScanAll", "Z1")
                     serviceAdapter.submitList(it)
-                    serviceAdapter.notifyDataSetChanged()
+                    // matikan notify
+                    // serviceAdapter.notifyDataSetChanged()
                 }
 
                 bookingPageViewModel.isSetItemBundling.observe(this@BarberBookingPage) { isSet ->
@@ -706,7 +667,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     if (isSet == true) {
                         Log.d("ScrollCustomer", "RE SETUP LIST ITEM DETAILS")
                         // Jalankan setServiceBundlingList hanya ketika nilai _isSetItemBundling adalah true
-                        bookingPageViewModel.setServiceBundlingList()
+                        lifecycleScope.launch { bookingPageViewModel.setServiceBundlingList() }
                     }
                 }
 
@@ -722,15 +683,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         customerAdapter.submitList(filteredResult) {
                             Log.d("ScrollCustomer", "letScrollCustomerRecycleView $letScrollCustomerRecycleView")
                             if (setUpObserverIsDone) {
-                                customerAdapter.notifyDataSetChanged()
+                                // matikan notify
+                                // customerAdapter.notifyDataSetChanged()
                                 if (letScrollCustomerRecycleView) binding.rvListCustomer.scrollToPosition(0)
                             }
                         }
                         binding.tvEmptyCustomer.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
-//                        if (withShimmer) {
-//                            customerAdapter.setShimmer(false)
-//                            isShimmerCustomerVisible = false
-//                        } else customerAdapter.notifyDataSetChanged()
                     }
                 }
 
@@ -761,7 +719,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 realLayout.ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)
             }
 
-            realLayout.tvCapsterName.text = if (capsterSelected.fullname.isEmpty()) "-" else capsterSelected.fullname
+            realLayout.tvCapsterName.text = capsterSelected.fullname.ifEmpty { "-" }
 
             val username = capsterSelected.username.ifEmpty { "---" }
             realLayout.tvUsername.text = getString(R.string.username_template, username)
@@ -955,7 +913,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         this.skippedProcess = skippedProcess
         if (skippedProcess) remainingListeners.set(6)
         listenToCustomerList()
-        listenToCapsterSelected()
+        if (bookingPageViewModel.capsterSelected.value?.uid != "----------------") listenToCapsterSelected()
+        else if (remainingListeners.get() > 0) {
+            // === Fake init semua listener kalau belum ada ===
+            if (!::capsterListener.isInitialized) {
+                capsterListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            }
+            remainingListeners.decrementAndGet()
+        }
         listenToOutletData()
         listenToOutletList()
         listenToServicesData()
@@ -978,52 +943,63 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (::capsterListener.isInitialized) {
                 capsterListener.remove()
             }
+
+            if (capsterSelected.userRef.isEmpty()) {
+                capsterListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             var decrementGlobalListener = false
 
+            Logger.d("DBFirestore", "Listening to capster data changes for UID: ${capsterSelected.uid}")
             capsterListener = db.document(capsterSelected.userRef)
-                .addSnapshotListener { document, exception ->
-                    exception?.let {
-                        showToast("Error listening to capster data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    document?.let {
-                        val metadata = it.metadata
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess && it.exists()) {
-                                val outletData = bookingPageViewModel.outletSelected.value ?: return@launch
-
-                                val updatedCapster = it.toObject(UserEmployeeData::class.java)?.apply {
-                                    // Set the userRef with the document path
-                                    userRef = it.reference.path
-                                    outletRef = outletData.outletReference
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerCapsterDataMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to capster data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
-                                updatedCapster?.let { newCapsterData ->
-                                    Log.d("CapsterListener", "Capster data updated: ${newCapsterData.fullname}")
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            bookingPageViewModel.outletSelected.value?.let { outletData ->
+                                                val updatedCapster = docs.toObject(UserEmployeeData::class.java)?.apply {
+                                                    // Set the userRef with the document path
+                                                    userRef = docs.reference.path
+                                                    outletRef = outletData.outletReference
+                                                }
+                                                updatedCapster?.let { newCapsterData ->
+                                                    Log.d("CapsterListener", "Capster data updated: ${newCapsterData.fullname}")
 
-                                    // Update the capsterSelected variable
-                                    withContext(Dispatchers.Main) {
-                                        displayCapsterData(newCapsterData)
-                                        bookingPageViewModel.setCapsterSelected(newCapsterData)
-
-                                        if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                            showLocalToast()
+                                                    bookingPageViewModel.setCapsterSelected(newCapsterData)
+                                                    // Update the capsterSelected variable
+                                                    withContext(Dispatchers.Main) {
+                                                        displayCapsterData(newCapsterData)
+                                                    }
+                                                }
+                                            }
                                         }
-                                        isProcessUpdatingData = false
                                     }
                                 }
                             }
-                        }
 
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
                         }
                     }
                 }
+        } ?: run {
+            capsterListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -1032,66 +1008,78 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (::customerListListener.isInitialized) {
                 customerListListener.remove()
             }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                customerListListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             var decrementGlobalListener = false
 
+            Logger.d("DBFirestore", "Listening to customer list changes in outlet: ${outletSelected.outletName}")
             customerListListener = db.collection("customers")
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to customer data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                val outletData = bookingPageViewModel.outletSelected.value ?: return@launch
-                                val customerList = outletData.listCustomers ?: mutableListOf()
-                                val customerFilterIds = customerList.map { it1 -> it1.uidCustomer }.toSet()
-
-                                val fetchedCustomers = it.documents.mapNotNull { doc ->
-                                    val item = doc.toObject(UserCustomerData::class.java).takeIf { customerFilterIds.contains(doc.id) }?.apply {
-                                        userRef = doc.reference.path
-                                    }
-                                    item
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerCustomerListMutex.withStateLock {
+                            val metadata = documents?.metadata
+                            exception?.let {
+                                showToast("Error listening to customer data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        bookingPageViewModel.outletSelected.value?.let { outletData ->
+                                            val customerList = outletData.listCustomers ?: mutableListOf()
+                                            val customerFilterIds = customerList.map { it.uidCustomer }.toSet()
 
-                                val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
-                                    fetchedCustomers.find { it1 -> it1.uid == customerInOutlet.uidCustomer }?.apply {
-                                        this.lastReserve = customerInOutlet.lastReserve
-                                    }
-                                }.sortedByDescending { it1 -> it1.lastReserve }
+                                            val fetchedCustomers = docs.documents.mapNotNull { document ->
+                                                val item = document.toObject(UserCustomerData::class.java).takeIf { customerFilterIds.contains(document.id) }?.apply {
+                                                    userRef = document.reference.path
+                                                }
+                                                item
+                                            }
 
-                                withContext(Dispatchers.Main) {
-                                    synchronized(bookingPageViewModel.listLock) {
-                                        val completeList = mutableListOf(customerGuestAccount).apply {
-                                            addAll(sortedCustomerList)
+                                            val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
+                                                fetchedCustomers.find { it.uid == customerInOutlet.uidCustomer }?.apply {
+                                                    this.lastReserve = customerInOutlet.lastReserve
+                                                }
+                                            }.sortedByDescending { it.lastReserve }
+
+                                            bookingPageViewModel.customerMutex.withStateLock {
+                                                val completeList = mutableListOf(customerGuestAccount).apply {
+                                                    addAll(sortedCustomerList)
+                                                }
+
+                                                letScrollCustomerRecycleView = false
+                                                Log.d("CacheChecking", "SET CUSTOMER LIST FROM SNAPSHOT LISTENER")
+                                                bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, true)
+                                            }
                                         }
-
-                                        letScrollCustomerRecycleView = false
-                                        Log.d("CacheChecking", "SET CUSTOMER LIST FROM SNAPSHOT LISTENER")
-                                        bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, true)
                                     }
-
-                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                        showLocalToast()
-                                    }
-                                    isProcessUpdatingData = false
                                 }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
                             }
-                        }
 
+                            if (metadata?.hasPendingWrites() == true && metadata.isFromCache && isProcessUpdatingData) {
+                                showLocalToast()
+                            }
+                            isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                        }
                     }
                 }
+        } ?: run {
+            customerListListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -1100,42 +1088,44 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (::listOutletListener.isInitialized) {
                 listOutletListener.remove()
             }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                listOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return
+            }
             var decrementGlobalListener = false
 
+            Logger.d("DBFirestore", "Listening to outlet list changes in root: ${outletSelected.rootRef}")
             listOutletListener = db.document(outletSelected.rootRef)
                 .collection("outlets")
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to outlets data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                val outlets = it.mapNotNull { doc ->
-                                    val outlet = doc.toObject(Outlet::class.java)
-                                    outlet.outletReference = doc.reference.path
-                                    outlet
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerOutletListMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to outlets data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        val outlets = docs.mapNotNull { document ->
+                                            val outlet = document.toObject(Outlet::class.java)
+                                            outlet.outletReference = document.reference.path
+                                            outlet
+                                        }
 
-                                withContext(Dispatchers.Main) {
-                                    Log.d("DataExecution", "re setup dropdown by outletlist listener")
-                                    bookingPageViewModel.setOutletList(outlets)
-
-                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                        showLocalToast()
+                                        Log.d("DataExecution", "re setup dropdown by outletlist listener")
+                                        bookingPageViewModel.setOutletList(outlets)
                                     }
-                                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
                                 }
-
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -1143,6 +1133,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         }
                     }
                 }
+        } ?: run {
+            listOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -1152,75 +1145,81 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (::dataOutletListener.isInitialized) {
                 dataOutletListener.remove()
             }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                dataOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return
+            }
             var decrementGlobalListener = false
 
+            Logger.d("DBFirestore", "Listening to outlet data changes for outlet: ${outletSelected.outletName}")
             dataOutletListener = db.document(outletSelected.rootRef)
                 .collection("outlets")
                 .document(outletSelected.uid)
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to outlet data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess && it.exists()) {
-                                val outletData = bookingPageViewModel.outletSelected.value ?: return@launch
-                                // Simpan salinan data lama
-                                Log.d("ScanAll", "MM1")
-                                Log.d("BtnSaveChecking", "A ${outletData.listCustomers}")
-                                val updatedOutlet = it.toObject(Outlet::class.java)?.apply {
-                                    // Assign the document reference path to outletReference
-                                    outletReference = it.reference.path
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerOutletDataMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to outlet data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
-                                if (updatedOutlet != null) {
-                                    Log.d("BtnSaveChecking", "=================")
-                                    Log.d("BtnSaveChecking", "B ${updatedOutlet.listCustomers}")
-                                    Log.d("CheckListenerLog", "BBP OUTLET NAME SELECTED: ${updatedOutlet.outletName} FROM LISTENER")
-                                    // Periksa dan update list_customers jika ada perubahan
-                                    if (!areListsEqual(
-                                            outletData.listCustomers,
-                                            updatedOutlet.listCustomers
-                                        )) {
-                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletSelected.listCustomers, updatedOutlet.listCustomers)")
-                                        updateCustomerList(updatedOutlet)
-                                    }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            bookingPageViewModel.outletSelected.value?.let { outletData ->
+                                                // Simpan salinan data lama
+                                                Log.d("ScanAll", "MM1")
+                                                Log.d("BtnSaveChecking", "A ${outletData.listCustomers}")
+                                                val updatedOutlet = docs.toObject(Outlet::class.java)?.apply {
+                                                    // Assign the document reference path to outletReference
+                                                    outletReference = docs.reference.path
+                                                }
+                                                if (updatedOutlet != null) {
+                                                    Log.d("BtnSaveChecking", "=================")
+                                                    Log.d("BtnSaveChecking", "B ${updatedOutlet.listCustomers}")
+                                                    Log.d("CheckListenerLog", "BBP OUTLET NAME SELECTED: ${updatedOutlet.outletName} FROM LISTENER")
+                                                    // Periksa dan update list_customers jika ada perubahan
+                                                    if (!areListsEqual(
+                                                            outletData.listCustomers,
+                                                            updatedOutlet.listCustomers
+                                                        )) {
+                                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletSelected.listCustomers, updatedOutlet.listCustomers)")
+                                                        updateCustomerList(updatedOutlet)
+                                                    }
 
-                                    // Periksa dan update list_services jika ada perubahan
-                                    if (!areListsEqual(
-                                            outletData.listServices,
-                                            updatedOutlet.listServices
-                                        )) {
-                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletSelected.listServices, updatedOutlet.listServices)")
-                                        updateServiceList(updatedOutlet)
-                                    }
+                                                    // Periksa dan update list_services jika ada perubahan
+                                                    if (!areListsEqual(
+                                                            outletData.listServices,
+                                                            updatedOutlet.listServices
+                                                        )) {
+                                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletSelected.listServices, updatedOutlet.listServices)")
+                                                        updateServiceList(updatedOutlet)
+                                                    }
 
-                                    // Periksa dan update list_bundling jika ada perubahan
-                                    if (!areListsEqual(
-                                            outletData.listBundling,
-                                            updatedOutlet.listBundling
-                                        )) {
-                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletSelected.listBundling, updatedOutlet.listBundling)")
-                                        updateBundlingList(updatedOutlet)
-                                    }
+                                                    // Periksa dan update list_bundling jika ada perubahan
+                                                    if (!areListsEqual(
+                                                            outletData.listBundling,
+                                                            updatedOutlet.listBundling
+                                                        )) {
+                                                        Log.d("CheckListenerLog", "BBP OUTLET >>> !areListsEqual(outletSelected.listBundling, updatedOutlet.listBundling)")
+                                                        updateBundlingList(updatedOutlet)
+                                                    }
 
-                                    withContext(Dispatchers.Main) {
-                                        bookingPageViewModel.setOutletSelected(updatedOutlet)
-
-                                        if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                            showLocalToast()
+                                                    bookingPageViewModel.setOutletSelected(updatedOutlet)
+                                                }
+                                            }
                                         }
-                                        isProcessUpdatingData = false
                                     }
                                 }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -1228,6 +1227,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         }
                     }
                 }
+        } ?: run {
+            dataOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
 
     }
@@ -1237,46 +1239,47 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (::bundlingListener.isInitialized) {
                 bundlingListener.remove()
             }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return
+            }
             var decrementGlobalListener = false
 
+            Logger.d("DBFirestore", "Listening to bundling packages data changes in outlet: ${outletSelected.outletName}")
             bundlingListener = db.collection("${outletSelected.rootRef}/bundling_packages")
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to bundling packages data: ${exception.message}")
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerBundlingsMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to bundling packages data: ${exception.message}")
 //                        Toast.makeText(this@BarberBookingPage, "BBP ??J1 - exception", Toast.LENGTH_SHORT).show()
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        bookingPageViewModel.outletSelected.value?.let { outletData ->
+                                            Log.d("ScanAll", "JJ1")
+                                            // Mengubah hasil snapshot menjadi daftar BundlingPackage dan memfilter berdasarkan listBundling
+                                            val bundlingPackages = docs.toObjects(BundlingPackage::class.java)
+                                                .filter { bundling -> outletData.listBundling.contains(bundling.uid) } // Ganti it.u dengan bundling.uid
 
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                val outletData = bookingPageViewModel.outletSelected.value ?: return@launch
-                                Log.d("ScanAll", "JJ1")
-//                                val oldBundlingList = (bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()).toList()
-//                                Log.d("EnterBBP", "old bundling: ${oldBundlingList.size}")
-
-                                // Mengubah hasil snapshot menjadi daftar BundlingPackage dan memfilter berdasarkan listBundling
-                                val bundlingPackages = it.toObjects(BundlingPackage::class.java)
-                                    .filter { bundling -> outletData.listBundling.contains(bundling.uid) } // Ganti it.u dengan bundling.uid
-
-                                withContext(Dispatchers.Main) {
-                                    Log.d("ScrollCustomer", "SET BUNDLING LIST FROM LISTENER")
-                                    Log.d("CheckListenerLog", "BBP BUNDLING LIST SIZE: ${bundlingPackages.size} FROM LISTENER")
+                                            Log.d("ScrollCustomer", "SET BUNDLING LIST FROM LISTENER")
+                                            Log.d("CheckListenerLog", "BBP BUNDLING LIST SIZE: ${bundlingPackages.size} FROM LISTENER")
 //                                    Toast.makeText(this@BarberBookingPage, "BBP ??J2 - old: ${oldBundlingList.size} || new: ${bundlingPackages.size} bundle", Toast.LENGTH_SHORT).show()
-                                    bookingPageViewModel.setUpAndSortedBundling(bundlingPackages.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
-
-                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                        showLocalToast()
+                                            bookingPageViewModel.setUpAndSortedBundling(bundlingPackages.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
+                                        }
                                     }
-                                    isProcessUpdatingData = false
                                 }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -1284,6 +1287,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         }
                     }
                 }
+        } ?: run {
+            bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -1292,47 +1298,47 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (::serviceListener.isInitialized) {
                 serviceListener.remove()
             }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return
+            }
             var decrementGlobalListener = false
 
+            Logger.d("DBFirestore", "Listening to services data changes in outlet: ${outletSelected.outletName}")
             serviceListener = db.collection("${outletSelected.rootRef}/services")
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to services data: ${exception.message}")
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerServicesMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to services data: ${exception.message}")
 //                        Toast.makeText(this@BarberBookingPage, "BBP ??H1 - exception service", Toast.LENGTH_SHORT).show()
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                val outletData = bookingPageViewModel.outletSelected.value ?: return@launch
-                                Log.d("ScanAll", "GG1")
-//                                val oldServiceList = (bookingPageViewModel.servicesList.value ?: mutableListOf()).toList()
-//                                Log.d("EnterBBP", "old services: ${oldServiceList.size}")
-
-                                // Mengubah hasil snapshot menjadi daftar Service dan memfilter berdasarkan listServices
-                                val services = it.toObjects(Service::class.java)
-                                    .filter { service -> outletData.listServices.contains(service.uid) } // Ganti it.u dengan service.uid
-
-                                withContext(Dispatchers.Main) {
-                                    Log.d("CacheChecking", "SET SERVICE LIST FROM LISTENER")
-                                    Log.d("CheckListenerLog", "BBP SERVICE LIST SIZE: ${services.size} FROM LISTENER")
-//                                    Toast.makeText(this@BarberBookingPage, "BBP ??H2 - old: ${oldServiceList.size} || new: ${services.size} service", Toast.LENGTH_SHORT).show()
-                                    bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
-
-                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                        showLocalToast()
-                                    }
-                                    isProcessUpdatingData = false
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        bookingPageViewModel.outletSelected.value?.let { outletData ->
+                                            Log.d("ScanAll", "GG1")
+                                            // Mengubah hasil snapshot menjadi daftar Service dan memfilter berdasarkan listServices
+                                            val services = docs.toObjects(Service::class.java)
+                                                .filter { service -> outletData.listServices.contains(service.uid) } // Ganti it.u dengan service.uid
 
+                                            Log.d("CacheChecking", "SET SERVICE LIST FROM LISTENER")
+                                            Log.d("CheckListenerLog", "BBP SERVICE LIST SIZE: ${services.size} FROM LISTENER")
+//                                    Toast.makeText(this@BarberBookingPage, "BBP ??H2 - old: ${oldServiceList.size} || new: ${services.size} service", Toast.LENGTH_SHORT).show()
+                                            bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
+                                        }
+                                    }
+                                }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -1340,6 +1346,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         }
                     }
                 }
+        } ?: run {
+            serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -1350,195 +1359,157 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     // Fungsi untuk memperbarui daftar pelanggan
-    private fun updateCustomerList(outletSelected: Outlet) {
+    private suspend fun updateCustomerList(outletSelected: Outlet) {
         val customerList = outletSelected.listCustomers
 
         if (customerList.isNullOrEmpty()) {
-            lifecycleScope.launch(Dispatchers.Main) {
-                synchronized(bookingPageViewModel.listLock) {
-                    Log.d("CacheChecking", "SET EMPTY CUSTOMER LIST FROM UPDATE")
+            bookingPageViewModel.customerMutex.withStateLock {
+                Log.d("CacheChecking", "SET EMPTY CUSTOMER LIST FROM UPDATE")
 //                    Toast.makeText(this@BarberBookingPage, "BBP ??B1 - empty customer", Toast.LENGTH_SHORT).show()
-                    letScrollCustomerRecycleView = false
-                    bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), emptyList(), true)
+                letScrollCustomerRecycleView = false
+                bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), emptyList(), true)
 
-                    Log.d("BtnSaveChecking", "Button Save Clicked 7")
-                    Log.d("CacheChecking", "FILTERING FROM UPDATE EMPTY CUSTOMER")
+                Log.d("BtnSaveChecking", "Button Save Clicked 7")
+                Log.d("CacheChecking", "FILTERING FROM UPDATE EMPTY CUSTOMER")
 //                    bookingPageViewModel.triggerFilteringDataCustomer(false)
-                }
             }
             // filterCustomer("", false)
             return
         }
 
-        lifecycleScope.launch(Dispatchers.Default) {
-            val customerFilterIds = customerList.map { it.uidCustomer }
-//            val oldCustomerList = synchronized(bookingPageViewModel.listLock) {
-//                bookingPageViewModel.customerList.value ?: emptyList()
-//            }
+        val customerFilterIds = customerList.map { it.uidCustomer }
 
-            try {
-                getCollectionDataDeferred(
-                    collectionPath = "customers",
-                    //listToUpdate = null,
+        try {
+            Logger.d("DBFirestore", "updateCustomerList")
+            getCollectionDataDeferred(
+                collectionPath = "customers",
+                //listToUpdate = null,
 //                    emptyMessage = "BBP ?? >> No customer found",
-                    emptyMessage = "No customer found",
-                    dataClass = UserCustomerData::class.java,
-                    filterIds = customerFilterIds,
-                    showError = false
-                ) { fetchedCustomers ->
-                    Log.d("ScanAll", "HH1")
-                    // DUPLICATE CODE DENGAN BAWAHNYA
-                    // Sort data customer berdasarkan lastReserve
-                    val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
-                        fetchedCustomers.find { it.uid == customerInOutlet.uidCustomer }?.apply {
-                            this.lastReserve = customerInOutlet.lastReserve
-                        }
-                    }.sortedByDescending { it.lastReserve }
-
-                    // Mempertahankan nilai dataSelected dari daftar sebelumnya
-//                    val finalCustomerList = sortedCustomerList.map { customer ->
-//                        customer.apply {
-//                            val existingCustomer = oldCustomerList.find { it.uid == this.uid }
-//                            this.dataSelected = existingCustomer?.dataSelected ?: false
-//                        }
-//                    }
-
-                    synchronized(bookingPageViewModel.listLock) {
-                        val completeList = mutableListOf(customerGuestAccount).apply {
-                            addAll(sortedCustomerList)
-                        }
-                        Log.d("BtnSaveChecking", "Button Save Clicked 8")
-//                        lifecycleScope.launch(Dispatchers.Main) {
-//                            Toast.makeText(this@BarberBookingPage, "BBP ??B2 - ${completeList.size} customer", Toast.LENGTH_SHORT).show()
-//                        }
-                        letScrollCustomerRecycleView = false
-                        bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, true)
-
-                        Log.d("CacheChecking", "FILTERING FROM UPDATE CUSTOMER LIST")
-//                        bookingPageViewModel.triggerFilteringDataCustomer(false)
+                emptyMessage = "No customer found",
+                dataClass = UserCustomerData::class.java,
+                filterIds = customerFilterIds,
+                showError = false
+            ) { fetchedCustomers ->
+                Log.d("ScanAll", "HH1")
+                // DUPLICATE CODE DENGAN BAWAHNYA
+                // Sort data customer berdasarkan lastReserve
+                val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
+                    fetchedCustomers.find { it.uid == customerInOutlet.uidCustomer }?.apply {
+                        this.lastReserve = customerInOutlet.lastReserve
                     }
-                }.await()
+                }.sortedByDescending { it.lastReserve }
 
-                // filterCustomer(keyword, false)
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.d("ScanAll", "II1")
-//                    Toast.makeText(this@BarberBookingPage, "BBP ??B3 - catch customer", Toast.LENGTH_SHORT).show()
-                    showToast("Error updating customer list: ${e.message}")
+                bookingPageViewModel.customerMutex.withStateLock {
+                    val completeList = mutableListOf(customerGuestAccount).apply {
+                        addAll(sortedCustomerList)
+                    }
+                    Log.d("BtnSaveChecking", "Button Save Clicked 8")
+                    letScrollCustomerRecycleView = false
+                    bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, true)
+
+                    Log.d("CacheChecking", "FILTERING FROM UPDATE CUSTOMER LIST")
+//                        bookingPageViewModel.triggerFilteringDataCustomer(false)
                 }
-                throw e
-            }
+            }.await()
+
+            // filterCustomer(keyword, false)
+        } catch (e: Exception) {
+            Log.d("ScanAll", "II1")
+//                    Toast.makeText(this@BarberBookingPage, "BBP ??B3 - catch customer", Toast.LENGTH_SHORT).show()
+            showToast("Error updating customer list: ${e.message}")
         }
     }
 
     // Fungsi untuk memperbarui daftar bundling
-    private fun updateBundlingList(outletSelected: Outlet) {
-        lifecycleScope.launch(Dispatchers.Default) {
+    private suspend fun updateBundlingList(outletSelected: Outlet) {
 //            val oldBundlingList = (bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf()).toList()
-
-            try {
-                // Menggunakan getCollectionDataDeferred untuk mengambil data bundling secara asynchronous
-                getCollectionDataDeferred(
-                    collectionPath = "${outletSelected.rootRef}/bundling_packages",
-                    //null, // listToUpdate null karena ingin update di ViewModel
+        try {
+            Logger.d("DBFirestore", "updateBundlingList")
+            // Menggunakan getCollectionDataDeferred untuk mengambil data bundling secara asynchronous
+            getCollectionDataDeferred(
+                collectionPath = "${outletSelected.rootRef}/bundling_packages",
+                //null, // listToUpdate null karena ingin update di ViewModel
 //                    "BBP ?? >> No bundling packages found",
-                    emptyMessage = "No bundling packages found",
-                    dataClass = BundlingPackage::class.java,
-                    filterIds = outletSelected.listBundling,
-                    showError = true
-                ) { fetchBundling ->
-                    Log.d("ScanAll", "NN1")
-                    Log.d("CacheChecking", "SET BUNDLING LIST FROM UPDATE")
-//                    lifecycleScope.launch(Dispatchers.Main) {
-//                        Toast.makeText(this@BarberBookingPage, "BBP ??T2 - old: ${oldBundlingList.size} || new: ${fetchBundling.size} bundle", Toast.LENGTH_SHORT).show()
-//                    }
-                    bookingPageViewModel.setUpAndSortedBundling(fetchBundling.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
-                }.await() // Lambda untuk update ViewModel
+                emptyMessage = "No bundling packages found",
+                dataClass = BundlingPackage::class.java,
+                filterIds = outletSelected.listBundling,
+                showError = true
+            ) { fetchBundling ->
+                Log.d("ScanAll", "NN1")
+                Log.d("CacheChecking", "SET BUNDLING LIST FROM UPDATE")
+                bookingPageViewModel.setUpAndSortedBundling(fetchBundling.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
+            }.await() // Lambda untuk update ViewModel
 
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.d("ScanAll", "OO1")
+        } catch (e: Exception) {
+            Log.d("ScanAll", "OO1")
 //                    Toast.makeText(this@BarberBookingPage, "BBP ??Y1 - catch bundle", Toast.LENGTH_SHORT).show()
-                    showToast("Error updating bundling packages: ${e.message}")
-                }
-                throw e
-            }
+            showToast("Error updating bundling packages: ${e.message}")
         }
     }
 
     // Fungsi untuk memperbarui daftar layanan
-    private fun updateServiceList(outletSelected: Outlet) {
-        lifecycleScope.launch(Dispatchers.Default) {
+    private suspend fun updateServiceList(outletSelected: Outlet) {
 //            val oldServiceList = (bookingPageViewModel.servicesList.value ?: mutableListOf()).toList()
-
-            try {
-                // Menggunakan fungsi getCollectionDataDeferred
-                getCollectionDataDeferred(
-                    collectionPath = "${outletSelected.rootRef}/services",
-                    //null, // listToUpdate null karena ingin update di ViewModel
+        try {
+            Logger.d("DBFirestore", "updateServiceList")
+            // Menggunakan fungsi getCollectionDataDeferred
+            getCollectionDataDeferred(
+                collectionPath = "${outletSelected.rootRef}/services",
+                //null, // listToUpdate null karena ingin update di ViewModel
 //                    "BBP ?? >> No services found",
-                    emptyMessage = "No services found",
-                    dataClass = Service::class.java,
-                    filterIds = outletSelected.listServices,
-                    showError = true
-                ) { services ->
-                    Log.d("ScanAll", "PP1")
-                    Log.d("CacheChecking", "SET SERVICE LIST FROM UPDATE")
-//                    lifecycleScope.launch(Dispatchers.Main) {
-//                        Toast.makeText(this@BarberBookingPage, "BBP ??S1 - old: ${oldServiceList.size} || new: ${services.size} service", Toast.LENGTH_SHORT).show()
-//                    }
-                    bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
-                }.await() // Lambda untuk update ViewModel
+                emptyMessage = "No services found",
+                dataClass = Service::class.java,
+                filterIds = outletSelected.listServices,
+                showError = true
+            ) { services ->
+                Log.d("ScanAll", "PP1")
+                Log.d("CacheChecking", "SET SERVICE LIST FROM UPDATE")
+                bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
+            }.await() // Lambda untuk update ViewModel
 
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Log.d("ScanAll", "QQ1")
+        } catch (e: Exception) {
+            Log.d("ScanAll", "QQ1")
 //                    Toast.makeText(this@BarberBookingPage, "BBP ??X1 - catch service", Toast.LENGTH_SHORT).show()
-                    showToast("Error updating services: ${e.message}")
-                }
-                throw e
-            }
+            showToast("Error updating services: ${e.message}")
         }
     }
 
     // Fungsi untuk mendapatkan data dari koleksi dengan Deferred
     private fun <T> getCollectionDataDeferred(
         collectionPath: String,
+        dataClass: Class<T>,
         // listToUpdate: MutableList<T>?,
         emptyMessage: String,
-        dataClass: Class<T>,
         filterIds: List<String>,
         showError: Boolean,
-        updateViewModel: ((List<T>) -> Unit)? = null // Fungsi opsional untuk mengupdate ViewModel
+        updateViewModel: ( suspend (List<T>) -> Unit)? = null // Fungsi opsional untuk mengupdate ViewModel
     ): Deferred<List<T>> = lifecycleScope.async(Dispatchers.IO) {
-        val querySnapshot = db.collection(collectionPath).get().await()
-        val items = querySnapshot.mapNotNull { doc ->
-            when (val item = doc.toObject(dataClass)) {
-                is Outlet -> {
-                    item.outletReference = doc.reference.path
-                    item
-                }
-                is UserCustomerData -> {
-                    if (filterIds.contains(doc.id)) {
-                        item.userRef = doc.reference.path
+        Logger.d("DBFirestore", "Fetching data from collection: $collectionPath with filters: $filterIds")
+        val snapshot = db.collection(collectionPath)
+            .get()
+            .awaitGetWithOfflineFallback(tag = "getCollectionDataDeferred")
+
+        withContext(Dispatchers.Default) {
+            val documents = snapshot?.documents ?: emptyList()
+            val items = documents.mapNotNull { document ->
+                when (val item = document.toObject(dataClass)) {
+                    is Outlet -> {
+                        item.outletReference = document.reference.path
                         item
-                    } else null
-                }
-                else -> {
-                    if (filterIds.contains(doc.id)) item else null
+                    }
+                    is UserCustomerData -> {
+                        if (filterIds.contains(document.id)) {
+                            item.userRef = document.reference.path
+                            item
+                        } else null
+                    }
+                    else -> {
+                        if (filterIds.contains(document.id)) item else null
+                    }
                 }
             }
-        }
 
 
-        withContext(Dispatchers.Main) {
-//            if (listToUpdate != null) {
-//                // Sinkronisasi akses ke listToUpdate untuk mencegah race condition
-//                synchronized(listToUpdate) {
-//                    listToUpdate.clear()
-//                    listToUpdate.addAll(items)
-//                }
-//            } else
             if (updateViewModel != null) {
                 Log.d("ScanAll", "RR1")
                 // Update ViewModel jika listToUpdate null
@@ -1548,130 +1519,118 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (items.isEmpty() && showError) {
                 showToast(emptyMessage)
             }
-        }
 
-        items
+            items
+        }
     }
 
-    private fun getAllData() {
-        bookingPageViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.rootRef.isEmpty()) {
-                return
-            }
+    private suspend fun getAllData() {
+        withContext(Dispatchers.IO) {
+            bookingPageViewModel.allDataMutex.withStateLock {
+                bookingPageViewModel.outletSelected.value?.let { outletSelected ->
+                    if (outletSelected.rootRef.isEmpty()) {
+                        bookingPageViewModel.triggerFilteringDataCustomer(true)
+                        showToast("Outlet data is not valid.")
+                        return@let
+                    }
 
-            val customerList = outletSelected.listCustomers ?: mutableListOf()
-            Log.d("EnterBBP", "Enter BBP if")
-            val serviceFilterIds = outletSelected.listServices
-            val bundlingFilterIds = outletSelected.listBundling
-            val customerFilterIds = outletSelected.listCustomers?.map { it.uidCustomer }
-            val outletFilterIds = emptyList<String>()
-            Log.d("CustomerInOutlet", "CustomerInOutlet: $customerFilterIds")
+                    val customerList = outletSelected.listCustomers ?: mutableListOf()
+                    Log.d("EnterBBP", "Enter BBP if")
+                    val serviceFilterIds = outletSelected.listServices
+                    val bundlingFilterIds = outletSelected.listBundling
+                    val customerFilterIds = outletSelected.listCustomers?.map { it.uidCustomer }
+                    val outletFilterIds = emptyList<String>()
+                    Log.d("CustomerInOutlet", "CustomerInOutlet: $customerFilterIds")
+                    Logger.d("DBFirestore", "getAllData")
 
-            lifecycleScope.launch(Dispatchers.Default) {
-                val serviceDeferred = getCollectionDataDeferred(
-                    collectionPath = "${outletSelected.rootRef}/services",
-                    //listToUpdate = null,
-//                    emptyMessage = "BBP ?? >> No services found",
-                    emptyMessage = "No services found",
-                    dataClass = Service::class.java,
-                    filterIds = serviceFilterIds,
-                    showError = true
-                ) { services ->
-                    Log.d("CacheChecking", "SET SERVICE LIST FROM SUCCESS GET ALL DATA")
-//                    lifecycleScope.launch(Dispatchers.Main) {
-//                        Toast.makeText(this@BarberBookingPage, "BBP ??G1 - old: null || new: ${services.size} service", Toast.LENGTH_SHORT).show()
-//                    }
-                    Log.d("ScanAll", "E1")
-                    bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
-                }
-
-                val bundlingDeferred = getCollectionDataDeferred(
-                    collectionPath = "${outletSelected.rootRef}/bundling_packages",
-                    //listToUpdate = null,
-//                    emptyMessage = "NBBP ?? >> No bundling packages found",
-                    emptyMessage = "No bundling packages found",
-                    dataClass = BundlingPackage::class.java,
-                    filterIds = bundlingFilterIds,
-                    showError = true
-                ) { bundling ->
-                    Log.d("CacheChecking", "SET BUNDLING LIST FROM SUCCESS GET ALL DATA")
-//                    lifecycleScope.launch(Dispatchers.Main) {
-//                        Toast.makeText(this@BarberBookingPage, "BBP ??R2 - old: null || new: ${bundling.size} bundle", Toast.LENGTH_SHORT).show()
-//                    }
-                    Log.d("ScanAll", "F1")
-                    bookingPageViewModel.setUpAndSortedBundling(bundling.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
-                }
-
-                val customerDeferred = customerFilterIds?.let { list ->
-                    getCollectionDataDeferred(
-                        collectionPath = "customers",
-                        //listToUpdate = null,
-//                        emptyMessage = "BBP ?? >> No customer found",
-                        emptyMessage = "No customer found",
-                        dataClass = UserCustomerData::class.java,
-                        filterIds = list,
+                    val serviceDeferred = getCollectionDataDeferred(
+                        collectionPath = "${outletSelected.rootRef}/services",
+                        emptyMessage = "No services found",
+                        dataClass = Service::class.java,
+                        filterIds = serviceFilterIds,
                         showError = true
-                    ) { fetchedCustomers ->
-                        // Sort data customer berdasarkan lastReserve
-                        val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
-                            fetchedCustomers.find { it.uid == customerInOutlet.uidCustomer }?.apply {
-                                this.lastReserve = customerInOutlet.lastReserve
-                            }
-                        }.sortedByDescending { it.lastReserve }
+                    ) { services ->
+                        Log.d("CacheChecking", "SET SERVICE LIST FROM SUCCESS GET ALL DATA")
+                        Log.d("ScanAll", "E1")
+                        bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
+                    }
 
-                        synchronized(bookingPageViewModel.listLock) {
-                            val completeList = mutableListOf(customerGuestAccount).apply {
-                                addAll(sortedCustomerList)
+                    val bundlingDeferred = getCollectionDataDeferred(
+                        collectionPath = "${outletSelected.rootRef}/bundling_packages",
+                        emptyMessage = "No bundling packages found",
+                        dataClass = BundlingPackage::class.java,
+                        filterIds = bundlingFilterIds,
+                        showError = true
+                    ) { bundling ->
+                        Log.d("CacheChecking", "SET BUNDLING LIST FROM SUCCESS GET ALL DATA")
+                        Log.d("ScanAll", "F1")
+                        bookingPageViewModel.setUpAndSortedBundling(bundling.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData())
+                    }
+
+                    val customerDeferred = customerFilterIds?.let { list ->
+                        getCollectionDataDeferred(
+                            collectionPath = "customers",
+                            emptyMessage = "No customer found",
+                            dataClass = UserCustomerData::class.java,
+                            filterIds = list,
+                            showError = true
+                        ) { fetchedCustomers ->
+                            // Sort data customer berdasarkan lastReserve
+                            val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
+                                fetchedCustomers.find { it.uid == customerInOutlet.uidCustomer }?.apply {
+                                    this.lastReserve = customerInOutlet.lastReserve
+                                }
+                            }.sortedByDescending { it.lastReserve }
+
+                            bookingPageViewModel.customerMutex.withStateLock {
+                                val completeList = mutableListOf(customerGuestAccount).apply {
+                                    addAll(sortedCustomerList)
+                                }
+                                Log.d("CacheChecking", "SET CUSTOMER LIST FROM SUCCESS GET ALL DATA")
+                                Log.d("ScanAll", "G1")
+                                bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, false)
                             }
-                            Log.d("CacheChecking", "SET CUSTOMER LIST FROM SUCCESS GET ALL DATA")
-//                            lifecycleScope.launch(Dispatchers.Main) {
-//                                Toast.makeText(this@BarberBookingPage, "BBP ??C1 - ${completeList.size} customer", Toast.LENGTH_SHORT).show()
-//                            }
-                            Log.d("ScanAll", "G1")
-                            bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, false)
                         }
                     }
-                }
 
-                val outletDeferred = getCollectionDataDeferred(
-                    collectionPath = "${outletSelected.rootRef}/outlets",
-                    emptyMessage = "No outlet data found",
-                    dataClass = Outlet::class.java,
-                    filterIds = outletFilterIds, // Fetch all
-                    showError = true
-                ) { outletList ->
-                    bookingPageViewModel.setOutletList(outletList)
-                }
-
-                val deferredList = mutableListOf<Deferred<List<*>>>().apply {
-                    add(serviceDeferred)
-                    add(bundlingDeferred)
-                    customerDeferred?.let { add(it) }
-                    add(outletDeferred)
-                }
-
-                try {
-                    deferredList.awaitAll()
-                    withContext(Dispatchers.Main) {
-                        // filterCustomer("", false)
-                        Log.d("CacheChecking", "FILTERING FROM SUCCESS GET ALL DATA")
-                        // displayAllData()
-                        Log.d("ScanAll", "H1")
-                        bookingPageViewModel.triggerFilteringDataCustomer(true)
-//                        bookingPageViewModel.displayAllDataToUI(true)
+                    val outletDeferred = getCollectionDataDeferred(
+                        collectionPath = "${outletSelected.rootRef}/outlets",
+                        emptyMessage = "No outlet data found",
+                        dataClass = Outlet::class.java,
+                        filterIds = outletFilterIds, // Fetch all
+                        showError = true
+                    ) { outletList ->
+                        bookingPageViewModel.setOutletList(outletList)
                     }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        // filterCustomer("", false)
-                        Log.d("CacheChecking", "FILTERING FROM FAILED GET ALL DATA")
-                        // displayAllData()
-                        Log.d("ScanAll", "I1")
-                        bookingPageViewModel.triggerFilteringDataCustomer(true)
-//                        bookingPageViewModel.displayAllDataToUI(true)
-//                        Toast.makeText(this@BarberBookingPage, "BBP ??Q1 - catch getAll", Toast.LENGTH_SHORT).show()
-                        showToast("Terjadi suatu masalah ketika mengambil data.")
+
+                    val deferredList = mutableListOf<Deferred<List<*>>>().apply {
+                        add(serviceDeferred)
+                        add(bundlingDeferred)
+                        customerDeferred?.let { add(it) }
+                        add(outletDeferred)
                     }
-                    throw e
+
+                    withContext(Dispatchers.Default) {
+                        try {
+                            deferredList.awaitAll()
+
+                            // filterCustomer("", false)
+                            Log.d("CacheChecking", "FILTERING FROM SUCCESS GET ALL DATA")
+                            // displayAllData()
+                            Log.d("ScanAll", "H1")
+                            bookingPageViewModel.triggerFilteringDataCustomer(true)
+                        } catch (e: Exception) {
+                            // filterCustomer("", false)
+                            Log.d("CacheChecking", "FILTERING FROM FAILED GET ALL DATA")
+                            // displayAllData()
+                            Log.d("ScanAll", "I1")
+                            bookingPageViewModel.triggerFilteringDataCustomer(true)
+                            showToast("Terjadi suatu masalah ketika mengambil data.")
+                        }
+                    }
+                } ?: run {
+                    bookingPageViewModel.triggerFilteringDataCustomer(true)
+                    showToast("User data does not exist.")
                 }
             }
         }
@@ -1695,10 +1654,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     showAddNewCustomerDialog()
                 }
                 R.id.btnResetServiceSelected -> {
-                    bookingPageViewModel.resetAllServices()
+                    lifecycleScope.launch {
+                        bookingPageViewModel.resetAllServices()
+                    }
                 }
                 R.id.btnDeleteAll -> {
-                    bookingPageViewModel.resetAllItem()
+                    lifecycleScope.launch {
+                        bookingPageViewModel.resetAllItem()
+                    }
                 }
                 R.id.btnContinue -> {
                     // Sebelum menggunakan customerData
@@ -1708,7 +1671,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         navigatePage(this@BarberBookingPage, ReviewOrderPage::class.java, btnContinue)
                     } else {
                         // Tangani kasus ketika customerData belum diinisialisasi
-                        showToast("Data customer belum dipilih!!!")
+                        lifecycleScope.launch { showToast("Data customer belum dipilih!!!") }
                     }
                 }
                 R.id.ivAddNewCustomer -> {
@@ -1778,49 +1741,6 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 .add(android.R.id.content, dialogFragment, "AddNewCustomerFragment")
                 .addToBackStack("AddNewCustomerFragment")
                 .commit()
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        Log.d("ScanAll", "SS1")
-        if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
-            shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-            }
-        }
-    }
-
-    override fun onPause() {
-        Log.d("ScanAll", "TT1")
-        super.onPause()
-        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
-            clearBackStack()
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (isChangingConfigurations) {
-            return // Jangan hapus data jika hanya orientasi yang berubah
-        }
-        localToast?.cancel()
-        myCurrentToast?.cancel()
-        localToast = null
-        currentToastMessage = null
-    }
-
-    private fun clearBackStack() {
-        Log.d("ScanAll", "UU1")
-        while (fragmentManager.backStackEntryCount > 0) {
-            fragmentManager.popBackStackImmediate()
         }
     }
 
@@ -1894,19 +1814,66 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
+                lifecycleScope.launch {
+                    showToast("Sesi telah berakhir silahkan masuk kembali")
+                }
             }
         }
         isRecreated = false
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        customerAdapter.stopAllShimmerEffects()
-        bundlingAdapter.stopAllShimmerEffects()
-        serviceAdapter.stopAllShimmerEffects()
-        Log.d("ScanAll", "XX1")
+    @RequiresApi(Build.VERSION_CODES.S)
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        Log.d("ScanAll", "SS1")
+        if (fragmentManager.backStackEntryCount > 0) {
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+            shouldClearBackStack = true
+            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
+            fragmentManager.popBackStack()
+        } else {
+            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+                super.onBackPressed()
+                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            }
+        }
+    }
 
+    override fun onPause() {
+        Log.d("ScanAll", "TT1")
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        localToast?.cancel()
+        myCurrentToast?.cancel()
+        localToast = null
+        currentToastMessage = null
+    }
+
+    private fun clearBackStack() {
+        Log.d("ScanAll", "UU1")
+        while (fragmentManager.backStackEntryCount > 0) {
+            fragmentManager.popBackStackImmediate()
+        }
+    }
+
+    override fun onDestroy() {
+        binding.rvListCustomer.adapter = null
+        binding.rvListServices.adapter = null
+        binding.rvListPaketBundling.adapter = null
+        customerAdapter.cleanUp()
+        serviceAdapter.cleanUp()
+        bundlingAdapter.cleanUp()
+
+        // end clear
         bookingPageViewModel.clearState()
 //        Toast.makeText(this, "BBP ??D21 order", Toast.LENGTH_SHORT).show()
         if (::capsterListener.isInitialized) capsterListener.remove()
@@ -1918,10 +1885,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         if (::customerListListener.isInitialized) customerListListener.remove()
 
         // Periksa apakah onDestroy dipanggil karena perubahan konfigurasi
-        if (isChangingConfigurations) {
-            return // Jangan hapus data jika hanya orientasi yang berubah
+        if (!isChangingConfigurations) {
+            // end clear
+            bookingPageViewModel.clearAllData()
+        } else {
+            Log.d("CheckShimmer", "Orientation change — skip onDestroy")
         }
-        bookingPageViewModel.clearAllData()
+
+        super.onDestroy()
 //        Toast.makeText(this, "BBP ??D22 order", Toast.LENGTH_SHORT).show()
     }
 
@@ -1935,51 +1906,54 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         // const val BUNDLING_DATA_KEY = "bundling_data_key"
     }
 
-    override fun onItemClickListener(customer: UserCustomerData , list: List<UserCustomerData>) {
-        bookingPageViewModel.setCustomerSelected(customer)
+    override fun onItemClickListener(customer: UserCustomerData) {
+        lifecycleScope.launch {
+            bookingPageViewModel.setCustomerSelected(customer)
 
-        // customerList.clear()
-        // customerList.addAll(list)
-        // filterCustomer(keyword, false)
-        letScrollCustomerRecycleView = false
-        bookingPageViewModel.triggerFilteringDataCustomer(false)
+            letScrollCustomerRecycleView = false
+            bookingPageViewModel.triggerFilteringDataCustomer(false)
+        }
     }
 
-    override fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean) {
-        // Logika pengelolaan item yang dipilih
-        Log.d("TestDataChange", "bundling: ${bundlingPackage.packageName} - quantity ${bundlingPackage.bundlingQuantity} - index: $index - addCount: $addCount")
-        if (!addCount) {
-            bookingPageViewModel.removeItemSelectedByName(
-                bundlingPackage.packageName,
-                bundlingPackage.bundlingQuantity == 0
-            )
-        } else if (bundlingPackage.bundlingQuantity >= 1) {
-            bookingPageViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package")
-        }
+    override fun onItemClickListener(bundlingPackage: BundlingPackage, addCount: Boolean) {
+        lifecycleScope.launch {
+            // Logika pengelolaan item yang dipilih
+            Log.d("TestDataChange", "bundling: ${bundlingPackage.packageName} - quantity ${bundlingPackage.bundlingQuantity} - addCount: $addCount")
+            if (!addCount) {
+                bookingPageViewModel.removeItemSelectedByName(
+                    bundlingPackage.packageName,
+                    bundlingPackage.bundlingQuantity == 0
+                )
+            } else if (bundlingPackage.bundlingQuantity >= 1) {
+                bookingPageViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package")
+            }
 
-        // Akses dan perbarui data di ViewModel
-        bookingPageViewModel.updateBundlingQuantity(bundlingPackage.itemIndex, bundlingPackage.bundlingQuantity)
+            // Akses dan perbarui data di ViewModel
+            bookingPageViewModel.updateBundlingQuantity(bundlingPackage)
+        }
     }
 
-    override fun onItemClickListener(service: Service, index: Int, addCount: Boolean) {
-        // Logika pengelolaan item yang dipilih
-        Log.d("TestDataChange", "service: ${service.serviceName} - quantity ${service.serviceQuantity} - index: $index - addCount: $addCount")
-        if (!addCount) {
-            bookingPageViewModel.removeItemSelectedByName(
-                service.serviceName,
-                service.serviceQuantity == 0
-            )
-        } else if (service.serviceQuantity >= 1) {
-            bookingPageViewModel.addItemSelectedCounting(service.serviceName, "service")
-        }
+    override fun onItemClickListener(service: Service, addCount: Boolean) {
+        lifecycleScope.launch {
+            // Logika pengelolaan item yang dipilih
+            Log.d("TestDataChange", "service: ${service.serviceName} - quantity ${service.serviceQuantity} - addCount: $addCount")
+            if (!addCount) {
+                bookingPageViewModel.removeItemSelectedByName(
+                    service.serviceName,
+                    service.serviceQuantity == 0
+                )
+            } else if (service.serviceQuantity >= 1) {
+                bookingPageViewModel.addItemSelectedCounting(service.serviceName, "service")
+            }
 
-        // Akses dan perbarui data di ViewModel
-        bookingPageViewModel.updateServicesQuantity(service.itemIndex, service.serviceQuantity)
+            // Akses dan perbarui data di ViewModel
+            bookingPageViewModel.updateServicesQuantity(service)
+        }
     }
 
     override fun onCustomerAddResult(success: Boolean) {
         isProcessUpdatingData = success
-        Log.d("BookingPage", "isProcessUpdatingData: $isProcessUpdatingData")
+        Log.d("BookingPage", "isProcessUpdatingData: $success")
     }
 
 

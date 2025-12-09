@@ -16,7 +16,6 @@ import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListServiceProvideAdapter : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null

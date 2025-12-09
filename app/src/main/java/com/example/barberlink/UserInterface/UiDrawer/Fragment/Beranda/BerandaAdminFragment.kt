@@ -28,6 +28,7 @@ import androidx.core.view.marginRight
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
@@ -47,6 +48,7 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
+import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Interface.DrawerController
@@ -57,6 +59,8 @@ import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragmen
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.databinding.FragmentBerandaAdminBinding
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.TaskCompletionSource
@@ -66,11 +70,13 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -112,21 +118,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
-    // Mutex objects for each list to control access
-    private val outletListMutex = Mutex()
-    private val servicesListMutex = Mutex()
-    private val bundlingListMutex = Mutex()
-    private val employeesListMutex = Mutex()
-    private val productsListMutex = Mutex()
-//    private var currentMonth = GetDateUtils.getCurrentMonthYear(Timestamp.now())
-//    private var todayDate = GetDateUtils.formatTimestampToDate(Timestamp.now())
-
-    // Global variables for storing data
-//    private val outletList = mutableListOf<Outlet>()
-//    private val servicesList = mutableListOf<Service>()
-//    private val productsList = mutableListOf<Product>()
-//    private val bundlingPackagesList = mutableListOf<BundlingPackage>()
-//    private val employeesList = mutableListOf<Employee>()
     private val binding get() = _binding!!
     private lateinit var context: Context
 
@@ -136,19 +127,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
     private var rightSide: Int = -1
     private var myCurrentToast: Toast? = null
 
-//    private var listener: SetDialogCapitalStatus? = null
-
-//    interface SetDialogCapitalStatus {
-//        // Interface For Fragment
-//        fun setIsDialogCapitalShow(isShow: Boolean)
-//    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
-            val userAdminData = it.getParcelable(MainActivity.ADMIN_BUNDLE_KEY) ?: UserAdminData()
-            Log.d("CheckShimmer", "onCreate :: berandaAdminViewModel.setUserAdminData(userAdminData)")
-            berandaAdminViewModel.setUserAdminData(userAdminData)
+            lifecycleScope.launch {
+                val userAdminData = it.getParcelable(MainActivity.ADMIN_BUNDLE_KEY) ?: UserAdminData()
+                Log.d("CheckShimmer", "onCreate :: berandaAdminViewModel.setUserAdminData(userAdminData)")
+                berandaAdminViewModel.setUserAdminData(userAdminData)
+            }
         }
 
         context = requireContext()
@@ -291,11 +277,13 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
 //            swipeRefreshLayout.setProgressViewOffset(false, 0, (64 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-                if (userId.isNotEmpty()) {
-                    refreshPageEffect()
-                    getAllData()
-                } else {
-                    binding.swipeRefreshLayout.isRefreshing = false
+                lifecycleScope.launch {
+                    if (userId.isNotEmpty()) {
+                        refreshPageEffect()
+                        getAllData()
+                    } else {
+                        binding.swipeRefreshLayout.isRefreshing = false
+                    }
                 }
             })
 
@@ -320,12 +308,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
         if (savedInstanceState == null || isShimmerVisible) refreshPageEffect()
         if (savedInstanceState == null) {
-            if (userId.isNotEmpty()) {
-                Log.d("CheckShimmer", "wwwwwwwwwwwwwwwwwwwwwwwwww")
-                getAllData()
-            } else {
-                Log.d("CheckShimmer", "vvvvvvvvvvvvvvvvvvvvvvvvvv")
-                showToast("User not logged in")
+            lifecycleScope.launch {
+                if (userId.isNotEmpty()) {
+                    Log.d("CheckShimmer", "wwwwwwwwwwwwwwwwwwwwwwwwww")
+                    getAllData()
+                } else {
+                    Log.d("CheckShimmer", "vvvvvvvvvvvvvvvvvvvvvvvvvv")
+                    showToast("User not logged in")
+                }
             }
         } else {
             displayAllData()
@@ -342,7 +332,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             if (isSet == true) {
                 Log.d("CacheChecking", "RE SETUP LIST ITEM DETAILS")
                 // Jalankan setServiceBundlingList hanya ketika nilai _isSetItemBundling adalah true
-                berandaAdminViewModel.setServiceBundlingList()
+                lifecycleScope.launch { berandaAdminViewModel.setServiceBundlingList() }
             }
         }
 
@@ -354,20 +344,22 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    context,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -468,95 +460,123 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
     }
 
     private fun listenToBarbershopData() {
-        if (::barbershopListener.isInitialized) {
-            barbershopListener.remove()
-        }
-        var decrementGlobalListener = false
-
-        barbershopListener = db.collection("barbershops")
-            .document(userId)
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to barbershop data: ${it.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    if (!isFirstLoad && !skippedProcess && it.exists()) {
-                        val userAdminData = it.toObject(UserAdminData::class.java)?.apply {
-                            userRef = it.reference.path
-                        }
-                        userAdminData?.let {
-                            berandaAdminViewModel.setUserAdminData(userAdminData)
-                        }
-                    }
-                    // loadImageWithGlide(userAdminData.imageCompanyProfile)
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                }
+        userId.let {
+            if (::barbershopListener.isInitialized) {
+                barbershopListener.remove()
             }
+
+            if (it.isEmpty()) {
+                barbershopListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            barbershopListener = db.collection("barbershops")
+                .document(userId)
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        berandaAdminViewModel.listenerBarbershopMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to barbershop data: ${it.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            val userAdminData = docs.toObject(UserAdminData::class.java)?.apply {
+                                                userRef = docs.reference.path
+                                            }
+                                            userAdminData?.let {
+                                                berandaAdminViewModel.setUserAdminData(userAdminData)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
     }
 
     // Example of adding mutex to listenToOutletList
     private fun listenToOutletList() {
-        if (::outletListener.isInitialized) {
-            outletListener.remove()
-        }
-        var decrementGlobalListener = false
+        userId.let {
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
 
-        outletListener = db.collection("barbershops")
-            .document(userId)
-            .collection("outlets")
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to outlets data: ${exception.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad && !skippedProcess) {
-                            outletListMutex.withLock {
-                                val outlets = it.mapNotNull { doc ->
-                                    val outlet = doc.toObject(Outlet::class.java)
-                                    outlet.outletReference = doc.reference.path
-                                    outlet
+            if (it.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            outletListener = db.collection("barbershops")
+                .document(userId)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        berandaAdminViewModel.listenerOutletsMutex.withStateLock {
+                            exception?.let {
+                                showToast("Error listening to outlets data: ${exception.message}")
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        berandaAdminViewModel.outletListMutex.withStateLock {
+                                            val outlets = docs.mapNotNull { document ->
+                                                val outlet = document.toObject(Outlet::class.java)
+                                                outlet.outletReference = document.reference.path
+                                                outlet
+                                            }
 
-                                withContext(Dispatchers.Main) {
-                                    berandaAdminViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
+                                            berandaAdminViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
+                                        }
+                                    }
                                 }
                             }
-                        }
 
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
                         }
                     }
                 }
-            }
+        }
     }
 
-    private fun <T> listenToCollectionData(
+    private fun <T> listenToData(
         collectionPath: String,
+        dataClass: Class<T>,
 //        listToUpdate: MutableList<T>,
 //        adapter: ListAdapter<T, *>, // Sesuaikan tipe adapter dengan ListAdapter<T, *>
 //        emptyView: View,
-        dataClass: Class<T>,
         isCollectionGroup: Boolean = false, // Parameter tambahan untuk menentukan koleksi group
         queryField: String? = null, // Parameter tambahan untuk field query
         queryValue: Any? = null, // Parameter tambahan untuk nilai query,
         decrementFlag: AtomicBoolean,
-        postProcess: ((list: MutableList<T>) -> Unit)? = null // Tambahan lambda untuk post-processing setelah data diperbarui
+        postProcess: ( suspend (list: MutableList<T>) -> Unit)? = null // Tambahan lambda untuk post-processing setelah data diperbarui
     ): ListenerRegistration {
         val collectionRef = if (isCollectionGroup) {
             val groupRef = db.collectionGroup(collectionPath)
@@ -572,36 +592,48 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         }
 
         return collectionRef.addSnapshotListener { documents, exception ->
-            exception?.let {
-                showToast("Error listening to $collectionPath data: ${it.message}")
-                if (!decrementFlag.get()) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementFlag.set(true)
+            lifecycleScope.launch {
+                val listenerMutex = when (dataClass) {
+                    Service::class.java -> berandaAdminViewModel.listenerServicesMutex
+                    BundlingPackage::class.java -> berandaAdminViewModel.listenerBundlingsMutex
+                    UserEmployeeData::class.java -> berandaAdminViewModel.listenerEmployeeDataMutex
+                    Product::class.java -> berandaAdminViewModel.listenerProductsMutex
+                    else -> ReentrantCoroutineMutex()
                 }
-                return@addSnapshotListener
-            }
-            documents?.let {
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!isFirstLoad && !skippedProcess) {
-                        val dataList = it.mapNotNull { document ->
-                            document.toObject(dataClass)
-                        }
-                        // Use the corresponding mutex for each list
-                        val mutex = when (dataClass) {
-                            Service::class.java -> servicesListMutex
-                            BundlingPackage::class.java -> bundlingListMutex
-                            UserEmployeeData::class.java -> employeesListMutex
-                            Product::class.java -> productsListMutex
-                            else -> Mutex()
-                        }
 
-                        mutex.withLock {
-                            postProcess?.invoke(dataList as MutableList<T>) // Jalankan post-processing jika ada
-                            Log.d("ListenData", "Data 298 count ${dataList.size}")
+                listenerMutex.withStateLock {
+                    exception?.let {
+                        showToast("Error listening to $collectionPath data: ${it.message}")
+                        if (!decrementFlag.get()) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementFlag.set(true)
                         }
+                        return@withStateLock
+                    }
+                    documents?.let { docs ->
+                        if (!isFirstLoad && !skippedProcess) {
+                            withContext(Dispatchers.Default) {
+                                val dataList = docs.mapNotNull { document ->
+                                    document.toObject(dataClass)
+                                }
+                                // Use the corresponding mutex for each list
+                                val mutex = when (dataClass) {
+                                    Service::class.java -> berandaAdminViewModel.servicesListMutex
+                                    BundlingPackage::class.java -> berandaAdminViewModel.bundlingListMutex
+                                    UserEmployeeData::class.java -> berandaAdminViewModel.employeesListMutex
+                                    Product::class.java -> berandaAdminViewModel.productsListMutex
+                                    else -> ReentrantCoroutineMutex()
+                                }
 
+                                mutex.withStateLock {
+                                    postProcess?.invoke(dataList as MutableList<T>) // Jalankan post-processing jika ada
+                                    Log.d("ListenData", "Data 298 count ${dataList.size}")
+                                }
+                            }
+                        }
                     }
 
+                    // Kurangi counter pada snapshot pertama
                     if (!decrementFlag.get()) {
                         if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                         decrementFlag.set(true)
@@ -612,292 +644,363 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
     }
 
     private fun listenToServicesData() {
-        if (::serviceListener.isInitialized) {
-            serviceListener.remove()
-        }
-        val isServiceDecrement = AtomicBoolean(false)
+        userId.let {
+            if (::serviceListener.isInitialized) {
+                serviceListener.remove()
+            }
 
-        serviceListener = listenToCollectionData(
-            collectionPath = "services",
-            dataClass = Service::class.java,
-            decrementFlag = isServiceDecrement
-        ) { dataList ->
-            lifecycleScope.launch(Dispatchers.Main) {
+            if (it.isEmpty()) {
+                serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            val isServiceDecrement = AtomicBoolean(false)
+
+            serviceListener = listenToData(
+                collectionPath = "services",
+                dataClass = Service::class.java,
+                decrementFlag = isServiceDecrement
+            ) { dataList ->
                 berandaAdminViewModel.setServicesList(dataList)
 
-                binding.tvEmptyLayanan.visibility =
-                    if (dataList.isEmpty()) View.VISIBLE else View.GONE
-                serviceAdapter.submitList(dataList)
-                serviceAdapter.notifyDataSetChanged()
+                withContext(Dispatchers.Main) {
+                    binding.tvEmptyLayanan.visibility =
+                        if (dataList.isEmpty()) View.VISIBLE else View.GONE
+                    serviceAdapter.submitList(dataList)
+                    serviceAdapter.notifyDataSetChanged()
+                }
             }
         }
     }
 
     private fun listenToProductsData() {
-        if (::productListener.isInitialized) {
-            productListener.remove()
-        }
-        val isProductDecrement = AtomicBoolean(false)
+        userId.let {
+            if (::productListener.isInitialized) {
+                productListener.remove()
+            }
 
-        productListener = listenToCollectionData(
-            collectionPath = "products",
-            dataClass = Product::class.java,
-            decrementFlag = isProductDecrement
-        ) { dataList ->
-            lifecycleScope.launch(Dispatchers.Main) {
+            if (it.isEmpty()) {
+                productListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            val isProductDecrement = AtomicBoolean(false)
+
+            productListener = listenToData(
+                collectionPath = "products",
+                dataClass = Product::class.java,
+                decrementFlag = isProductDecrement
+            ) { dataList ->
                 berandaAdminViewModel.setProductList(dataList)
 
-                binding.tvEmptyProduk.visibility =
-                    if (dataList.isEmpty()) View.VISIBLE else View.GONE
-                productAdapter.submitList(dataList)
-                productAdapter.notifyDataSetChanged()
+                withContext(Dispatchers.Main) {
+                    binding.tvEmptyProduk.visibility =
+                        if (dataList.isEmpty()) View.VISIBLE else View.GONE
+                    productAdapter.submitList(dataList)
+                    productAdapter.notifyDataSetChanged()
+                }
             }
         }
     }
 
     private fun listenToBundlingPackagesData() {
-        if (::bundlingListener.isInitialized) {
-            bundlingListener.remove()
-        }
-        val isBundlingDecrement = AtomicBoolean(false)
+        userId.let {
+            if (::bundlingListener.isInitialized) {
+                bundlingListener.remove()
+            }
 
-        bundlingListener = listenToCollectionData(
-            collectionPath = "bundling_packages",
-            dataClass = BundlingPackage::class.java,
-            decrementFlag = isBundlingDecrement,
-            postProcess = { dataList ->
-                // Synchronize the access to both lists
-                lifecycleScope.launch(Dispatchers.Main) {
-                    servicesListMutex.withLock {
-                        dataList.onEach { bundling ->
-                            val serviceBundlingList = berandaAdminViewModel.servicesList.value?.filter { service ->
-                                bundling.listItems.contains(service.uid)
-                            } ?: emptyList()
-                            bundling.listItemDetails = serviceBundlingList
-                        }
+            if (it.isEmpty()) {
+                bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            val isBundlingDecrement = AtomicBoolean(false)
 
-                        berandaAdminViewModel.setBundlingPackagesList(dataList)
+            bundlingListener = listenToData(
+                collectionPath = "bundling_packages",
+                dataClass = BundlingPackage::class.java,
+                decrementFlag = isBundlingDecrement,
+            ) { dataList ->
+                berandaAdminViewModel.servicesListMutex.withStateLock {
+                    dataList.onEach { bundling ->
+                        val serviceBundlingList = berandaAdminViewModel.servicesList.value?.filter { service ->
+                            bundling.listItems.contains(service.uid)
+                        } ?: emptyList()
+                        bundling.listItemDetails = serviceBundlingList
                     }
+                    berandaAdminViewModel.setBundlingPackagesList(dataList)
+                }
 
+                // Synchronize the access to both lists
+                withContext(Dispatchers.Main) {
                     binding.tvEmptyPaketBundling.visibility =
                         if (dataList.isEmpty()) View.VISIBLE else View.GONE
                     bundlingAdapter.submitList(dataList)
                     bundlingAdapter.notifyDataSetChanged()
                 }
-            },
-        )
+            }
+        }
     }
 
     private fun listenToEmployeesData() {
-        if (::employeeListener.isInitialized) {
-            employeeListener.remove()
-        }
-        val isEmployeeDecrement = AtomicBoolean(false)
+        userId.let {
+            // jika listener maka tidak perlu ada pemberitahuan untuk (employeeUidList) kosong
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
+            }
 
-        employeeListener = listenToCollectionData(
-            collectionPath = "employees",
-            dataClass = UserEmployeeData::class.java,
-            isCollectionGroup = true,
-            queryField = "root_ref",
-            queryValue = "barbershops/${userId}", // Sesuaikan dengan field yang diperlukan,
-            decrementFlag = isEmployeeDecrement,
-            postProcess = { dataList ->
-                lifecycleScope.launch(Dispatchers.Main) {
-                    berandaAdminViewModel.setEmployeeList(dataList)
+            if (it.isEmpty()) {
+                employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            val isEmployeeDecrement = AtomicBoolean(false)
 
+            employeeListener = listenToData(
+                collectionPath = "employees",
+                dataClass = UserEmployeeData::class.java,
+                isCollectionGroup = true,
+                queryField = "root_ref",
+                queryValue = "barbershops/${userId}", // Sesuaikan dengan field yang diperlukan,
+                decrementFlag = isEmployeeDecrement,
+            ) { dataList ->
+                berandaAdminViewModel.setEmployeeList(dataList)
+
+                withContext(Dispatchers.Main) {
                     binding.tvEmptyPegawai.visibility =
                         if (dataList.isEmpty()) View.VISIBLE else View.GONE
                     employeeAdapter.submitList(dataList)
                     employeeAdapter.notifyDataSetChanged()
                 }
-            },
-        )
+            }
+        }
     }
 
     private fun getBarbershopDataFromDatabase() {
-        db.collection("barbershops")
-            .document(userId)
-            .get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    val userAdminData = document.toObject(UserAdminData::class.java)?.apply {
-                        userRef = document.reference.path
-                    }
-                    Log.d("CheckShimmer", "getBarbershopDataFromDatabase Success >> document.exists() == true")
-                    userAdminData?.let {
-                        berandaAdminViewModel.setUserAdminData(userAdminData)
-                    }
-                    // loadImageWithGlide(userAdminData.imageCompanyProfile)
-                } else {
-                    Log.d("CheckShimmer", "getBarbershopDataFromDatabase Success >> document.exists() == false")
-                    showToast("No such document")
-                }
-            }
-            .addOnFailureListener { exception ->
-                Log.d("CheckShimmer", "getBarbershopDataFromDatabase Failed")
-                showToast("Error getting document: ${exception.message}")
-            }
-    }
-
-//    inline fun <reified T> getCollectionData(
-//        collectionPath: String,
-//        userId: String,
-//        db: FirebaseFirestore,
-//        listToUpdate: MutableList<T>,
-//        emptyMessage: String
-//    ):
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun getAllData() {
         lifecycleScope.launch(Dispatchers.IO) {
-            delay(500)
-            val tasks = listOf(
-                getCollectionData("outlets", "No outlets found", Outlet::class.java),
-                getCollectionData("services", "No services found", Service::class.java),
-                getCollectionData("products", "No products found", Product::class.java),
-                getCollectionData("bundling_packages", "No bundling packages found", BundlingPackage::class.java),
-                getCollectionData(
-                    collectionPath = "employees",
-                    emptyMessage = "No employees found",
-                    dataClass = UserEmployeeData::class.java,
-                    isCollectionGroup = true,
-                    queryField = "root_ref",
-                    queryValue = "barbershops/${userId}" // Sesuaikan dengan field yang diperlukan
-                )
-            )
+            userId.let {
+                if (it.isEmpty()) {
+                    showToast("User data is not valid.")
+                    return@let
+                }
 
-            Tasks.whenAllComplete(tasks)
-                .addOnSuccessListener {
-                    Log.d("CheckShimmer", "Tasks.whenAllComplete(tasks) Success")
-                    displayAllData()
-                    if (!berandaAdminViewModel.getIsCapitalDialogShow()) {
-                        handler.postDelayed({
-                            if (isAdded) showCapitalInputDialog()
-                        }, 300)
+                try {
+                    val document = db.collection("barbershops")
+                        .document(userId)
+                        .get()
+                        .awaitGetWithOfflineFallback(tag = "GetBarbershopData")
+
+                    withContext(Dispatchers.Default) {
+                        if (document != null && document.exists()) {
+                            val userAdminData = document.toObject(UserAdminData::class.java)?.apply {
+                                userRef = document.reference.path
+                            }
+
+                            Log.d("CheckShimmer", "✅ getBarbershopDataFromDatabase Success (Offline-Aware)")
+                            userAdminData?.let {
+                                berandaAdminViewModel.setUserAdminData(it)
+                            }
+                        } else {
+                            Log.w("CheckShimmer", "⚠️ Barbershop data does not exist or null (Offline-Aware)")
+                            showToast("Barbershop data does not exist.")
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e("CheckShimmer", "❌ getBarbershopDataFromDatabase Failed: ${e.message}")
+                    showToast("Error getting document: ${e.message}")
                 }
-                .addOnFailureListener {
-                    Log.d("CheckShimmer", "Tasks.whenAllComplete(tasks) Success")
-                    displayAllData()
-                    // binding.swipeRefreshLayout.isRefreshing = false
-                    showToast("Terjadi suatu masalah ketika mengambil data.")
-                }
+            }
         }
     }
 
-    private fun <T> getCollectionData(
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun getAllData() {
+        withContext(Dispatchers.IO) {
+            berandaAdminViewModel.allDataMutex.withStateLock {
+                delay(500)
+                userId.let {
+                    if (it.isEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            displayAllData()
+                        }
+
+                        showToast("User data is not valid.")
+                        return@let
+                    }
+
+                    // 🔹 Jalankan semua collection secara paralel
+                    val tasks = listOf(
+                        getCollectionData("outlets", Outlet::class.java, "No outlets found"),
+                        getCollectionData("services", Service::class.java, "No services found"),
+                        getCollectionData("products", Product::class.java, "No products found"),
+                        getCollectionData("bundling_packages", BundlingPackage::class.java, "No bundling packages found"),
+                        getCollectionData(
+                            collectionPath = "employees",
+                            emptyMessage = "No employees found",
+                            dataClass = UserEmployeeData::class.java,
+                            isCollectionGroup = true,
+                            queryField = "root_ref",
+                            queryValue = "barbershops/${userId}"
+                        )
+                    )
+
+                    try {
+                        // 🔹 Tunggu semua coroutine selesai (paralel)
+                        tasks.awaitAll()
+
+                        withContext(Dispatchers.Main) {
+                            Log.d("CheckShimmer", "✅ getAllData Completed (Offline Aware)")
+                            displayAllData()
+
+                            if (!berandaAdminViewModel.getIsCapitalDialogShow()) {
+                                handler.postDelayed({
+                                    if (isAdded) showCapitalInputDialog()
+                                }, 300)
+                            }
+                        }
+
+                    } catch (e: Exception) {
+                        Log.e("CheckShimmer", "❌ getAllData Error: ${e.message}", e)
+                        withContext(Dispatchers.Main) {
+                            displayAllData()
+                        }
+
+                        showToast("Terjadi suatu masalah ketika mengambil data: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun <T> getCollectionData(
         collectionPath: String,
-//        listToUpdate: MutableList<T>,
-        emptyMessage: String,
         dataClass: Class<T>,
+        emptyMessage: String,
         isCollectionGroup: Boolean = false,
         queryField: String? = null,
         queryValue: Any? = null
-    ): Task<QuerySnapshot> {
-        val taskCompletionSource =
-            TaskCompletionSource<QuerySnapshot>() // TaskCompletionSource untuk mengendalikan Task
+    ): Deferred<QuerySnapshot?> = lifecycleScope.async(Dispatchers.IO) {
 
-        val collectionRef = if (isCollectionGroup) {
-            val groupRef = db.collectionGroup(collectionPath)
-            if (queryField != null && queryValue != null) {
-                groupRef.whereEqualTo(queryField, queryValue)
+        try {
+            val collectionRef = if (isCollectionGroup) {
+                val groupRef = db.collectionGroup(collectionPath)
+                if (queryField != null && queryValue != null)
+                    groupRef.whereEqualTo(queryField, queryValue)
+                else groupRef
             } else {
-                groupRef
+                db.collection("barbershops")
+                    .document(userId)
+                    .collection(collectionPath)
             }
-        } else {
-            db.collection("barbershops")
-                .document(userId)
-                .collection(collectionPath)
-        }
 
-        collectionRef.get()
-            .addOnSuccessListener { documents ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!documents.isEmpty) {
-                        Log.d("CheckShimmer", "getCollectionData Success >> Ditemukan data untuk ${dataClass.simpleName}")
-                        val items = documents.mapNotNull { doc ->
-                            val item = doc.toObject(dataClass)
-                            if (dataClass == Outlet::class.java) {
-                                val outlet = item as Outlet
-                                outlet.outletReference = doc.reference.path
-                                outlet as T
-                            } else {
-                                item as T
-                            }
-                        }
+            // 🔹 Jalankan get() dengan Offline Aware Handler
+            val documents = collectionRef
+                .get()
+                .awaitGetWithOfflineFallback(tag = "GetCollectionData-${dataClass.simpleName}")
 
-                        val mutex = when (dataClass) {
-                            Service::class.java -> servicesListMutex
-                            BundlingPackage::class.java -> bundlingListMutex
-                            UserEmployeeData::class.java -> employeesListMutex
-                            Product::class.java -> productsListMutex
-                            else -> Mutex()
-                        }
-
-                        mutex.withLock {
-//                            listToUpdate.clear()
-//                            listToUpdate.addAll(items)
-                            withContext(Dispatchers.Main) {
-                                when (dataClass) {
-                                    Service::class.java -> berandaAdminViewModel.setServicesList(items as List<Service>)
-                                    BundlingPackage::class.java -> {
-                                        servicesListMutex.withLock {
-                                            (items as List<BundlingPackage>).onEach { bundling ->
-                                                val serviceBundlingList = berandaAdminViewModel.servicesList.value?.filter { service ->
-                                                    bundling.listItems.contains(service.uid)
-                                                } ?: emptyList()
-                                                bundling.listItemDetails = serviceBundlingList
-                                            }
-
-                                            berandaAdminViewModel.setBundlingPackagesList(items)
-                                        }
-                                    }
-                                    UserEmployeeData::class.java -> berandaAdminViewModel.setEmployeeList(items as List<UserEmployeeData>)
-                                    Product::class.java -> berandaAdminViewModel.setProductList(items as List<Product>)
-                                    Outlet::class.java -> berandaAdminViewModel.setOutletList(items as List<Outlet>, setupDropdown = true, isSavedInstanceStateNull = true)
-                                }
-                            }
-
-                            Log.d("CheckShimmer", "Data count ${items.size}")
-                        }
-                    } else {
-                        Log.d("CheckShimmer", "getCollectionData Success >> Tidak ditemukan data untuk ${dataClass.simpleName}")
-                        withContext(Dispatchers.Main) {
-                            showToast(emptyMessage)
+            withContext(Dispatchers.Default) {
+                if (documents != null) {
+                    val items = documents.mapNotNull { document ->
+                        val obj = document.toObject(dataClass)
+                        when (dataClass) {
+                            Outlet::class.java -> (obj as Outlet).apply {
+                                outletReference = document.reference.path
+                            } as T
+                            else -> obj as T
                         }
                     }
 
-                    taskCompletionSource.setResult(documents) // Menandai Task sebagai selesai ketika semua operasi sukses
+                    // 🔹 Pilih mutex sesuai data
+                    val mutex = when (dataClass) {
+                        Service::class.java -> berandaAdminViewModel.servicesListMutex
+                        BundlingPackage::class.java -> berandaAdminViewModel.bundlingListMutex
+                        UserEmployeeData::class.java -> berandaAdminViewModel.employeesListMutex
+                        Product::class.java -> berandaAdminViewModel.productsListMutex
+                        Outlet::class.java -> berandaAdminViewModel.outletListMutex
+                        else -> ReentrantCoroutineMutex()
+                    }
+
+                    mutex.withStateLock {
+                        when (dataClass) {
+                            Service::class.java -> berandaAdminViewModel.setServicesList(items as List<Service>)
+                            BundlingPackage::class.java -> {
+                                berandaAdminViewModel.servicesListMutex.withStateLock {
+                                    (items as List<BundlingPackage>).forEach { bundling ->
+                                        val serviceBundlingList =
+                                            berandaAdminViewModel.servicesList.value?.filter { service ->
+                                                bundling.listItems.contains(service.uid)
+                                            } ?: emptyList()
+                                        bundling.listItemDetails = serviceBundlingList
+                                    }
+                                    berandaAdminViewModel.setBundlingPackagesList(items)
+                                }
+                            }
+                            UserEmployeeData::class.java -> berandaAdminViewModel.setEmployeeList(items as List<UserEmployeeData>)
+                            Product::class.java -> berandaAdminViewModel.setProductList(items as List<Product>)
+                            Outlet::class.java -> berandaAdminViewModel.setOutletList(
+                                items as List<Outlet>,
+                                setupDropdown = null,
+                                isSavedInstanceStateNull = null
+                            )
+                        }
+                    }
+
+                    Log.d("CheckShimmer", "✅ getCollectionData Success (${dataClass.simpleName}) count=${items.size}")
+
+                    if (items.isEmpty()) {
+                        showToast(emptyMessage)
+                    }
+
+                    documents
+                } else {
+                    Log.w("CheckShimmer", "⚠️ getCollectionData Offline Fallback returned null (${dataClass.simpleName})")
+                    showToast(emptyMessage)
+                    null
                 }
             }
-            .addOnFailureListener { exception ->
-                Log.d("CheckShimmer", "getCollectionData Failed >> Untuk ${dataClass.simpleName}")
-                taskCompletionSource.setException(exception) // Menandai Task sebagai gagal jika terjadi error
-            }
 
-        return taskCompletionSource.task // Kembalikan Task yang akan selesai hanya ketika pengambilan data selesai
-    }
-
-    private fun safeBindingAction(action: (binding: FragmentBerandaAdminBinding) -> Unit) {
-        val currentBinding = _binding
-        if (currentBinding != null && view != null && isAdded) {
-            Log.d("CheckShimmer", "safeBindingAction berhasil")
-            viewLifecycleOwner.lifecycleScope.launch {
-                action(currentBinding)
-            }
-        } else {
-            Log.d("CheckShimmer", "safeBindingAction gagal")
-            showToast("Terjadi kesalahan saat memuat halaman!!!")
+        } catch (e: Exception) {
+            Log.e("CheckShimmer", "❌ getCollectionData Failed (${dataClass.simpleName}): ${e.message}", e)
+            showToast("Error: ${e.message}")
+            null
         }
     }
 
+
+    private fun safeBindingAction(action: (FragmentBerandaAdminBinding) -> Unit) {
+        val bindingRef = _binding ?: run {
+            Log.w("CheckShimmer", "safeBindingAction gagal: binding null")
+            viewLifecycleOwner.lifecycleScope.launch {
+                showToast("Terjadi kesalahan saat memuat halaman!!!") // ✅ sekarang aman
+            }
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.Main.immediate) {
+                if (viewLifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED) && isAdded) {
+                    try {
+                        Log.d("CheckShimmer", "safeBindingAction berhasil")
+                        action(bindingRef)
+                    } catch (e: Exception) {
+                        Log.e("CheckShimmer", "Error di safeBindingAction: ${e.message}")
+                        showToast("Terjadi kesalahan saat memuat halaman!!!")
+                    }
+                } else {
+                    Log.w("CheckShimmer", "safeBindingAction gagal: lifecycle sudah DESTROYED")
+                    showToast("Terjadi kesalahan saat memuat halaman!!!")
+                }
+            }
+        }
+    }
 
 
     private fun displayAllData() {
         safeBindingAction { binding ->
             Log.d("CheckShimmer", "displayAllData")
             val servicesList = berandaAdminViewModel.servicesList.value ?: emptyList()
-            val employeesList = berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()
+            val employeesList = berandaAdminViewModel.employeeList.value ?: emptyList()
             val bundlingPackagesList = berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()
             val productsList = berandaAdminViewModel.productList.value ?: emptyList()
             serviceAdapter.submitList(servicesList)
@@ -952,7 +1055,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 .commit()
         }
 
-        berandaAdminViewModel.setCapitalDialogShow(true)
+        lifecycleScope.launch { berandaAdminViewModel.setCapitalDialogShow(true) }
 //        dialogFragment.show(fragmentManager, "CapitalInputFragment")
     }
 
@@ -1004,20 +1107,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             .start()
     }
 
-
-//    private fun loadImageWithGlide(imageUrl: String) {
-//        if (imageUrl.isNotEmpty()) {
-//            if (!isDestroyed && !isFinishing) {
-//                // Lakukan transaksi fragment
-//                Glide.with(this)
-//                    .load(imageUrl)
-//                    .placeholder(
-//                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-//                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-//                    .into(binding.ivProfile)
-//            }
-//        }
-//    }
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         with (binding) {
@@ -1035,7 +1124,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                         WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
                             disableBtnWhenShowDialog(v) {
                                 val manageOutletDirections = BerandaAdminFragmentDirections.actionNavBerandaToManageOutletPage(
-                                    (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()).toTypedArray(), berandaAdminViewModel.userAdminData.value ?: UserAdminData()
+                                    (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.employeeList.value ?: emptyList()).toTypedArray(), berandaAdminViewModel.userAdminData.value ?: UserAdminData()
                                 )
                                 navController.navigate(manageOutletDirections)
                             }
@@ -1080,7 +1169,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 Log.d("NavigateDashboard", "Send data to $destination")
                 if (isSendData) {
                     intent.putParcelableArrayListExtra(OUTLET_DATA_KEY, ArrayList(berandaAdminViewModel.outletList.value ?: emptyList()))
-                    intent.putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(berandaAdminViewModel.userEmployeeDataList.value ?: emptyList()))
+                    intent.putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(berandaAdminViewModel.employeeList.value ?: emptyList()))
                     intent.putExtra(ADMIN_DATA_KEY, berandaAdminViewModel.userAdminData.value)
                 } else {
                     intent.putExtra(ORIGIN_INTENT_KEY, "BerandaAdminPage")
@@ -1098,31 +1187,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             isNavigating = true
             functionShowDialog()
         } else return
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-//        BarberLinkApp.sessionManager.setActivePage("Admin")
-//        Log.d("AutoLogout", "Fragment OnResume Role: Admin >< activePage: ${BarberLinkApp.sessionManager.getActivePage()}")
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) {
-            Log.d("NavigationCorner", "Navigating 2")
-            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), true)
-        }
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-        if (!isRecreated) {
-            if ((!::outletListener.isInitialized || !::barbershopListener.isInitialized || !::serviceListener.isInitialized || !::employeeListener.isInitialized || !::bundlingListener.isInitialized || !::productListener.isInitialized) && !isFirstLoad) {
-                val intent = Intent(requireActivity(), SelectUserRolePage::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
-            }
-        }
-        isRecreated = false
     }
 
 //    @Deprecated("Deprecated in Java")
@@ -1169,17 +1233,38 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
         requireActivity().onBackPressedDispatcher.addCallback(this, callback)
 
-//        try {
-//            // Mengaitkan listener dengan activity yang memanggil
-//            listener = context as? SetDialogCapitalStatus
-//        } catch (e: ClassCastException) {
-//            throw ClassCastException("$context harus mengimplementasikan SetDialogCapitalStatus")
-//        }
     }
 
 //    private fun setDialogCapitalStatus(isShow: Boolean) {
 //        listener?.setIsDialogCapitalShow(isShow)
 //    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+//        BarberLinkApp.sessionManager.setActivePage("Admin")
+//        Log.d("AutoLogout", "Fragment OnResume Role: Admin >< activePage: ${BarberLinkApp.sessionManager.getActivePage()}")
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) {
+            Log.d("NavigationCorner", "Navigating 2")
+            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), true)
+        }
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
+        if (!isRecreated) {
+            if ((!::outletListener.isInitialized || !::barbershopListener.isInitialized || !::serviceListener.isInitialized || !::employeeListener.isInitialized || !::bundlingListener.isInitialized || !::productListener.isInitialized) && !isFirstLoad) {
+                val intent = Intent(requireActivity(), SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                lifecycleScope.launch {
+                    showToast("Sesi telah berakhir silahkan masuk kembali")
+                }
+            }
+        }
+        isRecreated = false
+    }
 
     override fun onPause() {
         super.onPause()
@@ -1202,12 +1287,15 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             fragmentManager.popBackStackImmediate()
         }
     }
+
     override fun onDestroy() {
-        super.onDestroy()
         productAdapter.stopAllShimmerEffects()
-        employeeAdapter.stopAllShimmerEffects()
         bundlingAdapter.stopAllShimmerEffects()
         serviceAdapter.stopAllShimmerEffects()
+        val adapter1 = binding.recyclerPegawai.adapter
+        if (adapter1 is BaseCleanableAdapter) adapter1.cleanUp()
+        binding.recyclerPegawai.adapter = null
+        binding.recyclerPegawai.layoutManager = null
 
         handler.removeCallbacksAndMessages(null)
         if (::serviceListener.isInitialized) serviceListener.remove()
@@ -1217,10 +1305,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         if (::outletListener.isInitialized) outletListener.remove()
         if (::barbershopListener.isInitialized) barbershopListener.remove()
         _binding = null
+
+        super.onDestroy()
     }
 
     override fun displayThisToast(message: String) {
-        showToast(message)
+        lifecycleScope.launch {
+            showToast(message)
+        }
     }
 
     private fun setAndDisplayBanner() {
@@ -1233,9 +1325,11 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         binding.imageSlider.setImageList(imageList)
         binding.imageSlider.setItemClickListener(object : ItemClickListener {
             override fun onItemSelected(position: Int) {
-                val itemMessage = "Selected Image $position"
                 context.let {
-                    showToast(itemMessage)
+                    val itemMessage = "Selected Image $position"
+                    lifecycleScope.launch {
+                        showToast(itemMessage)
+                    }
                 }
             }
 

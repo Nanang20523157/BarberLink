@@ -4,16 +4,55 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.Event
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 // ViewModel class to handle Snackbar message state
 class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
+
+    val reservationListMutex = ReentrantCoroutineMutex()
+    val outletsListMutex = ReentrantCoroutineMutex()
+    val servicesListMutex = ReentrantCoroutineMutex()
+    val bundlingPackagesListMutex = ReentrantCoroutineMutex()
+    val capsterListMutex = ReentrantCoroutineMutex()
+    val allDataMutex = ReentrantCoroutineMutex()
+    val listenerOutletListMutex = ReentrantCoroutineMutex()
+    val listenerCapsterListMutex = ReentrantCoroutineMutex()
+    val listenerCapsterDataMutex = ReentrantCoroutineMutex()
+    val listenerServiceListMutex = ReentrantCoroutineMutex()
+    val listenerBundlingListMutex = ReentrantCoroutineMutex()
+    val listenerReservationsMutex = ReentrantCoroutineMutex()
+    val listenerCustomerDataMutex = ReentrantCoroutineMutex()
+
+    // =========================================================
+    // === UTILITAS DASAR
+    // =========================================================
+
+    private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
+        withContext(Dispatchers.Main) { value = newValue }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.addItem(item: T) {
+        val updated = (value ?: mutableListOf()).apply { add(item) }
+        updateOnMain(updated)
+    }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.clearList() =
+        updateOnMain(mutableListOf())
+
+    // =======================================================================
+
     // Simpan mutasi currentQueue terakhir yang BERHASIL, agar bisa di-rollback kalau commit (updateUserReservationStatus) gagal
 
     // QueueControlViewModel.kt — tambahkan di dalam class ViewModel-mu
@@ -27,23 +66,21 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
         data class RetryCheckAndUpdateCurrentQueueData(val snackbarState: Boolean) : PendingSnackbarOp()
         // Blok ELSE/UNDO umum (dua cabang: undo to process/instant skipped & undo requeue)
         data class RetryUndoGeneral(
-            val reservation: Reservation,
+            val reservationData: ReservationData,
             val previousStatus: String
         ) : PendingSnackbarOp()
         // Switch capster & undo switch capster
-        data class RetrySwitchCapster(val reservation: Reservation, val previousStatus: String) : PendingSnackbarOp()
-        data class RetryUndoSwitchCapster(val reservation: Reservation, val previousStatus: String) : PendingSnackbarOp()
+        data class RetrySwitchCapster(val reservationData: ReservationData, val previousStatus: String) : PendingSnackbarOp()
+        data class RetryUndoSwitchCapster(val reservationData: ReservationData, val previousStatus: String) : PendingSnackbarOp()
     }
 
     // LiveData untuk menyimpan pending op Snackbar
     private val _pendingSnackbarOp = MutableLiveData<PendingSnackbarOp?>(null)
     val pendingSnackbarOp: LiveData<PendingSnackbarOp?> = _pendingSnackbarOp
 
-    fun setPendingSnackbarOp(op: PendingSnackbarOp?) { _pendingSnackbarOp.postValue(op) }
-
     sealed class PendingAction {
         data class UndoToProcessOrSkipped(
-            val reservation: Reservation,
+            val reservationData: ReservationData,
             val previousStatus: String,
             val currentQueue: Map<String, String>,
             val capsterUid: String,
@@ -53,7 +90,7 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
         ) : PendingAction()
 
         data class UndoRequeue(
-            val reservation: Reservation,
+            val reservationData: ReservationData,
             val previousStatus: String,
             val currentQueue: Map<String, String>,
             val capsterUid: String,
@@ -75,42 +112,10 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _pendingAction = MutableLiveData<PendingAction>(PendingAction.None)
     val pendingAction: LiveData<PendingAction> = _pendingAction
 
-    fun setPendingUndoToProcessOrSkipped(
-        reservation: Reservation,
-        previousStatus: String,
-        currentQueue: Map<String, String>,
-        capsterUid: String,
-        existingQueueNumber: String,
-        queueNumber: String,
-        outletReference: String
-    ) {
-        _pendingAction.value = PendingAction.UndoToProcessOrSkipped(
-            reservation, previousStatus, currentQueue, capsterUid, existingQueueNumber, queueNumber, outletReference
-        )
-    }
-
-    fun setPendingUndoRequeue(
-        reservation: Reservation,
-        previousStatus: String,
-        currentQueue: Map<String, String>,
-        capsterUid: String,
-        existingQueueNumber: String,
-        queueNumber: String,
-        outletReference: String
-    ) {
-        _pendingAction.value = PendingAction.UndoRequeue(
-            reservation, previousStatus, currentQueue, capsterUid, existingQueueNumber, queueNumber, outletReference
-        )
-    }
-
-    fun clearPendingAction() {
-        _pendingAction.value = PendingAction.None
-    }
-
     private var lastQueueMutation: QueueMutation? = null
-    private var dataReservationToExecution: Reservation? = null
-    private var dataReservationBeforeSwitch: Reservation? = null
-    private var dataPrevReservationQueue: Reservation? = null
+    private var dataReservationDataToExecution: ReservationData? = null
+    private var dataReservationDataBeforeSwitch: ReservationData? = null
+    private var dataPrevReservationDataQueue: ReservationData? = null
 
     private val _snackBarQueueMessage = MutableLiveData<Event<String>>()
     val snackBarQueueMessage: LiveData<Event<String>> = _snackBarQueueMessage
@@ -148,8 +153,8 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 //    private val _processedQueueIndex = MutableLiveData<Int>()
 //    val processedQueueIndex: LiveData<Int> = _processedQueueIndex
 
-    private val _reservationList = MutableLiveData<List<Reservation>>().apply { value = emptyList() }
-    val reservationList: LiveData<List<Reservation>> = _reservationList
+    private val _reservationDataList = MutableLiveData<List<ReservationData>>().apply { value = emptyList() }
+    val reservationDataList: LiveData<List<ReservationData>> = _reservationDataList
 
     private val _serviceList = MutableLiveData<List<Service>>().apply { value = emptyList() }
     val serviceList: LiveData<List<Service>> = _serviceList
@@ -163,14 +168,11 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _listBundlingPackageOrders = MutableLiveData<List<BundlingPackage>>().apply { value = emptyList() }
     val listBundlingPackageOrders: LiveData<List<BundlingPackage>> = _listBundlingPackageOrders
 
-    private val listServiceLock = Any()
-    private val listBundlingLock = Any()
-
     private val _duplicateServiceList = MutableLiveData<List<Service>>()
     val duplicateServiceList: LiveData<List<Service>> = _duplicateServiceList
 
-    private val _triggerSubmitDisplayServices = MutableLiveData<Boolean>().apply { value = null }
-    val triggerSubmitDisplayServices: LiveData<Boolean> = _triggerSubmitDisplayServices
+    private val _triggerSubmitDisplayServices = MutableLiveData<Boolean?>().apply { value = null }
+    val triggerSubmitDisplayServices: LiveData<Boolean?> = _triggerSubmitDisplayServices
 
     private val _duplicateBundlingPackageList = MutableLiveData<List<BundlingPackage>>()
     val duplicateBundlingPackageList: LiveData<List<BundlingPackage>> = _duplicateBundlingPackageList
@@ -181,293 +183,417 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 //    private val _capsterList = MutableLiveData<List<UserEmployeeData>>()
 //    val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
 
-    private val _currentReservation = MutableLiveData<Reservation?>().apply { value = null }
-    val currentReservation: LiveData<Reservation?> = _currentReservation
+    private val _currentReservationData = MutableLiveData<ReservationData?>().apply { value = null }
+    val currentReservationData: LiveData<ReservationData?> = _currentReservationData
 
-    fun setLastQueueMutation(mutation: QueueMutation?) {
-        lastQueueMutation = mutation
+    suspend fun setPendingUndoToProcessOrSkipped(
+        reservationData: ReservationData,
+        previousStatus: String,
+        currentQueue: Map<String, String>,
+        capsterUid: String,
+        existingQueueNumber: String,
+        queueNumber: String,
+        outletReference: String
+    ) {
+        withContext(Dispatchers.Main) {
+            _pendingAction.value = PendingAction.UndoToProcessOrSkipped(
+                reservationData, previousStatus, currentQueue, capsterUid, existingQueueNumber, queueNumber, outletReference
+            )
+        }
+    }
+
+    suspend fun setPendingUndoRequeue(
+        reservationData: ReservationData,
+        previousStatus: String,
+        currentQueue: Map<String, String>,
+        capsterUid: String,
+        existingQueueNumber: String,
+        queueNumber: String,
+        outletReference: String
+    ) {
+        withContext(Dispatchers.Main) {
+            _pendingAction.value = PendingAction.UndoRequeue(
+                reservationData, previousStatus, currentQueue, capsterUid, existingQueueNumber, queueNumber, outletReference
+            )
+        }
+    }
+
+    suspend fun setPendingSnackbarOp(op: PendingSnackbarOp?) {
+        withContext(Dispatchers.Main) {
+            _pendingSnackbarOp.value = op
+        }
+    }
+
+    suspend fun clearPendingAction() {
+        withContext(Dispatchers.Main) {
+            _pendingAction.value = PendingAction.None
+        }
+    }
+
+    suspend fun setLastQueueMutation(mutation: QueueMutation?) {
+        withContext(Dispatchers.Main) {
+            lastQueueMutation = mutation
+        }
     }
 
     fun getLastQueueMutation(): QueueMutation? {
-        return lastQueueMutation
-    }
-
-    override fun setOutletSelected(outlet: Outlet?) {
-        _outletSelected.value = outlet
-    }
-
-    fun setUserEmployeeData(userEmployeeData: UserEmployeeData) {
-        _userEmployeeData.value = userEmployeeData
-    }
-
-    fun updateEmployeeOutletRef(outletRef: String) {
-        _userEmployeeData.value?.let {
-            it.outletRef = outletRef
-            _userEmployeeData.value = it // Pastikan LiveData diperbarui
+        return runBlocking {
+            lastQueueMutation
         }
     }
 
-    fun setOutletList(listOutlet: List<Outlet>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
-        _outletList.value = listOutlet
-        _setupDropdownFilter.value = setupDropdown
-        _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+    override suspend fun setOutletSelected(outlet: Outlet?) {
+        withContext(Dispatchers.Main) {
+            _outletSelected.value = outlet
+        }
+    }
+
+    suspend fun setUserEmployeeData(userEmployeeData: UserEmployeeData) {
+        withContext(Dispatchers.Main) {
+            _userEmployeeData.value = userEmployeeData
+        }
+    }
+
+    suspend fun updateEmployeeOutletRef(outletRef: String) {
+        withContext(Dispatchers.Main) {
+            _userEmployeeData.value?.let {
+                it.outletRef = outletRef
+                _userEmployeeData.value = it // Pastikan LiveData diperbarui
+            }
+        }
+    }
+
+    suspend fun setOutletList(listOutlet: List<Outlet>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
+        withContext(Dispatchers.Main) {
+            _outletList.value = listOutlet
+            _setupDropdownFilter.value = setupDropdown
+            _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+        }
         Log.d("ObjectReferences", "neptunes 2")
     }
 
-    override fun setupDropdownFilterWithNullState() {
-        _setupDropdownFilter.value = false
-        _setupDropdownFilterWithNullState.value = false
+    override suspend fun setupDropdownFilterWithNullState() {
+        withContext(Dispatchers.Main) {
+            _setupDropdownFilter.value = false
+            _setupDropdownFilterWithNullState.value = false
+        }
         Log.d("ObjectReferences", "neptunes 5")
     }
 
-    fun getReservationDataToExecution(): Reservation? {
-        return dataReservationToExecution
+    fun getReservationDataToExecution(): ReservationData? {
+        return runBlocking {
+            dataReservationDataToExecution
+        }
     }
 
-    fun setReservationDataToExecution(reservation: Reservation?) {
-        dataReservationToExecution = reservation
+    suspend fun setReservationDataToExecution(reservationData: ReservationData?) {
+        withContext(Dispatchers.Main) {
+            dataReservationDataToExecution = reservationData
+        }
     }
 
-    fun getReservationDataBeforeSwitch(): Reservation? {
-        return dataReservationBeforeSwitch
+    fun getReservationDataBeforeSwitch(): ReservationData? {
+        return runBlocking {
+            dataReservationDataBeforeSwitch
+        }
     }
 
-    fun setReservationDataBeforeSwitch(reservation: Reservation?) {
-        dataReservationBeforeSwitch = reservation
+    suspend fun setReservationDataBeforeSwitch(reservationData: ReservationData?) {
+        withContext(Dispatchers.Main) {
+            dataReservationDataBeforeSwitch = reservationData
+        }
     }
 
-    fun getPrevReservationQueue(): Reservation? {
-        return dataPrevReservationQueue
+    fun getPrevReservationQueue(): ReservationData? {
+        return runBlocking {
+            dataPrevReservationDataQueue
+        }
     }
 
-    fun setPrevReservationQueue(reservation: Reservation?) {
-        dataPrevReservationQueue = reservation
+    suspend fun setPrevReservationQueue(reservationData: ReservationData?) {
+        withContext(Dispatchers.Main) {
+            dataPrevReservationDataQueue = reservationData
+        }
     }
 
-    fun setCurrentReservationData(reservation: Reservation?) {
-        _currentReservation.value = reservation
+    suspend fun setCurrentReservationData(reservationData: ReservationData?) {
+        withContext(Dispatchers.Main) {
+            _currentReservationData.value = reservationData
+        }
     }
 
-    fun clearDuplicateServiceList() {
-        _duplicateServiceList.value = emptyList()
+    suspend fun clearDuplicateServiceList() {
+        withContext(Dispatchers.Main) {
+            servicesListMutex.withStateLock {
+                _duplicateServiceList.value = emptyList()
+            }
+        }
     }
 
-    fun clearDuplicateBundlingPackageList() {
-        _duplicateBundlingPackageList.value = emptyList()
+    suspend fun clearDuplicateBundlingPackageList() {
+        withContext(Dispatchers.Main) {
+            bundlingPackagesListMutex.withStateLock {
+                _duplicateBundlingPackageList.value = emptyList()
+            }
+        }
     }
 
-    fun clearState() {
-        _isLoadingScreen.value = false
-        _isShowSnackBar.value = false
-        //_setupDropdownFilter.value = null
-        //_setupDropdownFilterWithNullState.value = null
-        _dataServiceOriginState.value = null
-        _dataBundlingOriginState.value = null
-        _setupAfterGetAllData.value = null
-        _updateListOrderDisplay.value = false
-    }
-
-    fun setReservationList(listReservation: List<Reservation>) {
-        _reservationList.value = listReservation
+    suspend fun setReservationList(listReservationData: List<ReservationData>) {
+        withContext(Dispatchers.Main) {
+            _reservationDataList.value = listReservationData
+        }
         //Log.d("ObjectReferences", "neptunes 1 - filtered size: ${filteredList.size}")
     }
 
-    fun updateCustomerDetailByIndex(index: Int, customerData: UserCustomerData?) {
-        val listReservation = _reservationList.value?.toMutableList()
-        listReservation?.get(index)?.apply {
-            this.dataCreator?.userDetails = customerData
+    suspend fun updateCustomerDetailByIndex(index: Int, customerData: UserCustomerData?) {
+        withContext(Dispatchers.Main) {
+            val listReservation = _reservationDataList.value?.toMutableList()
+            listReservation?.get(index)?.apply {
+                this.dataCreator?.userDetails = customerData
+            }
+            _reservationDataList.value = listReservation
         }
-        _reservationList.value = listReservation
         Log.d("ObjectReferences", "neptunes 0")
     }
 
-    fun setServiceList(listService: List<Service>, dataServiceOriginState: Boolean?) {
+    suspend fun setServiceList(listService: List<Service>, dataServiceOriginState: Boolean?) {
         // true -> from getting data
         // false -> from listener
         // null -> from setup data process
-        _serviceList.value = listService
-        _dataServiceOriginState.value = dataServiceOriginState
+        withContext(Dispatchers.Main) {
+            servicesListMutex.withStateLock {
+                _serviceList.value = listService
+                _dataServiceOriginState.value = dataServiceOriginState
+            }
+        }
         Log.d("ObjectReferences", "neptunes 3")
     }
 
-    fun setBundlingPackageList(listBundlingPackage: List<BundlingPackage>, dataBundlingOriginState: Boolean?) {
+    suspend fun setBundlingPackageList(listBundlingPackage: List<BundlingPackage>, dataBundlingOriginState: Boolean?) {
         // true -> from getting data
         // false -> from listener
         // null -> from setup data process
-        _bundlingPackageList.value = listBundlingPackage
-        _dataBundlingOriginState.value = dataBundlingOriginState
+        withContext(Dispatchers.Main) {
+            bundlingPackagesListMutex.withStateLock {
+                _bundlingPackageList.value = listBundlingPackage
+                _dataBundlingOriginState.value = dataBundlingOriginState
+            }
+        }
         Log.d("ObjectReferences", "neptunes 4")
     }
 
-    fun setupAfterGetAllData(status: Boolean) {
-        _setupAfterGetAllData.value = status
+    suspend fun setupAfterGetAllData(status: Boolean) {
+        withContext(Dispatchers.Main) {
+            _setupAfterGetAllData.value = status
+        }
         Log.d("ObjectReferences", "neptunes 6")
     }
 
-    fun updateListOrderDisplay(status: Boolean) {
+    suspend fun updateListOrderDisplay(status: Boolean) {
         Log.d("Inkonsisten", "ViewModel #######")
-        _updateListOrderDisplay.value = status
+        withContext(Dispatchers.Main) {
+            _updateListOrderDisplay.value = status
+        }
     }
 
-    fun setReservationDataChange(status: Boolean) {
-        _reservationDataChange.value = status
+    suspend fun setReservationDataChange(status: Boolean) {
+        withContext(Dispatchers.Main) {
+            _reservationDataChange.value = status
+        }
     }
 
-    fun setListServiceOrders(listService: List<Service>) {
-        _listServiceOrders.value = listService
+    suspend fun setListServiceOrders(listService: List<Service>) {
+        withContext(Dispatchers.Main) {
+            _listServiceOrders.value = listService
+        }
         Log.d("ObjectReferences", "neptunes 7")
     }
 
-    fun setListBundlingPackageOrders(listBundlingPackage: List<BundlingPackage>) {
-        _listBundlingPackageOrders.value = listBundlingPackage
+    suspend fun setListBundlingPackageOrders(listBundlingPackage: List<BundlingPackage>) {
+        withContext(Dispatchers.Main) {
+            _listBundlingPackageOrders.value = listBundlingPackage
+        }
         Log.d("ObjectReferences", "neptunes 8")
     }
 
-    fun showQueueSnackBar(status: String, message: String?) {
-        if (message != null) {
-            _previousQueueStatus.value = status
-            _snackBarQueueMessage.value = Event(message)
+    suspend fun showQueueSnackBar(status: String, message: String?) {
+        withContext(Dispatchers.Main) {
+            if (message != null) {
+                _previousQueueStatus.value = status
+                _snackBarQueueMessage.value = Event(message)
+            }
         }
     }
 
-    fun displaySnackBar(status: Boolean) {
-        _isShowSnackBar.value = status
+    suspend fun displaySnackBar(status: Boolean) {
+        withContext(Dispatchers.Main) {
+            _isShowSnackBar.value = status
+        }
     }
 
-    fun showProgressBar(show: Boolean) {
-        _isLoadingScreen.value = show
+    suspend fun showProgressBar(show: Boolean) {
+        withContext(Dispatchers.Main) {
+            _isLoadingScreen.value = show
+        }
     }
 
-    fun setCurrentIndexQueue(index: Int) {
-        _currentIndexQueue.value = index
+    suspend fun setCurrentIndexQueue(index: Int) {
+        withContext(Dispatchers.Main) {
+            _currentIndexQueue.value = index
+        }
     }
 
-    fun setDuplicateServiceList(
+    suspend fun setDuplicateServiceList(
         listService: List<Service>,
         isFromEditOrder: Boolean
-    ) = synchronized(listServiceLock) {
-        _duplicateServiceList.value = listService
-        _triggerSubmitDisplayServices.value = isFromEditOrder
+    ) {
+        withContext(Dispatchers.Main) {
+            servicesListMutex.withStateLock {
+                _duplicateServiceList.value = listService
+                _triggerSubmitDisplayServices.value = isFromEditOrder
+            }
+        }
     }
 
-    fun setDuplicateBundlingPackageList(
+    suspend fun setDuplicateBundlingPackageList(
         listBundlingPackage: List<BundlingPackage>,
         isFromEditOrder: Boolean
-    ) = synchronized(listBundlingLock) {
-        _duplicateBundlingPackageList.value = listBundlingPackage
-        _triggerSubmitDisplayBundling.value = isFromEditOrder
+    ) {
+        withContext(Dispatchers.Main) {
+            bundlingPackagesListMutex.withStateLock {
+                _duplicateBundlingPackageList.value = listBundlingPackage
+                _triggerSubmitDisplayBundling.value = isFromEditOrder
+            }
+        }
     }
 
-    fun updateServiceDuplicationList(
+    suspend fun updateServiceDuplicationList(
         currentServicesList: List<Service>,
         oldServiceList: List<Service>?
-    ) = synchronized(listServiceLock) {
-        val updatedServicesList = oldServiceList?.toMutableList() ?: mutableListOf()
+    ) {
+        withContext(Dispatchers.Default) {
+            servicesListMutex.withStateLock {
+                val updatedServicesList = oldServiceList?.toMutableList() ?: mutableListOf()
 
-        // Perbarui properti dari existing item
-        updatedServicesList.forEach { existingService ->
-            val matchingCurrentService = currentServicesList.find { it.uid == existingService.uid }
-            matchingCurrentService?.let {
-                existingService.apply {
-                    applyToGeneral = it.applyToGeneral
-                    autoSelected = it.autoSelected
-                    categoryDetail = it.categoryDetail
-                    defaultItem = it.defaultItem
-                    freeOfCharge = it.freeOfCharge
-                    resultsShareAmount = it.resultsShareAmount
-                    resultsShareFormat = it.resultsShareFormat
-                    rootRef = it.rootRef
-                    serviceCategory = it.serviceCategory
-                    serviceCounting = it.serviceCounting
-                    serviceDesc = it.serviceDesc
-                    serviceIcon = it.serviceIcon
-                    serviceImg = it.serviceImg
-                    serviceName = it.serviceName
-                    servicePrice = it.servicePrice
-                    serviceRating = it.serviceRating
-                    uid = it.uid
+                // Perbarui properti dari existing item
+                updatedServicesList.forEach { existingService ->
+                    val matchingCurrentService = currentServicesList.find { it.uid == existingService.uid }
+                    matchingCurrentService?.let {
+                        existingService.apply {
+                            applyToGeneral = it.applyToGeneral
+                            autoSelected = it.autoSelected
+                            categoryDetail = it.categoryDetail
+                            defaultItem = it.defaultItem
+                            freeOfCharge = it.freeOfCharge
+                            resultsShareAmount = it.resultsShareAmount
+                            resultsShareFormat = it.resultsShareFormat
+                            rootRef = it.rootRef
+                            serviceCategory = it.serviceCategory
+                            serviceCounting = it.serviceCounting
+                            serviceDesc = it.serviceDesc
+                            serviceIcon = it.serviceIcon
+                            serviceImg = it.serviceImg
+                            serviceName = it.serviceName
+                            servicePrice = it.servicePrice
+                            serviceRating = it.serviceRating
+                            uid = it.uid
+                        }
+                    }
                 }
+
+                // Tambahkan item baru jika tidak ada dalam daftar lama
+                val newServices = currentServicesList.filter { current ->
+                    updatedServicesList.none { it.uid == current.uid }
+                }
+                updatedServicesList.addAll(newServices)
+
+                // Hapus item lama yang tidak ada dalam daftar baru
+                updatedServicesList.removeAll { existingService ->
+                    currentServicesList.none { it.uid == existingService.uid }
+                }
+
+                // Update LiveData
+                _duplicateServiceList.updateOnMain(updatedServicesList)
+                _triggerSubmitDisplayServices.updateOnMain(null)
             }
         }
-
-        // Tambahkan item baru jika tidak ada dalam daftar lama
-        val newServices = currentServicesList.filter { current ->
-            updatedServicesList.none { it.uid == current.uid }
-        }
-        updatedServicesList.addAll(newServices)
-
-        // Hapus item lama yang tidak ada dalam daftar baru
-        updatedServicesList.removeAll { existingService ->
-            currentServicesList.none { it.uid == existingService.uid }
-        }
-
-        // Update LiveData
-        _duplicateServiceList.value = updatedServicesList
-        _triggerSubmitDisplayServices.value = null
     }
 
-    fun updateBundlingDuplicationList(
+    suspend fun updateBundlingDuplicationList(
         currentBundlingList: List<BundlingPackage>,
         oldBundlingList: List<BundlingPackage>?
-    ) = synchronized(listBundlingLock) {
-        val updatedBundlingList = oldBundlingList?.toMutableList() ?: mutableListOf()
+    ) {
+        withContext(Dispatchers.Default) {
+            bundlingPackagesListMutex.withStateLock {
+                val updatedBundlingList = oldBundlingList?.toMutableList() ?: mutableListOf()
 
-        // Perbarui properti dari existing item
-        updatedBundlingList.forEach { existingBundling ->
-            val matchingCurrentBundling = currentBundlingList.find { it.uid == existingBundling.uid }
-            matchingCurrentBundling?.let {
-                existingBundling.apply {
-                    accumulatedPrice = it.accumulatedPrice
-                    applyToGeneral = it.applyToGeneral
-                    autoSelected = it.autoSelected
-                    defaultItem = it.defaultItem
-                    listItems = it.listItems
-                    packageCounting = it.packageCounting
-                    packageDesc = it.packageDesc
-                    packageDiscount = it.packageDiscount
-                    packageName = it.packageName
-                    packagePrice = it.packagePrice
-                    packageRating = it.packageRating
-                    resultsShareAmount = it.resultsShareAmount
-                    resultsShareFormat = it.resultsShareFormat
-                    rootRef = it.rootRef
-                    uid = it.uid
+                // Perbarui properti dari existing item
+                updatedBundlingList.forEach { existingBundling ->
+                    val matchingCurrentBundling = currentBundlingList.find { it.uid == existingBundling.uid }
+                    matchingCurrentBundling?.let {
+                        existingBundling.apply {
+                            accumulatedPrice = it.accumulatedPrice
+                            applyToGeneral = it.applyToGeneral
+                            autoSelected = it.autoSelected
+                            defaultItem = it.defaultItem
+                            listItems = it.listItems
+                            packageCounting = it.packageCounting
+                            packageDesc = it.packageDesc
+                            packageDiscount = it.packageDiscount
+                            packageName = it.packageName
+                            packagePrice = it.packagePrice
+                            packageRating = it.packageRating
+                            resultsShareAmount = it.resultsShareAmount
+                            resultsShareFormat = it.resultsShareFormat
+                            rootRef = it.rootRef
+                            uid = it.uid
 
-                    listItemDetails = _bundlingPackageList.value?.find { it.uid == uid }?.listItemDetails
+                            listItemDetails = _bundlingPackageList.value?.find { it.uid == uid }?.listItemDetails
+                        }
+                    }
                 }
+
+                // Tambahkan item baru jika tidak ada dalam daftar lama
+                val newBundlings = currentBundlingList.filter { current ->
+                    updatedBundlingList.none { it.uid == current.uid }
+                }
+                updatedBundlingList.addAll(newBundlings)
+
+                // Hapus item lama yang tidak ada dalam daftar baru
+                updatedBundlingList.removeAll { existingBundling ->
+                    currentBundlingList.none { it.uid == existingBundling.uid }
+                }
+
+                // Update LiveData
+                _duplicateBundlingPackageList.updateOnMain(updatedBundlingList)
+                _triggerSubmitDisplayBundling.updateOnMain(null)
             }
         }
-
-        // Tambahkan item baru jika tidak ada dalam daftar lama
-        val newBundlings = currentBundlingList.filter { current ->
-            updatedBundlingList.none { it.uid == current.uid }
-        }
-        updatedBundlingList.addAll(newBundlings)
-
-        // Hapus item lama yang tidak ada dalam daftar baru
-        updatedBundlingList.removeAll { existingBundling ->
-            currentBundlingList.none { it.uid == existingBundling.uid }
-        }
-
-        // Update LiveData
-        _duplicateBundlingPackageList.value = updatedBundlingList
-        _triggerSubmitDisplayBundling.value = null
     }
 
-//    fun setCapsterList(listCapster: List<UserEmployeeData>) {
-//        _capsterList.value = listCapster
-//    }
+    fun clearState() {
+        viewModelScope.launch {
+            _isLoadingScreen.value = false
+            _isShowSnackBar.value = false
+            //_setupDropdownFilter.value = null
+            //_setupDropdownFilterWithNullState.value = null
+            _dataServiceOriginState.value = null
+            _dataBundlingOriginState.value = null
+            _setupAfterGetAllData.value = null
+            _updateListOrderDisplay.value = false
+        }
+    }
 
-//    fun clearCapsterList() {
-//        _capsterList.value = emptyList()
-//    }
-
-//    fun setCurrentQueueStatus(status: String) {
-//        _currentQueueStatus.value = status
-//    }
-
-//    fun setProcessedQueueIndex(index: Int) {
-//        _processedQueueIndex.value = index
-//    }
+    fun clearFragmentData() {
+        viewModelScope.launch {
+            servicesListMutex.withStateLock {
+                _duplicateServiceList.value = emptyList()
+            }
+            bundlingPackagesListMutex.withStateLock {
+                _duplicateBundlingPackageList.value = emptyList()
+            }
+            _currentReservationData.value = null
+        }
+    }
 
 }

@@ -8,14 +8,20 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.BaseCleanableAdapter
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
@@ -23,16 +29,21 @@ import com.example.barberlink.databinding.ItemListSelectCapsterAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutCapsterSelectedBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 class ItemListCapsterAdapter(
     private val itemClicked: OnItemClicked,
     private val lifecycleOwner: LifecycleOwner
-) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+) :
+    BaseCleanableAdapter,
+    ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
+    // ---------- Weak References ----------
+    private val itemClickRef = WeakReference(itemClicked)
+    private val lifecycleOwnerRef = WeakReference(lifecycleOwner)
+    private var recyclerViewRef: WeakReference<RecyclerView>? = null
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 4
-    private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var isOnline = false
 
@@ -40,22 +51,28 @@ class ItemListCapsterAdapter(
         fun onItemClickListener(userEmployeeData: UserEmployeeData, rootView: View)
     }
 
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
+    init {
+        lifecycleOwnerRef.get()?.let { owner ->
+            owner.lifecycleScope.launch {
+                owner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    NetworkMonitor.isOnline.collect { status ->
+                        isOnline = status
+                        notifyDataSetChanged()
+                    }
+                }
             }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
         }
     }
 
-    init {
-        lifecycleOwner.lifecycleScope.launch {
-            NetworkMonitor.isOnline.collect { status ->
-                isOnline = status
-                notifyDataSetChanged()
-            }
-        }
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        recyclerViewRef = WeakReference(recyclerView)
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -64,9 +81,6 @@ class ItemListCapsterAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        if (recyclerView == null) {
-            recyclerView = parent as RecyclerView
-        }
         return if (viewType == VIEW_TYPE_SHIMMER) {
             val shimmerBinding = ShimmerLayoutCapsterSelectedBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
@@ -80,7 +94,6 @@ class ItemListCapsterAdapter(
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val employee = getItem(position)
             (holder as ItemViewHolder).bind(employee)
-
             holder.checkOverlap()
         } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
             // Call bind for ShimmerViewHolder
@@ -95,7 +108,8 @@ class ItemListCapsterAdapter(
     fun setShimmer(shimmer: Boolean) {
         if (isShimmer == shimmer) return
 
-        val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+        val rv = recyclerViewRef?.get()
+        val layoutManager = rv?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
@@ -105,28 +119,38 @@ class ItemListCapsterAdapter(
         }
 
         isShimmer = shimmer
+        // saat shimmer ON → jangan clear (biarkan shimmerViewHolder collect data)
+        if (!shimmer) {
+            // saat shimmer OFF (tampilkan data real)
+            shimmerViewList.forEach { it.stopShimmer() }
+            shimmerViewList.clear()
+        }
+        // ⬇️ ini yang benar: mode tampilan berubah total
         notifyDataSetChanged()
 
-        recyclerView?.post {
-            val itemCount = recyclerView?.adapter?.itemCount ?: 0
+        rv?.post {
+            val layoutManager2 = recyclerViewRef?.get()?.layoutManager as? LinearLayoutManager ?: return@post
+            val itemCount = recyclerViewRef?.get()?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
+                Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
+                Log.d("RecyclerView", "86: shimmer employee off")
                 lastScrollPosition
             }
 
             // Validasi posisi target
             if (positionToScroll in 0 until itemCount) {
-                layoutManager?.scrollToPosition(positionToScroll)
+                Log.e("RecyclerView", "Target position: $positionToScroll")
+                layoutManager2.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
-
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutCapsterSelectedBinding) :
+    inner class ShimmerViewHolder(val binding: ShimmerLayoutCapsterSelectedBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(userEmployeeData: UserEmployeeData) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -136,12 +160,12 @@ class ItemListCapsterAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListSelectCapsterAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    inner class ItemViewHolder(val binding: ItemListSelectCapsterAdapterBinding) :
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(userEmployeeData: UserEmployeeData) {
             val reviewCount = 2134
-            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+            // if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
                 tvWaitingListLabel.isSelected = true
@@ -179,11 +203,11 @@ class ItemListCapsterAdapter(
                         return@setOnClickListener
                     }
 
-                    itemClicked.onItemClickListener(userEmployeeData, root)
+                    itemClickRef.get()?.onItemClickListener(userEmployeeData, root)
                 }
 
 //                llStatusBooking.setOnClickListener {
-//                    itemClicked.onItemClickListener(employee, root)
+//                    itemClickRef.get()?.onItemClickListener(employee, root)
 //                }
             }
 
@@ -203,6 +227,13 @@ class ItemListCapsterAdapter(
                     // Ambil posisi dan ukuran llRestQueueFromCapster
                     binding.llRestQueueFromCapster.getGlobalVisibleRect(llRestQueueRect)
 
+                    // Konversi dp ke pixel
+                    val extra = (10 * binding.root.resources.displayMetrics.density).toInt()
+
+                    // Expand kedua rect supaya overlap lebih sensitif
+                    llRatingRect.inset(-extra, -extra)        // perbesar 5dp ke semua arah
+                    llRestQueueRect.inset(-extra, -extra)
+
                     // Periksa apakah kedua view tumpang tindih
                     val isOverlapping = Rect.intersects(llRatingRect, llRestQueueRect)
 
@@ -213,11 +244,15 @@ class ItemListCapsterAdapter(
                         binding.tvRating.visibility = View.VISIBLE
                     }
 
-                    Log.d("CheckingOverlap", "isOverlapping: $isOverlapping")
+                    Log.d(
+                        "CheckingOverlap",
+                        "isOverlapping: $isOverlapping || llRatingRect: $llRatingRect || llRestQueueRect: $llRestQueueRect"
+                    )
 
                     // Hapus listener untuk mencegah multiple calls
                     binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 }
+
             })
         }
 
@@ -350,6 +385,47 @@ class ItemListCapsterAdapter(
 //            }
 //        }
 
+        override fun clear() {
+            Glide.with(binding.root.context).clear(binding.ivPhotoProfile)
+            binding.ivPhotoProfile.setImageDrawable(null)
+        }
+
+    }
+
+    override fun cleanUp() {
+        // Stop shimmer & release reference
+        shimmerViewList.forEach { view ->
+            view.stopShimmer()
+            view.setShimmer(null)
+        }
+        shimmerViewList.clear()
+
+        // Clean visible ViewHolder resources (Glide)
+        recyclerViewRef?.get()?.children?.forEach { child ->
+            val holder = recyclerViewRef?.get()?.getChildViewHolder(child)
+            if (holder is CleanableViewHolder) holder.clear()
+        }
+
+        // Clear list so adapter releases references
+        submitList(null)
+
+        // Release all references
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+
+        // Release event/callback references
+        itemClickRef.clear()
+        lifecycleOwnerRef.clear()
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is ShimmerViewHolder) {
+            holder.binding.shimmerViewContainer.stopShimmer()
+            shimmerViewList.remove(holder.binding.shimmerViewContainer)
+        } else if (holder is CleanableViewHolder) {
+            holder.clear()
+        }
     }
 
     companion object {

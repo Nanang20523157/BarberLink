@@ -456,6 +456,7 @@
     <string name="text_content_fee_capster_fragment"><![CDATA[Pesanan saat ini menggunakan <font color="#000000"><b>nominal fee capster milik %1$s</b></font>, apakah anda ingin tetap menggunakan format bagi hasil ini? ataukah Anda ingin menyesuaikannya dengan <font color="#000000"><b>nominal fee capster milik Anda sendiri?</b></font>]]></string>
     <!-- Spanned text-->
     <string name="hey_dear"><![CDATA[\" Hay, Dear <font color="#ffffff">%1$s</font> \"]]></string>
+    <string name="hey_dear_admin">" Hay, Dear <font color="#ffffff">Admin!!</font></string>
     <string name="hey_dear_example">\" Hay, Dear Owner! \"</string>
     <!-- Spanned text-->
     <string name="estimation_price_change"><![CDATA[\<b>Estimasi Perubahan Harga:</b>]]></string>

@@ -20,7 +20,6 @@ class ItemListPackageBundlingAdapter(
     private val callbackToast: DisplayThisToastMessage,
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var isShimmer = true
     private val shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null

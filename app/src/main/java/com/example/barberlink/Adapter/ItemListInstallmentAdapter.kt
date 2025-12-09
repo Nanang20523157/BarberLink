@@ -18,6 +18,10 @@ class ItemListInstallmentAdapter(
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
 
+    override fun getItemViewType(position: Int): Int {
+        return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         if (recyclerView == null) {

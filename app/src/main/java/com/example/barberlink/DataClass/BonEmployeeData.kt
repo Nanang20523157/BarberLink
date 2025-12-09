@@ -18,7 +18,7 @@ data class BonEmployeeData(
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:PropertyName("data_creator") @set:PropertyName("data_creator") var dataCreator: @RawValue DataCreator<UserData>? = null,
-    @get:Exclude @set:Exclude var itemPosition: Int = -1,
+    @get:Exclude @set:Exclude var isDeleteLastPosition: Boolean = false,
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
     @get:Exclude

@@ -5,47 +5,51 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.view.children
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.Helper.CleanableViewHolder
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListPackageBookingAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPackageBundlingBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import java.lang.ref.WeakReference
 
 class ItemListPackageBookingAdapter(
     private val itemClicked: OnItemClicked,
     private val disableCounting: Boolean,
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
+    // ---- WEAK REFERENCES (prevent long-life reference) ----
+    private val itemClickRef = WeakReference(itemClicked)
+    private var recyclerViewRef: WeakReference<RecyclerView>? = null
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
-
     private var capsterRef: String = ""
     private var isShimmer = true
     private val shimmerItemCount = 3
-    private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
+
+    interface OnItemClicked {
+        fun onItemClickListener(bundlingPackage: BundlingPackage, addCount: Boolean)
+
+    }
 
     fun setCapsterRef(capsterRef: String) {
         Log.d("ScanAll", "A3")
         this.capsterRef = capsterRef
     }
 
-    interface OnItemClicked {
-        fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean)
-
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef = WeakReference(recyclerView)
     }
 
-    fun stopAllShimmerEffects() {
-        if (shimmerViewList.isNotEmpty()) {
-            shimmerViewList.forEach {
-                it.stopShimmer()
-            }
-            shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
-        }
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -56,9 +60,6 @@ class ItemListPackageBookingAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         Log.d("ScanAll", "C3")
         val inflater = LayoutInflater.from(parent.context)
-        if (recyclerView == null) {
-            recyclerView = parent as RecyclerView
-        }
         return if (viewType == VIEW_TYPE_SHIMMER) {
             val shimmerBinding = ShimmerLayoutPackageBundlingBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
@@ -85,10 +86,10 @@ class ItemListPackageBookingAdapter(
     }
 
     fun setShimmer(shimmer: Boolean) {
-        Log.d("ScanAll", "F3")
         if (isShimmer == shimmer) return
 
-        val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
+        val rv = recyclerViewRef?.get()
+        val layoutManager = rv?.layoutManager as? LinearLayoutManager
         if (!isShimmer) {
             // Save the current scroll position before switching to shimmer
             lastScrollPosition = layoutManager?.findFirstCompletelyVisibleItemPosition() ?: 0
@@ -98,28 +99,38 @@ class ItemListPackageBookingAdapter(
         }
 
         isShimmer = shimmer
+        // saat shimmer ON → jangan clear (biarkan shimmerViewHolder collect data)
+        if (!shimmer) {
+            // saat shimmer OFF (tampilkan data real)
+            shimmerViewList.forEach { it.stopShimmer() }
+            shimmerViewList.clear()
+        }
+        // ⬇️ ini yang benar: mode tampilan berubah total
         notifyDataSetChanged()
 
-        recyclerView?.post {
-            val itemCount = recyclerView?.adapter?.itemCount ?: 0
+        rv?.post {
+            val layoutManager2 = recyclerViewRef?.get()?.layoutManager as? LinearLayoutManager ?: return@post
+            val itemCount = recyclerViewRef?.get()?.adapter?.itemCount ?: 0
             val positionToScroll = if (isShimmer) {
+                Log.d("RecyclerView", "83: shimmer employee on")
                 minOf(lastScrollPosition, shimmerItemCount - 1)
             } else {
+                Log.d("RecyclerView", "86: shimmer employee off")
                 lastScrollPosition
             }
 
             // Validasi posisi target
             if (positionToScroll in 0 until itemCount) {
-                layoutManager?.scrollToPosition(positionToScroll)
+                Log.e("RecyclerView", "Target position: $positionToScroll")
+                layoutManager2.scrollToPosition(positionToScroll)
             } else {
                 // Log untuk debugging
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
-
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutPackageBundlingBinding) :
+    inner class ShimmerViewHolder(val binding: ShimmerLayoutPackageBundlingBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(packageBundling: BundlingPackage) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -129,11 +140,11 @@ class ItemListPackageBookingAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListPackageBookingAdapterBinding) :
-        RecyclerView.ViewHolder(binding.root) {
+    inner class ItemViewHolder(val binding: ItemListPackageBookingAdapterBinding) :
+        RecyclerView.ViewHolder(binding.root), CleanableViewHolder {
 
         fun bind(packageBundling: BundlingPackage) {
-            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+            // if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
             Log.d("ScanAll", "G3")
             with (binding) {
                 tvPackageTitle.isSelected = true
@@ -150,24 +161,27 @@ class ItemListPackageBookingAdapter(
                 btnDefault.visibility = if (packageBundling.defaultItem) View.VISIBLE else View.GONE
 
                 btnSelectOrder.setOnClickListener {
-                    packageBundling.bundlingQuantity = 1
-                    notifyItemChanged(adapterPosition)
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true)
+                    val updatedBundling = packageBundling.copy(
+                        bundlingQuantity = 1
+                    )
+                    itemClickRef.get()?.onItemClickListener(updatedBundling, addCount = true)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
-                    packageBundling.bundlingQuantity++
-                    notifyItemChanged(adapterPosition)
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true)
+                    val updatedBundling = packageBundling.copy(
+                        bundlingQuantity = packageBundling.bundlingQuantity + 1
+                    )
+                    itemClickRef.get()?.onItemClickListener(updatedBundling, addCount = true)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
                 minusButton.setOnClickListener {
                     if (packageBundling.bundlingQuantity > 0) {
-                        packageBundling.bundlingQuantity--
-                        notifyItemChanged(adapterPosition)
-                        itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = false)
+                        val updatedBundling = packageBundling.copy(
+                            bundlingQuantity = packageBundling.bundlingQuantity - 1
+                        )
+                        itemClickRef.get()?.onItemClickListener(updatedBundling, addCount = false)
                     }
                 }
 
@@ -231,6 +245,55 @@ class ItemListPackageBookingAdapter(
 
 
         }
+
+        override fun clear() {
+            Log.d("ScanAll", "H3")
+            with (binding) {
+                Glide.with(root.context).clear(ivImageOne)
+                Glide.with(root.context).clear(ivImageTwo)
+                Glide.with(root.context).clear(ivImageThree)
+                Glide.with(root.context).clear(ivImageFour)
+                ivImageOne.setImageDrawable(null)
+                ivImageTwo.setImageDrawable(null)
+                ivImageThree.setImageDrawable(null)
+                ivImageFour.setImageDrawable(null)
+            }
+        }
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is ShimmerViewHolder) {
+            holder.binding.shimmerViewContainer.stopShimmer()
+            shimmerViewList.remove(holder.binding.shimmerViewContainer)
+        } else if (holder is CleanableViewHolder) {
+            holder.clear()
+        }
+    }
+
+    fun cleanUp() {
+        // Hentikan semua shimmer yang masih jalan
+        shimmerViewList.forEach { shimmer ->
+            shimmer.stopShimmer()
+            shimmer.setShimmer(null)
+        }
+        shimmerViewList.clear()
+
+        // Bersihkan semua image di ViewHolder yang masih tampak
+        recyclerViewRef?.get()?.children?.forEach { child ->
+            val holder = recyclerViewRef?.get()?.getChildViewHolder(child)
+            if (holder is CleanableViewHolder) holder.clear()
+        }
+
+        // Putuskan referensi daftar (menghindari buffer diffutil stale reference)
+        submitList(null)
+
+        // Clear semua reference
+        recyclerViewRef?.clear()
+        recyclerViewRef = null
+
+        // Release event/callback references
+        itemClickRef.clear()
     }
 
     companion object {

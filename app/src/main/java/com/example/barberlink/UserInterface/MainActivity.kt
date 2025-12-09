@@ -15,6 +15,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -31,6 +32,9 @@ import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
 import com.example.barberlink.databinding.ActivityMainBinding
 import com.google.android.material.navigation.NavigationView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : BaseActivity(), DrawerController
 //    , BerandaAdminFragment.SetDialogCapitalStatus
@@ -161,20 +165,22 @@ class MainActivity : BaseActivity(), DrawerController
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@MainActivity,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
+    private suspend fun showToast(message: String) {
+        withContext(Dispatchers.Main) {
+            if (message != currentToastMessage) {
+                myCurrentToast?.cancel()
+                myCurrentToast = Toast.makeText(
+                    this@MainActivity,
+                    message ,
+                    Toast.LENGTH_SHORT
+                )
+                currentToastMessage = message
+                myCurrentToast?.show()
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (currentToastMessage == message) currentToastMessage = null
+                }, 2000)
+            }
         }
     }
 
@@ -221,7 +227,11 @@ class MainActivity : BaseActivity(), DrawerController
                     }
                 }
                 else -> {
-                    { showToast("${menuItem.title} - This feature is under development") }
+                    {
+                        lifecycleScope.launch {
+                            showToast("${menuItem.title} - This feature is under development")
+                        }
+                    }
                 }
             }
 
@@ -311,20 +321,6 @@ class MainActivity : BaseActivity(), DrawerController
         currentView?.isClickable = true
     }
 
-    override fun onStop() {
-        super.onStop()
-        if (isChangingConfigurations) {
-            return // Jangan hapus data jika hanya orientasi yang berubah
-        }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    fun getBackToPreviousPage() {
-        onBackPressed()
-    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
@@ -340,6 +336,20 @@ class MainActivity : BaseActivity(), DrawerController
 //            finish()
 //        }
 //        Log.d("BackNavigationHome", "Back")
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+        myCurrentToast?.cancel()
+        currentToastMessage = null
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun getBackToPreviousPage() {
+        onBackPressed()
     }
 
     companion object{

@@ -13,7 +13,8 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListExpandQueueAdapter
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
+import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.databinding.FragmentListQueueBinding
@@ -107,7 +108,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         queueAdapter = ItemListExpandQueueAdapter(object : ItemListExpandQueueAdapter.OnItemClicked {
-            override fun onItemClickListener(reservation: Reservation, rootView: View, position: Int) {
+            override fun onItemClickListener(reservationData: ReservationData, rootView: View, position: Int) {
                 // Handle onItemClickListener
             }
         })
@@ -142,7 +143,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
             }
         }
 
-        listQueueViewModel.reservationList.observe(viewLifecycleOwner) { reservations ->
+        listQueueViewModel.reservationDataList.observe(viewLifecycleOwner) { reservations ->
             // Menggunakan coroutine untuk menunda eksekusi submitList
             reservations?.let {
                 lifecycleScope.launch {
@@ -198,9 +199,13 @@ class ListQueueFragment : BottomSheetDialogFragment() {
     }
 
     override fun onDestroyView() {
-        super.onDestroyView()
-        queueAdapter.stopAllShimmerEffects()
+        val adapter = binding.rvListQueue.adapter
+        if (adapter is BaseCleanableAdapter) adapter.cleanUp()
+        binding.rvListQueue.adapter = null
+        binding.rvListQueue.layoutManager = null
         _binding = null
+
+        super.onDestroyView()
     }
 
     companion object {
@@ -214,10 +219,10 @@ class ListQueueFragment : BottomSheetDialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(listReservation: ArrayList<Reservation>, currentIndex: Int) =
+        fun newInstance(listReservationData: ArrayList<ReservationData>, currentIndex: Int) =
             ListQueueFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelableArrayList(ARG_PARAM1, listReservation)
+                    putParcelableArrayList(ARG_PARAM1, listReservationData)
                     putInt(ARG_PARAM2, currentIndex)
                 }
             }
