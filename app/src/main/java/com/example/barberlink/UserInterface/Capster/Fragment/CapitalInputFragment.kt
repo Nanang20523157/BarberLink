@@ -165,6 +165,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             capitalFragmentViewModel.setupDropdownFilterWithNullState()
+        } else {
+            capitalFragmentViewModel.setupDropdownWithInitialState()
         }
 //        arguments?.let {
 //            outletList = it.getParcelableArrayList(ARG_PARAM1)
@@ -423,33 +425,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun setupCapitalInputValue(number: Int) {
-        with(binding) {
-            when (number) {
-                100000 -> {
-                    //selectCardView(cd100000, tv100000, 100000)
-                    capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
-                }
-                150000 -> {
-                    //selectCardView(cd150000, tv150000, 150000)
-                    capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
-                }
-                200000 -> {
-                    //selectCardView(cd200000, tv200000, 200000)
-                    capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
-                }
-                -777 -> {
-                    //selectCardView(null, null, -999)
-                    capitalFragmentViewModel.saveSelectedCard(-999, -999, -777)
-                }
-                else -> {
-                    //selectCardView(null, null, number)
-                    capitalFragmentViewModel.saveSelectedCard(null, null, number)
-                }
-            }
-        }
-    }
-
     private fun setDateFilterValue(timestamp: Timestamp) {
         timeStampFilter = timestamp
         // Mendapatkan waktu mulai dan akhir hari ini berdasarkan timeStampFilter
@@ -546,7 +521,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                         if (textDropdownOutletName == "---") {
                             capitalListener.remove()
                             dataOutletListener.remove()
-                            // selectCardView(null, null, -999)
+                            //selectCardView(null, null, -999)
                             capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
                         } else {
                             listenToDailyCapital()
@@ -579,7 +554,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                         if (textDropdownOutletName == "---") {
                             capitalListener.remove()
                             dataOutletListener.remove()
-                            // selectCardView(null, null, -999)
+                            //selectCardView(null, null, -999)
                             capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
                         }
                     } else {
@@ -600,6 +575,210 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 }
             }
         }
+    }
+
+    private fun getDailyCapital() {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.uid == "---") {
+                Log.d("SnapshotUID", "No outlet selected, skipping daily capital retrieval")
+                displayDailyCapitalValue(null)
+                return
+            }
+
+            db.document(outletSelected.rootRef)
+                .collection("daily_capital")
+                .where(
+                    Filter.and(
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
+                        Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
+                        Filter.lessThan("timestamp_created", startOfNextDay)
+                    )
+                ).get()
+                .addOnSuccessListener { querySnapshot ->
+                    Log.d("SnapshotUID", "GETTING DATA SUCCESSFUL")
+                    querySnapshot?.documents?.forEach { document ->
+                        val uid = document.getString("uid") // Mengambil field "uid" dari dokumen
+                        Log.d("SnapshotUID", "UID FROM GETTING: $uid")
+                    }
+
+                    val dailyCapital = querySnapshot.documents.firstOrNull()?.toObject(DailyCapital::class.java)
+                    displayDailyCapitalValue(dailyCapital)
+                }
+                .addOnFailureListener { exception ->
+                    Log.d("SnapshotUID", "GETTING DATA FAILED")
+                    displayDailyCapitalValue(null)
+                    showToast("Error getting document: ${exception.message}")
+                }
+        }
+    }
+
+    private fun setupListeners(skippedProcess: Boolean = false) {
+        this.skippedProcess = skippedProcess
+        if (skippedProcess) remainingListeners.set(2)
+        Log.d("CheckDialog", "textDropdownOutletName: $textDropdownOutletName, isFirstLoad: $isFirstLoad")
+        if (textDropdownOutletName != "---") listenSpecificOutletData()
+        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        if (textDropdownOutletName != "---") listenToDailyCapital()
+        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+
+        // Tambahkan logika sinkronisasi di sini
+        lifecycleScope.launch {
+            while (remainingListeners.get() > 0) {
+                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
+            }
+            this@CapitalInputFragment.isFirstLoad = false
+            this@CapitalInputFragment.skippedProcess = false
+            Log.d("FirstLoopEdited", "First Load QCP = false")
+        }
+    }
+
+    private fun listenSpecificOutletData() {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            // Hapus listener jika sudah terinisialisasi
+            if (::dataOutletListener.isInitialized) {
+                dataOutletListener.remove()
+            }
+            var decrementGlobalListener = false
+
+            dataOutletListener = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}")
+                .addSnapshotListener { documents, exception ->
+                    Log.d("CheckDialog", "addSnapshotListener listenSpecificOutletData")
+                    exception?.let {
+                        showToast("Error getting outlet document: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        val metadata = it.metadata
+
+                        if (!isFirstLoad && !skippedProcess && it.exists()) {
+                            val dataOutlet = it.toObject(Outlet::class.java)
+                            dataOutlet?.apply {
+                                // Assign the document reference path to outletReference
+                                outletReference = it.reference.path
+                            }
+                            dataOutlet?.let { outlet ->
+                                capitalFragmentViewModel.setOutletSelected(outlet)
+                            }
+
+                            if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                                showLocalToast()
+                            }
+                            isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                        }
+
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun listenToDailyCapital() {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            if (::capitalListener.isInitialized) {
+                capitalListener.remove()
+            }
+            var decrementGlobalListener = false
+
+            capitalListener = db.document(outletSelected.rootRef)
+                .collection("daily_capital")
+                .where(
+                    Filter.and(
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
+                        Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
+                        Filter.lessThan("timestamp_created", startOfNextDay)
+                    )
+                )
+                .addSnapshotListener { documents, exception ->
+                    Log.d("CheckDialog", "addSnapshotListener listenToDailyCapital")
+                    exception?.let {
+                        showToast("Error listening to daily capital data: ${exception.message}")
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
+                        }
+                        return@addSnapshotListener
+                    }
+                    documents?.let {
+                        val metadata = it.metadata
+
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            if (!isFirstLoad && !skippedProcess) {
+                                if (documents.isEmpty) {
+                                    Log.d("SnapshotUID", "No data found in snapshot")
+                                    displayDailyCapitalValue(null)
+                                } else {
+                                    val firstDocument = it.documents.firstOrNull()
+                                    Log.d("SnapshotUID", "Listening successful: ${it.size()} items")
+                                    val uid = firstDocument?.getString("uid")
+                                    Log.d("SnapshotUID", "UID from first document: $uid")
+
+                                    val dailyCapital = firstDocument?.toObject(DailyCapital::class.java)
+                                    displayDailyCapitalValue(dailyCapital)
+                                }
+
+                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
+                                    showLocalToast()
+                                }
+                                isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun displayDailyCapitalValue(capitalData: DailyCapital?) {
+        if (_binding == null) return
+        if (textDropdownOutletName != "---") {
+            val inputCapital = binding.etDailyCapital.text.toString()
+            val capitalText = if (capitalData != null) {
+                uidDailyCapital = capitalData.uid
+                setUserIdentity(capitalData)
+                "Catatan Modal Harian: Rp ${format.format(capitalData.outletCapital)}"
+            } else {
+                uidDailyCapital = ""
+                setUserIdentity(null)
+                "Catatan Modal Harian: (Tidak Tersedia)"
+            }
+
+            if (!isInSaveProcess) {
+                showToast(capitalText)
+                setupCapitalInputValue(capitalData?.outletCapital ?: 0)
+            } else {
+                isInSaveProcess = false
+            }
+
+            // inputCapital >> before
+            // dailyCapitalString >> after
+            if (dailyCapitalString != inputCapital && !isFirstLoad) {
+                handler.postDelayed({
+                    if (isAdded) {
+                        capitalFragmentViewModel.showInputSnackBar(
+                            inputCapital,
+                            getString(R.string.rollback_value, inputCapital)
+                        )
+                    }
+                }, 1000)
+            }
+        } else {
+            //selectCardView(null, null, -999)
+            capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
+        }
+
+        isOrientationChanged = false
+        if (isFirstLoad) setupListeners()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -695,6 +874,33 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     // Fungsi helper untuk mengonversi dp ke px
     private fun Int.dpToPx(context: Context): Int {
         return (this * context.resources.displayMetrics.density).toInt()
+    }
+
+    private fun setupCapitalInputValue(number: Int) {
+        with(binding) {
+            when (number) {
+                100000 -> {
+                    //selectCardView(cd100000, tv100000, 100000)
+                    capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
+                }
+                150000 -> {
+                    //selectCardView(cd150000, tv150000, 150000)
+                    capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
+                }
+                200000 -> {
+                    //selectCardView(cd200000, tv200000, 200000)
+                    capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
+                }
+                -777 -> {
+                    //selectCardView(null, null, -999)
+                    capitalFragmentViewModel.saveSelectedCard(-999, -999, -777)
+                }
+                else -> {
+                    //selectCardView(null, null, number)
+                    capitalFragmentViewModel.saveSelectedCard(null, null, number)
+                }
+            }
+        }
     }
 
     private fun saveDailyCapital(capitalAmount: Int) {
@@ -913,6 +1119,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 clearFocus(etDailyCapital)
                 false
             } else if (capitalAmount.isEmpty()) {
+                // gak pakek  || capitalAmount == "0"
                 textErrorForCapitalAmount = getString(R.string.daily_capital_cannot_be_empty)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
@@ -945,208 +1152,17 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun getDailyCapital() {
-        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.uid == "---") {
-                Log.d("SnapshotUID", "No outlet selected, skipping daily capital retrieval")
-                displayDailyCapitalValue(null)
-                return
-            }
-
-            db.document(outletSelected.rootRef)
-                .collection("daily_capital")
-                .where(
-                    Filter.and(
-                        Filter.equalTo("outlet_identifier", outletSelected.uid),
-                        Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
-                        Filter.lessThan("timestamp_created", startOfNextDay)
-                    )
-                ).get()
-                .addOnSuccessListener { querySnapshot ->
-                    Log.d("SnapshotUID", "GETTING DATA SUCCESSFUL")
-                    querySnapshot?.documents?.forEach { document ->
-                        val uid = document.getString("uid") // Mengambil field "uid" dari dokumen
-                        Log.d("SnapshotUID", "UID FROM GETTING: $uid")
-                    }
-
-                    val dailyCapital = querySnapshot.documents.firstOrNull()?.toObject(DailyCapital::class.java)
-                    displayDailyCapitalValue(dailyCapital)
-                }
-                .addOnFailureListener { exception ->
-                    Log.d("SnapshotUID", "GETTING DATA FAILED")
-                    displayDailyCapitalValue(null)
-                    showToast("Error getting document: ${exception.message}")
-                }
-        }
+    private fun setFocus(editText: View) {
+        editText.requestFocus()
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun setupListeners(skippedProcess: Boolean = false) {
-        this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(2)
-        Log.d("CheckDialog", "textDropdownOutletName: $textDropdownOutletName, isFirstLoad: $isFirstLoad")
-        if (textDropdownOutletName != "---") listenSpecificOutletData()
-        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-        if (textDropdownOutletName != "---") listenToDailyCapital()
-        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+    private fun clearFocus(editText: View) {
+        editText.clearFocus() // Menghapus fokus dari EditText
 
-        // Tambahkan logika sinkronisasi di sini
-        lifecycleScope.launch {
-            while (remainingListeners.get() > 0) {
-                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
-            }
-            this@CapitalInputFragment.isFirstLoad = false
-            this@CapitalInputFragment.skippedProcess = false
-            Log.d("FirstLoopEdited", "First Load QCP = false")
-        }
-    }
-
-    private fun listenSpecificOutletData() {
-        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
-            // Hapus listener jika sudah terinisialisasi
-            if (::dataOutletListener.isInitialized) {
-                dataOutletListener.remove()
-            }
-            var decrementGlobalListener = false
-
-            dataOutletListener = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}")
-                .addSnapshotListener { documents, exception ->
-                    Log.d("CheckDialog", "addSnapshotListener listenSpecificOutletData")
-                    exception?.let {
-                        showToast("Error getting outlet document: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        if (!isFirstLoad && !skippedProcess && it.exists()) {
-                            val dataOutlet = it.toObject(Outlet::class.java)
-                            dataOutlet?.apply {
-                                // Assign the document reference path to outletReference
-                                outletReference = it.reference.path
-                            }
-                            dataOutlet?.let { outlet ->
-                                capitalFragmentViewModel.setOutletSelected(outlet)
-                            }
-
-                            if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                showLocalToast()
-                            }
-                            isProcessUpdatingData = false // Reset flag setelah menampilkan toast
-                        }
-
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                    }
-                }
-        }
-    }
-
-    private fun listenToDailyCapital() {
-        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
-            if (::capitalListener.isInitialized) {
-                capitalListener.remove()
-            }
-            var decrementGlobalListener = false
-
-            capitalListener = db.document(outletSelected.rootRef)
-                .collection("daily_capital")
-                .where(
-                    Filter.and(
-                        Filter.equalTo("outlet_identifier", outletSelected.uid),
-                        Filter.greaterThanOrEqualTo("timestamp_created", startOfDay),
-                        Filter.lessThan("timestamp_created", startOfNextDay)
-                    )
-                )
-                .addSnapshotListener { documents, exception ->
-                    Log.d("CheckDialog", "addSnapshotListener listenToDailyCapital")
-                    exception?.let {
-                        showToast("Error listening to daily capital data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        lifecycleScope.launch(Dispatchers.Main) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                if (documents.isEmpty) {
-                                    Log.d("SnapshotUID", "No data found in snapshot")
-                                    displayDailyCapitalValue(null)
-                                } else {
-                                    val firstDocument = it.documents.firstOrNull()
-                                    Log.d("SnapshotUID", "Listening successful: ${it.size()} items")
-                                    val uid = firstDocument?.getString("uid")
-                                    Log.d("SnapshotUID", "UID from first document: $uid")
-
-                                    val dailyCapital = firstDocument?.toObject(DailyCapital::class.java)
-                                    displayDailyCapitalValue(dailyCapital)
-                                }
-
-                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                    showLocalToast()
-                                }
-                                isProcessUpdatingData = false // Reset flag setelah menampilkan toast
-                            }
-
-                            if (!decrementGlobalListener) {
-                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                                decrementGlobalListener = true
-                            }
-                        }
-                    }
-                }
-        }
-    }
-
-    private fun displayDailyCapitalValue(capitalData: DailyCapital?) {
-        if (_binding == null) return
-        if (textDropdownOutletName != "---") {
-            val inputCapital = binding.etDailyCapital.text.toString()
-            val capitalText = if (capitalData != null) {
-                uidDailyCapital = capitalData.uid
-                setUserIdentity(capitalData)
-                "Catatan Modal Harian: Rp ${format.format(capitalData.outletCapital)}"
-            } else {
-                uidDailyCapital = ""
-                setUserIdentity(null)
-                "Catatan Modal Harian: (Tidak Tersedia)"
-            }
-
-            if (!isInSaveProcess) {
-                showToast(capitalText)
-                setupCapitalInputValue(capitalData?.outletCapital ?: 0)
-            } else {
-                isInSaveProcess = false
-            }
-
-            // inputCapital >> before
-            // dailyCapitalString >> after
-            if (dailyCapitalString != inputCapital && !isFirstLoad) {
-                handler.postDelayed({
-                    if (isAdded) {
-                        capitalFragmentViewModel.showInputSnackBar(
-                            inputCapital,
-                            getString(R.string.rollback_value, inputCapital)
-                        )
-                    }
-                }, 1000)
-            }
-        } else {
-            //selectCardView(null, null, -999)
-            capitalFragmentViewModel.saveSelectedCard(-999, -999, -999)
-        }
-
-        isOrientationChanged = false
-        if (isFirstLoad) setupListeners()
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0) // Menutup keyboard
     }
 
     private fun selectCardView(cardView: CardView?, textView: TextView?, value: Int?) {
@@ -1206,20 +1222,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             btnSave.setTextColor(resources.getColor(R.color.green_lime_wf))
         }
     }
-
-    private fun setFocus(editText: View) {
-        editText.requestFocus()
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
-    }
-
-    private fun clearFocus(editText: View) {
-        editText.clearFocus() // Menghapus fokus dari EditText
-
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText.windowToken, 0) // Menutup keyboard
-    }
-
 
     private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
         v.isClickable = false

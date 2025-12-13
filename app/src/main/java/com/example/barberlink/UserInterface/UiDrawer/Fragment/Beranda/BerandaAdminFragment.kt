@@ -854,7 +854,11 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                                     }
                                     UserEmployeeData::class.java -> berandaAdminViewModel.setEmployeeList(items as List<UserEmployeeData>)
                                     Product::class.java -> berandaAdminViewModel.setProductList(items as List<Product>)
-                                    Outlet::class.java -> berandaAdminViewModel.setOutletList(items as List<Outlet>, setupDropdown = true, isSavedInstanceStateNull = true)
+                                    Outlet::class.java -> berandaAdminViewModel.setOutletList(
+                                        items as List<Outlet>,
+                                        setupDropdown = null,
+                                        isSavedInstanceStateNull = null
+                                    )
                                 }
                             }
 

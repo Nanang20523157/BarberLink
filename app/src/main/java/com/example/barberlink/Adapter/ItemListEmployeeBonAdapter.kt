@@ -308,7 +308,7 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData, adapterPosition, "canceled")
+                    updateBonStatus(bonData,  "canceled")
                 }
 
                 btnReSubmit.setOnClickListener {
@@ -318,7 +318,7 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData, adapterPosition, "waiting")
+                    updateBonStatus(bonData,  "waiting")
                 }
 
                 btnDelete.setOnClickListener {
@@ -328,7 +328,9 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    deleteBonItem(bonData, adapterPosition)
+                    val isLastItem = position == currentList.lastIndex
+
+                    deleteBonItem(bonData, isLastItem)
                 }
 
                 btnEdit.setOnClickListener {
@@ -358,44 +360,44 @@ class ItemListEmployeeBonAdapter(
 
         }
 
-    }
+        private fun updateBonStatus(bonData: BonEmployeeData, newStatus: String) {
+            activity.showProgressBar(true) // Nyalakan progress bar
 
-    private fun updateBonStatus(bonData: BonEmployeeData, position: Int, newStatus: String) {
-        activity.showProgressBar(true) // Nyalakan progress bar
+            val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
 
-        val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
+            bonRef.update("bon_status", newStatus)
+                .addOnSuccessListener {
+                    callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
+                }
+                .addOnFailureListener { e ->
+                    callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
+                    callbackToast.displayThisToast("Gagal memperbarui status: ${e.message}")
+                }
+                .addOnCompleteListener {
+                    activity.showProgressBar(false) // Matikan progress bar setelah selesai
+                }
+        }
 
-        bonRef.update("bon_status", newStatus)
-            .addOnSuccessListener {
-                callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
-            }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
-                callbackToast.displayThisToast("Gagal memperbarui status: ${e.message}")
-            }
-            .addOnCompleteListener {
-                activity.showProgressBar(false) // Matikan progress bar setelah selesai
-            }
-    }
+        private fun deleteBonItem(bonData: BonEmployeeData, isLastPosition: Boolean) {
+            bonData.isDeleteLastPosition = isLastPosition
+            activity.showProgressBar(true) // Nyalakan progress bar
 
-    private fun deleteBonItem(bonData: BonEmployeeData, position: Int) {
-        bonData.itemPosition = position
-        activity.showProgressBar(true) // Nyalakan progress bar
+            val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
 
-        val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
+            bonRef.delete()
+                .addOnSuccessListener {
+                    callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
+                    viewModel.setDataBonDeleted(bonData, "Bon Pegawai Berhasil Dihapus")
+                }
+                .addOnFailureListener { e ->
+                    callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
+                    callbackToast.displayThisToast("Gagal menghapus data: ${e.message}")
+                }
+                .addOnCompleteListener {
+                    activity.showProgressBar(false) // Matikan progress bar setelah selesai
+                }
+        }
 
-        bonRef.delete()
-            .addOnSuccessListener {
-                callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
-                viewModel.setDataBonDeleted(bonData, "Bon Pegawai Berhasil Dihapus")
-            }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
-                callbackToast.displayThisToast("Gagal menghapus data: ${e.message}")
-            }
-            .addOnCompleteListener {
-                activity.showProgressBar(false) // Matikan progress bar setelah selesai
-            }
     }
 
     companion object {

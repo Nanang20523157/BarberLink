@@ -96,6 +96,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
 
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
+    private var isRestoreDeletedData: Boolean = false
     private var localToast: Toast? = null
     private var myCurrentToast: Toast? = null
 
@@ -168,6 +169,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             timeStampFilter = Timestamp(Date(savedInstanceState.getLong("timestamp_filter")))
             isSaveDataProcess = savedInstanceState.getBoolean("is_add_data_process", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
+            isRestoreDeletedData = savedInstanceState.getBoolean("is_restore_deleted_data", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         } else {
             @Suppress("DEPRECATION")
@@ -304,6 +306,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         outState.putLong("timestamp_filter", timeStampFilter.toDate().time)
         outState.putBoolean("is_add_data_process", isSaveDataProcess)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
+        outState.putBoolean("is_restore_deleted_data", isRestoreDeletedData)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -375,6 +378,23 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                 // Callback ini dipanggil setelah submitList selesai memproses dan menampilkan data
                 if (!isRecreated) showShimmer(false)
                 else showShimmer(isShimmerVisible)
+
+                if (isRestoreDeletedData && filteredListBon.last().uid == bonEmployeeViewModel.dataBonDelete.value?.uid) {
+                    binding.mainContent.post {
+                        // kayak size - 1
+                        val lastChild =
+                            binding.mainContent.getChildAt(binding.mainContent.childCount - 1)
+                        // panjang seluruh tampilan termasuk seluruh item yang tersembunyi - panjang item yang terlihat saat ini
+                        val targetY = lastChild.bottom - binding.mainContent.height
+                        // scroll untuk menampilkan item terakhir
+                        binding.mainContent.smoothScrollTo(0, targetY)
+                    }
+
+                    lifecycleScope.launch {
+                        bonEmployeeViewModel.setDataBonDeleted(null, "")
+                        isRestoreDeletedData = false
+                    }
+                }
             }
             binding.tvEmptyBON.visibility = if (filteredListBon.isEmpty()) View.VISIBLE else View.GONE
             Log.d("CheckScroll", "=======")
@@ -446,19 +466,9 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         bonReference?.document(bonData.uid)
             ?.set(bonData)
             ?.addOnSuccessListener {
-                showToast("Berhasil mengembalikan data bon pegawai!")
+                if (bonData.isDeleteLastPosition) isRestoreDeletedData = true
 
-                Log.d("CheckScroll", "size: ${bonEmployeeViewModel.employeeListBon.value?.size?.minus(1)} || poosition: ${bonData.itemPosition}")
-                if ((bonEmployeeViewModel.employeeListBon.value?.size?.minus(1)
-                        ?: -1) == bonData.itemPosition
-                ) {
-                    Log.d("CheckScroll", "01")
-                    binding.mainContent.post {
-                        val lastChild = binding.mainContent.getChildAt(binding.mainContent.childCount - 1)
-                        val targetY = lastChild.bottom - binding.mainContent.height
-                        binding.mainContent.smoothScrollTo(0, targetY)
-                    }
-                }
+                showToast("Berhasil mengembalikan data bon pegawai!")
             }
             ?.addOnFailureListener {
                 showToast("Gagal mengembalikan data bon pegawai!")
