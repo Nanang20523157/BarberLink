@@ -425,9 +425,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             val textId = formulirFragmentViewModel.selectedTextId.value
 
             if (cardId != null && textId != null && cardId != -999 && textId != -999) {
-                selectedCardView = view.findViewById(cardId)
-                selectedTextView = view.findViewById(textId)
-                selectCardView(selectedCardView, selectedTextView, amount)
+                val selectedCard: CardView = view.findViewById(cardId)
+                val selectedText: TextView = view.findViewById(textId)
+                selectCardView(selectedCard, selectedText, amount)
             } else {
                 selectCardView(null, null, amount)  // Jika tidak ada kartu yang dipilih
             }
@@ -483,52 +483,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             isOrientationChanged = false
         }
         Log.d("ChangeOriented", "Line 2: $isOrientationChanged")
-    }
-
-    private fun listenerEmployeeBon() {
-        bonEmployeeData.let { bonData ->
-            if (::employeeBonListener.isInitialized) {
-                employeeBonListener.remove()
-            }
-
-            if (bonData.rootRef.isEmpty()) {
-                employeeBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
-                isFirstLoad = false
-                return@let
-            }
-            val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
-
-            employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
-                lifecycleScope.launch {
-                    listenerEmployeeBonMutex.withLock {
-                        exception?.let {
-                            showToast("Error listening to employee bon data: ${it.message}")
-                            isFirstLoad = false
-                            return@withLock
-                        }
-                        documents?.let { docs ->
-                            Log.d("ChangeOriented", "Listener 3: $isOrientationChanged")
-                            if (!isFirstLoad && !isOrientationChanged) {
-                                if (docs.exists()) {
-                                    withContext(Dispatchers.Default) {
-                                        Log.d("ChangeOriented", "Listener 3: IF")
-                                        val bonData = docs.toObject(BonEmployeeData::class.java)
-                                        bonData?.let { bon ->
-                                            formulirFragmentViewModel.setBonEmployeeData(bon)
-                                        }
-                                    }
-                                }
-                            } else {
-                                Log.d("ChangeOriented", "Listener 3: ELSE")
-                                isFirstLoad = false
-                                Log.d("CheckPion", "isOrientationChanged = AA2")
-                                isOrientationChanged = false
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private fun setDateFilterValue(timestamp: Timestamp) {
@@ -631,6 +585,52 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
     }
 
+    private fun listenerEmployeeBon() {
+        bonEmployeeData.let { bonData ->
+            if (::employeeBonListener.isInitialized) {
+                employeeBonListener.remove()
+            }
+
+            if (bonData.rootRef.isEmpty()) {
+                employeeBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                isFirstLoad = false
+                return@let
+            }
+            val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
+
+            employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
+                lifecycleScope.launch {
+                    listenerEmployeeBonMutex.withLock {
+                        exception?.let {
+                            showToast("Error listening to employee bon data: ${it.message}")
+                            isFirstLoad = false
+                            return@withLock
+                        }
+                        documents?.let { docs ->
+                            Log.d("ChangeOriented", "Listener 3: $isOrientationChanged")
+                            if (!isFirstLoad && !isOrientationChanged) {
+                                if (docs.exists()) {
+                                    withContext(Dispatchers.Default) {
+                                        Log.d("ChangeOriented", "Listener 3: IF")
+                                        val bonData = docs.toObject(BonEmployeeData::class.java)
+                                        bonData?.let { bon ->
+                                            formulirFragmentViewModel.setBonEmployeeData(bon)
+                                        }
+                                    }
+                                }
+                            } else {
+                                Log.d("ChangeOriented", "Listener 3: ELSE")
+                                isFirstLoad = false
+                                Log.d("CheckPion", "isOrientationChanged = AA2")
+                                isOrientationChanged = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         with (binding) {
@@ -698,10 +698,59 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             message,
             Snackbar.LENGTH_LONG
         ).setAction("Replace") {
-            binding.etBonAmount.setText(formulirFragmentViewModel.moneyAmount.value?.getContentIfNotHandled())
+            formulirFragmentViewModel.moneyAmount.value?.getContentIfNotHandled()?.let { it1 ->
+                if (it1 == "-") {
+                    setupBonInputValue(-777)
+                } else {
+                    format.parse(it1)?.toInt()?.let { number ->
+                        setupBonInputValue(number)
+                    }
+                }
+            }
+        }
+
+        // Tambahkan margin ke atas (30dp)
+        currentSnackbar?.view?.let { snackbarView ->
+            val params = snackbarView.layoutParams as ViewGroup.MarginLayoutParams
+            params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, params.bottomMargin + 20.dpToPx(binding.root.context))
+            snackbarView.layoutParams = params
         }
 
         currentSnackbar?.show()
+    }
+
+    // Fungsi helper untuk mengonversi dp ke px
+    private fun Int.dpToPx(context: Context): Int {
+        return (this * context.resources.displayMetrics.density).toInt()
+    }
+
+    private fun setupBonInputValue(number: Int) {
+        lifecycleScope.launch {
+            with(binding) {
+                when (number) {
+                    100000 -> {
+                        //selectCardView(cd100000, tv100000, 100000)
+                        formulirFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
+                    }
+                    150000 -> {
+                        //selectCardView(cd150000, tv150000, 150000)
+                        formulirFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
+                    }
+                    200000 -> {
+                        //selectCardView(cd200000, tv200000, 200000)
+                        formulirFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
+                    }
+                    -777 -> {
+                        //selectCardView(null, null, -999)
+                        formulirFragmentViewModel.saveSelectedCard(-999, -999, -777)
+                    }
+                    else -> {
+                        //selectCardView(null, null, number)
+                        formulirFragmentViewModel.saveSelectedCard(null, null, number)
+                    }
+                }
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -858,6 +907,13 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        isNavigating = false
+        currentView?.isClickable = true
+        Log.d("CheckPion", "isOrientationChanged = BB")
+    }
+
 
     private fun setupEditTextListeners() {
         with(binding) {
@@ -899,6 +955,8 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                                 etBonAmount.setText("0")
                                 etBonAmount.setSelection(1)
                                 throw IllegalArgumentException("The original string is empty")
+                            } else if (originalString == "-") {
+                                throw IllegalArgumentException("The original string is a single dash")
                             }
 
                             /// Remove the dots and update the original string
@@ -1054,6 +1112,29 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
+    private fun selectCardView(cardView: CardView?, textView: TextView?, value: Int?) {
+        selectedCardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
+        selectedTextView?.setTextColor(ContextCompat.getColor(context, R.color.text_grey_color))
+
+        cardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.sky_blue))
+        textView?.setTextColor(ContextCompat.getColor(context, R.color.white))
+
+        selectedCardView = cardView
+        selectedTextView = textView
+        if (value != null) updateValueDisplay(value)
+    }
+
+    private fun updateValueDisplay(value: Int) {
+        //val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+        if (value >= 0) {
+            val formattedValue = format.format(value)
+            binding.etBonAmount.setText(formattedValue)
+        } else {
+            binding.etBonAmount.setText("-")
+        }
+        binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
+    }
+
     private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
         v.isClickable = false
         currentView = v
@@ -1061,13 +1142,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             isNavigating = true
             functionShowDialog()
         } else return
-    }
-
-    override fun onResume() {
-        super.onResume()
-        isNavigating = false
-        currentView?.isClickable = true
-        Log.d("CheckPion", "isOrientationChanged = BB")
     }
 
     override fun onDetach() {
@@ -1105,25 +1179,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         Log.d("SnapshotUID", "DELETE CARD STATE")
         formulirFragmentViewModel.clearInputData()
         formulirFragmentViewModel.clearBonEmployeeData()
-    }
-
-    private fun selectCardView(cardView: CardView?, textView: TextView?, value: Int?) {
-        selectedCardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
-        selectedTextView?.setTextColor(ContextCompat.getColor(context, R.color.text_grey_color))
-
-        cardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.sky_blue))
-        textView?.setTextColor(ContextCompat.getColor(context, R.color.white))
-
-        selectedCardView = cardView
-        selectedTextView = textView
-        if (value != null) updateValueDisplay(value)
-    }
-
-    private fun updateValueDisplay(value: Int) {
-        //val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-        val formattedValue = format.format(value)
-        binding.etBonAmount.setText(formattedValue)
-        binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
     }
 
     companion object {

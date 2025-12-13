@@ -631,6 +631,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                                 etNominalInstallment.setText("0")
                                 etNominalInstallment.setSelection(1)
                                 throw IllegalArgumentException("The original string is empty")
+                            } else if (originalString == "-") {
+                                throw IllegalArgumentException("The original string is a single dash")
                             }
 
                             /// Remove the dots and update the original string
@@ -728,6 +730,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             val formattedAmount = clearText.toIntOrNull()
 
             return if (userInstallment.isEmpty()) {
+                // gak pakek || userInstallment == "0"
                 textErrorForInstallment = getString(R.string.user_installment_cannot_be_empty)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForInstallment

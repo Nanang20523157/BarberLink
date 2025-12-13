@@ -1,35 +1,37 @@
 package com.example.barberlink.Helper
 
-import android.app.Activity
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.os.SystemClock
 import android.view.View
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.addCallback
 import androidx.annotation.MainThread
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.*
-import androidx.navigation.NavController
-import androidx.navigation.NavDirections
-import androidx.navigation.NavOptions
-import androidx.navigation.fragment.findNavController
-import androidx.viewbinding.ViewBinding
-import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
-import com.example.barberlink.Utils.Concurrency.withStateLock
-import com.google.android.material.snackbar.Snackbar
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collectLatest
-import java.util.WeakHashMap
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.NavDirections
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.fragment.findNavController
+import androidx.viewbinding.ViewBinding
 import com.example.barberlink.R
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import java.util.WeakHashMap
+import kotlin.collections.set
 
 
 /* ============================================================
@@ -170,8 +172,8 @@ fun Fragment.safeSnackbar(
         if (!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
         if (!isAdded || view == null) return@launch
         snackbar = Snackbar.make(anchorView, message, duration)
-        builder?.let { snackbar.apply(it) }
-        snackbar.show()
+        builder?.let { snackbar?.apply(it) }
+        snackbar?.show()
     }
 
     return snackbar
@@ -191,8 +193,8 @@ fun ComponentActivity.safeSnackbar(
         if (!owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
         if (isFinishing || isDestroyed) return@launch
         snackbar = Snackbar.make(anchorView, message, duration)
-        builder?.let { snackbar.apply(it) }
-        snackbar.show()
+        builder?.let { snackbar?.apply(it) }
+        snackbar?.show()
     }
 
     return snackbar

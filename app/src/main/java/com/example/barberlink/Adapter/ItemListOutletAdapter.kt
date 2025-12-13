@@ -564,13 +564,13 @@ class ItemListOutletAdapter(
         recyclerView = null
 
         // 5. Null-kan semua callback & reference berat
-        vegaManager = null
-        itemClicked = null
-        listener = null
-        callbackUpdate = null
-        callbackToast = null
-        isDialogVisibleProvider = null
-        activity = null
+//        vegaManager = null
+//        itemClicked = null
+//        listener = null
+//        callbackUpdate = null
+//        callbackToast = null
+//        isDialogVisibleProvider = null
+//        activity = null
     }
 
 
