@@ -57,5 +57,7 @@ open class InputFragmentViewModel(state: SavedStateHandle) : ViewModel() {
     }
 
     open fun setupDropdownFilterWithNullState() {}
+
+    open fun setupDropdownWithInitialState() {}
 }
 

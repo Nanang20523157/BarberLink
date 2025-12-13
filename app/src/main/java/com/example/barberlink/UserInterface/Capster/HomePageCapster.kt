@@ -998,13 +998,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                                     }
                                 },
                                 async {
-                                    salesResult?.let { result ->
-                                        productSalesListMutex.withLock {
-                                            homePageViewModel.iterateSalesData(result)
-                                        }
-                                    }
-                                },
-                                async {
                                     appointmentResult?.let { result ->
                                         reservationListMutex.withLock {
                                             homePageViewModel.iterateAppointmentData(result)
@@ -1012,9 +1005,15 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                                     }
                                 },
                                 async {
+                                    salesResult?.let { result ->
+                                        productSalesListMutex.withLock {
+                                            homePageViewModel.iterateSalesData(result)
+                                        }
+                                    }
+                                },
+                                async {
                                     manualReportResult?.let { result ->
                                         reservationListMutex.withLock {
-                                            //setOutletList
                                             homePageViewModel.iterateManualReportData(result)
                                         }
                                     }
@@ -1022,6 +1021,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                                 async {
                                     outletResult?.let { result ->
                                         outletsListMutex.withLock {
+                                            //setOutletList
                                             homePageViewModel.iterateOutletData(result)
                                         }
                                     }

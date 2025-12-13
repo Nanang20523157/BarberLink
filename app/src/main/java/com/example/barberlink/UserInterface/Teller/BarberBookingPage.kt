@@ -955,7 +955,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         this.skippedProcess = skippedProcess
         if (skippedProcess) remainingListeners.set(6)
         listenToCustomerList()
-        listenToCapsterSelected()
+        if (bookingPageViewModel.capsterSelected.value?.uid != "----------------") listenToCapsterSelected()
+        else if (remainingListeners.get() > 0) {
+            // === Fake init semua listener kalau belum ada ===
+            if (!::capsterListener.isInitialized) {
+                capsterListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            }
+            remainingListeners.decrementAndGet()
+        }
         listenToOutletData()
         listenToOutletList()
         listenToServicesData()

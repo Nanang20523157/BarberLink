@@ -21,4 +21,10 @@ class SwitchCapsterViewModel(state: SavedStateHandle) : InputFragmentViewModel(s
         _setupDropdownFilterWithNullState.value = false
         Log.d("ObjectReferences", "neptunes 5")
     }
+
+    override fun setupDropdownWithInitialState() {
+        _setupDropdownFilter.value = true
+        _setupDropdownFilterWithNullState.value = true
+    }
+
 }

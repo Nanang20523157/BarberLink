@@ -99,10 +99,6 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     fun setCapitalDialogShow(show: Boolean) {
         viewModelScope.launch {
             isCapitalDialogShow = show
-            if (show) {
-                _setupDropdownFilter.value = true
-                _setupDropdownFilterWithNullState.value = true
-            }
         }
     }
 
@@ -133,6 +129,13 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         viewModelScope.launch {
             _setupDropdownFilter.value = false
             _setupDropdownFilterWithNullState.value = false
+        }
+    }
+
+    override fun setupDropdownWithInitialState() {
+        viewModelScope.launch {
+            _setupDropdownFilter.value = true
+            _setupDropdownFilterWithNullState.value = true
         }
     }
 
@@ -321,8 +324,8 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
                     outletReference = document.reference.path
                 }.let { addOutletData(it) }
             }
-            _setupDropdownFilter.value = true
-            _setupDropdownFilterWithNullState.value = true
+            _setupDropdownFilter.value = null
+            _setupDropdownFilterWithNullState.value = null
         }
     }
 

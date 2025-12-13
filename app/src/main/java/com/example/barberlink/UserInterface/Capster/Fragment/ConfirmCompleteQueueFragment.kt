@@ -350,6 +350,8 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                                 etMoneyAmount.setText("0")
                                 etMoneyAmount.setSelection(1)
                                 throw IllegalArgumentException("The original string is empty")
+                            } else if (originalString == "-") {
+                                throw IllegalArgumentException("The original string is a single dash")
                             }
 
                             /// Remove the dots and update the original string

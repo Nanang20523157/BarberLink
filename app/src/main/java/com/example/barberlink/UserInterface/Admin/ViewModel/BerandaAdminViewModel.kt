@@ -36,10 +36,6 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 
     fun setCapitalDialogShow(show: Boolean) = synchronized(this) {
         isCapitalDialogShow = show
-        if (show) {
-            _setupDropdownFilter.value = true
-            _setupDropdownFilterWithNullState.value = true
-        }
     }
 
     override fun setOutletSelected(outlet: Outlet?) = synchronized(this) {
@@ -61,6 +57,11 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     override fun setupDropdownFilterWithNullState() = synchronized(this) {
         _setupDropdownFilter.value = false
         _setupDropdownFilterWithNullState.value = false
+    }
+
+    override fun setupDropdownWithInitialState() = synchronized(this) {
+        _setupDropdownFilter.value = true
+        _setupDropdownFilterWithNullState.value = true
     }
 
     fun setServicesList(list: List<Service>) = synchronized(this) {

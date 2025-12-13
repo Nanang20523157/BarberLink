@@ -112,6 +112,8 @@ class SwitchCapsterFragment : DialogFragment() {
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             switchCapsterViewModel.setupDropdownFilterWithNullState()
+        } else {
+            switchCapsterViewModel.setupDropdownWithInitialState()
         }
 //        arguments?.let {
 //            currentReservation = it.getParcelable(ARG_PARAM1)
