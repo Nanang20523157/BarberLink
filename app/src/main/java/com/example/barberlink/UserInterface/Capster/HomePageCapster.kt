@@ -1143,6 +1143,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                                 async {
                                     outletResult?.let {
                                         homePageViewModel.outletsListMutex.withStateLock {
+                                            //setOutletList
                                             homePageViewModel.iterateOutletData(it)
                                         }
                                     }

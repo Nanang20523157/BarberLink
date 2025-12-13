@@ -17,7 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.InetAddress
 
@@ -37,10 +36,10 @@ object NetworkMonitor {
     private var isSchedulingToast = false
 //    private var checkConnectionInProcess = false
 
-    private val _isOnline = MutableStateFlow(false)
     private var lastMessage: String? = null
     private var currentToast: Toast? = null
     private var countDown: Int = 2
+    private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> get() = _isOnline
 
     private val _errorMessage = MutableStateFlow("Koneksi internet tidak tersedia. Periksa koneksi Anda.")
@@ -102,21 +101,12 @@ object NetworkMonitor {
             }
         }
 
-    private fun updateConnection(value: Boolean) {
-        Log.d("NetMonitor", "UPDATE STATE")
-        _isOnline.value = value
-        rechecking = false
-//        checkConnectionInProcess = false
-    }
-
     private fun checkInternetConnection() {
         scope.launch {
             Log.d("NetMonitor", "Checking internet connection...")
             val reachable = try {
                 Log.d("NetMonitor", "AA +++")
-                withContext(Dispatchers.Default) {
-                    InetAddress.getByName("8.8.8.8").isReachable(500)
-                }
+                InetAddress.getByName("8.8.8.8").isReachable(800)
             } catch (e: IOException) {
                 Log.d("NetMonitor", "AA ---")
                 false
@@ -134,13 +124,11 @@ object NetworkMonitor {
         checkConnectionJob = scope.launch {
             countDown = 2
             while (isActive) {
-                delay(500) // Cek setiap 10 detik
+                delay(1000) // Cek setiap 10 detik
 
                 val reachable = try {
                     Log.d("NetMonitor", "BB +++")
-                    withContext(Dispatchers.Default) {
-                        InetAddress.getByName("8.8.8.8").isReachable(500)
-                    }
+                    InetAddress.getByName("8.8.8.8").isReachable(800)
                 } catch (e: IOException) {
                     Log.d("NetMonitor", "BB ---")
                     false
@@ -205,9 +193,11 @@ object NetworkMonitor {
                     previous != null -> {
                         Log.d("NetMonitor", "normal blok")
                         previous = error.isEmpty()
+                        // duplicateToast di set true saat Aplikasi kembali offline agar pemberitahuan koneksi tidak stabil hanya ketika memang ada koneksi yang tersedia tapi gak stabil soalnya setelah ini masuk ke block #99
                         duplicateToast = error.isEmpty() // true if online, false if error
-                        if (error.isEmpty()) "Aplikasi kembali online"
-                        else "Aplikasi offline"
+//                        if (error.isEmpty()) "Aplikasi kembali online"
+//                        else "Aplikasi offline"
+                        error.ifEmpty { "Aplikasi kembali online" }
                     }
 
                     else -> {
@@ -243,12 +233,21 @@ object NetworkMonitor {
 
                 }
 
-                previous?.let { updateConnection(it) }
-//                if (lastMessage != toastMessage) {
-//                }
+                // FIX: Create a stable local variable before the check
+                val currentValue = previous
+                if (currentValue != null) {
+                    updateConnection(currentValue)
+                }
 
             }
         }
+    }
+
+    private fun updateConnection(value: Boolean) {
+        Log.d("NetMonitor", "UPDATE STATE")
+        _isOnline.value = value
+        rechecking = false
+//        checkConnectionInProcess = false
     }
 
     private fun internalShowToast(message: String, isFromScheduling: Boolean) {

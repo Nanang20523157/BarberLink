@@ -425,35 +425,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun setupCapitalInputValue(number: Int) {
-        lifecycleScope.launch {
-            with(binding) {
-                when (number) {
-                    100000 -> {
-                        //selectCardView(cd100000, tv100000, 100000)
-                        capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
-                    }
-                    150000 -> {
-                        //selectCardView(cd150000, tv150000, 150000)
-                        capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
-                    }
-                    200000 -> {
-                        //selectCardView(cd200000, tv200000, 200000)
-                        capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
-                    }
-                    -777 -> {
-                        //selectCardView(null, null, -999)
-                        capitalFragmentViewModel.saveSelectedCard(-999, -999, -777)
-                    }
-                    else -> {
-                        //selectCardView(null, null, number)
-                        capitalFragmentViewModel.saveSelectedCard(null, null, number)
-                    }
-                }
-            }
-        }
-    }
-
     private fun setDateFilterValue(timestamp: Timestamp) {
         timeStampFilter = timestamp
         // Mendapatkan waktu mulai dan akhir hari ini berdasarkan timeStampFilter
@@ -603,368 +574,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                         setupListeners(skippedProcess = true)
                     }
                 }
-            }
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onClick(v: View?) {
-        with (binding) {
-            when (v?.id) {
-                R.id.btnSave -> {
-                    if (isCapitalAmountValid) {
-                        checkNetworkConnection {
-                            val formattedAmount = format.parse(dailyCapitalString)?.toInt()
-                            if (formattedAmount != null) {
-                                disableBtnWhenShowDialog(v) {
-                                    saveDailyCapital(formattedAmount)
-                                }
-                            } else {
-                                showToast("Input tidak valid karena menghasilkan null")
-                                setFocus(binding.etDailyCapital)
-                            }
-                        }
-//                        var originalString = dailyCapitalString
-//                        if (dailyCapitalString.contains(".")) {
-//                            originalString = originalString.replace(".", "")
-//                        }
-//                        val formattedAmount = originalString.toInt()
-//                        if (originalString[0] == '0' && originalString.length > 1) {
-//                            isCapitalAmountValid = validateCapitalInput(true)
-//                        } else { }
-                    } else {
-                        lifecycleScope.launch { showToast("Mohon periksa kembali data yang dimasukkan") }
-                        setFocus(binding.etDailyCapital)
-                    }
-                }
-                R.id.cd100000 -> {
-                    //selectCardView(cd100000, tv100000, 100000)
-                    lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000) }
-
-                }
-                R.id.cd150000 -> {
-                    //selectCardView(cd150000, tv150000, 150000)
-                    lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000) }
-                }
-                R.id.cd200000 -> {
-                    //selectCardView(cd200000, tv200000, 200000)
-                    lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000) }
-
-                }
-                R.id.cvDateFilterLabel -> {
-                    lifecycleScope.launch {
-                        disableBtnWhenShowDialog(v) {
-                            showDatePickerDialog(timeStampFilter)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun checkNetworkConnection(runningThisProcess: suspend () -> Unit) {
-        lifecycleScope.launch {
-            if (NetworkMonitor.isOnline.value) {
-                runningThisProcess()
-            } else {
-                val message = NetworkMonitor.errorMessage.value
-                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
-            }
-        }
-    }
-
-    private fun showSnackBar(eventMessage: Event<String>) {
-        val message = eventMessage.getContentIfNotHandled() ?: return
-        currentSnackbar = Snackbar.make(
-            binding.rlCapitalInput,
-            message,
-            Snackbar.LENGTH_LONG
-        ).setAction("Replace") {
-            capitalFragmentViewModel.moneyAmount.value?.getContentIfNotHandled()?.let { it1 ->
-                if (it1 == "-") {
-                    setupCapitalInputValue(-777)
-                } else {
-                    format.parse(it1)?.toInt()?.let { number ->
-                        setupCapitalInputValue(number)
-                    }
-                }
-            }
-        }
-
-        // Tambahkan margin ke atas (30dp)
-        currentSnackbar?.view?.let { snackbarView ->
-            val params = snackbarView.layoutParams as ViewGroup.MarginLayoutParams
-            params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, params.bottomMargin + 20.dpToPx(binding.root.context))
-            snackbarView.layoutParams = params
-        }
-
-        currentSnackbar?.show()
-    }
-
-    // Fungsi helper untuk mengonversi dp ke px
-    private fun Int.dpToPx(context: Context): Int {
-        return (this * context.resources.displayMetrics.density).toInt()
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private suspend fun saveDailyCapital(capitalAmount: Int) {
-        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.rootRef.isEmpty()) {
-                showToast("Outlet data is not valid.")
-                isNavigating = false
-                currentView?.isClickable = true
-                return
-            }
-            // val differenceCurrentCapital = capitalAmount - previousCapitalAmount
-            var dailyCapital = DailyCapital()
-            val userAdminData = capitalFragmentViewModel.userAdminData.value
-            val userPegawaiData = capitalFragmentViewModel.userEmployeeData.value
-
-            if (userAdminData != null) {
-                val dataCreator = DataCreator<UserData>(
-                    userFullname = userAdminData.ownerName,
-                    userPhone = userAdminData.phone,
-                    userPhoto = userAdminData.imageCompanyProfile,
-                    userRef = userAdminData.userRef,
-                    userRole = "Owner"
-                )
-                val locationPoint = LocationPoint(
-                    placeName = outletSelected.outletName,
-                    locationAddress = outletSelected.outletAddress,
-                    latitude = outletSelected.latitudePoint,
-                )
-                dailyCapital = DailyCapital(
-                    timestampCreated = timeStampFilter,
-                    outletCapital = capitalAmount,
-                    uid = uidDailyCapital,
-                    rootRef = "barbershops/${userAdminData.uid}",
-                    outletIdentifier = outletSelected.uid,
-                    locationPoint = locationPoint,
-                    dataCreator = dataCreator
-                )
-            } else if (userPegawaiData != null) {
-                val dataCreator = DataCreator<UserData>(
-                    userFullname = userPegawaiData.fullname,
-                    userPhone = userPegawaiData.phone,
-                    userPhoto = userPegawaiData.photoProfile,
-                    userRef = userPegawaiData.userRef,
-                    userRole = "Employee"
-                )
-                val locationPoint = LocationPoint(
-                    placeName = outletSelected.outletName,
-                    locationAddress = outletSelected.outletAddress,
-                    latitude = outletSelected.latitudePoint,
-                )
-                dailyCapital = DailyCapital(
-                    timestampCreated = timeStampFilter,
-                    outletCapital = capitalAmount,
-                    uid = uidDailyCapital,
-                    rootRef = userPegawaiData.rootRef,
-                    outletIdentifier = outletSelected.uid,
-                    locationPoint = locationPoint,
-                    dataCreator = dataCreator
-                )
-            }
-
-            saveDailyCapitalToFirestore(outletSelected, dailyCapital)
-        } ?: run {
-            isNavigating = false
-            currentView?.isClickable = true
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private suspend fun saveDailyCapitalToFirestore(outletSelected: Outlet, dailyCapital: DailyCapital) {
-        binding.progressBar.visibility = View.VISIBLE
-        isInSaveProcess = true
-        isProcessUpdatingData = true
-
-        withContext(Dispatchers.IO) {
-            try {
-                val success: Boolean
-
-                if (uidDailyCapital.isNotEmpty()) {
-                    // 🔹 Mode update dokumen lama
-                    val capitalRef = db.document(outletSelected.rootRef)
-                        .collection("daily_capital")
-                        .document(uidDailyCapital)
-
-                    success = capitalRef
-                        .set(dailyCapital)
-                        .awaitWriteWithOfflineFallback(tag = "UpdateDailyCapital")
-
-                    if (success) {
-                        showToast("Berhasil memperbarui data modal harian outlet.")
-                    } else {
-                        isProcessUpdatingData = false
-                        isInSaveProcess = false
-                        showToast("Gagal memperbarui data modal harian outlet!")
-                    }
-                } else {
-                    // 🔹 Mode dokumen baru (generate ID otomatis)
-                    val newDocRef = db.document(outletSelected.rootRef)
-                        .collection("daily_capital")
-                        .document()
-
-                    dailyCapital.uid = newDocRef.id
-
-                    success = newDocRef
-                        .set(dailyCapital)
-                        .awaitWriteWithOfflineFallback(tag = "CreateDailyCapital")
-
-                    if (success) {
-                        showToast("Berhasil menyimpan data modal harian baru.")
-                    } else {
-                        isProcessUpdatingData = false
-                        isInSaveProcess = false
-                        showToast("Gagal menyimpan data modal harian baru!")
-                    }
-                }
-
-            } catch (e: Exception) {
-                // 🔹 Tangani error fatal
-                isProcessUpdatingData = false
-                isInSaveProcess = false
-                showToast("Gagal menyimpan data modal harian outlet: ${e.message}")
-            } finally {
-                // 🔹 Pastikan UI kembali normal
-                withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = View.GONE
-                    isNavigating = false
-                    currentView?.isClickable = true
-                }
-            }
-        }
-    }
-
-
-    private fun setupEditTextListeners() {
-        with(binding) {
-            // Kode ini sementara tidak terlalu dibutuhkan karena acOutlet hanya akan di jadikan dropdown biasa
-            textWatcher1 = object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-                    previousText = s.toString()
-                    previousCursorPosition = etDailyCapital.selectionStart
-                }
-
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
-                override fun afterTextChanged(s: Editable?) {
-                    if (s != null) {
-                        etDailyCapital.removeTextChangedListener(this)
-
-                        try {
-                            var originalString = s.toString().ifEmpty { "0" }
-
-                            // Check if the string is empty
-                            if (originalString.isEmpty()) {
-                                etDailyCapital.setText("0")
-                                etDailyCapital.setSelection(1)
-                                throw IllegalArgumentException("The original string is empty")
-                            } else if (originalString == "-") {
-                                throw IllegalArgumentException("The original string is a single dash")
-                            }
-
-                            /// Remove the dots and update the original string
-                            val cursorPosition = etDailyCapital.selectionStart
-                            val cursorChar = previousText.getOrNull(cursorPosition)
-                            if (cursorChar == '.' && originalString.length < previousText.length) {
-                                // If the cursor is at a dot, move it to the previous position to remove the number instead
-                                originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
-                            }
-
-//                            val parsed = originalString.replace(".", "")
-//                            val formatted = if (previousText == "0") {
-//                                format.format(parsed.toIntOrNull() ?: 0L)
-//                            } else {
-//                                formatWithDotsKeepingLeadingZeros(parsed)
-//                            }
-                            val parsed = format.parse(originalString)?.toInt() ?: 0
-                            val formatted = format.format(parsed)
-
-                            // Set the text
-                            etDailyCapital.setText(formatted)
-                            dailyCapitalString = formatted
-
-                            // Calculate the new cursor position
-                            val newCursorPosition = if (formatted == previousText) {
-                                previousCursorPosition
-                            } else cursorPosition + (formatted.length - s.length)
-
-                            // Ensure the new cursor position is within the bounds of the new text
-                            val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
-
-                            // Set the cursor position
-                            etDailyCapital.setSelection(boundedCursorPosition)
-                        } catch (e: IllegalArgumentException) {
-                            e.printStackTrace()
-                        } catch (nfe: NumberFormatException) {
-                            nfe.printStackTrace()
-                        }
-
-                        inputManualCheckOne?.invoke() ?: run {
-//                            isCapitalAmountValid = validateCapitalInput(false)
-                            isCapitalAmountValid = validateCapitalInput(true)
-                        }
-                        inputManualCheckOne = null
-                        etDailyCapital.addTextChangedListener(this)
-                    }
-                }
-            }
-
-            etDailyCapital.addTextChangedListener(textWatcher1)
-        }
-    }
-
-    private fun validateCapitalInput(checkLeadingZeros: Boolean): Boolean {
-        with (binding) {
-            val capitalAmount = dailyCapitalString
-            val clearText = capitalAmount.replace(".", "")
-            val formattedAmount = clearText.toIntOrNull()
-
-            if (capitalAmount != "100.000"
-                && capitalAmount != "150.000"
-                && capitalAmount != "200.000") {
-                //selectCardView(null, null, null)
-                lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(null, null, null) }
-            }
-            return if (textDropdownOutletName == "---" || capitalAmount == "-") {
-                textErrorForCapitalAmount = getString(R.string.there_was_a_problem_with_the_selected_outlet)
-                llInfo.visibility = View.VISIBLE
-                tvInfo.text = textErrorForCapitalAmount
-                clearFocus(etDailyCapital)
-                false
-            } else if (capitalAmount.isEmpty()) {
-                textErrorForCapitalAmount = getString(R.string.daily_capital_cannot_be_empty)
-                llInfo.visibility = View.VISIBLE
-                tvInfo.text = textErrorForCapitalAmount
-                setFocus(etDailyCapital)
-                false
-            } else if (formattedAmount == null) {
-                textErrorForCapitalAmount = getString(R.string.daily_capital_must_be_a_number)
-                llInfo.visibility = View.VISIBLE
-                tvInfo.text = textErrorForCapitalAmount
-                setFocus(etDailyCapital)
-                false
-            } else if (capitalAmount[0] == '0' && capitalAmount.length > 1 && checkLeadingZeros) {
-                textErrorForCapitalAmount = getString(R.string.your_value_entered_not_valid)
-                llInfo.visibility = View.VISIBLE
-                tvInfo.text = textErrorForCapitalAmount
-                val nominal = format.format(formattedAmount)
-                lifecycleScope.launch {
-                    capitalFragmentViewModel.showInputSnackBar(
-                        nominal,
-                        context.getString(R.string.re_format_text, nominal)
-                    )
-                }
-                setFocus(etDailyCapital)
-                false
-            }
-            else {
-                textErrorForCapitalAmount = ""
-                llInfo.visibility = View.GONE
-                tvInfo.text = textErrorForCapitalAmount
-                true
             }
         }
     }
@@ -1221,6 +830,417 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onClick(v: View?) {
+        with (binding) {
+            when (v?.id) {
+                R.id.btnSave -> {
+                    if (isCapitalAmountValid) {
+                        checkNetworkConnection {
+                            val formattedAmount = format.parse(dailyCapitalString)?.toInt()
+                            if (formattedAmount != null) {
+                                disableBtnWhenShowDialog(v) {
+                                    saveDailyCapital(formattedAmount)
+                                }
+                            } else {
+                                showToast("Input tidak valid karena menghasilkan null")
+                                setFocus(binding.etDailyCapital)
+                            }
+                        }
+//                        var originalString = dailyCapitalString
+//                        if (dailyCapitalString.contains(".")) {
+//                            originalString = originalString.replace(".", "")
+//                        }
+//                        val formattedAmount = originalString.toInt()
+//                        if (originalString[0] == '0' && originalString.length > 1) {
+//                            isCapitalAmountValid = validateCapitalInput(true)
+//                        } else { }
+                    } else {
+                        lifecycleScope.launch { showToast("Mohon periksa kembali data yang dimasukkan") }
+                        setFocus(binding.etDailyCapital)
+                    }
+                }
+                R.id.cd100000 -> {
+                    //selectCardView(cd100000, tv100000, 100000)
+                    lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000) }
+
+                }
+                R.id.cd150000 -> {
+                    //selectCardView(cd150000, tv150000, 150000)
+                    lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000) }
+                }
+                R.id.cd200000 -> {
+                    //selectCardView(cd200000, tv200000, 200000)
+                    lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000) }
+
+                }
+                R.id.cvDateFilterLabel -> {
+                    lifecycleScope.launch {
+                        disableBtnWhenShowDialog(v) {
+                            showDatePickerDialog(timeStampFilter)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun checkNetworkConnection(runningThisProcess: suspend () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
+            }
+        }
+    }
+
+    private fun showSnackBar(eventMessage: Event<String>) {
+        val message = eventMessage.getContentIfNotHandled() ?: return
+        currentSnackbar = Snackbar.make(
+            binding.rlCapitalInput,
+            message,
+            Snackbar.LENGTH_LONG
+        ).setAction("Replace") {
+            capitalFragmentViewModel.moneyAmount.value?.getContentIfNotHandled()?.let { it1 ->
+                if (it1 == "-") {
+                    setupCapitalInputValue(-777)
+                } else {
+                    format.parse(it1)?.toInt()?.let { number ->
+                        setupCapitalInputValue(number)
+                    }
+                }
+            }
+        }
+
+        // Tambahkan margin ke atas (30dp)
+        currentSnackbar?.view?.let { snackbarView ->
+            val params = snackbarView.layoutParams as ViewGroup.MarginLayoutParams
+            params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, params.bottomMargin + 20.dpToPx(binding.root.context))
+            snackbarView.layoutParams = params
+        }
+
+        currentSnackbar?.show()
+    }
+
+    // Fungsi helper untuk mengonversi dp ke px
+    private fun Int.dpToPx(context: Context): Int {
+        return (this * context.resources.displayMetrics.density).toInt()
+    }
+
+    private fun setupCapitalInputValue(number: Int) {
+        lifecycleScope.launch {
+            with(binding) {
+                when (number) {
+                    100000 -> {
+                        //selectCardView(cd100000, tv100000, 100000)
+                        capitalFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
+                    }
+                    150000 -> {
+                        //selectCardView(cd150000, tv150000, 150000)
+                        capitalFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
+                    }
+                    200000 -> {
+                        //selectCardView(cd200000, tv200000, 200000)
+                        capitalFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
+                    }
+                    -777 -> {
+                        //selectCardView(null, null, -999)
+                        capitalFragmentViewModel.saveSelectedCard(-999, -999, -777)
+                    }
+                    else -> {
+                        //selectCardView(null, null, number)
+                        capitalFragmentViewModel.saveSelectedCard(null, null, number)
+                    }
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun saveDailyCapital(capitalAmount: Int) {
+        capitalFragmentViewModel.outletSelected.value?.let { outletSelected ->
+            if (outletSelected.rootRef.isEmpty()) {
+                showToast("Outlet data is not valid.")
+                isNavigating = false
+                currentView?.isClickable = true
+                return
+            }
+            // val differenceCurrentCapital = capitalAmount - previousCapitalAmount
+            var dailyCapital = DailyCapital()
+            val userAdminData = capitalFragmentViewModel.userAdminData.value
+            val userPegawaiData = capitalFragmentViewModel.userEmployeeData.value
+
+            if (userAdminData != null) {
+                val dataCreator = DataCreator<UserData>(
+                    userFullname = userAdminData.ownerName,
+                    userPhone = userAdminData.phone,
+                    userPhoto = userAdminData.imageCompanyProfile,
+                    userRef = userAdminData.userRef,
+                    userRole = "Owner"
+                )
+                val locationPoint = LocationPoint(
+                    placeName = outletSelected.outletName,
+                    locationAddress = outletSelected.outletAddress,
+                    latitude = outletSelected.latitudePoint,
+                )
+                dailyCapital = DailyCapital(
+                    timestampCreated = timeStampFilter,
+                    outletCapital = capitalAmount,
+                    uid = uidDailyCapital,
+                    rootRef = "barbershops/${userAdminData.uid}",
+                    outletIdentifier = outletSelected.uid,
+                    locationPoint = locationPoint,
+                    dataCreator = dataCreator
+                )
+            } else if (userPegawaiData != null) {
+                val dataCreator = DataCreator<UserData>(
+                    userFullname = userPegawaiData.fullname,
+                    userPhone = userPegawaiData.phone,
+                    userPhoto = userPegawaiData.photoProfile,
+                    userRef = userPegawaiData.userRef,
+                    userRole = "Employee"
+                )
+                val locationPoint = LocationPoint(
+                    placeName = outletSelected.outletName,
+                    locationAddress = outletSelected.outletAddress,
+                    latitude = outletSelected.latitudePoint,
+                )
+                dailyCapital = DailyCapital(
+                    timestampCreated = timeStampFilter,
+                    outletCapital = capitalAmount,
+                    uid = uidDailyCapital,
+                    rootRef = userPegawaiData.rootRef,
+                    outletIdentifier = outletSelected.uid,
+                    locationPoint = locationPoint,
+                    dataCreator = dataCreator
+                )
+            }
+
+            saveDailyCapitalToFirestore(outletSelected, dailyCapital)
+        } ?: run {
+            isNavigating = false
+            currentView?.isClickable = true
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun saveDailyCapitalToFirestore(outletSelected: Outlet, dailyCapital: DailyCapital) {
+        binding.progressBar.visibility = View.VISIBLE
+        isInSaveProcess = true
+        isProcessUpdatingData = true
+
+        withContext(Dispatchers.IO) {
+            try {
+                val success: Boolean
+
+                if (uidDailyCapital.isNotEmpty()) {
+                    // 🔹 Mode update dokumen lama
+                    val capitalRef = db.document(outletSelected.rootRef)
+                        .collection("daily_capital")
+                        .document(uidDailyCapital)
+
+                    success = capitalRef
+                        .set(dailyCapital)
+                        .awaitWriteWithOfflineFallback(tag = "UpdateDailyCapital")
+
+                    if (success) {
+                        showToast("Berhasil memperbarui data modal harian outlet.")
+                    } else {
+                        isProcessUpdatingData = false
+                        isInSaveProcess = false
+                        showToast("Gagal memperbarui data modal harian outlet!")
+                    }
+                } else {
+                    // 🔹 Mode dokumen baru (generate ID otomatis)
+                    val newDocRef = db.document(outletSelected.rootRef)
+                        .collection("daily_capital")
+                        .document()
+
+                    dailyCapital.uid = newDocRef.id
+
+                    success = newDocRef
+                        .set(dailyCapital)
+                        .awaitWriteWithOfflineFallback(tag = "CreateDailyCapital")
+
+                    if (success) {
+                        showToast("Berhasil menyimpan data modal harian baru.")
+                    } else {
+                        isProcessUpdatingData = false
+                        isInSaveProcess = false
+                        showToast("Gagal menyimpan data modal harian baru!")
+                    }
+                }
+
+            } catch (e: Exception) {
+                // 🔹 Tangani error fatal
+                isProcessUpdatingData = false
+                isInSaveProcess = false
+                showToast("Gagal menyimpan data modal harian outlet: ${e.message}")
+            } finally {
+                // 🔹 Pastikan UI kembali normal
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                    isNavigating = false
+                    currentView?.isClickable = true
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isNavigating = false
+        currentView?.isClickable = true
+        // kode OnResume dijalankan terlebih dahulu sebelum validate karena setupEditTextListeners() ada di observer
+    }
+
+    private fun setupEditTextListeners() {
+        with(binding) {
+            // Kode ini sementara tidak terlalu dibutuhkan karena acOutlet hanya akan di jadikan dropdown biasa
+            textWatcher1 = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                    previousText = s.toString()
+                    previousCursorPosition = etDailyCapital.selectionStart
+                }
+
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+                override fun afterTextChanged(s: Editable?) {
+                    if (s != null) {
+                        etDailyCapital.removeTextChangedListener(this)
+
+                        try {
+                            var originalString = s.toString().ifEmpty { "0" }
+
+                            // Check if the string is empty
+                            if (originalString.isEmpty()) {
+                                etDailyCapital.setText("0")
+                                etDailyCapital.setSelection(1)
+                                throw IllegalArgumentException("The original string is empty")
+                            } else if (originalString == "-") {
+                                throw IllegalArgumentException("The original string is a single dash")
+                            }
+
+                            /// Remove the dots and update the original string
+                            val cursorPosition = etDailyCapital.selectionStart
+                            val cursorChar = previousText.getOrNull(cursorPosition)
+                            if (cursorChar == '.' && originalString.length < previousText.length) {
+                                // If the cursor is at a dot, move it to the previous position to remove the number instead
+                                originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
+                            }
+
+//                            val parsed = originalString.replace(".", "")
+//                            val formatted = if (previousText == "0") {
+//                                format.format(parsed.toIntOrNull() ?: 0L)
+//                            } else {
+//                                formatWithDotsKeepingLeadingZeros(parsed)
+//                            }
+                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val formatted = format.format(parsed)
+
+                            // Set the text
+                            etDailyCapital.setText(formatted)
+                            dailyCapitalString = formatted
+
+                            // Calculate the new cursor position
+                            val newCursorPosition = if (formatted == previousText) {
+                                previousCursorPosition
+                            } else cursorPosition + (formatted.length - s.length)
+
+                            // Ensure the new cursor position is within the bounds of the new text
+                            val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
+
+                            // Set the cursor position
+                            etDailyCapital.setSelection(boundedCursorPosition)
+                        } catch (e: IllegalArgumentException) {
+                            e.printStackTrace()
+                        } catch (nfe: NumberFormatException) {
+                            nfe.printStackTrace()
+                        }
+
+                        inputManualCheckOne?.invoke() ?: run {
+//                            isCapitalAmountValid = validateCapitalInput(false)
+                            isCapitalAmountValid = validateCapitalInput(true)
+                        }
+                        inputManualCheckOne = null
+                        etDailyCapital.addTextChangedListener(this)
+                    }
+                }
+            }
+
+            etDailyCapital.addTextChangedListener(textWatcher1)
+        }
+    }
+
+    private fun validateCapitalInput(checkLeadingZeros: Boolean): Boolean {
+        with (binding) {
+            val capitalAmount = dailyCapitalString
+            val clearText = capitalAmount.replace(".", "")
+            val formattedAmount = clearText.toIntOrNull()
+
+            if (capitalAmount != "100.000"
+                && capitalAmount != "150.000"
+                && capitalAmount != "200.000") {
+                //selectCardView(null, null, null)
+                lifecycleScope.launch { capitalFragmentViewModel.saveSelectedCard(null, null, null) }
+            }
+            return if (textDropdownOutletName == "---" || capitalAmount == "-") {
+                textErrorForCapitalAmount = getString(R.string.there_was_a_problem_with_the_selected_outlet)
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForCapitalAmount
+                clearFocus(etDailyCapital)
+                false
+            } else if (capitalAmount.isEmpty()) {
+                // gak pakek  || capitalAmount == "0"
+                textErrorForCapitalAmount = getString(R.string.daily_capital_cannot_be_empty)
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForCapitalAmount
+                setFocus(etDailyCapital)
+                false
+            } else if (formattedAmount == null) {
+                textErrorForCapitalAmount = getString(R.string.daily_capital_must_be_a_number)
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForCapitalAmount
+                setFocus(etDailyCapital)
+                false
+            } else if (capitalAmount[0] == '0' && capitalAmount.length > 1 && checkLeadingZeros) {
+                textErrorForCapitalAmount = getString(R.string.your_value_entered_not_valid)
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForCapitalAmount
+                val nominal = format.format(formattedAmount)
+                lifecycleScope.launch {
+                    capitalFragmentViewModel.showInputSnackBar(
+                        nominal,
+                        context.getString(R.string.re_format_text, nominal)
+                    )
+                }
+                setFocus(etDailyCapital)
+                false
+            }
+            else {
+                textErrorForCapitalAmount = ""
+                llInfo.visibility = View.GONE
+                tvInfo.text = textErrorForCapitalAmount
+                true
+            }
+        }
+    }
+
+    private fun setFocus(editText: View) {
+        editText.requestFocus()
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    private fun clearFocus(editText: View) {
+        editText.clearFocus() // Menghapus fokus dari EditText
+
+        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText.windowToken, 0) // Menutup keyboard
+    }
+
     private fun selectCardView(cardView: CardView?, textView: TextView?, value: Int?) {
         selectedCardView?.setCardBackgroundColor(ContextCompat.getColor(context, R.color.white))
         selectedTextView?.setTextColor(ContextCompat.getColor(context, R.color.text_grey_color))
@@ -1279,20 +1299,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun setFocus(editText: View) {
-        editText.requestFocus()
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
-    }
-
-    private fun clearFocus(editText: View) {
-        editText.clearFocus() // Menghapus fokus dari EditText
-
-        val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText.windowToken, 0) // Menutup keyboard
-    }
-
-
     private suspend fun disableBtnWhenShowDialog(v: View, functionShowDialog: suspend () -> Unit) {
         v.isClickable = false
         currentView = v
@@ -1300,13 +1306,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             isNavigating = true
             functionShowDialog()
         } else return
-    }
-
-    override fun onResume() {
-        super.onResume()
-        isNavigating = false
-        currentView?.isClickable = true
-        // kode OnResume dijalankan terlebih dahulu sebelum validate karena setupEditTextListeners() ada di observer
     }
 
     override fun onStop() {

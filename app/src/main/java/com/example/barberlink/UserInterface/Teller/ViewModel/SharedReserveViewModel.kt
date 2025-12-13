@@ -741,6 +741,8 @@ class SharedReserveViewModel : ViewModel() {
 //        }
 //    }
 
+//    nanang
+
     private fun calculatePriceToDisplay(
         basePrice: Int,
         resultsShareFormat: String,
