@@ -168,9 +168,10 @@ object NetworkMonitor {
 //        }
 //    }
 
+    // test commit
 
     private fun observeConnectionChanges() {
-        CoroutineScope(Dispatchers.Main).launch {
+        mainScope.launch {
             var previous: Boolean? = null
             errorMessage.collect { error ->
                 Log.d("NetMonitor", "============ previous: $previous ============")
