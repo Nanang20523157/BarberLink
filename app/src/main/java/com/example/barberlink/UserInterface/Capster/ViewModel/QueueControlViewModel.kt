@@ -316,7 +316,7 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
         }
     }
 
-    suspend fun setCurrentReservationData(reservationData: ReservationData?) {
+    suspend fun setCurrentReservationData(reservationData: ReservationData) {
         withContext(Dispatchers.Main) {
             _currentReservationData.value = reservationData
         }
@@ -592,6 +592,12 @@ class QueueControlViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
             bundlingPackagesListMutex.withStateLock {
                 _duplicateBundlingPackageList.value = emptyList()
             }
+            _currentReservationData.value = null
+        }
+    }
+
+    fun clearReservationData() {
+        viewModelScope.launch {
             _currentReservationData.value = null
         }
     }

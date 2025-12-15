@@ -86,7 +86,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.btnSignIn -> {
                     navigatePage(this@LandingPage, SelectUserRolePage::class.java, btnSignIn)
@@ -94,7 +94,6 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
                 R.id.btnSignUp -> {
                     navigatePage(this@LandingPage, SignUpStepOne::class.java, btnSignUp)
                 }
-                else -> {}
             }
         }
     }

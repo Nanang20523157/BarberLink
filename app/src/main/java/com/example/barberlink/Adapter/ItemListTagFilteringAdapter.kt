@@ -51,7 +51,7 @@ class ItemListTagFilteringAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: UserFilterCategories) {
-            with(binding) {
+            with (binding) {
                 tvCategory.text = item.tagCategory
 
                 // Contoh perubahan tampilan ketika item terpilih (sesuaikan dengan kebutuhan)

@@ -217,12 +217,12 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                         dismiss()
                         parentFragmentManager.popBackStack()
                     } else {
-                        showToast("Input tidak valid karena menghasilkan null")
+                        lifecycleScope.launch { showToast("Input tidak valid karena menghasilkan null") }
                         setFocus(binding.etMoneyAmount)
                     }
                 }
             } else {
-                showToast("Mohon periksa kembali data yang dimasukkan")
+                lifecycleScope.launch { showToast("Mohon periksa kembali data yang dimasukkan") }
                 setFocus(binding.etMoneyAmount)
             }
 //            var originalString = userInputAmount
@@ -328,7 +328,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     previousText = s.toString()
@@ -437,10 +437,12 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                 tvInfo.text = textErrorForPayment
                 //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
                 val nominal = format.format(formattedAmount)
-                confirmQueueViewModel.showInputSnackBar(
-                    nominal,
-                    context.getString(R.string.re_format_text, nominal)
-                )
+                lifecycleScope.launch {
+                    confirmQueueViewModel.showInputSnackBar(
+                        nominal,
+                        context.getString(R.string.re_format_text, nominal)
+                    )
+                }
                 setFocus(etMoneyAmount)
                 false
             } else if (formattedAmount < finalPrice) {
@@ -497,7 +499,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        confirmQueueViewModel.setCurrentReservationData(null)
+        confirmQueueViewModel.clearReservationData()
     }
 
     private fun showSnackBar(eventMessage: Event<String>) {

@@ -409,7 +409,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     private fun init(savedInstanceState: Bundle?, capsterSelected: UserEmployeeData) {
-        with(binding) {
+        with (binding) {
             Log.d("ScanAll", "J1")
             serviceAdapter = ItemListServiceBookingAdapter(this@BarberBookingPage,  false)
             serviceAdapter.setCapsterRef(capsterSelected.userRef)
@@ -623,7 +623,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         val totalPrice = (bookingPageViewModel.servicesList.value?.sumOf { it.serviceQuantity * it.priceToDisplay } ?: 0) +
                 (bookingPageViewModel.bundlingPackagesList.value?.sumOf { it.bundlingQuantity * it.priceToDisplay } ?: 0)
 
-        with(binding) {
+        with (binding) {
             tvTotalPrice.text = NumberUtils.numberToCurrency(totalPrice.toDouble())
             tvTotalItem.text = getString(R.string.item_counting_selected, itemCount)
         }
@@ -703,7 +703,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     private fun displayCapsterData(capsterSelected: UserEmployeeData) {
         val reviewCount = 2134
-        with(binding) {
+        with (binding) {
             if (capsterSelected.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
@@ -737,7 +737,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     private fun setUserGender(gender: String) {
         Log.d("ScanAll", "CC1")
-        with(binding) {
+        with (binding) {
             val density = root.resources.displayMetrics.density
             val tvGenderLayoutParams = realLayout.tvGender.layoutParams as ViewGroup.MarginLayoutParams
             val ivGenderLayoutParams = realLayout.ivGender.layoutParams as ViewGroup.MarginLayoutParams
@@ -1639,8 +1639,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
-            when(v?.id) {
+        binding.apply {
+            when (v?.id) {
                 R.id.ivBack -> {
                     onBackPressed()
                 }
@@ -1678,8 +1678,6 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     hideKeyboard()
                     showAddNewCustomerDialog()
                 }
-                else -> {}
-                    // Do nothing
             }
         }
     }

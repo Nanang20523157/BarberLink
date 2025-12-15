@@ -485,7 +485,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with (binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.btnSave -> {
                     if (validateInputs()) {
@@ -511,7 +511,6 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                         setFocus(binding.etNominalInstallment)
                     }
                 }
-                else -> {}
             }
         }
     }
@@ -609,7 +608,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
     private fun setupEditTextListeners() {
         Log.d("textErrorForInstallment", "setupEditTextListeners: $textErrorForInstallment")
-        with(binding) {
+        with (binding) {
             textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     previousText = s.toString()

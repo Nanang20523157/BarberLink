@@ -62,7 +62,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         }
 //        BarberLinkApp.sessionManager.clearActivePage()
 
-        with(binding) {
+        with (binding) {
             ivBack.setOnClickListener(this@SelectUserRolePage)
             btnAdminOwner.setOnClickListener(this@SelectUserRolePage)
             btnPegawai.setOnClickListener(this@SelectUserRolePage)
@@ -96,7 +96,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         adminSession = sessionManager.getSessionAdmin()
         tellerSession = sessionManager.getSessionTeller()
         capsterSession = sessionManager.getSessionCapster()
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
                     // Navigate to Admin Login Page

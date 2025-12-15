@@ -176,7 +176,7 @@ class ItemListOutletAdapter(
             val reviewCount = 2134
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 Log.d("TestCLickMore", "Check ${binding.root.height}")
                 tvOutletName.text = outlet.outletName
                 tvOutletName.isSelected = true

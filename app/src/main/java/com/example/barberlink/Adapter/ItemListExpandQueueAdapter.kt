@@ -141,7 +141,7 @@ class ItemListExpandQueueAdapter(
         fun bind(reservationData: ReservationData, position: Int) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvCurrentQueueNumber.isSelected = true
                 tvCustomerName.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
@@ -200,7 +200,7 @@ class ItemListExpandQueueAdapter(
         }
 
         private fun setUserGender(gender: String) {
-            with(binding) {
+            with (binding) {
                 val density = root.resources.displayMetrics.density
 
                 when (gender) {
@@ -266,7 +266,7 @@ class ItemListExpandQueueAdapter(
         }
 
         private fun setMembershipStatus(status: Boolean) {
-            with(binding) {
+            with (binding) {
                 val membershipText = if (status) root.context.getString(R.string.member_text) else root.context.getString(R.string.non_member_text)
                 tvStatusMember.text = membershipText
                 if (status) {
@@ -278,31 +278,31 @@ class ItemListExpandQueueAdapter(
         }
 
         private fun setStatusWaiting() {
-            with(binding) {
+            with (binding) {
                 tvQueueNumberPrefix.setBackgroundResource(R.drawable.background_number_of_waiting_queue)
             }
         }
 
         private fun setStatusCompleted() {
-            with(binding) {
+            with (binding) {
                 tvQueueNumberPrefix.setBackgroundResource(R.drawable.background_number_of_success_queue)
             }
         }
 
         private fun setStatusCanceled() {
-            with(binding) {
+            with (binding) {
                 tvQueueNumberPrefix.setBackgroundResource(R.drawable.background_number_of_canceled_queue)
             }
         }
 
         private fun setStatusSkipped() {
-            with(binding) {
+            with (binding) {
                 tvQueueNumberPrefix.setBackgroundResource(R.drawable.background_number_of_skipped_queue)
             }
         }
 
         private fun setStatusProcess() {
-            with(binding) {
+            with (binding) {
                 tvQueueNumberPrefix.setBackgroundResource(R.drawable.background_number_of_current_queue)
             }
         }

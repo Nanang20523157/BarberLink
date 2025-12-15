@@ -132,7 +132,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
                         switchAvailabilityStatus.isChecked = !isChecked
                         switchAvailabilityStatus.jumpDrawablesToCurrentState()
 
-                        showToast("Please wait, previous operation is still in progress")
+                        lifecycleScope.launch { showToast("Please wait, previous operation is still in progress") }
                     }
                 }
 
@@ -221,7 +221,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
         isDatabaseProcessCompleted = true
         binding.switchAvailabilityStatus.isChecked = !isAvailable
         setAvailabilityStatus(!isAvailable)
-        showToast(message)
+        lifecycleScope.launch { showToast(message) }
     }
 
     private fun setAvailabilityStatus(availability: Boolean) {

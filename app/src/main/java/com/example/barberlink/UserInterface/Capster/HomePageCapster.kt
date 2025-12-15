@@ -1198,7 +1198,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         val userEmployeeData = homePageViewModel.userEmployeeData.value ?: UserEmployeeData()
 
         // Implementasi untuk menampilkan data employee
-        with(binding) {
+        with (binding) {
             if (userEmployeeData.photoProfile.isNotEmpty()) {
                 loadImageWithGlide(userEmployeeData.photoProfile)
             }
@@ -1314,7 +1314,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         val userEmployeeData = homePageViewModel.userEmployeeData.value ?: UserEmployeeData()
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.fabListQueue -> {
                     Log.d("ClickAble", "clickable: ${fabListQueue.isClickable}")

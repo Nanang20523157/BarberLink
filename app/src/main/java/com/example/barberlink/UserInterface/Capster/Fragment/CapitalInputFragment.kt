@@ -832,7 +832,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with (binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.btnSave -> {
                     if (isCapitalAmountValid) {
@@ -931,7 +931,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
     private fun setupCapitalInputValue(number: Int) {
         lifecycleScope.launch {
-            with(binding) {
+            with (binding) {
                 when (number) {
                     100000 -> {
                         //selectCardView(cd100000, tv100000, 100000)
@@ -1097,7 +1097,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             // Kode ini sementara tidak terlalu dibutuhkan karena acOutlet hanya akan di jadikan dropdown biasa
             textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -1282,7 +1282,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setBtnNextToDisableState() {
-        with(binding) {
+        with (binding) {
             btnSave.isEnabled = false
             btnSave.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
             btnSave.setTypeface(null, Typeface.NORMAL)
@@ -1291,7 +1291,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setBtnNextToEnableState() {
-        with(binding) {
+        with (binding) {
             btnSave.isEnabled = true
             btnSave.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
             btnSave.setTypeface(null, Typeface.BOLD)

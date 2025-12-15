@@ -54,7 +54,7 @@ class ItemDateCalendarAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: CalendarDateModel) {
-            with(binding) {
+            with (binding) {
                 tvCalendarDay.text = item.calendarDay
                 tvCalendarDate.text = item.calendarDate
 

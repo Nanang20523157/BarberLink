@@ -68,7 +68,7 @@
                             android:textColor="#000000" />
 
                         <LinearLayout
-                            android:id="@+id/mainContent"
+                            android:id="@+id/bodyContent"
                             android:layout_marginTop="25dp"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
@@ -228,7 +228,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="67dp"
                             android:gravity="center_horizontal"
-                            android:layout_below="@id/mainContent"
+                            android:layout_below="@id/bodyContent"
                             android:orientation="horizontal"
                             android:paddingTop="5dp"
                             android:layout_marginBottom="30dp">
