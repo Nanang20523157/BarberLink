@@ -910,7 +910,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             productAdapter.submitList(productsList)
 
             binding.let {
-                with(binding) {
+                with (binding) {
                     Log.d("CheckShimmer", "Data count >>> service ${servicesList.size}, employee ${employeesList.size}, bundling ${bundlingPackagesList.size}, product ${productsList.size}")
                     tvEmptyLayanan.visibility = if (servicesList.isEmpty()) View.VISIBLE else View.GONE
                     tvEmptyPegawai.visibility = if (employeesList.isEmpty()) View.VISIBLE else View.GONE
@@ -1022,10 +1022,11 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 //            }
 //        }
 //    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with (binding) {
-            when(v?.id){
+        binding.apply {
+            when (v?.id) {
                 R.id.ivSettings -> {
                     navigatePage(context, SettingPageScreen::class.java, false, ivSettings)
 //                    val settingDirections = BerandaAdminFragmentDirections.actionNavBerandaToSettingPageScreen().apply {
@@ -1044,12 +1045,12 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                                 navController.navigate(manageOutletDirections)
                             }
                         }
-                    } else {}
+                    }
                 }
                 R.id.fabInputCapital -> {
                     if (!isShimmerVisible) {
                         showCapitalInputDialog()
-                    } else {}
+                    }
                 }
                 R.id.fabDashboardAdmin -> {
                     if (!isShimmerVisible) {
@@ -1062,13 +1063,12 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                                 navController.navigate(dashboardAdminDirections)
                             }
                         }
-                    } else {}
+                    }
                 }
                 R.id.ivHamburger -> {
                     val drawerController = context as? DrawerController
                     drawerController?.openDrawer()
                 }
-                else -> {}
             }
         }
     }

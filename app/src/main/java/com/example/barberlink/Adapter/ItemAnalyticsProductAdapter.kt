@@ -104,7 +104,7 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(product: Product) {
-            with(binding) {
+            with (binding) {
                 tvProductName.isSelected = true
                 tvProductName.text = product.productName
                 tvProductCounter.text = if (outletName != "---") root.context.getString(R.string.short_items_text_of_product_sales, product.numberOfSales.toString()) else "--"

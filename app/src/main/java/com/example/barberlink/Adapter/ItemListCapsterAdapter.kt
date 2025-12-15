@@ -143,7 +143,7 @@ class ItemListCapsterAdapter(
             val reviewCount = 2134
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvWaitingListLabel.isSelected = true
                 tvCapsterName.isSelected = true
                 tvCapsterName.text = userEmployeeData.fullname
@@ -222,7 +222,7 @@ class ItemListCapsterAdapter(
         }
 
         private fun setUserGender(gender: String) {
-            with(binding) {
+            with (binding) {
                 val density = root.resources.displayMetrics.density
                 val tvGenderLayoutParams = tvGender.layoutParams as ViewGroup.MarginLayoutParams
                 val ivGenderLayoutParams = ivGender.layoutParams as ViewGroup.MarginLayoutParams
@@ -333,7 +333,7 @@ class ItemListCapsterAdapter(
         }
 
 //        private fun setBtnNextToDisableState() {
-//            with(binding) {
+//            with (binding) {
 //                llStatusBooking.isEnabled = false
 //                llStatusBooking.background = ContextCompat.getDrawable(root.context, R.drawable.background_disable_btn_book)
 //                tvBooking.setTypeface(null, Typeface.BOLD)
@@ -342,7 +342,7 @@ class ItemListCapsterAdapter(
 //        }
 //
 //        private fun setBtnNextToEnableState() {
-//            with(binding) {
+//            with (binding) {
 //                llStatusBooking.isEnabled = true
 //                llStatusBooking.background = ContextCompat.getDrawable(root.context, R.drawable.background_btn_generate)
 //                tvBooking.setTypeface(null, Typeface.BOLD)

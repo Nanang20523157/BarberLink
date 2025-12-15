@@ -724,7 +724,7 @@ class AddNewCustomerFragment : DialogFragment() {
 
     // Method untuk setup TextWatcher untuk validasi input
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             // ???? => mosok text nomer e ra ke replace saat orientasi change?
             etPhone.setText(getString(R.string._62))
 

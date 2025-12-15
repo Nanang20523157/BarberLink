@@ -337,7 +337,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -455,7 +455,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setBtnCreateAccountToDisableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = false
             btnCreateAccount.isEnabled = false
             btnCreateAccount.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepThree, R.color.disable_grey_background)
@@ -465,7 +465,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setBtnCreateAccountToEnableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = true
             btnCreateAccount.isEnabled = true
             btnCreateAccount.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepThree, R.color.black)

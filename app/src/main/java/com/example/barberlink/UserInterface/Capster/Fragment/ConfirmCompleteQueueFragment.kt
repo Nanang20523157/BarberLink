@@ -329,7 +329,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
                     previousText = s.toString()

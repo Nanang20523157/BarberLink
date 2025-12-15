@@ -517,7 +517,7 @@ class SwitchCapsterFragment : DialogFragment() {
     }
 
     private fun setBtnNextToDisableState() {
-        with(binding) {
+        with (binding) {
             btnSaveChanges.isEnabled = false
             btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
             btnSaveChanges.setTypeface(null, Typeface.NORMAL)
@@ -526,7 +526,7 @@ class SwitchCapsterFragment : DialogFragment() {
     }
 
     private fun setBtnNextToEnableState() {
-        with(binding) {
+        with (binding) {
             btnSaveChanges.isEnabled = true
             btnSaveChanges.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
             btnSaveChanges.setTypeface(null, Typeface.BOLD)
@@ -703,7 +703,7 @@ class SwitchCapsterFragment : DialogFragment() {
     private fun displayCapsterData(userEmployeeData: UserEmployeeData) {
         val reviewCount = 2134
 
-        with(binding) {
+        with (binding) {
             val username = userEmployeeData.username.ifEmpty { "---" }
             if (textDropdownCapsterName != "---") {
                 tvEmployeeName.text = userEmployeeData.fullname
@@ -735,7 +735,7 @@ class SwitchCapsterFragment : DialogFragment() {
     }
 
     private fun setUserGender(gender: String) {
-        with(binding) {
+        with (binding) {
             val density = root.resources.displayMetrics.density
             val tvGenderLayoutParams = tvGender.layoutParams as ViewGroup.MarginLayoutParams
             val ivGenderLayoutParams = ivGender.layoutParams as ViewGroup.MarginLayoutParams
@@ -846,7 +846,7 @@ class SwitchCapsterFragment : DialogFragment() {
     }
 
     private fun setUserRole(role: String) {
-        with(binding) {
+        with (binding) {
             tvRole.text = role
             when (role) {
                 "Capster" -> {

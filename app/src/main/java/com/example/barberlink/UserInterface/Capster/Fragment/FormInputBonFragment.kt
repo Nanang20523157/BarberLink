@@ -609,7 +609,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     override fun onClick(v: View?) {
-        with (binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.btnSave -> {
                     if (validateInputs()) {
@@ -710,7 +710,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setupBonInputValue(number: Int) {
-        with(binding) {
+        with (binding) {
             when (number) {
                 100000 -> {
                     //selectCardView(cd100000, tv100000, 100000)
@@ -878,7 +878,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             Log.d("ChangeOriented", "JJJJ")
             textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}

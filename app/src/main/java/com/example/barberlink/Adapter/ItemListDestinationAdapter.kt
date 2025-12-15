@@ -123,7 +123,7 @@ class ItemListDestinationAdapter(
             val reviewCount = 2134
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvOutletName.text = outlet.outletName
                 tvOutletName.isSelected = true
 

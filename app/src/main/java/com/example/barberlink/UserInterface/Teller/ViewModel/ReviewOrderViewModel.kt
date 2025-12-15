@@ -48,8 +48,8 @@ class ReviewOrderViewModel(
     private val _reservationResult = MutableLiveData<ResultState?>()
     val reservationResult: LiveData<ResultState?> = _reservationResult
 
-    private val _toastDetection = MutableLiveData<TriggerToast>()
-    val toastDetection: LiveData<TriggerToast> = _toastDetection
+    private val _toastDetection = MutableLiveData<TriggerToast?>()
+    val toastDetection: LiveData<TriggerToast?> = _toastDetection
 
     sealed class ResultState {
         data object Loading : ResultState()
@@ -92,10 +92,6 @@ class ReviewOrderViewModel(
     sealed class TriggerToast {
         data object LocalToast : TriggerToast()
         data class CommonToast(val message: String) : TriggerToast()
-    }
-
-    fun clearToastDetection() {
-        _toastDetection.value = null
     }
 
     fun setReservationResult(value: ResultState?) {
@@ -497,6 +493,10 @@ class ReviewOrderViewModel(
         }
 
         return isFailed.get()
+    }
+
+    fun clearToastDetection() {
+        _toastDetection.value = null
     }
 
     override fun onCleared() {

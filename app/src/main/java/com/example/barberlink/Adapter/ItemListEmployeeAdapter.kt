@@ -122,7 +122,7 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
         fun bind(userEmployeeData: UserEmployeeData) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvName.text = userEmployeeData.fullname
                 tvRating.text = userEmployeeData.employeeRating.toString()
 

@@ -123,7 +123,7 @@ class ItemListPickUserAdapter(
             val reviewCount = 2134
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvEmployeeName.text = userEmployeeData.fullname
                 val username = userEmployeeData.username.ifEmpty { "---" }
                 tvUsername.text = root.context.getString(R.string.username_template, username)
@@ -154,7 +154,7 @@ class ItemListPickUserAdapter(
         }
 
         private fun setUserGender(gender: String) {
-            with(binding) {
+            with (binding) {
                 val density = root.resources.displayMetrics.density
                 val tvGenderLayoutParams = tvGender.layoutParams as ViewGroup.MarginLayoutParams
                 val ivGenderLayoutParams = ivGender.layoutParams as ViewGroup.MarginLayoutParams
@@ -265,7 +265,7 @@ class ItemListPickUserAdapter(
         }
 
         private fun setUserRole(role: String) {
-            with(binding) {
+            with (binding) {
                 tvRole.text = role
                 if (role == "Capster") {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))

@@ -72,7 +72,7 @@ class OnBoardingPage : AppCompatActivity() {
         }
 
         // Set the adapter to the ViewPager2
-        with(binding){
+        with (binding){
             introSliderPager.adapter = introSliderAdapter
 
             // Fungsi menampilkan Indikator
@@ -161,7 +161,7 @@ class OnBoardingPage : AppCompatActivity() {
 
     // Fungsi Merubah Indikator saat berpindah Halaman
     private fun setIndikatorSaarIni(index: Int) {
-        with(binding){
+        with (binding){
             val childCount =  indicatorsContainer.childCount
             for (i in 0 until childCount) {
                 val imageView = indicatorsContainer[i] as ImageView

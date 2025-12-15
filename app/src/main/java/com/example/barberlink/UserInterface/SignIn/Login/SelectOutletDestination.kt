@@ -105,7 +105,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
         }
 
-        with(binding) {
+        with (binding) {
             ivBack.setOnClickListener {
                 onBackPressed()
             }
