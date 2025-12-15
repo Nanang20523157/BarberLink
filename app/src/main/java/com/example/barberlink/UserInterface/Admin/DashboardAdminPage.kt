@@ -473,7 +473,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     }
 
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.ivNextMonth -> {
                     calendar.add(Calendar.MONTH, 1)
@@ -1328,7 +1328,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
     private fun displayAllData() {
         // Display the data in the UI
-        with(binding) {
+        with (binding) {
             dashboardViewModel.userAdminData.value?.let { userAdminData ->
                 if (userAdminData.uid.isNotEmpty()) {
                     val text = getString(R.string.hey_dear)

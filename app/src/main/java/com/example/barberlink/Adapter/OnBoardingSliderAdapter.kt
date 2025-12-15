@@ -27,7 +27,7 @@ class OnBoardingSliderAdapter(private val introDataSlide: List<IntroDataSlide>):
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(introDataSlide: IntroDataSlide) {
-            with(binding) {
+            with (binding) {
                 textTitle.text = introDataSlide.title
                 textDescription.text = introDataSlide.description
                 imageSlideIcon.setImageResource(introDataSlide.image)

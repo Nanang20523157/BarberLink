@@ -86,7 +86,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.btnSignIn -> {
 //                    if (imageBarbershop.alpha.toInt() == 0) {
@@ -110,7 +110,6 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
 //                    }
                     navigatePage(this@LandingPage, SignUpStepOne::class.java, btnSignUp)
                 }
-                else -> {}
             }
         }
     }

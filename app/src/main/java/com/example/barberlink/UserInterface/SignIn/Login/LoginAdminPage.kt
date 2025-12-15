@@ -164,7 +164,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -202,30 +202,32 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        when(v?.id) {
-            R.id.btnLogin -> {
-                if (validateInputs()) {
-                    checkNetworkConnection {
-                        performLogin()
-                    }
-                } else {
-                    Toast.makeText(this, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
-                    if (!isEmailValid) {
+        binding.apply {
+            when (v?.id) {
+                R.id.btnLogin -> {
+                    if (validateInputs()) {
+                        checkNetworkConnection {
+                            performLogin()
+                        }
+                    } else {
+                        Toast.makeText(this@LoginAdminPage, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
+                        if (!isEmailValid) {
 //                        isEmailValid = validateEmailInput()
-                         setFocus(binding.signInEmail)
-                    } else if (!isPasswordValid) {
+                            setFocus(signInEmail)
+                        } else if (!isPasswordValid) {
 //                        isPasswordValid = validatePasswordInput()
-                         setFocus(binding.signInPassword)
+                            setFocus(signInPassword)
+                        }
                     }
                 }
-            }
-            R.id.btnSignUp -> {
-                if (loginType == "Login as Admin") {
-                    Log.d("OriginPage", "origin page: $originPageFrom")
-                    if (originPageFrom == "SelectUserRolePage") {
-                        navigatePage(this, SignUpStepOne::class.java, null, binding.btnSignUp)
-                    } else {
-                        onBackPressed()
+                R.id.btnSignUp -> {
+                    if (loginType == "Login as Admin") {
+                        Log.d("OriginPage", "origin page: $originPageFrom")
+                        if (originPageFrom == "SelectUserRolePage") {
+                            navigatePage(this@LoginAdminPage, SignUpStepOne::class.java, null, btnSignUp)
+                        } else {
+                            onBackPressed()
+                        }
                     }
                 }
             }

@@ -217,7 +217,7 @@ class ItemListCollapseQueueAdapter(
         fun bind(reservation: Reservation) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 binding.tvCurrentQueueNumber.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
                 val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
@@ -255,7 +255,7 @@ class ItemListCollapseQueueAdapter(
         }
 
         private fun setStatusWaiting() {
-            with(binding) {
+            with (binding) {
                 cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.silver_grey)
                 )
@@ -263,7 +263,7 @@ class ItemListCollapseQueueAdapter(
         }
 
         private fun setStatusCompleted() {
-            with(binding) {
+            with (binding) {
                 cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.green_bg_flaticon)
                 )
@@ -271,7 +271,7 @@ class ItemListCollapseQueueAdapter(
         }
 
         private fun setStatusCanceled() {
-            with(binding) {
+            with (binding) {
                 cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.alpha_pink)
                 )
@@ -279,7 +279,7 @@ class ItemListCollapseQueueAdapter(
         }
 
         private fun setStatusSkipped() {
-            with(binding) {
+            with (binding) {
                 cvQueueNumber.setCardBackgroundColor(
                     getColor(root.context, R.color.alpha_yellow)
                 )
@@ -287,7 +287,7 @@ class ItemListCollapseQueueAdapter(
         }
 
         private fun setStatusProcess() {
-            with(binding) {
+            with (binding) {
 //                cvQueueNumberPrefix.setBackgroundColor(
 //                    getColor(root.context, R.color.light_blue_horizons_background)
 //                )

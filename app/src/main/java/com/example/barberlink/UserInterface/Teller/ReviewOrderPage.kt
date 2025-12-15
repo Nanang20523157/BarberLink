@@ -290,7 +290,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     showError(state.message)
                     reviewOrderViewModel.setReservationResult(null)
                 }
-                else -> {}
+                null -> {}
             }
         }
 
@@ -302,7 +302,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                 is ReviewOrderViewModel.TriggerToast.CommonToast -> {
                     showToast(state.message)
                 }
-                else -> {}
+                null -> {}
             }
         }
 
@@ -424,7 +424,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun init() {
-        with(binding) {
+        with (binding) {
             realLayoutCapster.tvCapsterName.isSelected = true
             realLayoutCustomer.tvCustomerName.isSelected = true
             tvKodePromo.isSelected = true
@@ -453,7 +453,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun showShimmer(show: Boolean) {
-        with(binding) {
+        with (binding) {
             // isShimmerVisible = show
             Log.d("ObjectReferences", "showShimmer: $show from ReviewOrderPage")
             serviceAdapter.setShimmer(show)
@@ -535,7 +535,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     // Fungsi Merubah Indikator saat berpindah Halaman
     private fun setIndikatorSaarIni(index: Int) {
-        with(binding){
+        with (binding){
             val childCount =  slideindicatorsContainer.childCount
             for (i in 0 until childCount) {
                 val imageView = slideindicatorsContainer[i] as ImageView
@@ -632,7 +632,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun displayCustomerData(customerData: UserCustomerData) {
-        with(binding) {
+        with (binding) {
             if (customerData.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
@@ -663,7 +663,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     private fun displayCapsterData(capsterData: UserEmployeeData) {
         val reviewCount = 2134
-        with(binding) {
+        with (binding) {
             if (capsterData.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
@@ -738,7 +738,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun displayPaymentDetail() {
-        with(binding) {
+        with (binding) {
             realLayoutPayment.tvNumberOfItem.text = getString(R.string.short_number_of_total_items_template, totalQuantity.toString())
             realLayoutPayment.tvSubTotalPrice.text = NumberUtils.numberToCurrency(subTotalPrice.toDouble())
             realLayoutPayment.tvCoinUse.text = if (coinsUse != 0.0) {
@@ -844,7 +844,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
 
     private fun setUserGender(gender: String) {
-        with(binding) {
+        with (binding) {
             val density = root.resources.displayMetrics.density
             val tvGenderLayoutParams = realLayoutCustomer.tvGender.layoutParams as ViewGroup.MarginLayoutParams
             val ivGenderLayoutParams = realLayoutCustomer.ivGender.layoutParams as ViewGroup.MarginLayoutParams
@@ -952,7 +952,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     private fun setMembershipStatus(status: Boolean) {
-        with(binding) {
+        with (binding) {
             val membershipText = if (status) getString(R.string.member_text) else getString(R.string.non_member_text)
             realLayoutCustomer.tvStatusMember.text = membershipText
             if (status) {
@@ -1025,8 +1025,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
-            when(v?.id) {
+        binding.apply {
+            when (v?.id) {
                 R.id.ivBack -> {
                     onBackPressed()
                 }

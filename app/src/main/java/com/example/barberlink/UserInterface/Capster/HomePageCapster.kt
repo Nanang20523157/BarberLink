@@ -1068,7 +1068,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     private fun displayEmployeeData() {
         homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
             // Implementasi untuk menampilkan data employee
-            with(binding) {
+            with (binding) {
                 loadImageWithGlide(userEmployeeData.photoProfile)
                 realLayout.tvName.text = userEmployeeData.fullname.ifEmpty { "-" }
                 // realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userEmployeeData.amountOfBon.toDouble())
@@ -1182,7 +1182,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.fabListQueue -> {
                     Log.d("ClickAble", "clickable: ${fabListQueue.isClickable}")
@@ -1218,7 +1218,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                 R.id.fabInputCapital -> {
                     if (!isShimmerVisible) {
                         showCapitalInputDialog()
-                    } else {}
+                    }
                 }
                 R.id.fabAddManualReport -> {
                     showToast("Manual report feature is under development...")

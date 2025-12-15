@@ -227,7 +227,7 @@ class ItemListEmployeeBonAdapter(
         fun bind(bonData: BonEmployeeData) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvPaymentTypeInfo.isSelected = true
                 tvEmployeeName.text = bonData.dataCreator?.userFullname
                 nominalBon.text = numberToCurrency(bonData.bonDetails.nominalBon.toDouble())

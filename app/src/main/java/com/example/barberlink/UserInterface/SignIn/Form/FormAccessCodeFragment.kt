@@ -526,7 +526,7 @@ class FormAccessCodeFragment : DialogFragment() {
 
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             textWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -657,7 +657,7 @@ class FormAccessCodeFragment : DialogFragment() {
     }
 
     private fun setBtnNextToDisableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = false
             btnNext.isEnabled = false
             btnNext.backgroundTintList = ContextCompat.getColorStateList(context, R.color.disable_grey_background)
@@ -667,7 +667,7 @@ class FormAccessCodeFragment : DialogFragment() {
     }
 
     private fun setBtnNextToEnableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = true
             btnNext.isEnabled = true
             btnNext.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)

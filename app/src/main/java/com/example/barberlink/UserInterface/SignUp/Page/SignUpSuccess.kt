@@ -86,7 +86,7 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with (binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.btnDone -> {
                     if (auth.currentUser != null) {
