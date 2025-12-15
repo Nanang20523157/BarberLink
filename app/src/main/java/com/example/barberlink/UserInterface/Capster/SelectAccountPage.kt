@@ -122,7 +122,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         }
 
 
-        with(binding) {
+        with (binding) {
             ivBack.setOnClickListener {
                 onBackPressed()
             }

@@ -828,7 +828,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                                         calculateQueueData(action.isAllData)
                                         queueTrackerViewModel.clearPendingCalculation()
                                     }
-
                                     else -> {}
                                 }
                             }
@@ -882,7 +881,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             calculateQueueData(action.isAllData)
                             queueTrackerViewModel.clearPendingCalculation()
                         }
-
                         else -> {}
                     }
                 }
@@ -2007,7 +2005,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
                     onBackPressed()

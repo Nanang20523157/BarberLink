@@ -224,7 +224,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setTextViewToErrorState(resId: Int) {
-        with(binding) {
+        with (binding) {
             val textError = getString(resId)
             textErrorForPhoneNumber = textError
             ivInfo.setImageResource(R.drawable.ic_error)
@@ -234,7 +234,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setTextViewToValidState() {
-        with(binding) {
+        with (binding) {
             textErrorForPhoneNumber = ""
             ivInfo.setImageResource(R.drawable.ic_secure_shield)
             tvInfo.setText(R.string.data_secure)
@@ -243,7 +243,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setBtnNextToDisableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = false
             btnNext.isEnabled = false
             btnNext.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepOne, R.color.disable_grey_background)
@@ -253,7 +253,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setBtnNextToEnableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = true
             btnNext.isEnabled = true
             btnNext.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepOne, R.color.black)

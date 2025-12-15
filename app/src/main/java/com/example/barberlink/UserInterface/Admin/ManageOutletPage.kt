@@ -595,7 +595,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
     override fun onDestroy() {
         super.onDestroy()
-        outletAdapter.stopAllShimmerEffects()
+        // outletAdapter.stopAllShimmerEffects()
         handler.removeCallbacksAndMessages(null)
         // Hapus listener untuk menghindari memory leak
         if (::outletListener.isInitialized) outletListener.remove()

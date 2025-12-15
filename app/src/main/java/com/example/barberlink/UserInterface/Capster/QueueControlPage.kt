@@ -689,7 +689,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun init(savedInstanceState: Bundle?) {
-        with(binding) {
+        with (binding) {
             Logger.d("CheckShimmer", "Init Blok Functions")
             realLayoutCard.tvQueueNumber.isSelected = true
             realLayoutCard.tvCustomerName.isSelected = true
@@ -1435,7 +1435,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun showShimmer(show: Boolean) {
-        with(binding) {
+        with (binding) {
             isShimmerVisible = show
             Logger.d("CheckShimmer", "showShimmer: $show from QueueControlPage")
             serviceAdapter.setShimmer(show)
@@ -1677,7 +1677,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     // Fungsi Merubah Indikator saat berpindah Halaman
     private fun setIndikatorSaarIni(index: Int) {
         Log.d("LastScroll", "index: $index")
-        with(binding){
+        with (binding){
             val childCount =  slideindicatorsContainer.childCount
             for (i in 0 until childCount) {
                 val imageView = slideindicatorsContainer[i] as ImageView
@@ -2644,7 +2644,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun displayCustomerCaptureData(customerData: UserCustomerData?) {
-        with(binding) {
+        with (binding) {
             realLayoutCard.apply {
                 // Set image profile
                 loadImageWithGlide(customerData?.photoProfile ?: "", ivCustomerPhotoProfile)
@@ -2659,7 +2659,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun displayReservationCurrentData(currentReservationData: ReservationData) {
-        with(binding) {
+        with (binding) {
             realLayoutCard.apply {
                 updateQueueNumber = {
                     tvQueueNumber.text = currentReservationData.queueNumber
@@ -2905,7 +2905,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun loadImageWithGlide(imageUrl: String, view: CircleImageView) {
-        with(binding) {
+        with (binding) {
             if (imageUrl.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
@@ -2924,7 +2924,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun setMembershipStatus(status: Boolean) {
-        with(binding) {
+        with (binding) {
             val membershipText = if (status) getString(R.string.member_text) else getString(R.string.non_member_text)
             realLayoutCard.tvStatusMember.text = membershipText
             if (status) {
@@ -2936,7 +2936,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun setUserGender(gender: String) {
-        with(binding) {
+        with (binding) {
             val density = root.resources.displayMetrics.density
             val tvGenderLayoutParams = realLayoutCard.tvGender.layoutParams as ViewGroup.MarginLayoutParams
             val ivGenderLayoutParams = realLayoutCard.ivGender.layoutParams as ViewGroup.MarginLayoutParams
@@ -4527,7 +4527,7 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
     @SuppressLint("UseKtx")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
                     lifecycleScope.launch {
@@ -4985,9 +4985,6 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                             } ?: run { showToast("Employee data does not exist.") }
                         }
                     )
-                }
-                else -> {
-                    // Do nothing
                 }
             }
         }

@@ -274,8 +274,7 @@ class ResetQueueBoardFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        resetQueueViewModel.setOutletSelected(null)
-        resetQueueViewModel.clearAllDataCapster()
+        resetQueueViewModel.clearFragmentData()
     }
 
     companion object {

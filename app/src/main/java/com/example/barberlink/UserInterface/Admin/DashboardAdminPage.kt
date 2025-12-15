@@ -44,7 +44,6 @@ import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
-import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.CalendarDateModel
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -60,7 +59,6 @@ import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityDashboardAdminPageBinding
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.Timestamp
@@ -68,13 +66,11 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.QuerySnapshot
 import com.yourapp.utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -492,7 +488,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     }
 
     override fun onClick(v: View?) {
-        with(binding) {
+        binding.apply {
             when (v?.id) {
                 R.id.ivNextMonth -> {
                     lifecycleScope.launch {
@@ -1523,7 +1519,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
     private fun displayAllData() {
         // Display the data in the UI
-        with(binding) {
+        with (binding) {
             dashboardViewModel.userAdminData.value?.let { userAdminData ->
                 if (userAdminData.uid.isNotEmpty()) {
                     val text = getString(R.string.hey_dear)

@@ -340,72 +340,74 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
-        when (v) {
-            binding.btnNext -> {
-                if (!blockAllUserClickAction) {
-                    if (validateInputs()) {
-                        checkNetworkConnection {
-                            val barbershopName = binding.etBarbershopName.text.toString().trim()
-                            stepTwoViewModel.checkBarbershopName(barbershopName) { exists ->
-                                if (exists) {
-                                    isBarberNameValid = false
-                                    setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, true)
-                                    textErrorForBarberName =  getString(R.string.barbershop_name_exists)
-                                    binding.wrapperBarbershopName.error = textErrorForBarberName
-                                } else {
-                                    isBarberNameValid = true
-                                    setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, false)
-                                    textErrorForBarberName = ""
-                                    binding.wrapperBarbershopName.error = null
-                                    val userAdminData = stepTwoViewModel.getUserAdminData().apply {
-                                        if (ownerName.isEmpty()) {
-                                            ownerName = "Owner Barbershop"
-                                            Log.d("OwnerName", "Owner Name: $ownerName")
+        binding.apply {
+            when (v?.id) {
+                R.id.btnNext -> {
+                    if (!blockAllUserClickAction) {
+                        if (validateInputs()) {
+                            checkNetworkConnection {
+                                val barbershopName = etBarbershopName.text.toString().trim()
+                                stepTwoViewModel.checkBarbershopName(barbershopName) { exists ->
+                                    if (exists) {
+                                        isBarberNameValid = false
+                                        setHeightOfWrapperInputLayout(wrapperBarbershopName, true)
+                                        textErrorForBarberName =  getString(R.string.barbershop_name_exists)
+                                        wrapperBarbershopName.error = textErrorForBarberName
+                                    } else {
+                                        isBarberNameValid = true
+                                        setHeightOfWrapperInputLayout(wrapperBarbershopName, false)
+                                        textErrorForBarberName = ""
+                                        wrapperBarbershopName.error = null
+                                        val userAdminData = stepTwoViewModel.getUserAdminData().apply {
+                                            if (ownerName.isEmpty()) {
+                                                ownerName = "Owner Barbershop"
+                                                Log.d("OwnerName", "Owner Name: $ownerName")
+                                            }
                                         }
-                                    }
-                                    stepTwoViewModel.setUserAdminData(userAdminData)
-                                    Log.d("UAD", "$userAdminData")
+                                        stepTwoViewModel.setUserAdminData(userAdminData)
+                                        Log.d("UAD", "$userAdminData")
 //                            userAdminData.ownerName = "Owner $barbershopName"
 
-                                    if (userAdminData.uid.isNotEmpty()) showConfirmationWindow() else {
-                                        stepTwoViewModel.checkEmailExists(userAdminData.email) { emailExists ->
-                                            if (emailExists) {
-                                                isBarberEmailValid = false
-                                                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, true)
-                                                textErrorForEmail = getString(R.string.email_already_exist)
-                                                binding.wrapperBarbershopEmail.error = textErrorForEmail
-                                            } else {
-                                                isBarberEmailValid = true
-                                                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, false)
-                                                textErrorForEmail = ""
-                                                binding.wrapperBarbershopEmail.error = null
+                                        if (userAdminData.uid.isNotEmpty()) showConfirmationWindow() else {
+                                            stepTwoViewModel.checkEmailExists(userAdminData.email) { emailExists ->
+                                                if (emailExists) {
+                                                    isBarberEmailValid = false
+                                                    setHeightOfWrapperInputLayout(wrapperBarbershopEmail, true)
+                                                    textErrorForEmail = getString(R.string.email_already_exist)
+                                                    wrapperBarbershopEmail.error = textErrorForEmail
+                                                } else {
+                                                    isBarberEmailValid = true
+                                                    setHeightOfWrapperInputLayout(wrapperBarbershopEmail, false)
+                                                    textErrorForEmail = ""
+                                                    wrapperBarbershopEmail.error = null
 
-                                                Log.d("UAD", "123")
-                                                stepTwoViewModel.addNewUserAdminToDatabase(false)
+                                                    Log.d("UAD", "123")
+                                                    stepTwoViewModel.addNewUserAdminToDatabase(false)
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+                        } else {
+                            Toast.makeText(this@SignUpStepTwo, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
+                            if (!isBarberNameValid) setFocus(etBarbershopName)
+                            else if (!isBarberEmailValid) setFocus(etBarbershopEmail)
                         }
-                    } else {
-                        Toast.makeText(this, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
-                        if (!isBarberNameValid) setFocus(binding.etBarbershopName)
-                        else if (!isBarberEmailValid) setFocus(binding.etBarbershopEmail)
-                    }
-                } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
-            }
-            binding.ivProfile -> {
-                if (!blockAllUserClickAction) showImagePickerDialog()
-                else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
-            }
-            binding.ivEmptyProfile -> {
-                if (!blockAllUserClickAction) showImagePickerDialog()
-                else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
-            }
-            binding.ivBack -> {
-                if (!blockAllUserClickAction) onBackPressed()
-                else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                    } else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                }
+                R.id.ivProfile -> {
+                    if (!blockAllUserClickAction) showImagePickerDialog()
+                    else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                }
+                R.id.ivEmptyProfile -> {
+                    if (!blockAllUserClickAction) showImagePickerDialog()
+                    else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                }
+                R.id.ivBack -> {
+                    if (!blockAllUserClickAction) onBackPressed()
+                    else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -513,7 +515,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setupEditTextListeners() {
-        with(binding) {
+        with (binding) {
             textWatcher1 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
@@ -562,7 +564,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setBtnNextToDisableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = false
             btnNext.isEnabled = false
             btnNext.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepTwo, R.color.disable_grey_background)
@@ -572,7 +574,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun setBtnNextToEnableState() {
-        with(binding) {
+        with (binding) {
             isBtnEnableState = true
             btnNext.isEnabled = true
             btnNext.backgroundTintList = ContextCompat.getColorStateList(this@SignUpStepTwo, R.color.black)
@@ -591,7 +593,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun validateBarbershopName(): Boolean {
-        with(binding) {
+        with (binding) {
             val name = etBarbershopName.text.toString().trim()
             return if (name.isEmpty()) {
                 setHeightOfWrapperInputLayout(wrapperBarbershopName, true)

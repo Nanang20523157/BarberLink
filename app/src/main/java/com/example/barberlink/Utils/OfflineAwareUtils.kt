@@ -115,7 +115,7 @@ suspend fun <T> Task<T>.awaitGetWithOfflineFallback(
                                 .awaitGetWithOfflineFallback(timeoutMillis, "$tag-CACHE") as? T
                         }
                         else -> {
-                            Logger.w(tag, "⚠️ Tidak bisa ambil cache untuk tipe ${res?.javaClass?.simpleName}")
+                            Logger.w(tag, "⚠️ Tidak bisa ambil cache untuk tipe ${res?.let { it::class.java.simpleName }}")
                             result
                         }
                     }

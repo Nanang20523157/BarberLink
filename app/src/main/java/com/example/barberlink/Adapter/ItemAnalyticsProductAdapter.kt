@@ -143,7 +143,7 @@ class ItemAnalyticsProductAdapter() :
         fun bind(product: Product) {
             // if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
-            with(binding) {
+            with (binding) {
                 tvProductName.isSelected = true
                 tvProductName.text = product.productName
                 tvProductCounter.text = if (outletName != "---") root.context.getString(R.string.short_items_text_of_product_sales, product.numberOfSales.toString()) else "--"

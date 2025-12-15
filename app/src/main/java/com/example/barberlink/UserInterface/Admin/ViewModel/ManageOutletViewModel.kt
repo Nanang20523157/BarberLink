@@ -4,10 +4,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ManageOutletViewModel : ViewModel() {
@@ -110,7 +112,7 @@ class ManageOutletViewModel : ViewModel() {
         }
     }
 
-    suspend fun setOutletSelected(outlet: Outlet?) {
+    suspend fun setOutletSelected(outlet: Outlet) {
         withContext(Dispatchers.Main) {
             _outletSelected.value = outlet
         }
@@ -134,12 +136,6 @@ class ManageOutletViewModel : ViewModel() {
     suspend fun setCapsterList(capsterList: List<UserEmployeeData>) {
         withContext(Dispatchers.Main) {
             _capsterList.value = capsterList
-        }
-    }
-
-    suspend fun clearAllDataCapster() {
-        withContext(Dispatchers.Main) {
-            _capsterList.value = emptyList()
         }
     }
 
@@ -171,6 +167,13 @@ class ManageOutletViewModel : ViewModel() {
     suspend fun clearAllExtendedStates() {
         withContext(Dispatchers.Main) {
             _extendedStateMap.value = mutableMapOf()
+        }
+    }
+
+    fun clearFragmentData() {
+        viewModelScope.launch {
+            _capsterList.value = emptyList()
+            _outletSelected.value = null
         }
     }
 
