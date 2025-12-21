@@ -36,6 +36,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.content.res.AppCompatResources
@@ -66,7 +67,7 @@ import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.Event
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
@@ -207,6 +208,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
     private var lastSnackbarMessage: String? = null
     private var networkOnlineSinceMs: Long = 0L
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -305,9 +307,10 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             textDropdownOutletName = savedInstanceState.getString("text_dropdown_outlet_name", "")
             blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action", false)
             snackbarStateSaved = savedInstanceState.getBoolean("snackbar_state", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             lastSnackbarMessage = savedInstanceState.getString("last_snackbar_message", null)
             networkOnlineSinceMs = savedInstanceState.getLong("network_online_since_ms", 0L)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             Log.d("CheckShimmer", "orientation change :: queueControlViewModel.setupDropdownOutletWithNullState(false)")
             queueControlViewModel.setupDropdownFilterWithNullState()
@@ -586,6 +589,10 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
         if (savedInstanceState == null || isShimmerVisible) refreshPageEffect(4)
         if (savedInstanceState != null) displayDataOrientationChange()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     // ====== Helper pengecekan jaringan (pakai punyamu) ======
@@ -664,6 +671,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         outState.putBoolean("snackbar_state", snackbarStateSaved)
         outState.putString("last_snackbar_message", lastSnackbarMessage)
         outState.putLong("network_online_since_ms", networkOnlineSinceMs)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
 
         // outState.putParcelableArrayList("reservation_list", ArrayList(reservationList))
@@ -4370,7 +4378,7 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
-                    if (!blockAllUserClickAction) onBackPressed()
+                    if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
                     else showToast("Tolong tunggu sampai proses selesai!!!")
                 }
                 R.id.cvDateLabel -> {
@@ -5054,49 +5062,94 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // =============================
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
+        // =============================
         if (fragmentManager.backStackEntryCount > 0) {
-            val dissmissFragmentProcess = {
+
+            val dismissFragmentProcess = {
                 Log.d("TagDissmiss", "BackPress Activity IF")
-                StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+                StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                    this,
+                    lightStatusBar = true,
+                    statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                    addStatusBar = false
+                )
+
                 shouldClearBackStack = true
-                if (::dialogFragment.isInitialized) dialogFragment.dismiss()
+
+                if (::dialogFragment.isInitialized) {
+                    dialogFragment.dismiss()
+                }
+
                 fragmentManager.popBackStack()
+
+                // ⛔ release lock after frame
+                binding.root.post {
+                    isHandlingBack = false
+                }
             }
 
-            val topFragment = supportFragmentManager.findFragmentByTag("QueueSuccessFragment")
+            val topFragment =
+                supportFragmentManager.findFragmentByTag("QueueSuccessFragment")
+
             if (topFragment != null && topFragment.isVisible) {
                 checkNetworkConnection(
-                    runningThisProcess = { dissmissFragmentProcess() }
+                    runningThisProcess = {
+                        dismissFragmentProcess()
+                    }
                 )
             } else {
-                dissmissFragmentProcess()
+                dismissFragmentProcess()
             }
-        } else {
-            // Memeriksa apakah semua queueStatus telah selesai
-            if (!blockAllUserClickAction) {
-                Log.d("TagDissmiss", "BackPress Activity ELSE")
-                // Jalankan proses latar belakang secara independen
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val hasPendingQueueStatus = queueControlViewModel.reservationList.value.orEmpty().any {
+
+            return
+        }
+
+        // =============================
+        // CASE 2️⃣ — ACTIVITY BACK
+        // =============================
+        if (blockAllUserClickAction) {
+            Log.d("TagDissmiss", "BackPress Activity BLOCK")
+            isHandlingBack = false
+            return
+        }
+
+        Log.d("TagDissmiss", "BackPress Activity ELSE")
+
+        // Background cleanup (NON blocking)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val hasPendingQueueStatus =
+                queueControlViewModel.reservationList.value
+                    .orEmpty()
+                    .any {
                         it.queueStatus == "process" || it.queueStatus == "waiting"
                     }
 
-                    if (!hasPendingQueueStatus) {
-                        // Menghapus nilai dari SharedPreferences jika tidak ada "process" atau "waiting"
-                        editor.remove("currentIndexQueue").apply()
-                        // editor.remove("processedQueueIndex").apply()
-                    }
-                }
+            if (!hasPendingQueueStatus) {
+                editor.remove("currentIndexQueue").apply()
+            }
+        }
 
-                WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                    // Langsung memanggil onBackPressed
-                    Log.d("Indexing", "back button currentIndex: $currentIndexQueue")
-                    super.onBackPressed()
-                    overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-                }
-            } else Log.d("TagDissmiss", "BackPress Activity BLOCK")
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            Log.d("Indexing", "back button currentIndex: $currentIndexQueue")
+
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ❗ lock TIDAK dilepas → activity akan selesai
         }
     }
 

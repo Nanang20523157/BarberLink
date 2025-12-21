@@ -20,6 +20,7 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -30,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.example.barberlink.Adapter.ItemListCapsterAdapter
+import com.example.barberlink.Contract.BackRequestHost
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Reservation
 import com.example.barberlink.DataClass.UserEmployeeData
@@ -72,7 +74,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
-class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCapsterAdapter.OnItemClicked {
+class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCapsterAdapter.OnItemClicked, BackRequestHost {
     private lateinit var binding: ActivityQueueTrackerPageBinding
     private val queueTrackerViewModel: QueueTrackerViewModel by viewModels {
         SaveStateViewModelFactory(this)
@@ -135,6 +137,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     private val popupRunnable = object : Runnable {
         override fun run() {
@@ -248,6 +251,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             isCapsterDropdownFocus = savedInstanceState.getBoolean("is_capster_dropdown_focus", false)
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             // filteredResult = savedInstanceState.getParcelableArray("filtered_result")?.mapNotNull { it as Employee } ?: emptyList()
         } else { Log.d("CheckShimmer", "Orientation Change QTP >>> savedInstanceState == null") }
@@ -354,6 +358,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         else showShimmer(isShimmerBoardVisible, isShimmerListVisible)
         if (savedInstanceState != null) displayDataOrientationChange()
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+
     }
 
     private fun displayAllData(shimmerBoard: Boolean?, shimmerList: Boolean?) {
@@ -427,11 +435,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         }
     }
 
-    fun getQueueTrackerBinding(): ActivityQueueTrackerPageBinding {
-        // Setelah binding selesai, tambahkan kode di sini
-        return binding
-    }
-
     private fun showToast(message: String) {
         if (message != currentToastMessage) {
             myCurrentToast?.cancel()
@@ -475,6 +478,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         outState.putBoolean("is_capster_dropdown_focus", isCapsterDropdownFocus)
         outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putBoolean("is_complete_search", isCompleteSearch)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
         // outState.putParcelableArray("filtered_result", filteredResult.toTypedArray())
     }
@@ -1706,7 +1710,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
-                    onBackPressed()
+                    onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.ivExits -> {
                     showExitsDialog()
@@ -1761,7 +1765,6 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
 
         return taskCompletionSource.task
     }
-
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
@@ -1900,24 +1903,49 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
-//            val intent = Intent(this, SelectUserRolePage::class.java)
-//            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-//            startActivity(intent)
-//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
         }
 
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
     }
 
     override fun onPause() {
@@ -1968,6 +1996,10 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
             }
         }
 //        Toast.makeText(this, "QTP ??D12 capster", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun requestBack() {
+        onBackPressedDispatcher.onBackPressed()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

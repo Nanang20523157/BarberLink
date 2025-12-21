@@ -12,6 +12,7 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -46,6 +47,8 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     private var originPageFrom: String? = null
     private var isNavigating = false
     private var currentView: View? = null
+    private var userNumberInput: String = ""
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -76,11 +79,16 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
 
         registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
         stepOneViewModel = ViewModelProvider(this, registerViewModelFactory)[StepOneViewModel::class.java]
-        originPageFrom = intent.getStringExtra("origin_page_key").toString()
-        val userNumberInput = savedInstanceState?.getString("user_number_input") ?: ""
-        textErrorForPhoneNumber = savedInstanceState?.getString("text_error_for_phone_number", "undefined") ?: "undefined"
-        isBtnEnableState = savedInstanceState?.getBoolean("is_btn_enable_state", false) ?: false
-        blockAllUserClickAction = savedInstanceState?.getBoolean("block_all_user_click_action", false) ?: false
+        if (savedInstanceState != null) {
+            userNumberInput = savedInstanceState.getString("user_number_input") ?: ""
+            textErrorForPhoneNumber = savedInstanceState.getString("text_error_for_phone_number", "undefined")
+                ?: "undefined"
+            isBtnEnableState = savedInstanceState.getBoolean("is_btn_enable_state", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action", false)
+        } else {
+            originPageFrom = intent.getStringExtra("origin_page_key").toString()
+        }
 
         binding.btnNext.setOnClickListener(this@SignUpStepOne)
         binding.tvSignIn.setOnClickListener(this@SignUpStepOne)
@@ -132,6 +140,10 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
         Log.d("SignUpOne", "isRecreated: $isRecreated")
         setupEditTextListeners()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -149,10 +161,9 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_recreated", true)
         outState.putString("text_error_for_phone_number", textErrorForPhoneNumber)
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
-
-        val userNumberInput: String = binding.etPhoneNumber.text.toString()
-        outState.putString("user_number_input", userNumberInput)
+        outState.putString("user_number_input", binding.etPhoneNumber.text.toString())
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -168,11 +179,11 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
                 if (!blockAllUserClickAction) {
                     if (originPageFrom == "LandingPage") {
                         navigatePage(this@SignUpStepOne, LoginAdminPage::class.java, null, binding.tvSignIn)
-                    } else onBackPressed()
+                    } else onBackPressedDispatcher.onBackPressed()
                 } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
             }
             R.id.ivBack -> {
-                if (!blockAllUserClickAction) onBackPressed()
+                if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
                 else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
             }
         }
@@ -346,13 +357,30 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
         if (!blockAllUserClickAction) {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            // CASE 2️⃣ — ACTIVITY FINISH
+            WindowInsetsHandler.setDynamicWindowAllCorner(
+                binding.root,
+                this,
+                false
+            ) {
+                finish()
+                overridePendingTransition(
+                    R.anim.slide_miximize_in_left,
+                    R.anim.slide_minimize_out_right
+                )
+                // ⛔ TIDAK dilepas → activity selesai
             }
-        } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+            // ⛔ Lepas lock setelah frame selesai
+            isHandlingBack = false
+        }
 
     }
 

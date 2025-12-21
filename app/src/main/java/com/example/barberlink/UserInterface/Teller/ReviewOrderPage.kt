@@ -15,6 +15,7 @@ import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
@@ -112,6 +113,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private var isRecreated: Boolean = false
     private var localToast: Toast? = null
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -200,6 +202,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             lastScrollPositition = savedInstanceState.getInt("last_scroll_position", 0)
 //            skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
 //            isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             setDateFilterValue(timeSelected)
@@ -361,6 +364,10 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             btnSendRequest.setOnClickListener(this@ReviewOrderPage)
         }
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+
     }
 
     private fun showLocalToast() {
@@ -420,6 +427,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 //        outState.putBoolean("is_success_get_reservation", isSuccessGetReservation)
 //        outState.putBoolean("skipped_process", skippedProcess)
 //        outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -1028,7 +1036,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
-                    onBackPressed()
+                    onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.btnKodePromo -> {
                     showToast("Best deals feature is under development...")
@@ -1226,10 +1234,23 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            super.onBackPressed()
-            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
     }
 

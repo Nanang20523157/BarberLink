@@ -19,6 +19,7 @@ import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.cardview.widget.CardView
@@ -47,7 +48,7 @@ import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.CalendarDateModel
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.ViewModel.DashboardViewModel
 import com.example.barberlink.UserInterface.BaseActivity
@@ -161,6 +162,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     private val expenditureListMutex = Mutex()
     private var isRecreated: Boolean = false
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -253,6 +255,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             textDropdownOutletName = savedInstanceState.getString("text_dropdown_outlet_name", "Semua")
             isDaily = savedInstanceState.getBoolean("is_daily", false)
             timeStampFilter = Timestamp(Date(savedInstanceState.getLong("timestamp_filter")))
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             dashboardViewModel.setupDropdownFilterWithNullState()
@@ -313,6 +316,10 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
         if (savedInstanceState != null) displayDataOrientationChange()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     private fun displayDataOrientationChange() {
@@ -357,6 +364,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         outState.putString("text_dropdown_outlet_name", textDropdownOutletName)
         outState.putBoolean("is_daily", isDaily)
         outState.putLong("timestamp_filter", timeStampFilter.toDate().time)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -1488,10 +1496,23 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            super.onBackPressed()
-            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
     }
 

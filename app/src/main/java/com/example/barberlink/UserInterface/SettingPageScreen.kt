@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -26,6 +27,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
     private var sessionCapster: Boolean = false
     private var isNavigating = false
     private var currentView: View? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +58,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
         sessionAdmin = sessionManager.getSessionAdmin()
         sessionCapster = sessionManager.getSessionCapster()
 
+        if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
 //        val args = SettingPageScreenArgs.fromBundle(intent.extras ?: Bundle())
 //        originOfIntent = args.originPage
         // Cek intent dari BerandaAdmin atau HomePageCapster
@@ -66,11 +69,16 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
 
         binding.ivBack.setOnClickListener(this)
         binding.btnLogout.setOnClickListener(this)
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
 //    override fun onStart() {
@@ -82,10 +90,10 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v?.id) {
-            binding.ivBack.id -> {
-                onBackPressed()
+            R.id.ivBack -> {
+                onBackPressedDispatcher.onBackPressed()
             }
-            binding.btnLogout.id -> {
+            R.id.btnLogout -> {
                 logout()
             }
         }
@@ -130,10 +138,23 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            super.onBackPressed()
-            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
     }
 

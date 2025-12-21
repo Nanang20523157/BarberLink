@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 pluginManagement {
     repositories {
         google()

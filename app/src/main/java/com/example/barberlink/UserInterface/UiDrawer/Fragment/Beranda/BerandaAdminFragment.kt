@@ -3,7 +3,6 @@ package com.example.barberlink.UserInterface.UiDrawer.Fragment.Beranda
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -17,7 +16,6 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.annotation.RequiresApi
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -26,7 +24,6 @@ import androidx.core.view.marginEnd
 import androidx.core.view.marginLeft
 import androidx.core.view.marginRight
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -40,6 +37,7 @@ import com.example.barberlink.Adapter.ItemListEmployeeAdapter
 import com.example.barberlink.Adapter.ItemListPackageBundlingAdapter
 import com.example.barberlink.Adapter.ItemListProductAdapter
 import com.example.barberlink.Adapter.ItemListServiceProvideAdapter
+import com.example.barberlink.Contract.CapitalDialogHost
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
@@ -47,13 +45,11 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
-import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.DrawerController
+import com.example.barberlink.Contract.DrawerController
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
-import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
@@ -97,8 +93,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
     private var currentToastMessage: String? = null
     private var remainingListeners = AtomicInteger(6)
     private val handler = Handler(Looper.getMainLooper())
-    private lateinit var fragmentManager: FragmentManager
-    private lateinit var dialogFragment: CapitalInputFragment
     private lateinit var serviceAdapter: ItemListServiceProvideAdapter
     private lateinit var employeeAdapter: ItemListEmployeeAdapter
     private lateinit var bundlingAdapter: ItemListPackageBundlingAdapter
@@ -109,7 +103,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
     private lateinit var productListener: ListenerRegistration
     private lateinit var outletListener: ListenerRegistration
     private lateinit var barbershopListener: ListenerRegistration
-
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     // Mutex objects for each list to control access
@@ -129,8 +122,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 //    private val employeesList = mutableListOf<Employee>()
     private val binding get() = _binding!!
     private lateinit var context: Context
-
-    private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var leftSide: Int = -1
     private var rightSide: Int = -1
@@ -165,8 +156,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
-
         setAndDisplayBanner()
         adjustCardViewLayout()
         // Set sudut dinamis sesuai perangkat
@@ -264,7 +253,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
         navController = Navigation.findNavController(requireView())
 
-        fragmentManager = requireActivity().supportFragmentManager
         val adminRef = sessionManager.getDataAdminRef()
         userId = adminRef?.substringAfter("barbershops/") ?: ""
 
@@ -333,11 +321,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             if (!isFirstLoad) setupListeners(skippedProcess = true)
         }
 
-        requireActivity().supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
-            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
-            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(requireActivity(), lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
-        }
-
         berandaAdminViewModel.isSetItemBundling.observe(requireActivity()) { isSet ->
             if (isSet == true) {
                 Log.d("CacheChecking", "RE SETUP LIST ITEM DETAILS")
@@ -374,7 +357,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
-        outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("skipped_process", skippedProcess)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
@@ -772,7 +754,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                     displayAllData()
                     if (!berandaAdminViewModel.getIsCapitalDialogShow()) {
                         handler.postDelayed({
-                            if (isAdded) showCapitalInputDialog()
+                            if (isAdded) (requireActivity() as? CapitalDialogHost)?.requestShowCapitalDialog()
                         }, 300)
                     }
                 }
@@ -895,8 +877,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         }
     }
 
-
-
     private fun displayAllData() {
         safeBindingAction { binding ->
             Log.d("CheckShimmer", "displayAllData")
@@ -923,41 +903,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
             }
             if (isFirstLoad) setupListeners()
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun showCapitalInputDialog() {
-//        setDialogCapitalStatus(true)
-        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(requireActivity(), lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
-        shouldClearBackStack = false
-        if (requireActivity().supportFragmentManager.findFragmentByTag("CapitalInputFragment") != null) {
-            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
-            return
-        }
-        //dialogFragment = CapitalInputFragment.newInstance(outletList, userAdminData, null)
-        dialogFragment = CapitalInputFragment.newInstance()
-        // The device is smaller, so show the fragment fullscreen.
-        val transaction = fragmentManager.beginTransaction()
-        // For a polished look, specify a transition animation.
-//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
-        transaction.setCustomAnimations(
-            R.anim.fade_in_dialog,  // Animasi masuk
-            R.anim.fade_out_dialog,  // Animasi keluar
-            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
-            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
-        )
-        // To make it fullscreen, use the 'content' root view as the container
-        // for the fragment, which is always the root view for the activity.
-        // Pastikan fragment dalam kondisi aman
-        if (isAdded && !isDetached && !requireActivity().supportFragmentManager.isStateSaved) {
-            transaction
-                .add(android.R.id.content, dialogFragment, "CapitalInputFragment")
-                .addToBackStack("CapitalInputFragment")
-                .commit()
-        }
-
-        berandaAdminViewModel.setCapitalDialogShow(true)
-//        dialogFragment.show(fragmentManager, "CapitalInputFragment")
     }
 
     private fun hideFab(fab: ExtendedFloatingActionButton) {
@@ -1049,7 +994,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 }
                 R.id.fabInputCapital -> {
                     if (!isShimmerVisible) {
-                        showCapitalInputDialog()
+                        // Fragment
+                        (requireActivity() as? CapitalDialogHost)?.requestShowCapitalDialog()
                     }
                 }
                 R.id.fabDashboardAdmin -> {
@@ -1129,69 +1075,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         isRecreated = false
     }
 
-//    @Deprecated("Deprecated in Java")
-//    override fun onBackPressed() {
-//        if (fragmentManager.backStackEntryCount > 0) {
-//            shouldClearBackStack = true
-//            dialogFragment.dismiss()
-//            fragmentManager.popBackStack()
-//        } else {
-//            super.onBackPressed()
-//            val intent = Intent(context, SelectUserRolePage::class.java)
-//            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-//            startActivity(intent)
-//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-//            finish()
-//        }
-//
-//    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-
-        val callback = object : OnBackPressedCallback(true) {
-            @RequiresApi(Build.VERSION_CODES.S)
-            override fun handleOnBackPressed() {
-                if (fragmentManager.backStackEntryCount > 0) {
-                    StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(requireActivity(), lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
-                    shouldClearBackStack = true
-                    if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-                    fragmentManager.popBackStack()
-                    Log.d("BackNavigationHome", "Tolol")
-                } else {
-//                    setDialogCapitalStatus(false)
-//                    // Jika tidak ada stack di Fragment, biarkan Activity menangani
-                    WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
-                        isEnabled = false // Nonaktifkan callback ini sementara
-                        (requireActivity() as MainActivity).getBackToPreviousPage() // Operasikan ke Activity
-                        isEnabled = true // Aktifkan kembali
-                        Log.d("BackNavigationHome", "Tenan")
-                    }
-                }
-            }
-        }
-
-        requireActivity().onBackPressedDispatcher.addCallback(this, callback)
-
-//        try {
-//            // Mengaitkan listener dengan activity yang memanggil
-//            listener = context as? SetDialogCapitalStatus
-//        } catch (e: ClassCastException) {
-//            throw ClassCastException("$context harus mengimplementasikan SetDialogCapitalStatus")
-//        }
-    }
-
-//    private fun setDialogCapitalStatus(isShow: Boolean) {
-//        listener?.setIsDialogCapitalShow(isShow)
-//    }
-
-    override fun onPause() {
-        super.onPause()
-        if (shouldClearBackStack && !childFragmentManager.isDestroyed) {
-            clearBackStack()
-        }
-    }
-
     override fun onStop() {
         super.onStop()
         if (requireActivity().isChangingConfigurations) {
@@ -1201,11 +1084,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         currentToastMessage = null
     }
 
-    private fun clearBackStack() {
-        while (fragmentManager.backStackEntryCount > 0) {
-            fragmentManager.popBackStackImmediate()
-        }
-    }
     override fun onDestroy() {
         super.onDestroy()
         productAdapter.stopAllShimmerEffects()

@@ -16,6 +16,7 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
@@ -112,6 +113,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private var isRecreated: Boolean = false
     private var localToast: Toast? = null
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -175,6 +177,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             letScrollCustomerRecycleView = savedInstanceState.getBoolean("let_scroll_customer_recycle_view", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             // customerList = savedInstanceState.getParcelableArrayList("customer_list") ?: mutableListOf()
             // filteredResult = savedInstanceState.getParcelableArray("filtered_result")?.mapNotNull { it as? UserCustomerData } ?: emptyList()
@@ -371,6 +374,10 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
         }
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+
     }
 
     private fun showLocalToast() {
@@ -420,6 +427,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         outState.putBoolean("is_shimmer_all_visible", isShimmerAllVisible)
         outState.putBoolean("let_scroll_customer_recycle_view", letScrollCustomerRecycleView)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
         // outState.putParcelableArray("filtered_result", filteredResult.toTypedArray())
     }
@@ -1689,7 +1697,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
-                    onBackPressed()
+                    onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.cvDateLabel -> {
                     disableBtnWhenShowDialog(v) {
@@ -1786,19 +1794,48 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        Log.d("ScanAll", "SS1")
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
     }
 

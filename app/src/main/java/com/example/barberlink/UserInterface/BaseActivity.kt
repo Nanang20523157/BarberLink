@@ -3,7 +3,7 @@ package com.example.barberlink.UserInterface
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Manager.SharedGestureManager
 
 open class BaseActivity : AppCompatActivity() {

@@ -10,7 +10,7 @@ import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.example.barberlink.DataClass.Reservation
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Manager.SharedGestureManager
 import com.example.barberlink.UserInterface.Capster.Fragment.ListQueueFragment
 
