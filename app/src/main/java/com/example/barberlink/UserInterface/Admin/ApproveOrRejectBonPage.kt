@@ -14,13 +14,12 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
-import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.demogorgorn.monthpicker.MonthPickerDialog
 import com.example.barberlink.Adapter.ItemListApprovalBonAdapter
@@ -29,10 +28,8 @@ import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
 import com.example.barberlink.Factory.SaveStateViewModelFactory
-import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Helper.safeBinding
 import com.example.barberlink.Helper.safeLaunch
 import com.example.barberlink.Helper.safeToast
 import com.example.barberlink.Manager.SessionManager
@@ -41,21 +38,15 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.Fragment.RecordInstallmentFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
-import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
-import com.example.barberlink.Utils.DateComparisonUtils
 import com.example.barberlink.Utils.DateComparisonUtils.isSameMonth
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.databinding.ActivityApproveOrRejectBonPageBinding
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.QuerySnapshot
 import com.yourapp.utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -126,6 +117,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     private var isCompleteSearch: Boolean = false
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
+    private var isHandlingBack: Boolean = false
 
     private val popupRunnable = object : Runnable {
         override fun run() {
@@ -227,6 +219,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         }
 
         init(savedInstanceState)
@@ -247,6 +240,9 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
         if (savedInstanceState != null) displayDataOrientationChange()
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -277,6 +273,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putBoolean("is_complete_search", isCompleteSearch)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -1175,7 +1172,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     .show()
             }
             R.id.ivBack -> {
-                onBackPressed()
+                onBackPressedDispatcher.onBackPressed()
             }
         }
     }
@@ -1244,20 +1241,49 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
         }
 
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
     }
 
     override fun onPause() {

@@ -712,7 +712,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         // Tambahkan margin ke atas (30dp)
         currentSnackbar?.view?.let { snackbarView ->
             val params = snackbarView.layoutParams as ViewGroup.MarginLayoutParams
-            params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, params.bottomMargin + 20.dpToPx(binding.root.context))
+            params.setMargins(params.leftMargin, params.topMargin, params.rightMargin, params.bottomMargin + 5.dpToPx(binding.root.context))
             snackbarView.layoutParams = params
         }
 

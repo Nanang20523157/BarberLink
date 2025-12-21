@@ -15,6 +15,7 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -29,7 +30,6 @@ import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
 import com.example.barberlink.Factory.SaveStateViewModelFactory
-import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.Event
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -39,14 +39,10 @@ import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.Fragment.FormInputBonFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
-import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameMonth
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.databinding.ActivityBonEmployeePageBinding
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
@@ -117,6 +113,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var nextPrevBonListener: ListenerRegistration
     private var currentSnackbar: Snackbar? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -168,6 +165,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             isSaveDataProcess = savedInstanceState.getBoolean("is_add_data_process", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             isRestoreDeletedData = savedInstanceState.getBoolean("is_restore_deleted_data", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         } else {
             @Suppress("DEPRECATION")
@@ -229,6 +227,10 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         if (savedInstanceState != null) displayDataOrientationChange()
 
         bonEmployeeViewModel.snackBarMessage.observe(this) { showSnackBar(it) }
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -314,6 +316,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         outState.putBoolean("is_add_data_process", isSaveDataProcess)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
         outState.putBoolean("is_restore_deleted_data", isRestoreDeletedData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -1061,7 +1064,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                     .show()
             }
             R.id.ivBack -> {
-                onBackPressed()
+                onBackPressedDispatcher.onBackPressed()
             }
             R.id.btnCreateNewBon -> {
 //                val userAccumulationBon = if (userCurrentAccumulationBon == -999 || userPreviousAccumulationBon == -999) -999 else userCurrentAccumulationBon + userPreviousAccumulationBon
@@ -1151,20 +1154,49 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
         }
 
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
     }
 
     override fun onPause() {

@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.example.barberlink.DataClass.UserAdminData
@@ -27,6 +28,7 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
     private lateinit var userAdminData: UserAdminData
     private var isNavigating = false
     private var currentView: View? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +57,7 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
+        if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         @Suppress("DEPRECATION")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
@@ -71,11 +74,16 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
         }
 
         binding.btnDone.setOnClickListener(this)
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
     private fun initiateAdminData(data: UserAdminData) {
@@ -97,6 +105,30 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
                     }
                 }
             }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+        currentView?.isClickable = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        if (auth.currentUser != null) {
+            // navigatePage(this@SignUpSuccess, BerandaAdminActivity::class.java, btnDone)
+            navigatePage(this@SignUpSuccess, MainActivity::class.java, binding.btnDone)
+        } else {
+            navigatePage(this@SignUpSuccess, LoginAdminPage::class.java, binding.btnDone)
         }
     }
 
@@ -128,29 +160,13 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
                 overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
 
                 finish() // Hapus aktivitas SignUpSuccess
-            } else return@setDynamicWindowAllCorner
-
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
-        super.onBackPressed()
-        if (auth.currentUser != null) {
-            // navigatePage(this@SignUpSuccess, BerandaAdminActivity::class.java, btnDone)
-            navigatePage(this@SignUpSuccess, MainActivity::class.java, binding.btnDone)
-        } else {
-            navigatePage(this@SignUpSuccess, LoginAdminPage::class.java, binding.btnDone)
+            } else {
+                // ⛔ Lepas lock setelah frame selesai
+                binding.root.post {
+                    isHandlingBack = false
+                }
+                return@setDynamicWindowAllCorner
+            }
         }
     }
 

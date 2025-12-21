@@ -1,20 +1,16 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
-import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
-import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Contract.BackRequestHost
 import com.example.barberlink.Manager.SessionManager
-import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
 import com.example.barberlink.databinding.FragmentExitQueueTrackerBinding
 
 // TNODO: Rename parameter arguments, choose names that match
@@ -67,7 +63,8 @@ class ExitQueueTrackerFragment : DialogFragment() {
 
         binding.btnYes.setOnClickListener {
             if (sessionTeller && dataTellerRef.isNotEmpty()) {
-                navigatePage(it)
+                sessionManager.clearSessionTeller()
+                (requireActivity() as? BackRequestHost)?.requestBack()
             }
         }
 
@@ -75,27 +72,6 @@ class ExitQueueTrackerFragment : DialogFragment() {
             dismiss()
         }
 
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun navigatePage(view: View) {
-        WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as QueueTrackerPage).getQueueTrackerBinding().root, requireContext(), false) {
-            view.isClickable = false
-            currentView = view
-            if (!isNavigating) {
-                isNavigating = true
-                Log.d("TellerSession", "Clearing Session")
-                sessionManager.clearSessionTeller()
-//            val intent = Intent(context, destination)
-//            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-                dismiss()
-                requireActivity().onBackPressedDispatcher.onBackPressed()
-//            context.startActivity(intent)
-
-                // Memastikan bahwa context adalah instance dari Activity
-                (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-            } else return@setDynamicWindowAllCorner
-        }
     }
 
     override fun onResume() {

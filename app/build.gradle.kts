@@ -117,4 +117,6 @@ dependencies {
     // Add this line to include the Lifecycle library
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
+    implementation("androidx.core:core-ktx:1.12.0")
+
 }

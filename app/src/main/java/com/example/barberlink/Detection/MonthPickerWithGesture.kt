@@ -9,7 +9,7 @@ import androidx.core.view.GestureDetectorCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import com.demogorgorn.monthpicker.MonthPickerDialog
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Manager.SharedGestureManager
 import com.example.barberlink.R
 import java.util.Calendar

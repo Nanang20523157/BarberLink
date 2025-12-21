@@ -37,16 +37,16 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.get
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -56,6 +56,7 @@ import com.example.barberlink.Accessibility.WhatsappAccessibilityService
 import com.example.barberlink.Adapter.ItemListCollapseQueueAdapter
 import com.example.barberlink.Adapter.ItemListPackageOrdersAdapter
 import com.example.barberlink.Adapter.ItemListServiceOrdersAdapter
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.NotificationReminder
 import com.example.barberlink.DataClass.Outlet
@@ -67,7 +68,7 @@ import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.Event
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Helper.safeCollect
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
@@ -83,6 +84,8 @@ import com.example.barberlink.UserInterface.Capster.Fragment.SwitchCapsterFragme
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.SwitchCapsterViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.toUtcMidnightMillis
@@ -100,6 +103,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.judemanutd.autostarter.AutoStartPermissionHelper
+import com.yourapp.utils.awaitGetWithOfflineFallback
 import com.yourapp.utils.awaitWriteWithOfflineFallback
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.Deferred
@@ -118,12 +122,6 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
-import androidx.core.net.toUri
-import com.example.barberlink.Helper.BaseCleanableAdapter
-import com.example.barberlink.Helper.safeCollect
-import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
-import com.example.barberlink.Utils.Concurrency.withStateLock
-import com.yourapp.utils.awaitGetWithOfflineFallback
 
 class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceOrdersAdapter.OnItemClicked, ItemListPackageOrdersAdapter.OnItemClicked, ItemListCollapseQueueAdapter.OnItemClicked,
     EditOrderFragment.EditOrderListener, ItemListCollapseQueueAdapter.DisplayThisToastMessage {
@@ -205,6 +203,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     private var lastSnackbarMessage: String? = null
     private var networkOnlineSinceMs: Long = 0L
     private var listenerJob: Job? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -300,11 +299,12 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             textDropdownOutletName = savedInstanceState.getString("text_dropdown_outlet_name", "")
             blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action", false)
             snackbarStateSaved = savedInstanceState.getBoolean("snackbar_state", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             lastSnackbarMessage = savedInstanceState.getString("last_snackbar_message", null)
             networkOnlineSinceMs = savedInstanceState.getLong("network_online_since_ms", 0L)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             raceConditionUpdatingData = savedInstanceState.getString("race_condition_updating_data", "")
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             Logger.d("CheckShimmer", "orientation change :: queueControlViewModel.setupDropdownOutletWithNullState(false)")
             lifecycleScope.launch { queueControlViewModel.setupDropdownFilterWithNullState() }
@@ -594,6 +594,10 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
         if (savedInstanceState == null || isShimmerVisible) refreshPageEffect(4)
         if (savedInstanceState != null) displayDataOrientationChange()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     // ====== Helper pengecekan jaringan (pakai punyamu) ======
@@ -677,6 +681,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         outState.putLong("network_online_since_ms", networkOnlineSinceMs)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
         outState.putString("race_condition_updating_data", raceConditionUpdatingData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -4533,7 +4538,7 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                     lifecycleScope.launch {
                         if (!blockAllUserClickAction) {
                             dismissSnackbarSafely()
-                            onBackPressed()
+                            onBackPressedDispatcher.onBackPressed()
                         } else showToast("Tolong tunggu sampai proses selesai!!!")
                     }
                 }
@@ -5323,49 +5328,94 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // =============================
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
+        // =============================
         if (fragmentManager.backStackEntryCount > 0) {
-            val dissmissFragmentProcess = {
+
+            val dismissFragmentProcess = {
                 Log.d("TagDissmiss", "BackPress Activity IF")
-                StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+                StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                    this,
+                    lightStatusBar = true,
+                    statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                    addStatusBar = false
+                )
+
                 shouldClearBackStack = true
-                if (::dialogFragment.isInitialized) dialogFragment.dismiss()
+
+                if (::dialogFragment.isInitialized) {
+                    dialogFragment.dismiss()
+                }
+
                 fragmentManager.popBackStack()
+
+                // ⛔ release lock after frame
+                binding.root.post {
+                    isHandlingBack = false
+                }
             }
 
-            val topFragment = supportFragmentManager.findFragmentByTag("QueueSuccessFragment")
+            val topFragment =
+                supportFragmentManager.findFragmentByTag("QueueSuccessFragment")
+
             if (topFragment != null && topFragment.isVisible) {
                 checkNetworkConnection(
-                    runningThisProcess = { dissmissFragmentProcess() }
+                    runningThisProcess = {
+                        dismissFragmentProcess()
+                    }
                 )
             } else {
-                dissmissFragmentProcess()
+                dismissFragmentProcess()
             }
-        } else {
-            // Memeriksa apakah semua queueStatus telah selesai
-            if (!blockAllUserClickAction) {
-                Log.d("TagDissmiss", "BackPress Activity ELSE")
-                // Jalankan proses latar belakang secara independen
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val hasPendingQueueStatus = queueControlViewModel.reservationDataList.value.orEmpty().any {
+
+            return
+        }
+
+        // =============================
+        // CASE 2️⃣ — ACTIVITY BACK
+        // =============================
+        if (blockAllUserClickAction) {
+            Log.d("TagDissmiss", "BackPress Activity BLOCK")
+            isHandlingBack = false
+            return
+        }
+
+        Log.d("TagDissmiss", "BackPress Activity ELSE")
+
+        // Background cleanup (NON blocking)
+        lifecycleScope.launch(Dispatchers.IO) {
+            val hasPendingQueueStatus =
+                queueControlViewModel.reservationDataList.value
+                    .orEmpty()
+                    .any {
                         it.queueStatus == "process" || it.queueStatus == "waiting"
                     }
 
-                    if (!hasPendingQueueStatus) {
-                        // Menghapus nilai dari SharedPreferences jika tidak ada "process" atau "waiting"
-                        editor.remove("currentIndexQueue").apply()
-                        // editor.remove("processedQueueIndex").apply()
-                    }
-                }
+            if (!hasPendingQueueStatus) {
+                editor.remove("currentIndexQueue").apply()
+            }
+        }
 
-                WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                    // Langsung memanggil onBackPressed
-                    Log.d("Indexing", "back button currentIndex: $currentIndexQueue")
-                    super.onBackPressed()
-                    overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-                }
-            } else Log.d("TagDissmiss", "BackPress Activity BLOCK")
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            Log.d("Indexing", "back button currentIndex: $currentIndexQueue")
+
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ❗ lock TIDAK dilepas → activity akan selesai
         }
     }
 

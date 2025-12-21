@@ -15,6 +15,7 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
@@ -26,6 +27,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
 import com.example.barberlink.Adapter.ItemAnalyticsProductAdapter
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.DataClass.AppointmentData
 import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.ManualIncomeData
@@ -35,10 +37,8 @@ import com.example.barberlink.DataClass.ProductSales
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
-import com.example.barberlink.Helper.BaseCleanableAdapter
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.NavigationCallback
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
@@ -55,7 +55,6 @@ import com.example.barberlink.Utils.CopyUtils
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityHomePageCapsterBinding
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
@@ -131,6 +130,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -202,6 +202,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             isUidHiddenText = savedInstanceState.getBoolean("is_uid_hidden_text", false)
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         } else { Log.d("CheckShimmer", "Orientation Change HPC >>> savedInstanceState == null") }
 
@@ -328,6 +329,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (!isFirstLoad) setupListeners(skippedProcess = true)
         }
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+
     }
 
     private suspend fun showToast(message: String) {
@@ -358,6 +363,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_uid_hidden_text", isUidHiddenText)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
         //outState.putParcelable("user_employee_data", userEmployeeData)
     }
@@ -1441,18 +1447,48 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
     }
 

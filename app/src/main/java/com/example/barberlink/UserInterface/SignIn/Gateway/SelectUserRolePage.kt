@@ -8,6 +8,7 @@ import android.util.Log
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.example.barberlink.Helper.StatusBarDisplayHandler
@@ -30,6 +31,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     private var tellerSession: Boolean = false
     private var capsterSession: Boolean = false
     private var isRecreated: Boolean = false
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +49,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         WindowInsetsHandler.applyWindowInsets(binding.root)
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: run { originPageFrom.isEmpty() }
+        isHandlingBack = savedInstanceState?.getBoolean("is_handling_back", false) ?: false
         Log.d("SelectUserRolePage", "isRecreated: $isRecreated")
         if (!isRecreated) {
             binding.mainContent.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
@@ -69,11 +72,16 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
             btnKasirTeller.setOnClickListener(this@SelectUserRolePage)
             // btnSignUp.setOnClickListener(this@SelectUserRolePage)
         }
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
 //    override fun onNewIntent(intent: Intent) {
@@ -100,7 +108,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
             when (v?.id) {
                 R.id.ivBack -> {
                     // Navigate to Admin Login Page
-                    onBackPressed()
+                    onBackPressedDispatcher.onBackPressed()
                 }
 //                R.id.btnSignUp -> {
 //                    // Navigate to Capster Login Page
@@ -176,19 +184,23 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java",
-        ReplaceWith("super.onBackPressed()", "androidx.appcompat.app.AppCompatActivity")
-    )
-    override fun onBackPressed() {
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            super.onBackPressed()
-            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-            Log.d("WinWinWin", "SelectUserRolePage: back navigation")
+    private fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this@SelectUserRolePage,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
-//        val intent = Intent(this, LandingPage::class.java)
-//        intent.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-//        startActivity(intent)
-//        finish() // Menutup SelectUserRolePage agar tidak ada di back stack
     }
 
     companion object {

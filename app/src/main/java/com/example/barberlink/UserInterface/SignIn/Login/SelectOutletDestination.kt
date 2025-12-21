@@ -10,6 +10,7 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -55,6 +56,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private var shouldClearBackStack = true
     private var isRecreated: Boolean = false
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,6 +95,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             loginType = savedInstanceState.getString("login_type", "") ?: ""
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             // filteredResult = savedInstanceState.getParcelableArray("filtered_result")?.mapNotNull { it as Outlet } ?: emptyList()
             // val outlets = savedInstanceState.getParcelableArrayList<Outlet>("outlets_list")
@@ -106,7 +109,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
         with (binding) {
             ivBack.setOnClickListener {
-                onBackPressed()
+                onBackPressedDispatcher.onBackPressed()
             }
             outletAdapter = ItemListDestinationAdapter(this@SelectOutletDestination)
             rvOutletList.layoutManager = VegaLayoutManager()
@@ -163,6 +166,10 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
         }
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+
     }
 
     private suspend fun showToast(message: String) {
@@ -199,6 +206,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putString("keyword", keyword)
         outState.putString("login_type", loginType)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -368,20 +376,49 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
         }
 
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
     }
 
     override fun onPause() {

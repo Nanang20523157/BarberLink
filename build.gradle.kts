@@ -1,4 +1,6 @@
 buildscript {
+    val agp_version by extra("8.13.2")
+    val agp_version1 by extra("8.1.1")
     dependencies {
         classpath("com.google.gms:google-services:4.4.2")
         classpath("androidx.navigation:navigation-safe-args-gradle-plugin:2.8.4")  // or newer

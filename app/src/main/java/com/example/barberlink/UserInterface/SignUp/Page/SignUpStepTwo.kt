@@ -19,6 +19,7 @@ import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.PopupWindow
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -74,6 +75,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private var currentView: View? = null
     private lateinit var textWatcher1: TextWatcher
     private lateinit var textWatcher2: TextWatcher
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,7 +107,64 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
         registerViewModelFactory = RegisterViewModelFactory(db, storage, auth)
         stepTwoViewModel = ViewModelProvider(this, registerViewModelFactory)[StepTwoViewModel::class.java]
-        if (!isRecreated) {
+        if (savedInstanceState != null) {
+            isBarberNameValid = savedInstanceState.getBoolean("is_barber_name_valid")
+            isBarberEmailValid = savedInstanceState.getBoolean("is_barber_email_valid")
+            isShowDialogAccountExist = savedInstanceState.getBoolean("is_show_dialog_account_exist")
+            textErrorForBarberName = savedInstanceState.getString("text_error_for_barber_name", "undefined")
+                ?: "undefined"
+            textErrorForEmail = savedInstanceState.getString("text_error_for_email", "undefined") ?: "undefined"
+            isBtnEnableState = savedInstanceState.getBoolean("is_btn_enable_state")
+            uid = savedInstanceState.getString("uid") ?: ""
+            existingEmail = savedInstanceState.getString("existing_email") ?: ""
+            isProcessError = savedInstanceState.getBoolean("is_process_error")
+            retryStep = savedInstanceState.getString("retry_step") ?: ""
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action")
+
+            val imageUri = stepTwoViewModel.getImageUri()
+            if (imageUri != null) {
+                binding.ivProfile.setImageURI(imageUri)
+                binding.ivProfile.visibility = View.VISIBLE
+                binding.ivEmptyProfile.visibility = View.GONE
+            } else {
+                val userAdminData = stepTwoViewModel.getUserAdminData()
+                userAdminData.imageCompanyProfile.let { imageUrl ->
+                    if (imageUrl.isNotEmpty()) {
+                        binding.ivProfile.visibility = View.VISIBLE
+                        binding.ivEmptyProfile.visibility = View.GONE
+                        if (!isDestroyed && !isFinishing) {
+                            // Lakukan transaksi fragment
+                            Glide.with(this)
+                                .load(userAdminData.imageCompanyProfile)
+                                .placeholder(
+                                    ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                .into(binding.ivProfile)
+                        }
+                    }
+                }
+            }
+//
+//            binding.etBarbershopName.text = Editable.Factory.getInstance().newEditable(userAdminData.barbershopName)
+//            binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(userAdminData.email)
+//
+//            if (isBarberNameValid) {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, false)
+//                binding.wrapperBarbershopName.error = null
+//            } else {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, true)
+//                binding.wrapperBarbershopName.error = textErrorForBarberName
+//            }
+//
+//            if (isBarberEmailValid) {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, false)
+//                binding.wrapperBarbershopEmail.error = null
+//            } else {
+//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, true)
+//                binding.wrapperBarbershopEmail.error = textErrorForEmail
+//            }
+        } else {
             @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra(SignUpStepOne.ADMIN_KEY, UserAdminData::class.java)?.let {
@@ -166,61 +225,6 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                     stepTwoViewModel.setUserRolesData(it)
                 }
             }
-        } else {
-            isBarberNameValid = savedInstanceState?.getBoolean("is_barber_name_valid") ?: false
-            isBarberEmailValid = savedInstanceState?.getBoolean("is_barber_email_valid") ?: false
-            isShowDialogAccountExist = savedInstanceState?.getBoolean("is_show_dialog_account_exist") ?: false
-            textErrorForBarberName = savedInstanceState?.getString("text_error_for_barber_name", "undefined") ?: "undefined"
-            textErrorForEmail = savedInstanceState?.getString("text_error_for_email", "undefined") ?: "undefined"
-            isBtnEnableState = savedInstanceState?.getBoolean("is_btn_enable_state") ?: false
-            uid = savedInstanceState?.getString("uid") ?: ""
-            existingEmail = savedInstanceState?.getString("existing_email") ?: ""
-            isProcessError = savedInstanceState?.getBoolean("is_process_error") ?: false
-            retryStep = savedInstanceState?.getString("retry_step") ?: ""
-            blockAllUserClickAction = savedInstanceState?.getBoolean("block_all_user_click_action") ?: false
-
-            val imageUri = stepTwoViewModel.getImageUri()
-            if (imageUri != null) {
-                binding.ivProfile.setImageURI(imageUri)
-                binding.ivProfile.visibility = View.VISIBLE
-                binding.ivEmptyProfile.visibility = View.GONE
-            } else {
-                val userAdminData = stepTwoViewModel.getUserAdminData()
-                userAdminData.imageCompanyProfile.let { imageUrl ->
-                    if (imageUrl.isNotEmpty()) {
-                        binding.ivProfile.visibility = View.VISIBLE
-                        binding.ivEmptyProfile.visibility = View.GONE
-                        if (!isDestroyed && !isFinishing) {
-                            // Lakukan transaksi fragment
-                            Glide.with(this)
-                                .load(userAdminData.imageCompanyProfile)
-                                .placeholder(
-                                    ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                                .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                                .into(binding.ivProfile)
-                        }
-                    }
-                }
-            }
-//
-//            binding.etBarbershopName.text = Editable.Factory.getInstance().newEditable(userAdminData.barbershopName)
-//            binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(userAdminData.email)
-//
-//            if (isBarberNameValid) {
-//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, false)
-//                binding.wrapperBarbershopName.error = null
-//            } else {
-//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopName, true)
-//                binding.wrapperBarbershopName.error = textErrorForBarberName
-//            }
-//
-//            if (isBarberEmailValid) {
-//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, false)
-//                binding.wrapperBarbershopEmail.error = null
-//            } else {
-//                setHeightOfWrapperInputLayout(binding.wrapperBarbershopEmail, true)
-//                binding.wrapperBarbershopEmail.error = textErrorForEmail
-//            }
         }
 
         if (isShowDialogAccountExist) showConfirmationWindow()
@@ -318,6 +322,10 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             }
         }
         setupEditTextListeners()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -335,6 +343,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_process_error", isProcessError)
         outState.putString("retry_step", retryStep)
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
     }
 
@@ -405,7 +414,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                     else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
                 }
                 R.id.ivBack -> {
-                    if (!blockAllUserClickAction) onBackPressed()
+                    if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
                     else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -673,13 +682,31 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
         if (!blockAllUserClickAction) {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            // CASE 2️⃣ — ACTIVITY FINISH
+            WindowInsetsHandler.setDynamicWindowAllCorner(
+                binding.root,
+                this,
+                false
+            ) {
+                finish()
+                overridePendingTransition(
+                    R.anim.slide_miximize_in_left,
+                    R.anim.slide_minimize_out_right
+                )
+                // ⛔ TIDAK dilepas → activity selesai
             }
-        } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+            // ⛔ Lepas lock setelah frame selesai
+            isHandlingBack = false
+        }
+
     }
 
     override fun onDestroy() {

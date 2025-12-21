@@ -11,23 +11,29 @@ import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
+import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupWithNavController
+import com.example.barberlink.Contract.CapitalDialogHost
+import com.example.barberlink.Contract.DrawerController
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.DrawerController
-import com.example.barberlink.Interface.NavigationCallback
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.ApproveOrRejectBonPage
+import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
+import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
 import com.example.barberlink.databinding.ActivityMainBinding
@@ -36,20 +42,27 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivity : BaseActivity(), DrawerController
+class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
 //    , BerandaAdminFragment.SetDialogCapitalStatus
 {
     private lateinit var binding: ActivityMainBinding
     private lateinit var appBarConfiguration: AppBarConfiguration
+    private val berandaAdminViewModel: BerandaAdminViewModel by viewModels {
+        SaveStateViewModelFactory(this)
+    }
     private lateinit var userAdminData: UserAdminData
     private lateinit var navController: NavController
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navView: NavigationView
     private var isNavigating = false
     private var currentView: View? = null
+    private lateinit var fragmentManager: FragmentManager
+    private lateinit var dialogFragment: CapitalInputFragment
+    private var shouldClearBackStack: Boolean = true
     private var pendingNavigation: (() -> Unit)? = null
     private var currentToastMessage: String? = null
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 //    private var isDialogCapitalShow: Boolean = false
 //    private var originFromSuccesPage: Boolean = false
 
@@ -59,6 +72,7 @@ class MainActivity : BaseActivity(), DrawerController
         Log.d("BackStackCount", "BackStackCount: $backStackCount")
         if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
         else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
+        shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -76,9 +90,13 @@ class MainActivity : BaseActivity(), DrawerController
             }
         })
 
-        if (savedInstanceState != null) currentToastMessage = savedInstanceState.getString("current_toast_message", null)
+        if (savedInstanceState != null) {
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
+        }
         userAdminData = UserAdminData()
 
+        fragmentManager = supportFragmentManager
         drawerLayout = binding.drawerLayout
         navView = binding.navView
 
@@ -147,21 +165,14 @@ class MainActivity : BaseActivity(), DrawerController
             }
         })
 
-        // Tambahkan listener untuk back press
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
-                    drawerLayout.closeDrawer(GravityCompat.START)
-                    Log.d("BackNavigationHome", "Drawer closed")
-                } else {
-                    // Biarkan Fragment Manager menangani back stack
-                    isEnabled = false // Nonaktifkan sementara untuk menghindari loop
-                    onBackPressedDispatcher.onBackPressed()
-                    isEnabled = true
-                    Log.d("BackNavigationHome", "Jancuk")
-                }
-            }
-        })
+        supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this@MainActivity, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+        }
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
 
     }
 
@@ -188,6 +199,8 @@ class MainActivity : BaseActivity(), DrawerController
         super.onSaveInstanceState(outState)
         Log.d("BackStackCount", "BackStackCount P: ${supportFragmentManager.backStackEntryCount}")
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+        outState.putBoolean("should_clear_backstack", shouldClearBackStack)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -271,6 +284,46 @@ class MainActivity : BaseActivity(), DrawerController
         drawerLayout.closeDrawer(GravityCompat.START)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun requestShowCapitalDialog() {
+        showCapitalInputDialog()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showCapitalInputDialog() {
+//        setDialogCapitalStatus(true)
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this@MainActivity, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        shouldClearBackStack = false
+        if (supportFragmentManager.findFragmentByTag("CapitalInputFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
+        //dialogFragment = CapitalInputFragment.newInstance(outletList, userAdminData, null)
+        dialogFragment = CapitalInputFragment.newInstance()
+        // The device is smaller, so show the fragment fullscreen.
+        val transaction = fragmentManager.beginTransaction()
+        // For a polished look, specify a transition animation.
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
+        // To make it fullscreen, use the 'content' root view as the container
+        // for the fragment, which is always the root view for the activity.
+        // Pastikan fragment dalam kondisi aman
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
+            transaction
+                .add(android.R.id.content, dialogFragment, "CapitalInputFragment")
+                .addToBackStack("CapitalInputFragment")
+                .commit()
+        }
+
+        lifecycleScope.launch { berandaAdminViewModel.setCapitalDialogShow(true) }
+//        dialogFragment.show(fragmentManager, "CapitalInputFragment")
+    }
+
 //    override fun setIsDialogCapitalShow(isShow: Boolean) {
 //        isDialogCapitalShow = isShow
 //    }
@@ -322,20 +375,66 @@ class MainActivity : BaseActivity(), DrawerController
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        Log.d("BackNavigationHome", "Back")
-        super.onBackPressed()
-        overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-//        BarberLinkApp.sessionManager.clearActivePage()
-//        if (!isDialogCapitalShow && originFromSuccesPage) {
-//            val intent = Intent(this, SelectUserRolePage::class.java)
-//            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-//            startActivity(intent)
-//            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
-//            finish()
-//        }
-//        Log.d("BackNavigationHome", "Back")
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // 1️⃣ Drawer priority
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START)
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
+        if (fragmentManager.backStackEntryCount > 0) {
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
+            shouldClearBackStack = true
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
+            }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
     }
 
     override fun onStop() {
@@ -347,9 +446,10 @@ class MainActivity : BaseActivity(), DrawerController
         currentToastMessage = null
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    fun getBackToPreviousPage() {
-        onBackPressed()
+    private fun clearBackStack() {
+        while (fragmentManager.backStackEntryCount > 0) {
+            fragmentManager.popBackStackImmediate()
+        }
     }
 
     companion object{

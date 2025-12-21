@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
@@ -30,6 +31,7 @@ class CompleteOrderPage : AppCompatActivity() {
     // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
     private var isNavigating = false
     private var currentView: View? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +67,7 @@ class CompleteOrderPage : AppCompatActivity() {
             viewModelFactory
         )[SharedReserveViewModel::class.java]
 
+        if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         @Suppress("DEPRECATION")
         userReservationData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, ReservationData::class.java) ?: ReservationData()
@@ -77,11 +80,16 @@ class CompleteOrderPage : AppCompatActivity() {
             navigatePage(this@CompleteOrderPage, QueueTrackerPage::class.java, it)
         }
 
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
     private fun setupView() {
@@ -133,17 +141,23 @@ class CompleteOrderPage : AppCompatActivity() {
 //            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
                 finish()
                 completePageViewModel.clearAllData()
-            } else return@setDynamicWindowAllCorner
+            } else {
+                // ⛔ Lepas lock setelah frame selesai
+                binding.root.post {
+                    isHandlingBack = false
+                }
+                return@setDynamicWindowAllCorner
+            }
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (isNavigating) super.onBackPressed()
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            navigatePage(this@CompleteOrderPage, QueueTrackerPage::class.java, binding.realLayout.btnNavigateToHomePage)
-        }
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        navigatePage(this@CompleteOrderPage, QueueTrackerPage::class.java, binding.realLayout.btnNavigateToHomePage)
     }
 
     companion object {

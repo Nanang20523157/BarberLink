@@ -15,6 +15,7 @@ import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -60,6 +61,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var textWatcher2: TextWatcher
     private var inputManualCheckOne: (() -> Unit)? = null
     private var inputManualCheckTwo: (() -> Unit)? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,24 +96,28 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 //
 //        windowInsetsController?.isAppearanceLightStatusBars = false
 
-        originPageFrom = intent.getStringExtra("origin_page_key").toString()
-        loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
-        isEmailValid = savedInstanceState?.getBoolean("is_email_valid", false) ?: false
-        isPasswordValid = savedInstanceState?.getBoolean("is_password_valid", false) ?: false
-        textErrorForEmail = savedInstanceState?.getString("text_error_for_email", "undefined") ?: "undefined"
-        textErrorForPassword = savedInstanceState?.getString("text_error_for_password", "undefined") ?: "undefined"
-        @Suppress("DEPRECATION")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
-                userAdminData = it
-                binding.signInEmail.setText(userAdminData.email)
-                binding.signInPassword.setText(userAdminData.password)
-            }
+        if (savedInstanceState != null) {
+            isEmailValid = savedInstanceState.getBoolean("is_email_valid", false)
+            isPasswordValid = savedInstanceState.getBoolean("is_password_valid", false)
+            textErrorForEmail = savedInstanceState.getString("text_error_for_email", "undefined") ?: "undefined"
+            textErrorForPassword = savedInstanceState.getString("text_error_for_password", "undefined") ?: "undefined"
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
-            intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_DATA_KEY)?.let {
-                userAdminData = it
-                binding.signInEmail.setText(userAdminData.email)
-                binding.signInPassword.setText(userAdminData.password)
+            originPageFrom = intent.getStringExtra("origin_page_key").toString()
+            loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+                    userAdminData = it
+                    binding.signInEmail.setText(userAdminData.email)
+                    binding.signInPassword.setText(userAdminData.password)
+                }
+            } else {
+                intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_DATA_KEY)?.let {
+                    userAdminData = it
+                    binding.signInEmail.setText(userAdminData.email)
+                    binding.signInPassword.setText(userAdminData.password)
+                }
             }
         }
 
@@ -152,6 +158,10 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             }
         }
         setupEditTextListeners()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -161,6 +171,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_password_valid", isPasswordValid)
         outState.putString("text_error_for_email", textErrorForEmail)
         outState.putString("text_error_for_password", textErrorForPassword)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
     private fun setupEditTextListeners() {
@@ -226,7 +237,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                         if (originPageFrom == "SelectUserRolePage") {
                             navigatePage(this@LoginAdminPage, SignUpStepOne::class.java, null, btnSignUp)
                         } else {
-                            onBackPressed()
+                            onBackPressedDispatcher.onBackPressed()
                         }
                     }
                 }
@@ -513,10 +524,23 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            super.onBackPressed()
-            overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
     }
 
