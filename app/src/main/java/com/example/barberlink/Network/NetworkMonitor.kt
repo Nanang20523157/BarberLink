@@ -221,7 +221,7 @@ object NetworkMonitor {
                             isSchedulingToast = true
                             schedulingToast?.cancel()
                             schedulingToast = scope.launch {
-                                delay(1000)
+                                delay(2000)
                                 internalShowToast(msg, isFromScheduling = true)
                             }
                         } else if (msg == "Aplikasi kembali online" && rechecking && isSchedulingToast) {

@@ -14,6 +14,7 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -63,6 +64,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private lateinit var textWatcher1: TextWatcher
     private lateinit var textWatcher2: TextWatcher
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,39 +95,22 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
         registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
         stepThreeViewModel = ViewModelProvider(this, registerViewModelFactory)[StepThreeViewModel::class.java]
-        if (!isRecreated) {
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
-                    stepThreeViewModel.setUserAdminData(it)
-                }
-                intent.getParcelableExtra(SignUpStepTwo.ROLES_KEY, UserRolesData::class.java)?.let {
-                    stepThreeViewModel.setUserRolesData(it)
-                }
-            } else {
-                intent.getParcelableExtra<UserAdminData>(SignUpStepTwo.ADMIN_KEY)?.let {
-                    stepThreeViewModel.setUserAdminData(it)
-                }
-                intent.getParcelableExtra<UserRolesData>(SignUpStepTwo.ROLES_KEY)?.let {
-                    stepThreeViewModel.setUserRolesData(it)
-                }
-            }
-
-            intent.getStringExtra(SignUpStepTwo.IMAGE_KEY)?.let {
-                stepThreeViewModel.setImageUri(Uri.parse(it))
-            }
-        } else {
-            isPasswordValid = savedInstanceState?.getBoolean("is_password_valid") ?: false
-            isConfirmPasswordValid = savedInstanceState?.getBoolean("is_confirm_password_valid") ?: false
-            textInputPassword = savedInstanceState?.getString("text_input_password") ?: ""
-            textInputConfirmPassword = savedInstanceState?.getString("tex_iInpu_cConfir_pPassword") ?: ""
-            textErrorForPassword = savedInstanceState?.getString("text_error_for_password", "undefined") ?: "undefined"
-            textErrorForConfirmPass = savedInstanceState?.getString("text_error_for_confirm_pass", "undefined") ?: "undefined"
-            isBtnEnableState = savedInstanceState?.getBoolean("is_btn_enable_state") ?: false
-            isSeePassword = savedInstanceState?.getBoolean("is_see_password") ?: false
-            isProcessError = savedInstanceState?.getBoolean("is_process_error") ?: false
-            retryStep = savedInstanceState?.getString("retry_step") ?: ""
-            blockAllUserClickAction = savedInstanceState?.getBoolean("block_all_user_click_action") ?: false
+        if (savedInstanceState != null) {
+            isPasswordValid = savedInstanceState.getBoolean("is_password_valid")
+            isConfirmPasswordValid = savedInstanceState.getBoolean("is_confirm_password_valid")
+            textInputPassword = savedInstanceState.getString("text_input_password") ?: ""
+            textInputConfirmPassword = savedInstanceState.getString("tex_iInpu_cConfir_pPassword")
+                ?: ""
+            textErrorForPassword = savedInstanceState.getString("text_error_for_password", "undefined")
+                ?: "undefined"
+            textErrorForConfirmPass = savedInstanceState.getString("text_error_for_confirm_pass", "undefined")
+                ?: "undefined"
+            isBtnEnableState = savedInstanceState.getBoolean("is_btn_enable_state")
+            isSeePassword = savedInstanceState.getBoolean("is_see_password")
+            isProcessError = savedInstanceState.getBoolean("is_process_error")
+            retryStep = savedInstanceState.getString("retry_step") ?: ""
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action")
 
 //            binding.apply {
 //                etPassword.setText(textInputPassword)
@@ -154,7 +139,27 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 //                etPassword.text?.let { etPassword.setSelection(it.length) }
 //                etConfirmPassword.text?.let { etConfirmPassword.setSelection(it.length) }
 //            }
+        } else {
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(SignUpStepTwo.ADMIN_KEY, UserAdminData::class.java)?.let {
+                    stepThreeViewModel.setUserAdminData(it)
+                }
+                intent.getParcelableExtra(SignUpStepTwo.ROLES_KEY, UserRolesData::class.java)?.let {
+                    stepThreeViewModel.setUserRolesData(it)
+                }
+            } else {
+                intent.getParcelableExtra<UserAdminData>(SignUpStepTwo.ADMIN_KEY)?.let {
+                    stepThreeViewModel.setUserAdminData(it)
+                }
+                intent.getParcelableExtra<UserRolesData>(SignUpStepTwo.ROLES_KEY)?.let {
+                    stepThreeViewModel.setUserRolesData(it)
+                }
+            }
 
+            intent.getStringExtra(SignUpStepTwo.IMAGE_KEY)?.let {
+                stepThreeViewModel.setImageUri(Uri.parse(it))
+            }
         }
 
         binding.btnCreateAccount.setOnClickListener(this)
@@ -241,6 +246,10 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                 etConfirmPassword.text?.let { etConfirmPassword.setSelection(it.length) }
             }
         }
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -258,6 +267,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_process_error", isProcessError)
         outState.putString("retry_step", retryStep)
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
     }
 
@@ -281,7 +291,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                 } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
             }
             R.id.ivBack -> {
-                if (!blockAllUserClickAction) onBackPressed()
+                if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
                 else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
             }
         }
@@ -475,13 +485,31 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
         if (!blockAllUserClickAction) {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+            // CASE 2️⃣ — ACTIVITY FINISH
+            WindowInsetsHandler.setDynamicWindowAllCorner(
+                binding.root,
+                this,
+                false
+            ) {
+                finish()
+                overridePendingTransition(
+                    R.anim.slide_miximize_in_left,
+                    R.anim.slide_minimize_out_right
+                )
+                // ⛔ TIDAK dilepas → activity selesai
             }
-        } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+            // ⛔ Lepas lock setelah frame selesai
+            isHandlingBack = false
+        }
+
     }
 
     override fun onDestroy() {

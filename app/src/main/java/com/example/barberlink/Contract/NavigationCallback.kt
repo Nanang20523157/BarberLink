@@ -1,4 +1,4 @@
-package com.example.barberlink.Interface
+package com.example.barberlink.Contract
 
 interface NavigationCallback {
     fun navigate()

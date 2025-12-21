@@ -15,6 +15,7 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -128,6 +129,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
     private var isCompleteSearch: Boolean = false
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
+    private var isHandlingBack: Boolean = false
 
     private val popupRunnable = object : Runnable {
         override fun run() {
@@ -229,6 +231,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
 
@@ -249,6 +252,10 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
 
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
         if (savedInstanceState != null) displayDataOrientationChange()
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
 
     }
 
@@ -308,6 +315,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putBoolean("is_complete_search", isCompleteSearch)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -1153,7 +1161,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                     .show()
             }
             R.id.ivBack -> {
-                onBackPressed()
+                onBackPressedDispatcher.onBackPressed()
             }
         }
     }
@@ -1201,22 +1209,50 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         }
     }
 
-
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
         if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
             shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
             }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
         }
 
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

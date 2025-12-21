@@ -10,6 +10,7 @@ import android.os.Looper
 import android.view.View
 import android.view.WindowInsetsController
 import android.view.animation.AccelerateDecelerateInterpolator
+import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -29,6 +30,7 @@ class SplashScreen : AppCompatActivity() {
     private var sessionAdmin: Boolean = false
     private var sessionTeller: Boolean = false
     private var sessionCapster: Boolean = false
+    private var isHandlingBack: Boolean = false
 
     private val startOnBoarding = Runnable {
         headAnimator.cancel()
@@ -60,10 +62,20 @@ class SplashScreen : AppCompatActivity() {
         sessionCapster = sessionManager.getSessionCapster()
         sessionTeller = sessionManager.getSessionTeller()
         sessionAdmin = sessionManager.getSessionAdmin()
+        if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
 
         animateSplashScreen()
 
         handler.postDelayed(startOnBoarding, 3750)
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
 //    @RequiresApi(Build.VERSION_CODES.S)
@@ -73,8 +85,12 @@ class SplashScreen : AppCompatActivity() {
 //        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
 //    }
 
-    override fun onBackPressed() {
-        super.onBackPressed()
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
         handler.removeCallbacks(startOnBoarding)
         finish()
     }

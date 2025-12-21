@@ -4,7 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.Lifecycle
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 
 class SharedGestureManager private constructor() {
 

@@ -11,6 +11,7 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.DialogFragment
@@ -21,7 +22,7 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Interface.NavigationCallback
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.Fragment.ResetQueueBoardFragment
@@ -70,6 +71,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     private var isRecreated: Boolean = false
     private var localToast: Toast? = null
     private var myCurrentToast: Toast? = null
+    private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,6 +125,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         } else {
             // Mendapatkan argumen dari SafeArgs
@@ -177,6 +180,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                     outletAdapter.restoreSwitchStatus(indexOutlet)
                 }
             }
+        }
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
         }
 
     }
@@ -268,6 +275,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
+        outState.putBoolean("is_handling_back", isHandlingBack)
         currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
@@ -453,7 +461,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.ivBack -> {
-                onBackPressed()
+                onBackPressedDispatcher.onBackPressed()
             }
         }
     }
@@ -534,28 +542,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (fragmentManager.backStackEntryCount > 0) {
-            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
-            if (isDisplayQueueBoard) {
-                Log.d("UpdateOutletStatus", "Update 215 False")
-                outletAdapter.restoreSwitchStatus(indexOutlet)
-                isDisplayQueueBoard = false
-            }
-            shouldClearBackStack = true
-            if (::dialogFragment.isInitialized) dialogFragment.dismiss()
-            fragmentManager.popBackStack()
-        } else {
-            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-                super.onBackPressed()
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
-            }
-        }
-
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
 //        BarberLinkApp.sessionManager.setActivePage("Admin")
         Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
@@ -572,6 +558,57 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             }
         }
         isRecreated = false
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    fun handleCustomBack() {
+        // 🚫 BLOCK DOUBLE BACK
+        if (isHandlingBack) return
+        isHandlingBack = true
+
+        // CASE 1️⃣ — MASIH ADA FRAGMENT
+        if (fragmentManager.backStackEntryCount > 0) {
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
+            if (isDisplayQueueBoard) {
+                Log.d("UpdateOutletStatus", "Update 215 False")
+                outletAdapter.restoreSwitchStatus(indexOutlet)
+                isDisplayQueueBoard = false
+            }
+            shouldClearBackStack = true
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
+            }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
+        }
     }
 
     override fun onPause() {

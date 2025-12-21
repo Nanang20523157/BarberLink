@@ -24,7 +24,9 @@ import android.view.WindowManager
 import androidx.annotation.RequiresApi
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
 import androidx.core.view.updatePadding
+import com.example.barberlink.R
 
 object WindowInsetsHandler {
 
@@ -98,60 +100,94 @@ object WindowInsetsHandler {
         isOnResume: Boolean,
         onComplete: (() -> Unit)? = null
     ) {
-        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        var radius = windowManager.currentWindowMetrics.windowInsets
-            .getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)?.radius?.toFloat() ?: -999f
-        radius = if (radius != -999f) radius - 5f else 50f
-
         val activity = context as Activity
+
+        // ===== HITUNG RADIUS SISTEM =====
+        val windowManager =
+            context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        var radius = windowManager.currentWindowMetrics.windowInsets
+            .getRoundedCorner(RoundedCorner.POSITION_TOP_LEFT)
+            ?.radius?.toFloat() ?: 50f
+
+        radius -= 5f
+
+        // ===== STATUS BAR CURVED VIEW =====
         val decorView = activity.window.decorView as ViewGroup
-
-        // cache sekali
         val curvedView = decorView.findViewWithTag<View>("curvedView")
-        val initialColor = (curvedView?.background as? ShapeDrawable)?.paint?.color
-            ?: activity.window.statusBarColor
 
-        // pakai satu GradientDrawable, set top-only radii
-        val curvedBg = (curvedView?.background as? GradientDrawable) ?: GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(initialColor)
-            cornerRadii = topRadii(if (isOnResume) radius else 0f)
-        }
-        curvedView?.background = curvedBg
+        val curvedBg =
+            (curvedView?.background as? GradientDrawable)
+                ?: GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    setColor(activity.window.statusBarColor)
+                    curvedView?.background = this
+                }
 
-        // single provider yang bisa di-update
-        class RoundedProvider(var r: Float) : ViewOutlineProvider() {
-            override fun getOutline(v: View, o: Outline) {
-                o.setRoundRect(0, 0, v.width, v.height, r)
+        // ===== SINGLE OUTLINE PROVIDER (CACHED) =====
+        val provider = (view.getTag(R.id.rounded_outline_provider)
+                as? RoundedOutlineProvider)
+            ?: RoundedOutlineProvider().also {
+                view.setTag(R.id.rounded_outline_provider, it)
+                view.outlineProvider = it
             }
-        }
-        val provider = RoundedProvider(if (isOnResume) radius else 0f)
-        view.outlineProvider = provider
-        view.clipToOutline = provider.r > 0f
+
+        // ===== SET INITIAL STATE (NO DELAY) =====
+        provider.radius = if (isOnResume) radius else 0f
+        view.clipToOutline = provider.radius > 0f
         view.invalidateOutline()
 
-        if (::animator.isInitialized) animator.cancel()
-        animator = if (isOnResume) {
-            ValueAnimator.ofFloat(radius, 0f).apply { duration = 250; startDelay = 800 }
+        // ===== START ANIMATION =====
+        fun startAnimation() {
+            val start = if (isOnResume) radius else 0f
+            val end = if (isOnResume) 0f else radius
+
+            ValueAnimator.ofFloat(start, end).apply {
+                duration = 250
+                if (isOnResume) startDelay = 300
+
+                addUpdateListener { anim ->
+                    val r = anim.animatedValue as Float
+
+                    provider.radius = r
+                    view.clipToOutline = r > 0f
+                    view.invalidateOutline()
+
+                    curvedBg.cornerRadii = topRadii(r)
+                    curvedView?.invalidate()
+                }
+
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        onComplete?.invoke()
+                    }
+                })
+
+                start()
+            }
+        }
+
+        // ===== doOnLayout HANYA JIKA PERLU =====
+        if (view.width == 0 || view.height == 0) {
+            view.doOnLayout { startAnimation() }
         } else {
-            ValueAnimator.ofFloat(0f, radius).apply { duration = 250 }
+            startAnimation()
         }
+    }
 
-        animator.addUpdateListener { a ->
-            val r = a.animatedValue as Float
-            // samakan Satu Sumber Kebenaran radius untuk outline & bg
-            provider.r = r
-            view.clipToOutline = r > 0f
-            view.invalidateOutline()
+    class RoundedOutlineProvider(
+        var radius: Float = 0f
+    ) : ViewOutlineProvider() {
 
-            curvedBg.cornerRadii = topRadii(r)
-            curvedView?.invalidate()
+        override fun getOutline(view: View, outline: Outline) {
+            outline.setRoundRect(
+                0,
+                0,
+                view.width,
+                view.height,
+                radius
+            )
         }
-
-        animator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) { onComplete?.invoke() }
-        })
-        animator.start()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
