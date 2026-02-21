@@ -14,21 +14,29 @@ import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.core.view.isGone
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.barberlink.Adapter.ItemListOutletAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Contract.NavigationCallback
+import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Manager.VegaLayoutManager
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Admin.Fragment.ResetQueueBoardFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.databinding.ActivityManageOutletPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -40,11 +48,14 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
-class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked, ItemListOutletAdapter.OnQueueResetListener, ItemListOutletAdapter.OnProcessUpdateCallback,
-    ItemListOutletAdapter.DisplayThisToastMessage {
+class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked, ItemListOutletAdapter.OnQueueResetListener,
+    ItemListOutletAdapter.DisplayThisToastMessage, ItemListOutletAdapter.UpdateOutletStatus, ItemListOutletAdapter.UpdateOutletAccessCode {
     private lateinit var binding: ActivityManageOutletPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val manageOutletViewModel: ManageOutletViewModel by viewModels()
+    private val manageOutletViewModel: ManageOutletViewModel by viewModels {
+        DatabaseViewModelFactory(db)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var outletAdapter: ItemListOutletAdapter
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: DialogFragment
@@ -58,19 +69,12 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     private var isDisplayQueueBoard: Boolean = false
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
-    private var isProcessUpdatingData: Boolean = false
-    private var currentToastMessage: String? = null
 
     private lateinit var outletListener: ListenerRegistration
     private lateinit var employeeListener: ListenerRegistration
-    private val handler = Handler(Looper.getMainLooper())
     private var remainingListeners = AtomicInteger(2)
-    private val outletsMutex = Mutex()
-    private val employeesMutex = Mutex()
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
-    private var localToast: Toast? = null
-    private var myCurrentToast: Toast? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -103,6 +107,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             binding.mainContent.startAnimation(fadeIn)
         }
 
+        manageOutletViewModel
+        toastViewModel
+        fragmentManager = supportFragmentManager
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
                 // Implementasi navigasi spesifik untuk MainActivity
@@ -111,8 +118,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                 Log.d("UserInteraction", this@ManageOutletPage::class.java.simpleName)
             }
         })
-
-        fragmentManager = supportFragmentManager
 
         if (savedInstanceState != null) {
             // outletsList = savedInstanceState.getParcelableArrayList("outlets_list") ?: ArrayList()
@@ -124,21 +129,19 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             isDisplayQueueBoard = savedInstanceState.getBoolean("is_display_queue_board", false)
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
-            isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         } else {
             // Mendapatkan argumen dari SafeArgs
             val args = ManageOutletPageArgs.fromBundle(intent.extras ?: Bundle())
 
             // Melakukan operasi dengan data tersebut
             lifecycleScope.launch(Dispatchers.Main) {
-                outletsMutex.withLock {
+                manageOutletViewModel.outletsMutex.withStateLock {
                     val outletsList = args.outletList.toCollection(ArrayList())
                     manageOutletViewModel.setOutletList(outletsList)
                 }
 
-                employeesMutex.withLock {
+                manageOutletViewModel.employeesMutex.withStateLock {
                     val employeeList = args.employeeList
                         .filter { employee -> employee.role == "Capster" }
                         .toCollection(ArrayList())
@@ -156,13 +159,38 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         init(savedInstanceState)
         binding.ivBack.setOnClickListener(this)
 
-        manageOutletViewModel.outletList.observe(this) { outletList ->
-            outletAdapter.submitList(outletList)
-            binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
-            outletAdapter.notifyDataSetChanged()
+        manageOutletViewModel.updateStateResult.observe(this) { result ->
+            when (result) {
+                is ManageOutletViewModel.ResultState.Loading -> {
+                    outletAdapter.setBlockStatusUI(true)
+                }
+                is ManageOutletViewModel.ResultState.Success -> {
+                    // Navigasi ke halaman sebelumnya
+                    outletAdapter.setBlockStatusUI(false)
+                    toastViewModel.showToast(result.message, true)
+                    manageOutletViewModel.setUpdateStateResult(null)
+                }
+                is ManageOutletViewModel.ResultState.Failure -> {
+                    outletAdapter.setBlockStatusUI(false)
+                    if (result.type == "Status Open") {
+                        outletAdapter.restoreSwitchStatus(result.index)
+                    } else if (result.type == "Access Code") {
+                        outletAdapter.restoreButtonAccessCode(result.oldCode, result.index)
+                    }
+                    toastViewModel.showToast(result.message, true)
+                    manageOutletViewModel.setUpdateStateResult(null)
+                }
+                null -> {}
+            }
         }
 
-        manageOutletViewModel.userEmployeeDataList.observe(this) { employeeList ->
+        manageOutletViewModel.outletList.observe(this) { outletList ->
+            outletAdapter.submitList(outletList)
+            outletAdapter.notifyDataSetChanged()
+            binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
+        }
+
+        manageOutletViewModel.employeeList.observe(this) { employeeList ->
             outletAdapter.setEmployeeList(employeeList)
         }
 
@@ -186,78 +214,40 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             handleCustomBack()
         }
 
+        observeNetworkStatus()
     }
 
-    private fun init(savedInstanceState: Bundle?) {
-        val myLayoutManager = VegaLayoutManager()
-        outletAdapter = ItemListOutletAdapter(myLayoutManager, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, isDialogVisibleProvider = {
-            supportFragmentManager.findFragmentByTag("ResetQueueBoardFragment") != null
-        })
-        binding.rvOutletList.layoutManager = myLayoutManager
-        binding.rvOutletList.adapter = outletAdapter
-
-        if (savedInstanceState == null || isShimmerVisible) {
-            outletAdapter.setShimmer(true)
-            isShimmerVisible = true
-        }
-        val outletsList = manageOutletViewModel.outletList.value ?: mutableListOf()
-        outletsList.forEach {
-            Log.d("TestCLickMore", "outletName ${it.outletName} || isCollapseCard: ${it.isCollapseCard}")
-        }
-        outletAdapter.submitList(outletsList)
-
-        // Ubah tinggi layout root
-//        val layoutParams = binding.root.layoutParams
-//        layoutParams.height = if (outletsList.isEmpty())
-//            ViewGroup.LayoutParams.MATCH_PARENT
-//        else
-//            ViewGroup.LayoutParams.WRAP_CONTENT
-//        binding.root.layoutParams = layoutParams
-        binding.tvEmptyOutlet.visibility = if (outletsList.isEmpty()) View.VISIBLE else View.GONE
-
-        if (savedInstanceState == null || isShimmerVisible) {
-            handler.postDelayed({
-                Log.d("SwitchAnomali", "XYZ")
-                outletAdapter.setShimmer(false)
-                isShimmerVisible = false
-                if (isFirstLoad) setupListeners()
-            }, 600)
-        } else {
-            outletAdapter.setShimmer(false)
-            isShimmerVisible = false
-            if (!isFirstLoad) {
-                setupListeners(skippedProcess = true)
+    private fun observeNetworkStatus() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                NetworkMonitor.isOnline.collect { status ->
+                    outletAdapter.updateNetworkStatus(status)
+                }
             }
         }
     }
 
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(this@ManageOutletPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
-        }
-    }
-
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@ManageOutletPage,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String, forceDisplay: Boolean = false) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || forceDisplay || myCurrentToast == null) {
+//                if (forceDisplay) myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@ManageOutletPage,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -274,9 +264,54 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         outState.putBoolean("is_display_queue_board", isDisplayQueueBoard)
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
-        outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
+    }
+
+    private fun init(savedInstanceState: Bundle?) {
+        val myLayoutManager = VegaLayoutManager()
+        outletAdapter = ItemListOutletAdapter(myLayoutManager, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
+        binding.rvOutletList.layoutManager = myLayoutManager
+        binding.rvOutletList.adapter = outletAdapter
+
+        if (savedInstanceState == null || isShimmerVisible) {
+            outletAdapter.setShimmer(true)
+            isShimmerVisible = true
+        }
+        manageOutletViewModel.setDefaultCode(getString(R.string.default_empty_code_access))
+        val outletsList = manageOutletViewModel.outletList.value ?: mutableListOf()
+        outletsList.forEach {
+            Log.d("TestCLickMore", "outletName ${it.outletName} || isCollapseCard: ${it.isCollapseCard}")
+        }
+        outletAdapter.submitList(outletsList)
+
+        // Ubah tinggi layout root
+//        val layoutParams = binding.root.layoutParams
+//        layoutParams.height = if (outletsList.isEmpty())
+//            ViewGroup.LayoutParams.MATCH_PARENT
+//        else
+//            ViewGroup.LayoutParams.WRAP_CONTENT
+//        binding.root.layoutParams = layoutParams
+        binding.tvEmptyOutlet.visibility = if (outletsList.isEmpty()) View.VISIBLE else View.GONE
+
+        if (savedInstanceState == null || isShimmerVisible) {
+            lifecycleScope.launch {
+                delay(600)
+                if (isDestroyed) return@launch
+
+                Log.d("SwitchAnomali", "XYZ")
+                outletAdapter.setShimmer(false)
+                isShimmerVisible = false
+                if (isFirstLoad) { setupListeners() }
+            }
+        } else {
+            outletAdapter.setShimmer(false)
+            isShimmerVisible = false
+
+            if (!isFirstLoad) {
+                setupListeners(skippedProcess = true)
+            }
+        }
+
     }
 
 //    override fun onStart() {
@@ -301,160 +336,141 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     private fun listenToEmployeeData() {
-        if (::employeeListener.isInitialized) {
-            employeeListener.remove()
-        }
-        var decrementGlobalListener = false
+        barbershopId.let { uid ->
+            // pemberitahuan untuk belum adanya daftar pegawai (employeeUidList) harusnya ditampilkan saat akan menampilkan dialog
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
+            }
 
-        employeeListener = db.collectionGroup("employees")
-            .whereEqualTo("root_ref", "barbershops/$barbershopId")
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to employee data: ${exception.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    val metadata = it.metadata
+            if (uid.isEmpty()) {
+                employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                    // Jalankan pengolahan data di background thread
-                    if (!isFirstLoad && !skippedProcess) {
-                        val newUserEmployeeListData = it.mapNotNull { document ->
-                            document.toObject(UserEmployeeData::class.java)
-                                .takeIf { employee -> employee.role == "Capster" }
-                        }
-
-                        // Update employeeList dengan data baru
-                        lifecycleScope.launch {
-                            employeesMutex.withLock {
-                                val outletOldData = manageOutletViewModel.outletSelected.value
-                                if (!manageOutletViewModel.capsterList.value.isNullOrEmpty() && outletOldData != null && isDisplayQueueBoard) {
-                                    outletOldData.let { outlet ->
-                                        val capsterList = newUserEmployeeListData.filter {
-                                            it.uid in outlet.listEmployees && it.availabilityStatus
+            employeeListener = db.collectionGroup("employees")
+                .whereEqualTo("root_ref", "barbershops/$barbershopId")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageOutletViewModel.listenerEmployeeDataMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                // Jalankan pengolahan data di background thread
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        val newUserEmployeeListData = docs.mapNotNull { document ->
+                                            document.toObject(UserEmployeeData::class.java)
+                                                .takeIf { employee -> employee.role == "Capster" }
                                         }
-                                        manageOutletViewModel.setCapsterList(capsterList)
+
+                                        // Update employeeList dengan data baru
+                                        manageOutletViewModel.employeesMutex.withStateLock {
+                                            val outletOldData = manageOutletViewModel.outletSelected.value
+                                            if (!manageOutletViewModel.capsterList.value.isNullOrEmpty() && outletOldData != null && isDisplayQueueBoard) {
+                                                outletOldData.let { outlet ->
+                                                    val capsterList = newUserEmployeeListData.filter { it ->
+                                                        it.uid in outlet.listEmployees && it.availabilityStatus
+                                                    }
+                                                    manageOutletViewModel.setCapsterList(capsterList)
+                                                }
+                                            }
+                                            manageOutletViewModel.setEmployeeList(newUserEmployeeListData.toMutableList())
+                                        }
                                     }
                                 }
-                                manageOutletViewModel.setEmployeeList(newUserEmployeeListData.toMutableList())
                             }
 
-                            withContext(Dispatchers.Main) {
-                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                    showLocalToast()
-                                    Log.d("LocalSave", "01")
-                                }
-                                isProcessUpdatingData = false // Reset flag setelah menampilkan toast
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
                             }
                         }
                     }
 
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
                 }
-            }
+        }
     }
 
     private fun listenToOutletList() {
-        if (::outletListener.isInitialized) {
-            outletListener.remove()
-        }
-        var decrementGlobalListener = false
+        barbershopId.let { uid ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
 
-        outletListener = db.collection("barbershops")
-            .document(barbershopId)
-            .collection("outlets")
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    showToast("Error listening to outlets data: ${exception.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    val metadata = it.metadata
+            if (uid.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
 
-                    // Jalankan pengolahan data di background thread
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad && !skippedProcess) {
-                            val newOutletsList = it.mapNotNull { document ->
-                                document.toObject(Outlet::class.java).apply {
-                                    // Cek apakah UID outlet ada di collapseStateMap
-                                    // isCollapseCard = extendedStateMap[uid] ?: true
-                                    isCollapseCard = manageOutletViewModel.extendedStateMap.value?.get(uid) ?: true
-                                    // Assign the document reference path to outletReference
-                                    outletReference = document.reference.path
-                                    Log.d("TestCLickMore", "outletName ${this.outletName} || isCollapseCard: $isCollapseCard")
+            outletListener = db.collection("barbershops")
+                .document(barbershopId)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageOutletViewModel.listenerOutletListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlets data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
+                                return@withStateLock
                             }
+                            documents?.let { docs ->
+                                // Jalankan pengolahan data di background thread
+                                if (!isFirstLoad && !skippedProcess) {
+                                    lifecycleScope.launch(Dispatchers.Default) {
+                                        val newOutletsList = docs.mapNotNull { document ->
+                                            document.toObject(Outlet::class.java).apply {
+                                                // Cek apakah UID outlet ada di collapseStateMap
+                                                // isCollapseCard = extendedStateMap[uid] ?: true
+                                                isCollapseCard = manageOutletViewModel.extendedStateMap.value?.get(this.uid) ?: true
+                                                // Assign the document reference path to outletReference
+                                                outletReference = document.reference.path
+                                                Log.d("TestCLickMore", "outletName ${this.outletName} || isCollapseCard: $isCollapseCard")
+                                            }
+                                        }
 
-                            // Update collapseStateMap dengan data baru
-                            // extendedStateMap.clear()
-//                            newOutletsList.forEach { outlet ->
-//                                extendedStateMap[outlet.uid] = outlet.isCollapseCard
-//                            }
-                            withContext(Dispatchers.Main) {
-                                outletsMutex.withLock {
-                                    manageOutletViewModel.setExtendedStateMap(newOutletsList.associateBy({ it.uid }, { it.isCollapseCard }).toMutableMap())
-                                    val outletOldData = manageOutletViewModel.outletSelected.value
-                                    if (outletOldData != null && isDisplayQueueBoard) {
-                                        outletOldData.let { outlet ->
-                                            val outletNewData = newOutletsList.find { it.uid == outlet.uid }
-                                            val capsterList = manageOutletViewModel.userEmployeeDataList.value?.filter {
-                                                it.uid in outlet.listEmployees && it.availabilityStatus
-                                            } ?: emptyList()
+                                        manageOutletViewModel.outletsMutex.withStateLock {
+                                            manageOutletViewModel.setExtendedStateMap(newOutletsList.associateBy({ it.uid }, { it.isCollapseCard }).toMutableMap())
+                                            val outletOldData = manageOutletViewModel.outletSelected.value
+                                            if (outletOldData != null && isDisplayQueueBoard) {
+                                                outletOldData.let { outlet ->
+                                                    val outletNewData = newOutletsList.find { it -> it.uid == outlet.uid }
+                                                    val capsterList = manageOutletViewModel.employeeList.value?.filter { it ->
+                                                        it.uid in outlet.listEmployees && it.availabilityStatus
+                                                    } ?: emptyList()
 
-                                            if (outletNewData != null) manageOutletViewModel.setOutletSelected(outletNewData)
-                                            manageOutletViewModel.setCapsterList(capsterList)
+                                                    if (outletNewData != null) manageOutletViewModel.setOutletSelected(outletNewData)
+                                                    manageOutletViewModel.setCapsterList(capsterList)
+                                                }
+                                            }
+                                            manageOutletViewModel.updateOutletList(newOutletsList.toMutableList())
                                         }
                                     }
-                                    manageOutletViewModel.updateOutletList(newOutletsList.toMutableList())
-                                    // outletsList.clear()
-                                    // outletsList.addAll(newOutletsList)
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                        showLocalToast()
-                                        Log.d("LocalSave", "02")
-                                    }
-                                    isProcessUpdatingData = false // Reset flag setelah menampilkan toast
                                 }
                             }
 
-//                            // Update outletsList dengan data baru
-//                            withContext(Dispatchers.Main) {
-//                                // Notify adapter or update UI
-//                                outletAdapter.submitList(outletsList)
-//                                Log.d("TestCLickMore", "extendedStateMap: $extendedStateMap")
-//
-//                                // Ubah tinggi layout root
-////                                val layoutParams = binding.root.layoutParams
-////                                layoutParams.height = if (outletsList.isEmpty())
-////                                    ViewGroup.LayoutParams.MATCH_PARENT
-////                                else
-////                                    ViewGroup.LayoutParams.WRAP_CONTENT
-////                                binding.root.layoutParams = layoutParams
-//                                binding.tvEmptyOutlet.visibility = if (outletsList.isEmpty()) View.VISIBLE else View.GONE
-//
-//                                outletAdapter.notifyDataSetChanged()
-//                            }
-                        }
-
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
                         }
                     }
                 }
-            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -464,6 +480,23 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                 onBackPressedDispatcher.onBackPressed()
             }
         }
+    }
+
+    override fun updateOutletStatus(
+        outlet: Outlet,
+        isOpen: Boolean,
+        index: Int
+    ) {
+        manageOutletViewModel.updateOutletStatus(outlet, isOpen, index)
+    }
+
+    override fun updateOutletAccessCode(
+        outlet: Outlet,
+        newCode: String,
+        oldCode: String,
+        index: Int
+    ) {
+        manageOutletViewModel.updateOutletAccessCode(outlet, newCode, oldCode, index)
     }
 
     override fun onItemClickListener(outlet: Outlet) {
@@ -481,20 +514,22 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     override fun onQueueResetRequested(outlet: Outlet, index: Int) {
         lifecycleScope.launch(Dispatchers.Default) {
             indexOutlet = index
+            if (outlet.listEmployees.isEmpty()) {
+                toastViewModel.showToast("Daftar karyawan untuk outlet ini belum ditambahkan", true)
+                return@launch
+            }
             // Ambil daftar karyawan yang cocok dengan uid di employeeUidList dan availabilityStatus == true
-            val capsterList = employeesMutex.withLock {
-                manageOutletViewModel.userEmployeeDataList.value?.filter {
+            val capsterList = manageOutletViewModel.employeesMutex.withStateLock {
+                manageOutletViewModel.employeeList.value?.filter {
                     it.uid in outlet.listEmployees && it.availabilityStatus
                 } ?: emptyList()
-//                employeeList.filter {
-//                    it.uid in outlet.listEmployees && it.availabilityStatus
-//                }
             }
 
+            isDisplayQueueBoard = true
+            manageOutletViewModel.setOutletSelected(outlet)
+            manageOutletViewModel.setCapsterList(capsterList)
+
             withContext(Dispatchers.Main) {
-                isDisplayQueueBoard = true
-                manageOutletViewModel.setOutletSelected(outlet)
-                manageOutletViewModel.setCapsterList(capsterList)
                 // Panggil dialog dengan capsterList yang sudah difilter
                 showResetQueueBoardDialog()
             }
@@ -502,12 +537,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         }
     }
 
-    override fun onProcessUpdate(state: Boolean) {
-        isProcessUpdatingData = state
-    }
-
-    override fun displayThisToast(message: String) {
-        showToast(message)
+    override fun displayThisToast(message: String, isImportant: Boolean) {
+        // hmmmmm???--
+        toastViewModel.showToast(message, isImportant)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -554,7 +586,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
+                toastViewModel.showToast("Sesi telah berakhir silahkan masuk kembali", false)
             }
         }
         isRecreated = false
@@ -624,10 +656,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         if (isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        localToast?.cancel()
-        myCurrentToast?.cancel()
-        localToast = null
-        currentToastMessage = null
     }
 
     private fun clearBackStack() {
@@ -639,7 +667,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     override fun onDestroy() {
         super.onDestroy()
         outletAdapter.stopAllShimmerEffects()
-        handler.removeCallbacksAndMessages(null)
         // Hapus listener untuk menghindari memory leak
         if (::outletListener.isInitialized) outletListener.remove()
         if (::employeeListener.isInitialized) employeeListener.remove()

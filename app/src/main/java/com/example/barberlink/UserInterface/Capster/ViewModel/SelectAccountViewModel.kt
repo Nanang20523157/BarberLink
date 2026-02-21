@@ -3,10 +3,36 @@ package com.example.barberlink.UserInterface.Capster.ViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SelectAccountViewModel : ViewModel() {
+
+    val employeeMutex = ReentrantCoroutineMutex()
+    val listenerEmployeeListMutex = ReentrantCoroutineMutex()
+    val listenerOutletDataMutex = ReentrantCoroutineMutex()
+
+    // =========================================================
+    // === UTILITAS DASAR
+    // =========================================================
+
+    private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
+        withContext(Dispatchers.Main) { value = newValue }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.addItem(item: T) {
+        val updated = (value ?: mutableListOf()).apply { add(item) }
+        updateOnMain(updated)
+    }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.clearList() =
+        updateOnMain(mutableListOf())
+
+    // =======================================================================
 
     private val _outletSelected = MutableLiveData<Outlet>()
     val outletSelected: LiveData<Outlet> = _outletSelected
@@ -27,32 +53,46 @@ class SelectAccountViewModel : ViewModel() {
     val displayFilteredEmployeeResult: LiveData<Boolean?> = _displayFilteredEmployeeResult
 
     fun setEmployeeList(employeeList: MutableList<UserEmployeeData>) {
-        _employeeList.postValue(employeeList)
+        viewModelScope.launch {
+            _employeeList.postValue(employeeList)
+        }
     }
 
     fun setOutletSelected(outlet: Outlet) {
-        _outletSelected.postValue(outlet)
+        viewModelScope.launch {
+            _outletSelected.postValue(outlet)
+        }
     }
 
     fun setUserEmployeeData(userEmployeeData: UserEmployeeData?) {
-        _userEmployeeData.postValue(userEmployeeData)
+        viewModelScope.launch {
+            _userEmployeeData.postValue(userEmployeeData)
+        }
     }
 
     fun triggerFilteringDataEmployee(withShimmer: Boolean) {
-        _letsFilteringDataEmployee.postValue(withShimmer)
+        viewModelScope.launch {
+            _letsFilteringDataEmployee.postValue(withShimmer)
+        }
     }
 
     fun setFilteredEmployeeList(employeeList: MutableList<UserEmployeeData>) {
-        _filteredEmployeeList.postValue(employeeList)
+        viewModelScope.launch {
+            _filteredEmployeeList.postValue(employeeList)
+        }
     }
 
     fun displayFilteredEmployeeResult(withShimmer: Boolean) {
-        _displayFilteredEmployeeResult.postValue(withShimmer)
+        viewModelScope.launch {
+            _displayFilteredEmployeeResult.postValue(withShimmer)
+        }
     }
 
     fun clearState() {
-        _letsFilteringDataEmployee.postValue(null)
-        _displayFilteredEmployeeResult.postValue(null)
+        viewModelScope.launch {
+            _letsFilteringDataEmployee.postValue(null)
+            _displayFilteredEmployeeResult.postValue(null)
+        }
     }
 
 }

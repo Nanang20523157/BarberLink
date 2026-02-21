@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -21,17 +19,22 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.Helper.Event
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentConfirmCompleteQueueBinding
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
@@ -49,8 +52,10 @@ private const val ARG_PARAM2 = "param2"
 class ConfirmCompleteQueueFragment : DialogFragment() {
     private var _binding: FragmentConfirmCompleteQueueBinding? = null
     private val confirmQueueViewModel: QueueControlViewModel by activityViewModels()
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var context: Context
-    private var currentReservation: Reservation? = null
+    private var currentReservationData: ReservationData? = null
 
     private var previousText: String = ""
     private var previousCursorPosition: Int = 0
@@ -59,7 +64,6 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     private var userInputAmount: String = "0"
     private var textErrorForPayment: String = "undefined"
     private var isOrientationChanged: Boolean = false
-    private var currentToastMessage: String? = null
 
     private var currentSnackbar: Snackbar? = null
     private var lifecycleListener: DefaultLifecycleObserver? = null
@@ -68,7 +72,6 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
 
     private val binding get() = _binding!!
-    private var myCurrentToast: Toast? = null
 //    private lateinit var sessionDelegate: FragmentSessionDelegate
 
 //    override fun onAttach(context: Context) {
@@ -78,6 +81,8 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        confirmQueueViewModel
+        toastViewModel
         if (savedInstanceState != null) {
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
@@ -86,7 +91,6 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             userInputAmount = savedInstanceState.getString("user_input_amount", "0") ?: "0"
             textErrorForPayment = savedInstanceState.getString("text_error_for_payment", "undefined") ?: "undefined"
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
 //        arguments?.let {
 //            currentReservation = it.getParcelable(ARG_PARAM1)
@@ -122,14 +126,15 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        confirmQueueViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+        confirmQueueViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
-                currentReservation = reservation
+                currentReservationData = reservation
                 binding.apply {
                     tvQueueNumber.text = getString(R.string.template_queue_number, reservation.queueNumber)
                 }
             }
         }
+
         if (isOrientationChanged) {
             inputManualCheckOne = {
                 if (textErrorForPayment.isNotEmpty() && textErrorForPayment != "undefined") {
@@ -195,6 +200,8 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
 
         binding.btnYes.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             if (isPaymentAmountValid) {
                 checkNetworkConnection {
 //                    val moneyAmount = userInputAmount
@@ -206,20 +213,22 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                         setFragmentResult(
                             "confirm_result_data",
                             bundleOf(
+                                "reservation_data" to currentReservationData,
                                 "user_payment_amount" to NumberUtils.numberToCurrency(formattedAmount.toDouble()), // Nilai uang yang dibayar
                                 "cash_back_amount" to finalCashBackAmount, // Nilai uang kembalian
                                 "dismiss_dialog" to true
                             )
                         )
+
                         dismiss()
                         parentFragmentManager.popBackStack()
                     } else {
-                        showToast("Input tidak valid karena menghasilkan null")
+                        toastViewModel.showToast("Data yang dimasukkan pengguna tidak valid!", true)
                         setFocus(binding.etMoneyAmount)
                     }
                 }
             } else {
-                showToast("Mohon periksa kembali data yang dimasukkan")
+                toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan", true)
                 setFocus(binding.etMoneyAmount)
             }
 //            var originalString = userInputAmount
@@ -234,6 +243,8 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
 
         binding.btnNo.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             setFragmentResult("action_dismiss_dialog", bundleOf(
                 "dismiss_dialog" to true
             ))
@@ -258,28 +269,27 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        Log.d("CheckPion", "isOrientationChanged = BB")
-        isOrientationChanged = false
-    }
-
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -290,7 +300,6 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         outState.putString("user_input_amount", userInputAmount)
         outState.putString("text_error_for_payment", textErrorForPayment)
         outState.putBoolean("is_orientation_changed", true)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -393,6 +402,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                             nfe.printStackTrace()
                         }
 
+                        Logger.d("UserInputCheck", "MoneyInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
 //                            isPaymentAmountValid = validateMoneyInput(false)
                             isPaymentAmountValid = validateMoneyInput(true)
@@ -403,6 +413,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== ConfirmCompleteQueueFragment ===")
             etMoneyAmount.addTextChangedListener(textWatcher)
         }
     }
@@ -418,7 +429,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             val moneyAmount = userInputAmount
             val clearText = moneyAmount.replace(".", "")
             val formattedAmount = clearText.toIntOrNull()
-            val finalPrice = currentReservation?.paymentDetail?.finalPrice ?: 0
+            val finalPrice = currentReservationData?.paymentDetail?.finalPrice ?: 0
 
             return if (moneyAmount.isEmpty() || moneyAmount == "0") {
                 textErrorForPayment = getString(R.string.amount_of_money_cannot_be_empty)
@@ -470,13 +481,17 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
+    override fun onResume() {
+        super.onResume()
+        Log.d("CheckPion", "isOrientationChanged = BB")
+        isOrientationChanged = false
+    }
+
     override fun onStop() {
         super.onStop()
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     override fun onDestroyView() {
@@ -519,10 +534,10 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, param2: String? = null) =
+        fun newInstance(currentReservationData: ReservationData, param2: String? = null) =
             ConfirmCompleteQueueFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putString(ARG_PARAM2, param2)
                 }
             }

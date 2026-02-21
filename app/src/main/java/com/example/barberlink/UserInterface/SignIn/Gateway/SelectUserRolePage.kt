@@ -11,11 +11,13 @@ import android.view.animation.AnimationUtils
 import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
+import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
@@ -25,8 +27,9 @@ import com.example.barberlink.databinding.ActivitySelectUserRolePageBinding
 class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySelectUserRolePageBinding
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var adminSession: Boolean = false
     private var tellerSession: Boolean = false
     private var capsterSession: Boolean = false
@@ -39,7 +42,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 
         super.onCreate(savedInstanceState)
         binding = ActivitySelectUserRolePageBinding.inflate(layoutInflater)
-        val originPageFrom = intent.getStringExtra("origin_page_key") ?: ""
+        val originPageFrom = intent.getStringExtra(LandingPage.ORIGIN_PAGE_KEY) ?: ""
         Log.d("SelectUserRolePage", "Origin Page: $originPageFrom")
 
         // Set sudut dinamis sesuai perangkat
@@ -115,18 +118,24 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
 //                    navigatePage(this@SelectUserRolePage, SignUpStepOne::class.java, btnSignUp)
 //                }
                 R.id.btnAdminOwner -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
                     Log.d("AutoLogout", "Admin Session: $adminSession <> ${sessionManager.getDataAdminRef()}")
                     // if (adminSession) navigatePage(this@SelectUserRolePage, BerandaAdminActivity::class.java, btnAdminOwner)
                     if (adminSession) navigatePage(this@SelectUserRolePage, MainActivity::class.java, btnAdminOwner)
                     else navigatePage(this@SelectUserRolePage, LoginAdminPage::class.java, btnAdminOwner)
                 }
                 R.id.btnPegawai -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
                     Log.d("AutoLogout", "Capster Session: $capsterSession <> ${sessionManager.getDataCapsterRef()}")
                     if (capsterSession) navigatePage(this@SelectUserRolePage, HomePageCapster::class.java, btnPegawai)
                     else navigatePage(this@SelectUserRolePage, LoginAdminPage::class.java, btnPegawai)
                     // else navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnPegawai)
                 }
                 R.id.btnKasirTeller -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
                     Log.d("TellerSession", "Teller Session: $tellerSession")
                     if (tellerSession) navigatePage(this@SelectUserRolePage, QueueTrackerPage::class.java, btnKasirTeller)
                     else navigatePage(this@SelectUserRolePage, SelectOutletDestination::class.java, btnKasirTeller)
@@ -138,8 +147,8 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -172,6 +181,18 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        Log.d("CheckLifecycle", "==================== ON RESUME SELECT-ROLE =====================")
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // BarberLinkApp.sessionManager.clearActivePage()
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+//        currentView?.isClickable = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun handleCustomBack() {
         // 🚫 BLOCK DOUBLE BACK
         if (isHandlingBack) return
@@ -189,18 +210,6 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
             )
             // ⛔ TIDAK dilepas → activity selesai
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        Log.d("CheckLifecycle", "==================== ON RESUME SELECT-ROLE =====================")
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // BarberLinkApp.sessionManager.clearActivePage()
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
     }
 
     companion object {

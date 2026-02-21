@@ -16,47 +16,64 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Factory.AuthDBViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.UserInterface.SignIn.ViewModel.LoginPageViewModel
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
+import com.example.barberlink.UserInterface.SignUp.ViewModel.StepThreeViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityLoginAdminPageBinding
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.math.log
 
 class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLoginAdminPageBinding
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
-    private lateinit var userAdminData: UserAdminData
-    private lateinit var userEmployeeData: UserEmployeeData
+    private val loginPageViewModel: LoginPageViewModel by viewModels() {
+        AuthDBViewModelFactory(auth, db)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isEmailValid: Boolean = false
     private var isPasswordValid: Boolean = false
     private var textErrorForEmail: String = "undefined"
     private var textErrorForPassword: String = "undefined"
     private var isRecreated: Boolean = false
     private var originPageFrom: String? = null
+    private var blockAllUserClickAction: Boolean = false
 
     private var isNavigating = false
-    private var currentView: View? = null
-    private var loginType: String = ""
-    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
-    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+//    private var currentView: View? = null
     private lateinit var textWatcher1: TextWatcher
     private lateinit var textWatcher2: TextWatcher
     private var inputManualCheckOne: (() -> Unit)? = null
@@ -89,6 +106,8 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
+        loginPageViewModel
+        toastViewModel
         // Mengatur warna status bar
 //        window.statusBarColor = ContextCompat.getColor(this, R.color.black_line_and_ornamen)
 //        val windowInsetsController =
@@ -96,31 +115,34 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 //
 //        windowInsetsController?.isAppearanceLightStatusBars = false
 
+        val loginType: String
         if (savedInstanceState != null) {
             isEmailValid = savedInstanceState.getBoolean("is_email_valid", false)
             isPasswordValid = savedInstanceState.getBoolean("is_password_valid", false)
             textErrorForEmail = savedInstanceState.getString("text_error_for_email", "undefined") ?: "undefined"
             textErrorForPassword = savedInstanceState.getString("text_error_for_password", "undefined") ?: "undefined"
+            originPageFrom = savedInstanceState.getString("origin_page_key", "") ?: ""
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            loginType = loginPageViewModel.getLoginType()
         } else {
+            // BISA DARI SELECTUSERROLEPAGE ATAU SIGNUPSTEPONE
             originPageFrom = intent.getStringExtra("origin_page_key").toString()
-            loginType = intent.getStringExtra(SelectUserRolePage.LOGIN_TYPE_KEY) ?: ""
+            loginType = intent.getStringExtra("login_type_key") ?: ""
+            // SignUpSuccess
             @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
-                    userAdminData = it
-                    binding.signInEmail.setText(userAdminData.email)
-                    binding.signInPassword.setText(userAdminData.password)
+                    binding.signInEmail.setText(it.email)
+                    binding.signInPassword.setText(it.password)
                 }
             } else {
                 intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_DATA_KEY)?.let {
-                    userAdminData = it
-                    binding.signInEmail.setText(userAdminData.email)
-                    binding.signInPassword.setText(userAdminData.password)
+                    binding.signInEmail.setText(it.email)
+                    binding.signInPassword.setText(it.password)
                 }
             }
         }
-
+        loginPageViewModel.setLoginType(loginType)
         binding.btnLogin.setOnClickListener(this)
         binding.btnSignUp.setOnClickListener(this)
 
@@ -130,6 +152,72 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         } else if (loginType == "Login as Admin") {
             binding.dontHaveAnyAccount.visibility = View.VISIBLE
             binding.btnSignUp.visibility = View.VISIBLE
+        }
+
+        loginPageViewModel.loginStateResult.observe(this) { result ->
+            when (result) {
+                is LoginPageViewModel.ResultState.Loading -> {
+                    if (binding.progressBar.isGone) binding.progressBar.visibility = View.VISIBLE
+                    blockAllUserClickAction = true
+                }
+                is LoginPageViewModel.ResultState.Success -> {
+                    loginPageViewModel.setLoginStateResult(LoginPageViewModel.ResultState.Loading)
+                    if (result.type == "Login as Employee") {
+                        loginPageViewModel.fetchUserEmployeeData(result.uid)
+                    } else if (result.type == "Login as Admin") {
+                        loginPageViewModel.fetchUserAdminData(result.uid)
+                    }
+                }
+                is LoginPageViewModel.ResultState.Navigate -> {
+                    binding.progressBar.visibility = View.GONE
+                    if (result.type == "Login as Employee") {
+                        val userEmployeeData = loginPageViewModel.getEmployeeData()
+                        sessionManager.setSessionCapster(true)
+                        sessionManager.setDataCapsterRef(userEmployeeData.userRef)
+                        // Lakukan sesuatu dengan userEmployeeData
+                        // AutoLogoutManager.startAutoLogout(this, "Employee", 60000) // 1 menit
+                        navigatePage(this@LoginAdminPage, HomePageCapster::class.java, userEmployeeData.uid, binding.btnLogin)
+                    } else if (result.type == "Login as Admin") {
+                        val userAdminData = loginPageViewModel.getAdminData()
+                        sessionManager.setSessionAdmin(true)
+                        sessionManager.setDataAdminRef("barbershops/${userAdminData.uid}")
+                        // Lakukan sesuatu dengan userAdminData
+                        // AutoLogoutManager.startAutoLogout(this, "Admin", 60000) // 1 menit
+                        navigatePage(this@LoginAdminPage, MainActivity::class.java, userAdminData.uid, binding.btnLogin)
+                    }
+                    loginPageViewModel.setLoginStateResult(null)
+                }
+                is LoginPageViewModel.ResultState.Failure -> {
+                    binding.progressBar.visibility = View.GONE
+                    if (result.authorize) {
+                        val errorMessage = result.errorMessage
+                        handleLoginError(errorMessage)
+                    } else {
+                        if (result.type == "Login as Employee") {
+                            binding.emailCustomError.text =
+                                getString(R.string.no_matching_capster_account)
+                            setFocus(binding.signInEmail)
+                        } else if (result.type == "Login as Admin") {
+                            binding.emailCustomError.text =
+                                getString(R.string.no_matching_owner_account)
+                            setFocus(binding.signInEmail)
+                        }
+                    }
+                    loginPageViewModel.setLoginStateResult(null)
+                }
+                is LoginPageViewModel.ResultState.ShowToast -> {
+                    if (result.message.isNotEmpty()) toastViewModel.showToast(result.message, true)
+                    if (result.hideLoading) {
+                        binding.progressBar.visibility = View.GONE
+                        loginPageViewModel.setLoginStateResult(null)
+                    } else {
+                        loginPageViewModel.setLoginStateResult(LoginPageViewModel.ResultState.Loading)
+                    }
+                }
+                else -> {
+                    blockAllUserClickAction = false
+                }
+            }
         }
 
         if (isRecreated) {
@@ -164,6 +252,71 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    private fun handleLoginError(errorMessage: String) {
+        when (errorMessage) {
+            "ERROR_EMAIL_ALREADY_IN_USE",
+            "account-exists-with-different-credential",
+            "email-already-in-use" -> {
+                textErrorForEmail = getString(R.string.email_already_exist)
+                setInputState(false, textErrorForEmail, binding.emailCustomError, binding.signInEmail, binding.signInEmailLayout)
+            }
+            "ERROR_WRONG_PASSWORD",
+            "wrong-password" -> {
+                textErrorForPassword = getString(R.string.wrong_password)
+                setInputState(false, textErrorForPassword, binding.passwordCustomError, binding.signInPassword, binding.signInPasswordLayout)
+            }
+            "ERROR_USER_NOT_FOUND",
+            "user-not-found" -> {
+                textErrorForEmail = getString(R.string.email_not_found)
+                setInputState(false, textErrorForEmail, binding.emailCustomError, binding.signInEmail, binding.signInEmailLayout)
+            }
+            "ERROR_USER_DISABLED",
+            "user-disabled" -> {
+                toastViewModel.showToast("Pengguna dinonaktifkan.", true)
+            }
+            "ERROR_TOO_MANY_REQUESTS",
+            "too-many-requests",
+            "We have blocked all requests from this device due to unusual activity. Try again later." -> {
+                toastViewModel.showToast("Terlalu banyak permintaan untuk masuk ke akun ini. Silakan coba lagi nanti.", true)
+            }
+            "ERROR_OPERATION_NOT_ALLOWED",
+            "operation-not-allowed" -> {
+                toastViewModel.showToast("Kesalahan server, silakan coba lagi nanti.", true)
+            }
+            "ERROR_INVALID_EMAIL",
+            "invalid-email" -> {
+                textErrorForEmail = getString(R.string.invalid_text_email_address)
+                setInputState(false, textErrorForEmail, binding.emailCustomError, binding.signInEmail, binding.signInEmailLayout)
+            }
+            else -> {
+                toastViewModel.showToast("Gagal masuk dengan akun pengguna!", true)
+            }
+        }
+        Logger.d("LoginCheck", "Error: $errorMessage")
+    }
+
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@LoginAdminPage,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
@@ -171,6 +324,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_password_valid", isPasswordValid)
         outState.putString("text_error_for_email", textErrorForEmail)
         outState.putString("text_error_for_password", textErrorForPassword)
+        outState.putString("origin_page_key", originPageFrom)
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
@@ -183,6 +337,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "EmailInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
                             isEmailValid = validateEmailInput()
                         }
@@ -198,6 +353,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "PasswordInputCheck inputManualCheckTwo >> ${inputManualCheckTwo == null}")
                         inputManualCheckTwo?.invoke() ?: run {
                             isPasswordValid = validatePasswordInput()
                         }
@@ -206,6 +362,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== LoginAdminPage ===")
             signInEmail.addTextChangedListener(textWatcher1)
             signInPassword.addTextChangedListener(textWatcher2)
         }
@@ -216,12 +373,23 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.btnLogin -> {
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
                     if (validateInputs()) {
+                        val email = signInEmail.text.toString().trim()
+                        val password = signInPassword.text.toString().trim()
                         checkNetworkConnection {
-                            performLogin()
+                            loginPageViewModel.performLogin(email, password, this@LoginAdminPage)
                         }
                     } else {
-                        Toast.makeText(this@LoginAdminPage, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
+                        toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
                         if (!isEmailValid) {
 //                        isEmailValid = validateEmailInput()
                             setFocus(signInEmail)
@@ -232,7 +400,16 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     }
                 }
                 R.id.btnSignUp -> {
-                    if (loginType == "Login as Admin") {
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
+                    if (loginPageViewModel.getLoginType() == "Login as Admin") {
                         Log.d("OriginPage", "origin page: $originPageFrom")
                         if (originPageFrom == "SelectUserRolePage") {
                             navigatePage(this@LoginAdminPage, SignUpStepOne::class.java, null, btnSignUp)
@@ -247,6 +424,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 
     private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
         lifecycleScope.launch {
+            Log.d("ConnectionUserCheck", "isOnline >> ${NetworkMonitor.isOnline.value} || message >> ${NetworkMonitor.errorMessage.value}")
             if (NetworkMonitor.isOnline.value) {
                 runningThisProcess()
             } else {
@@ -292,179 +470,10 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 //    }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun performLogin() {
-        val email = binding.signInEmail.text.toString().trim()
-        val password = binding.signInPassword.text.toString().trim()
-
-        if (!NetworkMonitor.isOnline.value) {
-            val errMessage = NetworkMonitor.errorMessage.value
-            NetworkMonitor.showToast(errMessage, true)
-//            Toast.makeText(
-//                this,
-//                "Koneksi internet tidak tersedia. Periksa koneksi Anda.",
-//                Toast.LENGTH_SHORT
-//            ).show()
-            return
-        }
-
-        binding.progressBar.visibility = View.VISIBLE
-        // Lanjutkan login jika ada internet
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener(this) { task ->
-                if (task.isSuccessful) {
-                    val user = auth.currentUser
-                    if (loginType == "Login as Employee")
-                        user?.let { fetchUserEmployeeData(it.uid) }
-                    else if (loginType == "Login as Admin") {
-                        user?.let { fetchUserAdminData(it.uid) }
-                    }
-                } else {
-                    handleLoginError(task.exception)
-                }
-            }
-        // Cek apakah koneksi internet benar-benar dapat mengakses server
-//        InternetCheck { internet ->
-//            if (internet) {
-//
-//            } else {
-//                binding.progressBar.visibility = View.GONE
-//                Toast.makeText(
-//                    this,
-//                    "Koneksi internet tidak stabil. Periksa koneksi Anda.",
-//                    Toast.LENGTH_SHORT
-//                ).show()
-//            }
-//        }.execute() // Pastikan untuk mengeksekusi AsyncTask
-    }
-
-
-    private fun handleLoginError(exception: Exception?) {
-        exception?.let {
-            when ((it as? FirebaseAuthException)?.errorCode) {
-                "ERROR_EMAIL_ALREADY_IN_USE",
-                "account-exists-with-different-credential",
-                "email-already-in-use" -> {
-                    binding.emailCustomError.text = getString(R.string.email_already_exist)
-                    setFocus(binding.signInEmail)
-                }
-                "ERROR_WRONG_PASSWORD",
-                "wrong-password" -> {
-                    binding.passwordCustomError.text = getString(R.string.wrong_password)
-                    setFocus(binding.signInPassword)
-                }
-                "ERROR_USER_NOT_FOUND",
-                "user-not-found" -> {
-                    binding.emailCustomError.text = getString(R.string.email_not_found)
-                    setFocus(binding.signInEmail)
-                }
-                "ERROR_USER_DISABLED",
-                "user-disabled" -> {
-                    Toast.makeText(this, "Pengguna dinonaktifkan.", Toast.LENGTH_LONG).show()
-                }
-                "ERROR_TOO_MANY_REQUESTS" -> {
-                    Toast.makeText(this, "Terlalu banyak permintaan untuk masuk ke akun ini.", Toast.LENGTH_LONG).show()
-                }
-                "ERROR_OPERATION_NOT_ALLOWED",
-                "operation-not-allowed" -> {
-                    Toast.makeText(this, "Kesalahan server, silakan coba lagi nanti.", Toast.LENGTH_LONG).show()
-                }
-                "ERROR_INVALID_EMAIL",
-                "invalid-email" -> {
-                    binding.emailCustomError.text = getString(R.string.invalid_text_email_address)
-                    setFocus(binding.signInEmail)
-                }
-                else -> {
-                    Toast.makeText(this, "Login failed: ${it.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-        binding.progressBar.visibility = View.GONE
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun fetchUserEmployeeData(userId: String) {
-        db.collectionGroup("employees")
-            .whereEqualTo("uid", userId)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (!querySnapshot.isEmpty) {
-                    val document = querySnapshot.documents.firstOrNull()
-                    if (document != null) {
-                        userEmployeeData = document.toObject(UserEmployeeData::class.java)?.apply {
-                            userRef = document.reference.path
-                            outletRef = ""
-                        } ?: UserEmployeeData()
-
-                        if (userEmployeeData.uid != "----------------") {
-                            sessionManager.setSessionCapster(true)
-                            sessionManager.setDataCapsterRef(userEmployeeData.userRef)
-                            // Lakukan sesuatu dengan employeeData
-                            // AutoLogoutManager.startAutoLogout(this, "Employee", 60000) // 1 menit
-                            navigatePage(this, HomePageCapster::class.java, userId, binding.btnLogin)
-                        } else {
-                            auth.signOut()
-                            binding.emailCustomError.text = getString(R.string.no_matching_capster_account)
-                            setFocus(binding.signInEmail)
-                        }
-                    } else {
-                        auth.signOut()
-                        binding.emailCustomError.text = getString(R.string.no_matching_capster_account)
-                        setFocus(binding.signInEmail)
-                    }
-                } else {
-                    auth.signOut()
-                    binding.emailCustomError.text = getString(R.string.no_matching_capster_account)
-                    setFocus(binding.signInEmail)
-                }
-
-                binding.progressBar.visibility = View.GONE
-            }.addOnFailureListener { exception ->
-                binding.progressBar.visibility = View.GONE
-                auth.signOut()
-                Toast.makeText(this, "Error getting querySnapshot: $exception", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun fetchUserAdminData(userId: String) {
-        db.collection("barbershops").document(userId).get()
-            .addOnSuccessListener { document ->
-                if (document != null) {
-                    userAdminData = document.toObject(UserAdminData::class.java).apply {
-                        this?.userRef = document.reference.path
-                    } ?: UserAdminData()
-
-                    if (userAdminData.uid.isNotEmpty()) {
-                        sessionManager.setSessionAdmin(true)
-                        sessionManager.setDataAdminRef("barbershops/${userAdminData.uid}")
-
-                        // AutoLogoutManager.startAutoLogout(this, "Admin", 60000) // 1 menit
-                        navigatePage(this, MainActivity::class.java, userId, binding.btnLogin)
-                    } else {
-                        auth.signOut()
-                        binding.emailCustomError.text = getString(R.string.no_matching_owner_account)
-                        setFocus(binding.signInEmail)
-                    }
-                } else {
-                    auth.signOut()
-                    binding.emailCustomError.text = getString(R.string.no_matching_owner_account)
-                    setFocus(binding.signInEmail)
-                }
-
-                binding.progressBar.visibility = View.GONE
-            }
-            .addOnFailureListener { exception ->
-                binding.progressBar.visibility = View.GONE
-                auth.signOut()
-                Toast.makeText(this, "Error getting document: $exception", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, userUID: String?, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -481,8 +490,8 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     }
                     startActivity(intentToSelectUserRoles)
 
-                    if (loginType == "Login as Admin") intent.putExtra(ADMIN_DATA_KEY, userAdminData)
-                    else intent.putExtra(EMPLOYEE_DATA_KEY, userEmployeeData)
+                    if (loginPageViewModel.getLoginType() == "Login as Admin") intent.putExtra(ADMIN_DATA_KEY, loginPageViewModel.getAdminData())
+                    else intent.putExtra(EMPLOYEE_DATA_KEY, loginPageViewModel.getEmployeeData())
                     startActivity(intent)
                     overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
                     finish()
@@ -572,7 +581,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -596,10 +605,18 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         binding.signInEmail.removeTextChangedListener(textWatcher1)
         binding.signInPassword.removeTextChangedListener(textWatcher2)
+
     }
 
     companion object {

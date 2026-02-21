@@ -5,8 +5,6 @@ import android.animation.ObjectAnimator
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.View
 import android.view.WindowInsetsController
 import android.view.animation.AccelerateDecelerateInterpolator
@@ -14,38 +12,25 @@ import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.Intro.OnBoarding.OnBoardingPage
 import com.example.barberlink.databinding.ActivitySplashScreenBinding
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class SplashScreen : AppCompatActivity() {
     private lateinit var binding: ActivitySplashScreenBinding
     private lateinit var headAnimator: ObjectAnimator
     private lateinit var logoAnimator: ObjectAnimator
-    private val handler = Handler(Looper.getMainLooper())
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private var sessionAdmin: Boolean = false
     private var sessionTeller: Boolean = false
     private var sessionCapster: Boolean = false
     private var isHandlingBack: Boolean = false
-
-    private val startOnBoarding = Runnable {
-        headAnimator.cancel()
-        logoAnimator.cancel()
-        if (sessionAdmin || sessionTeller || sessionCapster) {
-            val intent = Intent(this@SplashScreen, LandingPage::class.java)
-            intent.putExtra(ORIGIN_PAGE_KEY, "splash_screen") // Menambahkan kunci dan nilai ke Intent
-            startActivity(intent)
-            finish()
-        } else {
-            val intent = Intent(this@SplashScreen, OnBoardingPage::class.java)
-            startActivity(intent)
-            finish()
-        }
-    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +51,24 @@ class SplashScreen : AppCompatActivity() {
 
         animateSplashScreen()
 
-        handler.postDelayed(startOnBoarding, 3750)
+        lifecycleScope.launch {
+            delay(3750)
+            if (isDestroyed) return@launch
+
+            headAnimator.cancel()
+            logoAnimator.cancel()
+            if (sessionAdmin || sessionTeller || sessionCapster) {
+                val intent = Intent(this@SplashScreen, LandingPage::class.java)
+                intent.putExtra(ORIGIN_PAGE_KEY, "splash_screen") // Menambahkan kunci dan nilai ke Intent
+                startActivity(intent)
+                finish()
+            } else {
+                val intent = Intent(this@SplashScreen, OnBoardingPage::class.java)
+                startActivity(intent)
+                finish()
+            }
+        }
+
 
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
@@ -91,66 +93,106 @@ class SplashScreen : AppCompatActivity() {
         if (isHandlingBack) return
         isHandlingBack = true
 
-        handler.removeCallbacks(startOnBoarding)
         finish()
     }
 
     private fun animateSplashScreen() {
-        // Animasi untuk logo barber
-        val logoStartPosition = ObjectAnimator.ofFloat(binding.barberlinkLogo, "translationY", 0f, -50f).apply {
+        // Animasi awal logo
+        ObjectAnimator.ofFloat(
+            binding.barberlinkLogo,
+            "translationY",
+            0f,
+            -50f
+        ).apply {
             duration = 400
             interpolator = AccelerateDecelerateInterpolator()
+            start()
         }
-        logoStartPosition.start()
 
-        // Animasi untuk background splash
-        val backgroundAnimator = ObjectAnimator.ofFloat(binding.backgroundSplash, "alpha", 0f, 1f).apply {
+        // Animasi background splash
+        ObjectAnimator.ofFloat(
+            binding.backgroundSplash,
+            "alpha",
+            0f,
+            1f
+        ).apply {
             duration = 600
             interpolator = AccelerateDecelerateInterpolator()
+            start()
         }
-        backgroundAnimator.start()
 
-        handler.postDelayed({
-            val animatorSet = AnimatorSet().apply {
-                val headFadeIn = ObjectAnimator.ofFloat(binding.barberHead, "alpha", 0f, 1f).apply {
+        // === Delay 600ms → tampilkan head + logo ===
+        lifecycleScope.launch {
+            delay(600)
+            if (isDestroyed) return@launch
+
+            AnimatorSet().apply {
+                val headFadeIn = ObjectAnimator.ofFloat(
+                    binding.barberHead,
+                    "alpha",
+                    0f,
+                    1f
+                ).apply {
                     duration = 800
                     interpolator = AccelerateDecelerateInterpolator()
                 }
 
-                val logoFadeIn = ObjectAnimator.ofFloat(binding.barberlinkLogo, "alpha", 0f, 1f).apply {
+                val logoFadeIn = ObjectAnimator.ofFloat(
+                    binding.barberlinkLogo,
+                    "alpha",
+                    0f,
+                    1f
+                ).apply {
                     duration = 400
                     interpolator = AccelerateDecelerateInterpolator()
                 }
 
-                // Animasi untuk logo barber
-                val logoFadeInPositioning = ObjectAnimator.ofFloat(binding.barberlinkLogo, "translationY", -50f, 0f).apply {
+                val logoFadeInPositioning = ObjectAnimator.ofFloat(
+                    binding.barberlinkLogo,
+                    "translationY",
+                    -50f,
+                    0f
+                ).apply {
                     duration = 800
                     interpolator = AccelerateDecelerateInterpolator()
                 }
+
                 playTogether(headFadeIn, logoFadeIn, logoFadeInPositioning)
+                start()
             }
+        }
 
-            animatorSet.start()
+        // === Delay 1400ms → animasi looping ===
+        lifecycleScope.launch {
+            delay(1400)
+            if (isDestroyed) return@launch
 
-        }, 600)
-
-        handler.postDelayed({
-            headAnimator = ObjectAnimator.ofFloat(binding.barberHead, "alpha", 1f, 0f).apply {
+            headAnimator = ObjectAnimator.ofFloat(
+                binding.barberHead,
+                "alpha",
+                1f,
+                0f
+            ).apply {
                 duration = 400
                 interpolator = AccelerateDecelerateInterpolator()
                 repeatCount = ObjectAnimator.INFINITE
                 repeatMode = ObjectAnimator.REVERSE
+                start()
             }
-            headAnimator.start()
-            // Animasi untuk logo barber
-            logoAnimator = ObjectAnimator.ofFloat(binding.barberlinkLogo, "translationY", 0f, -50f).apply {
+
+            logoAnimator = ObjectAnimator.ofFloat(
+                binding.barberlinkLogo,
+                "translationY",
+                0f,
+                -50f
+            ).apply {
                 duration = 800
                 interpolator = AccelerateDecelerateInterpolator()
                 repeatCount = ObjectAnimator.INFINITE
                 repeatMode = ObjectAnimator.REVERSE
+                start()
             }
-            logoAnimator.start()
-        }, 1400)
+        }
     }
 
     // Function to set background color StatusBar

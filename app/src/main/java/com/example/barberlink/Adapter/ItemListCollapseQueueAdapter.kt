@@ -1,33 +1,35 @@
 package com.example.barberlink.Adapter
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat.getColor
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
 import com.example.barberlink.databinding.ItemListNumberQueueAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListNumberQueueBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 class ItemListCollapseQueueAdapter(
     private val itemClicked: OnItemClicked,
-    private val lifecycleOwner: LifecycleOwner,
     private val callbackToast: DisplayThisToastMessage
-) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()), LifecycleObserver {
+) : ListAdapter<ReservationData, RecyclerView.ViewHolder>(ReservationDiffCallback()), LifecycleObserver {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private var shimmerItemCount = 4
@@ -35,15 +37,12 @@ class ItemListCollapseQueueAdapter(
     private var lastScrollPosition = 0
     private var blockAllUserClickAction: Boolean = false
 
-    private var isDestroyed = false
-    private val handler = Handler(Looper.getMainLooper())
-
-    init {
-        lifecycleOwner.lifecycle.addObserver(this)
+    interface OnItemClicked {
+        fun onItemClickListener(position: Int)
     }
 
     interface DisplayThisToastMessage {
-        fun displayThisToast(message: String)
+        fun displayThisToast(message: String, isImportant: Boolean)
     }
 
     fun stopAllShimmerEffects() {
@@ -53,20 +52,28 @@ class ItemListCollapseQueueAdapter(
         shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
     }
 
+    fun getLastScrollPosition(): Int {
+        return lastScrollPosition
+    }
+
     fun setlastScrollPosition(position: Int) {
         this.lastScrollPosition = position
+    }
+
+    fun getShimmerItemCount(): Int {
+        return shimmerItemCount
     }
 
     fun setShimmerItemCount(size: Int) {
         this.shimmerItemCount = size
     }
 
-    interface OnItemClicked {
-        fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
-    }
-
     fun setBlockStatusUI(value: Boolean) {
         this.blockAllUserClickAction = value
+    }
+
+    fun getIsShimmer(): Boolean {
+        return isShimmer
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -93,7 +100,7 @@ class ItemListCollapseQueueAdapter(
             (holder as ItemViewHolder).bind(reservation)
         } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
             // Call bind for ShimmerViewHolder
-            (holder as ShimmerViewHolder).bind(Reservation()) // Pass a dummy Reservation if needed
+            (holder as ShimmerViewHolder).bind(ReservationData()) // Pass a dummy Reservation if needed
         }
         Log.d("CheckListQueue", "@@@")
     }
@@ -146,60 +153,9 @@ class ItemListCollapseQueueAdapter(
 
     }
 
-    fun letScrollToLastPosition() {
-        Log.d("ObjectReferences", "ItemListCollapseQueueAdapter >>>>>>>>")
-        // Log apakah recyclerView null
-        if (recyclerView == null) {
-            Log.e("ObjectReferences", "recyclerView is null")
-        } else {
-            Log.d("ObjectReferences", "recyclerView is not null")
-        }
-
-        waitForRecyclerView {
-            val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
-            recyclerView?.post {
-                val itemCount = recyclerView?.adapter?.itemCount ?: 0
-                val positionToScroll = if (isShimmer) {
-                    minOf(lastScrollPosition, shimmerItemCount - 1)
-                } else {
-                    lastScrollPosition
-                }
-
-                // Validasi posisi target
-                if (positionToScroll in 0 until itemCount) {
-                    Log.d("ObjectReferences", "adapter: $lastScrollPosition")
-                    layoutManager?.scrollToPosition(positionToScroll)
-                } else {
-                    // Log untuk debugging
-                    Log.e("ObjectReferences", "Invalid target position: $positionToScroll, itemCount: $itemCount")
-                }
-            }
-        }
-
-    }
-
-    private fun waitForRecyclerView(action: () -> Unit) {
-        val checkInterval = 50L
-
-        handler.post(object : Runnable {
-            override fun run() {
-                if (isDestroyed) {
-                    handler.removeCallbacks(this)
-                    return
-                }
-
-                if (recyclerView != null) {
-                    action()
-                } else {
-                    handler.postDelayed(this, checkInterval)
-                }
-            }
-        })
-    }
-
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(reservation: Reservation) {
+        fun bind(reservationData: ReservationData) {
             shimmerViewList.add(binding.shimmerTvQueueNumber)
             if (!binding.shimmerTvQueueNumber.isShimmerStarted) {
                 binding.shimmerTvQueueNumber.startShimmer()
@@ -214,7 +170,7 @@ class ItemListCollapseQueueAdapter(
     inner class ItemViewHolder(private val binding: ItemListNumberQueueAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(reservation: Reservation) {
+        fun bind(reservationData: ReservationData) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with (binding) {
@@ -222,13 +178,13 @@ class ItemListCollapseQueueAdapter(
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
                 val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
                 binding.tvQueueNumberPrefix.text = root.context.getString(R.string.template_number_prefix, formattedNumber)
-                binding.tvCurrentQueueNumber.text = reservation.queueNumber
+                binding.tvCurrentQueueNumber.text = reservationData.queueNumber
 //                tvQueueNumber.text = reservation.queueNumber.toString()
 //                tvCustomerName.text = reservation.customerName
 //                tvServiceName.text = reservation.serviceName
 //                tvServiceTime.text = reservation.serviceTime.toString()
 
-                when (reservation.queueStatus) {
+                when (reservationData.queueStatus) {
                     "waiting" -> {
                         setStatusWaiting()
                     }
@@ -247,9 +203,18 @@ class ItemListCollapseQueueAdapter(
                 }
 
                 cvQueueNumber.setOnClickListener {
-                    if (!blockAllUserClickAction) {
-                        itemClicked.onItemClickListener(reservation, root, adapterPosition)
-                    } else callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!")
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm???
+                    itemClicked.onItemClickListener(adapterPosition)
+//                    if (!blockAllUserClickAction) {
+//                    } else callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
                 }
             }
         }
@@ -301,23 +266,17 @@ class ItemListCollapseQueueAdapter(
         }
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    fun onDestroy() {
-        isDestroyed = true
-        handler.removeCallbacksAndMessages(null) // Hentikan semua callback
-    }
-
     companion object {
         private const val VIEW_TYPE_ITEM = 0
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class ReservationDiffCallback : DiffUtil.ItemCallback<Reservation>() {
-        override fun areItemsTheSame(oldItem: Reservation, newItem: Reservation): Boolean {
+    class ReservationDiffCallback : DiffUtil.ItemCallback<ReservationData>() {
+        override fun areItemsTheSame(oldItem: ReservationData, newItem: ReservationData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Reservation, newItem: Reservation): Boolean {
+        override fun areContentsTheSame(oldItem: ReservationData, newItem: ReservationData): Boolean {
             return oldItem == newItem
         }
     }

@@ -17,6 +17,7 @@ import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.databinding.FragmentQueueSuccessBinding
 import kotlinx.coroutines.launch
@@ -36,6 +37,8 @@ private const val ARG_PARAM5 = "param5"
  */
 class QueueSuccessFragment : DialogFragment() {
     private var _binding: FragmentQueueSuccessBinding? = null
+    private val debounce by lazy { ScopedUniversalDebounce() }
+
     // TNODO: Rename and change types of parameters
     private var param1: String? = null
     private var param2: String? = null
@@ -104,6 +107,8 @@ class QueueSuccessFragment : DialogFragment() {
         }
 
         binding.btnDone.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             checkNetworkConnection {
                 Log.d("TagDissmiss", "onDismiss: 72")
                 dismiss() // Tutup fragment setelahnya

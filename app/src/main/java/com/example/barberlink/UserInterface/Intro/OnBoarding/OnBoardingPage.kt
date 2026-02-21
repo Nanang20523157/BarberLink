@@ -16,6 +16,7 @@ import androidx.core.view.get
 import androidx.viewpager2.widget.ViewPager2
 import com.example.barberlink.Adapter.OnBoardingSliderAdapter
 import com.example.barberlink.DataClass.IntroDataSlide
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
@@ -24,8 +25,9 @@ import com.example.barberlink.databinding.ActivityOnBoardingPageBinding
 
 class OnBoardingPage : AppCompatActivity() {
     private lateinit var binding: ActivityOnBoardingPageBinding
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private val introSliderAdapter = OnBoardingSliderAdapter(
         listOf(
             IntroDataSlide(
@@ -94,6 +96,8 @@ class OnBoardingPage : AppCompatActivity() {
                 if (introSliderPager.currentItem + 1 < introSliderAdapter.itemCount) {
                     introSliderPager.currentItem += 1
                 } else {
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm
                     // Buat Perpindahan Halaman saat List sudah Penuh
                     navigateToLandingPage(it)
                 }
@@ -101,6 +105,8 @@ class OnBoardingPage : AppCompatActivity() {
 
             // Atur Fungsi Text OnClick Skip Intro
             textSkipIntro.setOnClickListener {
+                if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                // hmmmmm
                 // Perpindahan halaman
                 navigateToLandingPage(it)
             }
@@ -113,8 +119,8 @@ class OnBoardingPage : AppCompatActivity() {
     }
 
     private fun navigateToLandingPage(view: View) {
-        view.isClickable = false
-        currentView = view
+//        view.isClickable = false
+//        currentView = view
         if (!isNavigating) {
             isNavigating = true
             Intent(this@OnBoardingPage, LandingPage::class.java).also {
@@ -131,7 +137,7 @@ class OnBoardingPage : AppCompatActivity() {
         if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
     }
 
     private fun setupIndicator() {

@@ -11,8 +11,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.NumberUtils.convertToFormattedString
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
 
 class ItemListExpandQueueAdapter(
     private val itemClicked: OnItemClicked
-) : ListAdapter<Reservation, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
+) : ListAdapter<ReservationData, RecyclerView.ViewHolder>(ReservationDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val shimmerViewList2 = mutableListOf<ShimmerFrameLayout>()
     private val shimmerViewList3 = mutableListOf<ShimmerFrameLayout>()
@@ -45,18 +46,15 @@ class ItemListExpandQueueAdapter(
         shimmerViewList6,
         shimmerViewList7
     )
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private val shimmerItemCount = 1
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
 
-    fun setlastScrollPosition(position: Int) {
-        this.lastScrollPosition = position
-    }
-
     interface OnItemClicked {
-        fun onItemClickListener(reservation: Reservation, rootView: View, position: Int)
+        fun onItemClickListener(position: Int)
     }
 
     fun stopAllShimmerEffects() {
@@ -68,6 +66,10 @@ class ItemListExpandQueueAdapter(
                 }
             }.awaitAll()
         }
+    }
+
+    fun setlastScrollPosition(position: Int) {
+        this.lastScrollPosition = position
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -94,7 +96,7 @@ class ItemListExpandQueueAdapter(
             (holder as ItemViewHolder).bind(reservation, position)
         } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
             // Call bind for ShimmerViewHolder
-            (holder as ShimmerViewHolder).bind(Reservation(), position) // Pass a dummy Reservation if needed
+            (holder as ShimmerViewHolder).bind(ReservationData(), position) // Pass a dummy Reservation if needed
         }
     }
 
@@ -138,7 +140,7 @@ class ItemListExpandQueueAdapter(
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListQueueCustomersBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(reservation: Reservation, position: Int) {
+        fun bind(reservationData: ReservationData, position: Int) {
             shimmerViewList.add(binding.shimmerTvQueueNumber)
             shimmerViewList2.add(binding.shimmerLlGender)
             shimmerViewList3.add(binding.shimmerTvCustomerName)
@@ -168,7 +170,7 @@ class ItemListExpandQueueAdapter(
     inner class ItemViewHolder(private val binding: ItemListQueueCustomersAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(reservation: Reservation, position: Int) {
+        fun bind(reservationData: ReservationData, position: Int) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
             if (shimmerViewList2.isNotEmpty()) shimmerViewList2.clear()
             if (shimmerViewList3.isNotEmpty()) shimmerViewList3.clear()
@@ -183,17 +185,17 @@ class ItemListExpandQueueAdapter(
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
                 val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
                 tvQueueNumberPrefix.text = formattedNumber
-                tvCurrentQueueNumber.text = reservation.queueNumber
-                tvCustomerName.text = reservation.dataCreator?.userFullname
+                tvCurrentQueueNumber.text = reservationData.queueNumber
+                tvCustomerName.text = reservationData.dataCreator?.userFullname
                 tvCustomerPhone.text = root.context.getString(R.string.phone_template,
-                    reservation.dataCreator?.userPhone?.let {
+                    reservationData.dataCreator?.userPhone?.let {
                         PhoneUtils.formatPhoneNumberWithZero(
                             it
                         )
                     })
-                tvPaymentAmount.text = NumberUtils.numberToCurrency(reservation.paymentDetail.finalPrice.toDouble())
+                tvPaymentAmount.text = NumberUtils.numberToCurrency(reservationData.paymentDetail.finalPrice.toDouble())
 
-                val customerData = reservation.dataCreator?.userDetails
+                val customerData = reservationData.dataCreator?.userDetails
                 customerData?.let { customer ->
                     setMembershipStatus((customer as UserCustomerData).membership)
                     setUserGender(customer.gender)
@@ -211,7 +213,7 @@ class ItemListExpandQueueAdapter(
                     }
                 } ?: setMembershipStatus(false)
 
-                when (reservation.queueStatus) {
+                when (reservationData.queueStatus) {
                     "waiting" -> {
                         setStatusWaiting()
                     }
@@ -230,7 +232,9 @@ class ItemListExpandQueueAdapter(
                 }
 
                 root.setOnClickListener {
-                    itemClicked.onItemClickListener(reservation, root, position)
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm???
+                    itemClicked.onItemClickListener(adapterPosition)
                 }
             }
         }
@@ -350,12 +354,12 @@ class ItemListExpandQueueAdapter(
         private const val VIEW_TYPE_SHIMMER = 1
     }
 
-    class ReservationDiffCallback : DiffUtil.ItemCallback<Reservation>() {
-        override fun areItemsTheSame(oldItem: Reservation, newItem: Reservation): Boolean {
+    class ReservationDiffCallback : DiffUtil.ItemCallback<ReservationData>() {
+        override fun areItemsTheSame(oldItem: ReservationData, newItem: ReservationData): Boolean {
             return oldItem.uid == newItem.uid
         }
 
-        override fun areContentsTheSame(oldItem: Reservation, newItem: Reservation): Boolean {
+        override fun areContentsTheSame(oldItem: ReservationData, newItem: ReservationData): Boolean {
             return oldItem == newItem
         }
     }

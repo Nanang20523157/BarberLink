@@ -4,8 +4,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.util.TypedValue
 import android.view.View
@@ -14,15 +12,15 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.view.get
 import androidx.core.view.isGone
-import androidx.lifecycle.ViewModelProvider
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -35,18 +33,19 @@ import com.example.barberlink.DataClass.DataCreator
 import com.example.barberlink.DataClass.ItemInfo
 import com.example.barberlink.DataClass.LocationPoint
 import com.example.barberlink.DataClass.PaymentDetail
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserData
 import com.example.barberlink.DataClass.UserEmployeeData
-import com.example.barberlink.Factory.AddDataViewModelFactory
-import com.example.barberlink.Factory.ShareDataViewModelFactory
+import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.Injection
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.PaymentMethodFragment
 import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
@@ -62,17 +61,20 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
 
 class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPackageOrdersAdapter.OnItemClicked, ItemListServiceOrdersAdapter.OnItemClicked {
     private lateinit var binding: ActivityReviewOrderPageBinding
-    private lateinit var sharedReserveViewModel: SharedReserveViewModel
-    private lateinit var reviewOrderViewModel: ReviewOrderViewModel
-    private lateinit var shareDataViewModelFactory: ShareDataViewModelFactory
-    private lateinit var reviewViewModelFactory: AddDataViewModelFactory
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val sharedReserveViewModel: SharedReserveViewModel by viewModels {
+        Injection.provideViewModelFactory()
+    }
+    private val reviewOrderViewModel: ReviewOrderViewModel by viewModels {
+        DatabaseViewModelFactory(db)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     //private lateinit var outletSelected: Outlet
     //private lateinit var capsterSelected: UserEmployeeData
@@ -92,18 +94,18 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private var promoCode: Map<String, Double> = emptyMap()
     //private var isAddReminderFailed: Boolean = false
     private var lastScrollPositition: Int = 0
+    private var blockAllUserClickAction: Boolean = false
 //    private var skippedProcess: Boolean = false
 
 //    private var totalQueueNumber: Int = 0
 //    private var btnRequestClicked: Boolean = false
 //    private var isSuccessGetReservation: Boolean = false
 //    private var isProcessUpdatingData: Boolean = false
-    private var currentToastMessage: String? = null
     // private var firstDisplay: Boolean = true
     // private val servicesList = mutableListOf<Service>()
     // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var todayDate: String = ""
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
@@ -111,8 +113,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private lateinit var bundlingAdapter: ItemListPackageOrdersAdapter
     private lateinit var calendar: Calendar
     private var isRecreated: Boolean = false
-    private var localToast: Toast? = null
-    private var myCurrentToast: Toast? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -168,10 +168,9 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
-        shareDataViewModelFactory = Injection.provideViewModelFactory()
-        sharedReserveViewModel = ViewModelProvider(this, shareDataViewModelFactory)[SharedReserveViewModel::class.java]
-        reviewViewModelFactory = AddDataViewModelFactory(db)
-        reviewOrderViewModel = ViewModelProvider(this, reviewViewModelFactory)[ReviewOrderViewModel::class.java]
+        sharedReserveViewModel
+        reviewOrderViewModel
+        toastViewModel
         binding.swipeRefreshLayout.isEnabled = false
 
         calendar = Calendar.getInstance()
@@ -203,7 +202,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 //            skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
 //            isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
 
             setDateFilterValue(timeSelected)
         } else {
@@ -242,6 +240,44 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             if (!reviewOrderViewModel.getIsFirstLoad()) reviewOrderViewModel.listenSpecificOutletData(skippedProcess = true)
         }
         reviewOrderViewModel.listenToReservationData(startOfDay, startOfNextDay)
+
+        reviewOrderViewModel.reservationResult.observe(this) { state ->
+            when (state) {
+                is ReviewOrderViewModel.ResultState.Loading -> {
+                    if (binding.progressBar.isGone) binding.progressBar.visibility = View.VISIBLE
+                    blockAllUserClickAction = true
+                }
+                is ReviewOrderViewModel.ResultState.Success -> {
+                    binding.progressBar.visibility = View.GONE
+                    // Navigasi ke halaman berikutnya
+                    WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this@ReviewOrderPage, false) {
+                        // Berpindah ke halaman berikutnya jika semua berhasil
+                        val intent = Intent(this@ReviewOrderPage, CompleteOrderPage::class.java)
+                        intent.putExtra(RESERVATION_DATA, reviewOrderViewModel.getUserReservationData())
+                        startActivity(intent)
+                        overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                    }
+                    reviewOrderViewModel.setReservationResult(null)
+                }
+                is ReviewOrderViewModel.ResultState.Failure -> {
+                    showError(state.message)
+                    reviewOrderViewModel.setReservationResult(null)
+                }
+                else -> {
+                    blockAllUserClickAction = false
+                }
+            }
+        }
+
+        reviewOrderViewModel.toastDetection.observe(this) { state ->
+            when (state) {
+                is ReviewOrderViewModel.TriggerToast.CommonToast -> {
+                    toastViewModel.showToast(state.message, false)
+                }
+                else -> {}
+            }
+        }
+
         Log.d("ViewModel", sharedReserveViewModel.itemSelectedCounting.value.toString())
 
         supportFragmentManager.setFragmentResultListener("user_payment_method", this) { _, bundle ->
@@ -269,44 +305,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
             // Call calculateValues to recalculate payment details
             calculateValues(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected(), reviewOrderViewModel.getCustomerData())
-        }
-
-        reviewOrderViewModel.reservationResult.observe(this) { state ->
-            when (state) {
-                is ReviewOrderViewModel.ResultState.Loading -> {
-                    if (binding.progressBar.isGone) binding.progressBar.visibility = View.VISIBLE
-                }
-                is ReviewOrderViewModel.ResultState.Success -> {
-                    // Navigasi ke halaman berikutnya
-                    WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this@ReviewOrderPage, false) {
-                        // Berpindah ke halaman berikutnya jika semua berhasil
-                        val intent = Intent(this@ReviewOrderPage, CompleteOrderPage::class.java)
-                        intent.putExtra(RESERVATION_DATA, reviewOrderViewModel.getUserReservationData())
-                        startActivity(intent)
-                        overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
-
-                        binding.progressBar.visibility = View.GONE
-                    }
-                    reviewOrderViewModel.setReservationResult(null)
-                }
-                is ReviewOrderViewModel.ResultState.Failure -> {
-                    showError(state.message)
-                    reviewOrderViewModel.setReservationResult(null)
-                }
-                null -> {}
-            }
-        }
-
-        reviewOrderViewModel.toastDetection.observe(this) { state ->
-            when (state) {
-                is ReviewOrderViewModel.TriggerToast.LocalToast -> {
-                    showLocalToast()
-                }
-                is ReviewOrderViewModel.TriggerToast.CommonToast -> {
-                    showToast(state.message)
-                }
-                null -> {}
-            }
         }
 
         sharedReserveViewModel.outletSelected.observe(this) { outlet ->
@@ -370,33 +368,27 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     }
 
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(this@ReviewOrderPage, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
-        }
-    }
-
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@ReviewOrderPage,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@ReviewOrderPage,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -428,7 +420,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 //        outState.putBoolean("skipped_process", skippedProcess)
 //        outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun init() {
@@ -566,77 +557,41 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
     }
 
-//    private fun listenToReservationData() {
-//        if (::reservationListener.isInitialized) {
-//            reservationListener.remove()
-//        }
-//
-//        outletSelected.let { outlet ->
-//            reservationListener = db.collection("${outlet.rootRef}/outlets/${outlet.uid}/reservations")
-//                .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfDay)
-//                .whereLessThan("timestamp_to_booking", startOfNextDay)
-//                .addSnapshotListener { documents, exception ->
-//                    if (exception != null) {
-//                        btnRequestClicked = false
-//                        // displayAllData()
-//                        Toast.makeText(this, "Error getting reservations: ${exception.message}", Toast.LENGTH_SHORT).show()
-//                        return@addSnapshotListener
-//                    }
-//
-//                    documents?.let {
-//                        lifecycleScope.launch(Dispatchers.Default) {
-//                            if (!btnRequestClicked) {
-//                                val newReservationList = it.documents.mapNotNull { document ->
-//                                    document.toObject(Reservation::class.java)?.apply {
-//                                        dataRef = document.reference.path
-//                                    }
-//                                }.filter { it.queueStatus !in listOf("pending", "expired") }
-//
-//                                totalQueueNumber = newReservationList.size
-//                                // withContext(Dispatchers.Main) { displayAllData() }
-//                                isSuccessGetReservation = true
-//                            } else {
-//                                btnRequestClicked = false
-//                            }
-//                        }
-//                    }
-//                }
-//        }
-//    }
-
-
     private fun displayAllData() {
-        // Mengambil daftar layanan yang telah difilter dari ViewModel
-        val filteredServices = sharedReserveViewModel.servicesList.value?.filter { it.serviceQuantity > 0 } ?: emptyList()
+        lifecycleScope.launch {
+            // Mengambil daftar layanan yang telah difilter dari ViewModel
+            val filteredServices = sharedReserveViewModel.servicesList.value?.filter { it.serviceQuantity > 0 } ?: emptyList()
 
-        // Mengambil daftar paket bundling yang telah difilter dari ViewModel
-        val filteredBundlingPackages = sharedReserveViewModel.bundlingPackagesList.value?.filter { it.bundlingQuantity > 0 } ?: emptyList()
+            // Mengambil daftar paket bundling yang telah difilter dari ViewModel
+            val filteredBundlingPackages = sharedReserveViewModel.bundlingPackagesList.value?.filter { it.bundlingQuantity > 0 } ?: emptyList()
 
-        // Print seluruh object reference dari currentList pada ServiceAdapter
-        Log.d("ObjectReferences", "ServiceAdapter currentList references:")
-        filteredServices.forEachIndexed { index, item ->
-            Log.d("ObjectReferences", "Index: $index, Object reference: ${System.identityHashCode(item)}")
+            // Print seluruh object reference dari currentList pada ServiceAdapter
+            Log.d("ObjectReferences", "ServiceAdapter currentList references:")
+            filteredServices.forEachIndexed { index, item ->
+                Log.d("ObjectReferences", "Index: $index, Object reference: ${System.identityHashCode(item)}")
+            }
+
+            // Print seluruh object reference dari currentList pada BundlingAdapter
+            Log.d("ObjectReferences", "BundlingAdapter currentList references:")
+            filteredBundlingPackages.forEachIndexed { index, item ->
+                Log.d("ObjectReferences", "Index: $index, Object reference: ${System.identityHashCode(item)}")
+            }
+            Log.d("ObjectReferences", "========== End of object references ==========")
+            serviceAdapter.submitList(filteredServices)
+            bundlingAdapter.submitList(filteredBundlingPackages)
+            Log.d("CheckHiddenObject", "filteredBundlingPackages.size = ${filteredBundlingPackages.size}")
+            binding.rlBundlings.visibility = if (filteredBundlingPackages.isEmpty()) View.GONE else View.VISIBLE
+
+            displayCustomerData(reviewOrderViewModel.getCustomerData())
+            displayCapsterData(reviewOrderViewModel.getCapsterSelected())
+            binding.tvKodePromo.text = setPromoCodeText(promoCode)
+            binding.tvNumberOfClaimKode.text = getString(R.string.claim_amount_promo, promoCode.size)
+
+            calculateValues(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected(), reviewOrderViewModel.getCustomerData())
+            Log.d("LastScroll", "lastScrollPositition: $lastScrollPositition")
+            serviceAdapter.setlastScrollPosition(lastScrollPositition)
+            setupRecyclerViewWithIndicators(filteredServices.size)
         }
-
-        // Print seluruh object reference dari currentList pada BundlingAdapter
-        Log.d("ObjectReferences", "BundlingAdapter currentList references:")
-        filteredBundlingPackages.forEachIndexed { index, item ->
-            Log.d("ObjectReferences", "Index: $index, Object reference: ${System.identityHashCode(item)}")
-        }
-        Log.d("ObjectReferences", "========== End of object references ==========")
-        serviceAdapter.submitList(filteredServices)
-        bundlingAdapter.submitList(filteredBundlingPackages)
-        binding.rlBundlings.visibility = if (filteredBundlingPackages.isEmpty()) View.GONE else View.VISIBLE
-
-        displayCustomerData(reviewOrderViewModel.getCustomerData())
-        displayCapsterData(reviewOrderViewModel.getCapsterSelected())
-        binding.tvKodePromo.text = setPromoCodeText(promoCode)
-        binding.tvNumberOfClaimKode.text = getString(R.string.claim_amount_promo, promoCode.size)
-
-        calculateValues(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected(), reviewOrderViewModel.getCustomerData())
-        Log.d("LastScroll", "lastScrollPositition: $lastScrollPositition")
-        serviceAdapter.setlastScrollPosition(lastScrollPositition)
-        setupRecyclerViewWithIndicators(filteredServices.size)
     }
 
     private fun displayCustomerData(customerData: UserCustomerData) {
@@ -700,18 +655,18 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         capsterData: UserEmployeeData,
         customerData: UserCustomerData
     ) {
-        lifecycleScope.launch(Dispatchers.Default) {
-            val totalQuantityDeferred = async {
+        lifecycleScope.launch {
+            val totalQuantityDeferred = async(Dispatchers.Default) {
                 filteredServices.sumOf { it.serviceQuantity } +
                         filteredBundlingPackages.sumOf { it.bundlingQuantity }
             }
 
-            val subTotalPriceDeferred = async {
+            val subTotalPriceDeferred = async(Dispatchers.Default) {
                 filteredServices.sumOf { it.serviceQuantity * it.priceToDisplay } +
                         filteredBundlingPackages.sumOf { it.bundlingQuantity * it.priceToDisplay }
             }
 
-            val shareProfitDeferred = async {
+            val shareProfitDeferred = async(Dispatchers.Default) {
                 calculateTotalShareProfit(filteredServices, filteredBundlingPackages, capsterData.uid)
             }
 
@@ -719,11 +674,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             subTotalPrice = subTotalPriceDeferred.await()
             shareProfitCapster = shareProfitDeferred.await()
 
-            withContext(Dispatchers.Main) {
-                // Example call to update coins usage with initial values
-                updateCoinsUsage(customerData)
-            }
-
+            // Example call to update coins usage with initial values
+            updateCoinsUsage(customerData)
         }
     }
 
@@ -750,7 +702,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             realLayoutPayment.tvNumberOfItem.text = getString(R.string.short_number_of_total_items_template, totalQuantity.toString())
             realLayoutPayment.tvSubTotalPrice.text = NumberUtils.numberToCurrency(subTotalPrice.toDouble())
             realLayoutPayment.tvCoinUse.text = if (coinsUse != 0.0) {
-                getString(R.string.negatif_nominal_template, NumberUtils.numberToCurrency(coinsUse.toDouble()))
+                getString(R.string.negatif_nominal_template, NumberUtils.numberToCurrency(coinsUse))
             } else { "-" }
 
             val subTotalOfPromo = sumPromoValues(promoCode)
@@ -849,7 +801,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
         return totalShareProfit
     }
-
 
     private fun setUserGender(gender: String) {
         with (binding) {
@@ -1012,26 +963,6 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-        if (!isRecreated) {
-            if ((!reviewOrderViewModel.isReservationListenerInitialized() || !reviewOrderViewModel.isLocationListenerInitialized()) && !reviewOrderViewModel.getIsFirstLoad()) {
-                val intent = Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
-            }
-        }
-        isRecreated = false
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         binding.apply {
             when (v?.id) {
@@ -1039,86 +970,113 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.btnKodePromo -> {
-                    showToast("Best deals feature is under development...")
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
+                    toastViewModel.showToast("Best deals feature is under development...", true)
                 }
                 R.id.ivSelectPaymentMethod -> {
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
                     showPaymentMethodDialog()
                 }
                 R.id.btnSendRequest -> {
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
                     checkNetworkConnection {
-                        disableBtnWhenShowDialog(v) {
+                        if (totalQuantity != 0) {
                             reviewOrderViewModel.setBtnRequestClicked(true)
-                            if (totalQuantity != 0) {
-                                //binding.progressBar.visibility = View.VISIBLE
-                                Log.d("ReservationData", "Line 721")
-                                if (reviewOrderViewModel.getIsTriggerAddUserDataIsFailed()) {
-                                    reviewOrderViewModel.trigerAddCustomerAndReminderData(true)
-                                } else {
-                                    val capsterInfo = CapsterInfo(
-                                        capsterName = reviewOrderViewModel.getCapsterSelected().fullname,
-                                        capsterRef = reviewOrderViewModel.getCapsterSelected().userRef,
-                                        shareProfit = shareProfitCapster.toInt()
-                                    )
+                            //binding.progressBar.visibility = View.VISIBLE
+                            Log.d("ReservationData", "Line 721")
+                            if (reviewOrderViewModel.getIsTriggerAddUserDataIsFailed()) {
+                                reviewOrderViewModel.trigerAddCustomerAndReminderData(true)
+                            } else {
+                                val capsterInfo = CapsterInfo(
+                                    capsterName = reviewOrderViewModel.getCapsterSelected().fullname,
+                                    capsterRef = reviewOrderViewModel.getCapsterSelected().userRef,
+                                    shareProfit = shareProfitCapster.toInt()
+                                )
 
-                                    // val customerRef = if (customerData.uid.isNotEmpty()) "customers/${customerData.uid}" else ""
+                                // val customerRef = if (customerData.uid.isNotEmpty()) "customers/${customerData.uid}" else ""
 
-                                    val dataCreator = DataCreator<UserData>(
-                                        userFullname = reviewOrderViewModel.getCustomerData().fullname,
-                                        userRef = reviewOrderViewModel.getCustomerData().userRef,
-                                        userPhone = reviewOrderViewModel.getCustomerData().phone,
-                                        userPhoto = reviewOrderViewModel.getCustomerData().photoProfile,
-                                        userRole = "Customer"
-                                    )
-                                    val outletLocation = LocationPoint(
-                                        placeName = reviewOrderViewModel.getOutletSelected().outletName,
-                                        locationAddress = reviewOrderViewModel.getOutletSelected().outletAddress,
-                                        latitude = reviewOrderViewModel.getOutletSelected().latitudePoint,
-                                        longitude = reviewOrderViewModel.getOutletSelected().longitudePoint
-                                    )
+                                val dataCreator = DataCreator<UserData>(
+                                    userFullname = reviewOrderViewModel.getCustomerData().fullname,
+                                    userRef = reviewOrderViewModel.getCustomerData().userRef,
+                                    userPhone = reviewOrderViewModel.getCustomerData().phone,
+                                    userPhoto = reviewOrderViewModel.getCustomerData().photoProfile,
+                                    userRole = "Customer"
+                                )
+                                val outletLocation = LocationPoint(
+                                    placeName = reviewOrderViewModel.getOutletSelected().outletName,
+                                    locationAddress = reviewOrderViewModel.getOutletSelected().outletAddress,
+                                    latitude = reviewOrderViewModel.getOutletSelected().latitudePoint,
+                                    longitude = reviewOrderViewModel.getOutletSelected().longitudePoint
+                                )
 
-                                    val orderInfo = createOrderInfoList()
-                                    val coinsUsed = coinsUse.toInt()
-                                    val promoUsed = sumPromoValues(promoCode).toInt()
-                                    val paymentDetails = PaymentDetail(
-                                        coinsUsed = coinsUsed,
-                                        finalPrice = totalPriceToPay.toInt(),
-                                        numberOfItems = totalQuantity,
-                                        paymentMethod = paymentMethod,
-                                        paymentStatus = false,
-                                        promoUsed = promoUsed,
-                                        subtotalItems = subTotalPrice,
-                                        discountAmount = coinsUsed + promoUsed
-                                    )
+                                val orderInfo = createOrderInfoList()
+                                val coinsUsed = coinsUse.toInt()
+                                val promoUsed = sumPromoValues(promoCode).toInt()
+                                val paymentDetails = PaymentDetail(
+                                    coinsUsed = coinsUsed,
+                                    finalPrice = totalPriceToPay.toInt(),
+                                    numberOfItems = totalQuantity,
+                                    paymentMethod = paymentMethod,
+                                    paymentStatus = false,
+                                    promoUsed = promoUsed,
+                                    subtotalItems = subTotalPrice,
+                                    discountAmount = coinsUsed + promoUsed
+                                )
 
-                                    val queueNumberText = NumberUtils.convertToFormattedString(reviewOrderViewModel.getTotalQueueNumber() + 1)
+                                val queueNumberText = NumberUtils.convertToFormattedString(reviewOrderViewModel.getTotalQueueNumber() + 1)
 
-                                    val userReservationData = Reservation(
-                                        shareProfitCapsterRef = reviewOrderViewModel.getCapsterSelected().userRef,
-                                        fieldToFiltering = formatTimestampToDate(timeSelected),
-                                        rootRef = reviewOrderViewModel.getOutletSelected().rootRef,
-                                        bestDealsRef = emptyList(),
-                                        capsterInfo = capsterInfo,
-                                        dataCreator = dataCreator,
-                                        notes = binding.realLayoutCustomer.etNotes.text.toString().trim(),
-                                        itemInfo = orderInfo,
-                                        orderType = "Pemasukkan Jasa",
-                                        orderCategory = "Reservasi",
-                                        outletIdentifier = reviewOrderViewModel.getOutletSelected().uid,
-                                        locationPoint = outletLocation,
-                                        paymentDetail = paymentDetails,
-                                        queueNumber = queueNumberText,
-                                        queueStatus = "waiting",
-                                        timestampCreated = Timestamp.now(),
-                                        timestampToBooking = timeSelected
-                                    )
+                                val userReservationDataData = ReservationData(
+                                    shareProfitCapsterRef = reviewOrderViewModel.getCapsterSelected().userRef,
+                                    fieldToFiltering = formatTimestampToDate(timeSelected),
+                                    rootRef = reviewOrderViewModel.getOutletSelected().rootRef,
+                                    bestDealsRef = emptyList(),
+                                    capsterInfo = capsterInfo,
+                                    dataCreator = dataCreator,
+                                    notes = binding.realLayoutCustomer.etNotes.text.toString().trim(),
+                                    itemInfo = orderInfo,
+                                    orderType = "Pemasukkan Jasa",
+                                    orderCategory = "Reservasi",
+                                    outletIdentifier = reviewOrderViewModel.getOutletSelected().uid,
+                                    locationPoint = outletLocation,
+                                    paymentDetail = paymentDetails,
+                                    queueNumber = queueNumberText,
+                                    queueStatus = "waiting",
+                                    timestampCreated = Timestamp.now(),
+                                    timestampToBooking = timeSelected
+                                )
 
-                                    if (reviewOrderViewModel.getIsSuccessGetReservation()) reviewOrderViewModel.addNewReservationAndNavigate(userReservationData)
-                                    else {
+                                if (reviewOrderViewModel.getIsSuccessGetReservation()) reviewOrderViewModel.addNewReservationAndNavigate(userReservationDataData)
+                                else {
 //                                    Toast.makeText(this@ReviewOrderPage, "ROP ??B1 - else btnClick", Toast.LENGTH_SHORT).show()
-                                        showError("Silakan coba lagi setelah beberapa saat.")
-                                    }
+                                    showError("Terjadi kesalahan, silakan coba lagi setelah beberapa saat.")
                                 }
                             }
+                        } else {
+                            showError("Tidak dapat melanjutkan, belum ada item yang dipilih.")
                         }
                     }
                 }
@@ -1136,11 +1094,12 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             }
         }
     }
+
     private fun showError(message: String) {
-        showToast(message)
-        isNavigating = false
-        currentView?.isClickable = true
         binding.progressBar.visibility = View.GONE
+        toastViewModel.showToast(message, true)
+//        isNavigating = false
+//        currentView?.isClickable = true
         reviewOrderViewModel.setBtnRequestClicked(false)
     }
 
@@ -1172,65 +1131,24 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         return itemInfoList
     }
 
-    //        lifecycleScope.launch {
-//            val deferredList = mutableListOf<Deferred<Unit>>()
-//            deferredList.add(
-//                if (!isSchedulingReservation) {
-//                    val clipText = if (isGuestAccount) "" else " dengan nama pelanggan ${dataReminder.customerName}"
-//                    addUserStackNotification(
-//                        dataReminder.copy().apply {
-//                            dataType = "New Reservation"
-//                            messageTitle = "Reservasi Baru Telah Diterima"
-//                            messageBody = "Halo ${capsterName}, Anda memiliki pesanan reservasi baru$clipText. Hari ini kamu telah bekerja dengan sangat baik, tetaplah semangat dan teruslah berusaha karena kesuksesan sejati tidak akan pernah datang begitu saja!"
-//                        }
-//                    )
-//                } else {
-//                    addUserStackReminder(dataReminder)
-//                }
-//            )
-//
-//            if (!customerData.guestAccount) {
-//                deferredList.add(updateOutletListCustomerData())
-//            }
-//
-//            // Menunggu semua operasi selesai
-//            try {
-//                deferredList.awaitAll()
-//                val intent = Intent(this@ReviewOrderPage, ComplateOrderPage::class.java)
-//                intent.apply {
-//                    putExtra(RESERVATION_DATA, userReservationData)
-//                }
-//                startActivity(intent)
-//
-//                binding.progressBar.visibility = View.GONE
-//            } catch (e: Exception) {
-//                isAddReminderFailed = true
-//                showError("Terjadi kesalahan, silahkan coba lagi!!!")
-//            }
-//        }
-
-//    private fun addUserStackNotification(
-//        data: NotificationReminder
-//    ): Deferred<Unit> = lifecycleScope.async(Dispatchers.IO) {
-
-    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
-        v.isClickable = false
-        currentView = v
-        if (!isNavigating) {
-            isNavigating = true
-            functionShowDialog()
-        } else return
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (isChangingConfigurations) {
-            return // Jangan hapus data jika hanya orientasi yang berubah
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+//        currentView?.isClickable = true
+        if (!isRecreated) {
+            if ((!reviewOrderViewModel.isReservationListenerInitialized() || !reviewOrderViewModel.isLocationListenerInitialized()) && !reviewOrderViewModel.getIsFirstLoad()) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                toastViewModel.showToast("Sesi telah berakhir silahkan masuk kembali", false)
+            }
         }
-        localToast?.cancel()
-        myCurrentToast?.cancel()
-        localToast = null
-        currentToastMessage = null
+        isRecreated = false
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -1254,6 +1172,13 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (isChangingConfigurations) reviewOrderViewModel.clearToastDetection()
@@ -1271,14 +1196,13 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         if (!addCount) {
             sharedReserveViewModel.removeItemSelectedByName(bundlingPackage.packageName, bundlingPackage.bundlingQuantity == 0)
         } else if (bundlingPackage.bundlingQuantity >= 1) {
-            sharedReserveViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package")
+            sharedReserveViewModel.addItemSelectedCounting(bundlingPackage.packageName, "package", false)
         }
 
         // Akses dan perbarui data di ViewModel
         sharedReserveViewModel.updateBundlingQuantity(bundlingPackage.itemIndex, bundlingPackage.bundlingQuantity)
         // Update visibility based on remaining items
-        binding.rlBundlings.visibility = if (currentList?.size == 0) View.GONE else View.VISIBLE
-
+        binding.rlBundlings.visibility = if (currentList?.isEmpty() == true) View.GONE else View.VISIBLE
     }
 
     override fun onItemClickListener(service: Service, index: Int, addCount: Boolean, currentList: List<Service>?) {
@@ -1296,7 +1220,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                 setIndikatorSaarIni(previousIndex.coerceAtMost(serviceAdapter.itemCount - 1))
             }
         } else if (service.serviceQuantity >= 1) {
-            sharedReserveViewModel.addItemSelectedCounting(service.serviceName, "service")
+            sharedReserveViewModel.addItemSelectedCounting(service.serviceName, "service", false)
         }
 
         // Akses dan perbarui data di ViewModel

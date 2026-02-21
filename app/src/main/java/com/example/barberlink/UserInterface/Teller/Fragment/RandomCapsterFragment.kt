@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.databinding.FragmentRandomCapsterBinding
 import kotlinx.coroutines.launch
@@ -27,9 +28,12 @@ private const val ARG_PARAM2 = "param2"
 class RandomCapsterFragment : DialogFragment() {
     private var _binding: FragmentRandomCapsterBinding? = null
     // TNODO: Rename and change types of parameters
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var param1: String? = null
     private var param2: String? = null
     private val binding get() = _binding!!
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         arguments?.let {
@@ -51,6 +55,8 @@ class RandomCapsterFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.btnYes.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             checkNetworkConnection {
                 setFragmentResult("capster_result_data", bundleOf(
                     "capster_data" to UserEmployeeData() // Employee() kosong

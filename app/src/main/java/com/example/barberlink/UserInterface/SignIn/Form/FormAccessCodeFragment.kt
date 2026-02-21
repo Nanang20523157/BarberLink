@@ -7,8 +7,6 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -22,22 +20,33 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.SelectAccountPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
 import com.example.barberlink.UserInterface.SignIn.ViewModel.SelectOutletViewModel
+import com.example.barberlink.UserInterface.Teller.CompleteOrderPage
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
+import com.example.barberlink.UserInterface.Teller.ReviewOrderPage.Companion.RESERVATION_DATA
+import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.FragmentFormAccessCodeBinding
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.TaskCompletionSource
@@ -46,8 +55,15 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
@@ -66,29 +82,25 @@ class FormAccessCodeFragment : DialogFragment() {
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
     private  val formAccessViewModel: SelectOutletViewModel by activityViewModels()
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var context: Context
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var isNavigating = false
     private val binding get() = _binding!!
     private var isInputValid = false
     private var textErrorForAccessCode: String = "undefined"
     private var isOrientationChanged: Boolean = false
     private var isBtnEnableState: Boolean = false
-    private var currentToastMessage: String? = null
     private var skippedProcess: Boolean = false
     private var isFirstLoad: Boolean = true
     private lateinit var locationListener: ListenerRegistration
+    private var blockAllUserClickAction: Boolean = false
 
     // TNODO: Rename and change types of parameters
-    private var loginType: String = ""
-    private val employeesList = mutableListOf<UserEmployeeData>()
-    private val capsterList = mutableListOf<UserEmployeeData>()
-    private val reservationList =  mutableListOf<Reservation>()
-
     private var listener: OnClearBackStackListener? = null
     private lateinit var textWatcher: TextWatcher
     private var inputManualCheckOne: (() -> Unit)? = null
-    private var myCurrentToast: Toast? = null
 
     // Interface yang akan diimplementasikan oleh Activity
     interface OnClearBackStackListener {
@@ -98,14 +110,15 @@ class FormAccessCodeFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        formAccessViewModel
+        toastViewModel
         arguments?.let {
-            loginType = it.getString(ARG_PARAM1).toString()
+            formAccessViewModel.setLoginType(it.getString(ARG_PARAM1).toString())
         }
         isInputValid = savedInstanceState?.getBoolean("is_input_valid", false) ?: false
         textErrorForAccessCode = savedInstanceState?.getString("text_error_for_access_code", "undefined") ?: "undefined"
         isOrientationChanged = savedInstanceState?.getBoolean("is_orientation_changed", false) ?: false
         isBtnEnableState = savedInstanceState?.getBoolean("is_btn_enable_state", false) ?: false
-        currentToastMessage = savedInstanceState?.getString("current_toast_message", null)
 
         context = requireContext()
     }
@@ -122,7 +135,46 @@ class FormAccessCodeFragment : DialogFragment() {
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        setBtnNextToDisableState()
+        if (savedInstanceState == null) setBtnNextToDisableState()
+
+        formAccessViewModel.gettingStateResult.observe(this) { state ->
+            when (state) {
+                is SelectOutletViewModel.ResultState.Loading -> {
+                    if (binding.progressBar.isGone) binding.progressBar.visibility = View.VISIBLE
+                    blockAllUserClickAction = true
+                }
+                is SelectOutletViewModel.ResultState.Navigate -> {
+                    binding.progressBar.visibility = View.GONE
+                    // Navigasi ke halaman berikutnya
+                    if (state.loginType == "Login as Employee") {
+                        if (state.emptyData) {
+                            Toast.makeText(context, "Tidak ditemukan data karyawan yang sesuai!", Toast.LENGTH_SHORT).show()
+                        }
+                        navigatePage(context, SelectAccountPage::class.java, false, binding.btnNext)
+                    } else if (state.loginType == "Login as Teller") {
+                        navigatePage(context, QueueTrackerPage::class.java, true, binding.btnNext)
+                    }
+                    formAccessViewModel.setGettingStateResult(null)
+                }
+                is SelectOutletViewModel.ResultState.Failure -> {
+                    handleError(state.message)
+                    formAccessViewModel.setGettingStateResult(null)
+                }
+                else -> {
+                    blockAllUserClickAction = false
+                }
+            }
+        }
+
+        formAccessViewModel.toastDetection.observe(this) { state ->
+            when (state) {
+                is SelectOutletViewModel.TriggerToast.CommonToast -> {
+                    Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
+                }
+                else -> {}
+            }
+        }
+
         if (isOrientationChanged) {
             inputManualCheckOne = {
                 if (textErrorForAccessCode.isNotEmpty() && textErrorForAccessCode != "undefined") {
@@ -134,6 +186,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     binding.codeCustomError.text = getString(R.string.required)
                 }
 
+                Log.d("CheckAccessState", "isInputValid = $isInputValid and textErrorForAccessCode = $textErrorForAccessCode and loginType = ${formAccessViewModel.getLoginType()} and isBtnEnableState = $isBtnEnableState")
                 if (textErrorForAccessCode == "undefined") binding.etAccessCode.requestFocus()
                 if (isBtnEnableState) setBtnNextToEnableState()
                 else setBtnNextToDisableState()
@@ -142,13 +195,29 @@ class FormAccessCodeFragment : DialogFragment() {
         setupEditTextListeners()
 
         binding.btnNext.setOnClickListener {
+            if (!debounce.run {
+                it.isSafeClick(
+                    isLoading = blockAllUserClickAction,
+                    onLoadingBlocked = {
+                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                    }
+                )
+            }) return@setOnClickListener
+            // hmmmmm
             if (isInputValid) {
-                if (loginType == "Login as Employee") getEmployeesData()
-                else if (loginType == "Login as Teller") handleTellerLogin()
+                //Tolong check implementasi terbaru pada FormAccessCodfeFragment branch master
+                // setiap kali dia tidak menemukan daftar capster atau pegawai pengguna akan tetap dibawa ke halaman berikutnya
+                // masalahnya 1) kita harus mengcheck apakah halaman berikutnya tetap dapat tampil proper saat data gak tersedia
+                // 2) show Toast "Tidak ditemukan..." ditampilkan langsung ditutup karena halaman saat ini akan segera di distroy
+                // untuk keperluan navigasi (ui dan ux nya jadi jelek kalok seperti ini pakek Toast biasa saja gak perlu showToast)
+                checkNetworkConnection {
+                    if (formAccessViewModel.getLoginType() == "Login as Employee") formAccessViewModel.getEmployeesData()
+                    else if (formAccessViewModel.getLoginType() == "Login as Teller") formAccessViewModel.handleTellerLogin()
+                }
             } else {
                 isInputValid = validateInput()
             }
-            Log.d("TellerSession", "Login type: $loginType")
+            Log.d("TellerSession", "Login type: ${formAccessViewModel.getLoginType()}")
         }
 
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
@@ -183,30 +252,45 @@ class FormAccessCodeFragment : DialogFragment() {
         Log.d("CheckPion", "isOrientationChanged = AA")
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
+    private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
+        lifecycleScope.launch {
+            if (NetworkMonitor.isOnline.value) {
+                runningThisProcess()
+            } else {
+                val message = NetworkMonitor.errorMessage.value
+                if (message.isNotEmpty()) NetworkMonitor.showToast(message, true)
+            }
         }
     }
+
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_input_valid", isInputValid)
         outState.putString("text_error_for_access_code", textErrorForAccessCode)
         outState.putBoolean("is_orientation_changed", true)
+        Log.d("CheckAccessState", "isBtnEnableState = $isBtnEnableState")
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -232,298 +316,66 @@ class FormAccessCodeFragment : DialogFragment() {
         listener?.onClearBackStackRequested()
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun handleTellerLogin() {
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            val isSameDay = isSameDay(Timestamp.now().toDate(), outletSelected.timestampModify.toDate())
-
-            binding.progressBar.visibility = View.VISIBLE
-            // Jika bukan hari yang sama, perbarui currentQueue dan timestampModify
-            Log.d("TellerSession", "Is same day FORM: $isSameDay")
-            val updateOutletTask = if (!isSameDay) {
-                outletSelected.apply {
-                    currentQueue = currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
-                    timestampModify = Timestamp.now()
-                }
-                outletSelected.let { updateOutletCurrentQueue(it) }
-            } else {
-                Tasks.forResult(null) // Skip updateOutletCurrentQueue jika hari yang sama
-            }
-
-            // Jalankan kedua task secara paralel
-            val getCapsterTask = getCapsterDataTask()
-
-            // Jalankan updateOutletTask dan getCapsterDataTask secara paralel
-            Tasks.whenAllComplete(updateOutletTask, getCapsterTask)
-                .continueWithTask { tasks ->
-                    // Periksa apakah semua task berhasil
-                    val exceptions = tasks.result?.filter { !it.isSuccessful }?.mapNotNull { it.exception }
-                    if (exceptions.isNullOrEmpty()) {
-                        Log.d("TellerSession", "All tasks are successful")
-                        // Semua task sukses, lanjutkan dengan getAllReservationDataTask
-                        getAllReservationDataTask()
-                    } else {
-                        Log.d("TellerSession", "Some tasks are failed")
-                        // Ada task yang gagal, lemparkan exception pertama
-                        Tasks.forException<Void>(exceptions.first())
-                    }
-                }
-                .addOnSuccessListener {
-                    // Semua tugas berhasil, lakukan navigasi
-                    binding.progressBar.visibility = View.GONE
-                    navigatePage(context, QueueTrackerPage::class.java, true, binding.btnNext)
-                }
-                .addOnFailureListener { e ->
-                    handleError("Error during Teller login flow: ${e.message}")
-                }
-        } ?: run {
-            handleError("Outlet not selected.")
-        }
-    }
-
-    // Kode untuk menampilkan list user to pick pada halaman SelectAccountPage sebelum halaman HomePageCapster
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun getEmployeesData() {
-        binding.progressBar.visibility = View.VISIBLE
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.listEmployees.isEmpty()) {
-                showToast("Anda belum menambahkan daftar karyawan untuk outlet")
-                binding.progressBar.visibility = View.GONE
-                return
-            }
-
-            // Ambil data awal
-            db.collectionGroup("employees")
-                .whereEqualTo("root_ref", outletSelected.rootRef)
-                .get()
-                .addOnSuccessListener { documents ->
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
-
-                        val newEmployeesList = documents.mapNotNull { document ->
-                            document.toObject(UserEmployeeData::class.java).apply {
-                                userRef = document.reference.path
-                                outletRef = outletData.outletReference
-                            }.takeIf { it.uid in employeeUidList }
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            binding.progressBar.visibility = View.GONE
-                            employeesList.clear()
-                            employeesList.addAll(newEmployeesList)
-                            if (employeesList.isNotEmpty()) {
-                                navigatePage(context, SelectAccountPage::class.java, false, binding.btnNext)
-                            } else {
-                                showToast("Tidak ditemukan data karyawan yang sesuai")
-                            }
-                        }
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    handleError("Error getting employees: ${exception.message}")
-                }
-        }
-    }
-
-    private fun updateOutletCurrentQueue(outlet: Outlet): Task<Void> {
-        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
-
-        // Update Firestore
-        return outletRef.update(
-            mapOf(
-                "current_queue" to outlet.currentQueue,
-                "timestamp_modify" to outlet.timestampModify
-            )
-        )
-    }
-
-    private fun getCapsterDataTask(): Task<List<UserEmployeeData>> {
-        val taskCompletionSource = TaskCompletionSource<List<UserEmployeeData>>()
-
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.listEmployees.isEmpty()) {
-                taskCompletionSource.setException(Exception("Anda belum menambahkan daftar capster untuk outlet"))
-                return@let
-            }
-
-            db.document(outletSelected.rootRef)
-                .collection("divisions")
-                .document("capster")
-                .collection("employees")
-                .get()
-                .addOnSuccessListener { documents ->
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
-
-                        val newCapsterList = documents.mapNotNull { document ->
-                            document.toObject(UserEmployeeData::class.java).apply {
-                                userRef = document.reference.path
-                                outletRef = outletSelected.outletReference
-                            }.takeIf { it.uid in employeeUidList && it.availabilityStatus}
-                        }
-
-                        if (newCapsterList.isNotEmpty()) {
-                            capsterList.clear()
-                            capsterList.addAll(newCapsterList)
-                            taskCompletionSource.setResult(newCapsterList)
-                        } else {
-                            taskCompletionSource.setException(Exception("Tidak ditemukan data capster yang sesuai"))
-                        }
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    taskCompletionSource.setException(Exception("Error getting capster: ${exception.message}"))
-                }
-        } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
-
-        return taskCompletionSource.task
-    }
-
-//    private fun getAllReservationDataTask(): Task<List<Reservation>> {
-//        val taskCompletionSource = TaskCompletionSource<List<Reservation>>()
-//
-//        outletSelected?.let { outlet ->
-//            val calendar = Calendar.getInstance().apply {
-//                set(Calendar.HOUR_OF_DAY, 0)
-//                set(Calendar.MINUTE, 0)
-//                set(Calendar.SECOND, 0)
-//                set(Calendar.MILLISECOND, 0)
-//            }
-//            val startOfDay = Timestamp(calendar.time)
-//            calendar.add(Calendar.DAY_OF_MONTH, 1)
-//            val startOfNextDay = Timestamp(calendar.time)
-//
-//            db.collection("${outlet.rootRef}/outlets/${outlet.uid}/reservations")
-//                .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfDay)
-//                .whereLessThan("timestamp_to_booking", startOfNextDay)
-//                .get()
-//                .addOnSuccessListener { documents ->
-//                    lifecycleScope.launch(Dispatchers.Default) {
-//                        val newReservationList = documents.mapNotNull { document ->
-//                            document.toObject(Reservation::class.java).apply {
-//                                dataRef = document.reference.path
-//                            }
-//                        }.filter { it.queueStatus !in listOf("pending", "expired") }
-//
-//                        withContext(Dispatchers.Main) {
-//                            reservationList.clear()
-//                            reservationList.addAll(newReservationList)
-//                            taskCompletionSource.setResult(newReservationList)
-//                        }
-//                    }
-//                }
-//                .addOnFailureListener { exception ->
-//                    taskCompletionSource.setException(Exception("Error getting reservations: ${exception.message}"))
-//                }
-//        } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
-//
-//        return taskCompletionSource.task
-//    }
-
-    private fun getAllReservationDataTask(): Task<List<Reservation>> {
-        val taskCompletionSource = TaskCompletionSource<List<Reservation>>()
-
-        formAccessViewModel.outletSelected.value?.let { outletSelected ->
-            val calendar = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            val startOfDay = Timestamp(calendar.time)
-            calendar.add(Calendar.DAY_OF_MONTH, 1)
-            val startOfNextDay = Timestamp(calendar.time)
-
-            db.collection("${outletSelected.rootRef}/reservations")
-                .where(
-                    Filter.and(
-                        Filter.equalTo("outlet_identifier", outletSelected.uid),
-                        Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
-                        Filter.lessThan("timestamp_to_booking", startOfNextDay)
-                    )
-                ).get()
-                .addOnSuccessListener { documents ->
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        val outletData = formAccessViewModel.outletSelected.value ?: return@launch
-                        val employeeUidList = outletData.listEmployees
-
-                        val newReservationList = documents.mapNotNull { document ->
-                            val reservation = document.toObject(Reservation::class.java).apply {
-                                dataRef = document.reference.path
-                            }
-
-                            val capsterUid = reservation.capsterInfo?.capsterRef
-                                ?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
-
-                            // Filter berdasarkan queueStatus dan juga employeeUidList
-                            reservation.takeIf {
-                                it.queueStatus !in listOf("pending", "expired") &&
-                                        capsterUid != null &&
-                                        capsterUid in employeeUidList
-                            }
-                        }
-
-
-                        withContext(Dispatchers.Main) {
-                            reservationList.clear()
-                            reservationList.addAll(newReservationList)
-                            taskCompletionSource.setResult(newReservationList)
-                        }
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    taskCompletionSource.setException(Exception("Error getting reservations: ${exception.message}"))
-                }
-        } ?: taskCompletionSource.setException(Exception("Outlet not selected"))
-
-        return taskCompletionSource.task
-    }
-
     private fun listenSpecificOutletData(skippedProcess: Boolean = false) {
         formAccessViewModel.outletSelected.value?.let { outletSelected ->
             this.skippedProcess = skippedProcess
             if (::locationListener.isInitialized) {
                 locationListener.remove()
             }
+            if (outletSelected.rootRef.isEmpty()) {
+                locationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                this@FormAccessCodeFragment.isFirstLoad = false
+                this@FormAccessCodeFragment.skippedProcess = false
+                return
+            }
 
             locationListener = db.document(outletSelected.rootRef)
                 .collection("outlets")
                 .document(outletSelected.uid)
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to outlet data: ${exception.message}")
-                        this@FormAccessCodeFragment.isFirstLoad = false
-                        this@FormAccessCodeFragment.skippedProcess = false
-                        return@addSnapshotListener
-                    }
-
-                    documents?.let {
-                        if (!this@FormAccessCodeFragment.isFirstLoad && !this@FormAccessCodeFragment.skippedProcess && it.exists()) {
-                            val outletData = it.toObject(Outlet::class.java)?.apply {
-                                outletReference = it.reference.path
+                    lifecycleScope.launch {
+                        formAccessViewModel.listenerOutletDataMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlet data: ${exception.message}", false)
+                                this@FormAccessCodeFragment.isFirstLoad = false
+                                this@FormAccessCodeFragment.skippedProcess = false
+                                return@withStateLock
                             }
-                            outletData?.let { outlet ->
-                                // Assign the document reference path to outletReference
-                                formAccessViewModel.setOutletSelected(outlet)
+                            documents?.let { docs ->
+                                if (!this@FormAccessCodeFragment.isFirstLoad && !this@FormAccessCodeFragment.skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            val outletData = docs.toObject(Outlet::class.java)?.apply {
+                                                outletReference = docs.reference.path
+                                            }
+                                            outletData?.let { outlet ->
+                                                // Assign the document reference path to outletReference
+                                                formAccessViewModel.setOutletSelected(outlet)
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    this@FormAccessCodeFragment.isFirstLoad = false
+                                    this@FormAccessCodeFragment.skippedProcess = false
+                                }
                             }
-                        } else {
-                            this@FormAccessCodeFragment.isFirstLoad = false
-                            this@FormAccessCodeFragment.skippedProcess = false
                         }
                     }
                 }
+        } ?: run {
+            locationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            this@FormAccessCodeFragment.isFirstLoad = false
+            this@FormAccessCodeFragment.skippedProcess = false
         }
     }
 
     private fun handleError(message: String) {
         lifecycleScope.launch {
             binding.progressBar.visibility = View.GONE
-            showToast(message)
+            Log.d("ToastChecking", message)
+            if (message.isNotEmpty()) toastViewModel.showToast(message, true)
         }
     }
-
 
     private fun setupEditTextListeners() {
         with (binding) {
@@ -534,6 +386,7 @@ class FormAccessCodeFragment : DialogFragment() {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "AccessInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
                             isInputValid = validateInput()
                         }
@@ -542,6 +395,7 @@ class FormAccessCodeFragment : DialogFragment() {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== FormAcessCodeFragment ===")
             etAccessCode.addTextChangedListener(textWatcher)
         }
     }
@@ -549,8 +403,8 @@ class FormAccessCodeFragment : DialogFragment() {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, destroyActivity: Boolean, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as SelectOutletDestination).getSelectOutletBinding().root, requireContext(), false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -559,8 +413,8 @@ class FormAccessCodeFragment : DialogFragment() {
                     // Set extra data untuk aktivitas tujuan
                     intent.apply {
                         putExtra(OUTLET_DATA_KEY, outletSelected)
-                        putParcelableArrayListExtra(RESERVE_DATA_KEY, ArrayList(reservationList))
-                        putParcelableArrayListExtra(CAPSTER_DATA_KEY, ArrayList(capsterList))
+                        putParcelableArrayListExtra(RESERVE_DATA_KEY, ArrayList(formAccessViewModel.reservationDataList.value ?: mutableListOf()))
+                        putParcelableArrayListExtra(CAPSTER_DATA_KEY, ArrayList(formAccessViewModel.capsterList.value ?: mutableListOf()))
                     }
                     outletSelected?.uid?.let {
                         Log.d("TellerSession", "SET SESSION")
@@ -579,7 +433,7 @@ class FormAccessCodeFragment : DialogFragment() {
                 } else {
                     intent.apply {
                         putExtra(OUTLET_DATA_KEY, outletSelected)
-                        putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(employeesList))
+                        putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(formAccessViewModel.employeeList.value ?: mutableListOf()))
                     }
                     // Tutup DialogFragment jika ada
                     triggerClearBackStack()
@@ -621,7 +475,7 @@ class FormAccessCodeFragment : DialogFragment() {
         super.onResume()
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
         Log.d("CheckPion", "isOrientationChanged = BB")
         isOrientationChanged = false
     }
@@ -636,12 +490,11 @@ class FormAccessCodeFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        if (requireActivity().isChangingConfigurations) formAccessViewModel.clearToastDetection()
         binding.etAccessCode.removeTextChangedListener(textWatcher)
         if (::locationListener.isInitialized) {
             locationListener.remove()

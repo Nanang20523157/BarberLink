@@ -8,7 +8,7 @@ import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.RawValue
 
 @Parcelize
-data class Reservation(
+data class ReservationData(
 //    @get:PropertyName("applicant_capster_ref") @set:PropertyName("applicant_capster_ref") var applicantCapsterRef: String = "",
     @get:PropertyName("share_profit_capster_ref") @set:PropertyName("share_profit_capster_ref") var shareProfitCapsterRef: String = "",
     @get:PropertyName("field_to_filtering") @set:PropertyName("field_to_filtering") var fieldToFiltering: String = "",
@@ -31,7 +31,7 @@ data class Reservation(
     @get:PropertyName("queue_status") @set:PropertyName("queue_status") var queueStatus: String = "",
     @get:PropertyName("timestamp_completed") @set:PropertyName("timestamp_completed") var timestampCompleted: Timestamp? = null,
     @get:PropertyName("timestamp_created") @set:PropertyName("timestamp_created") var timestampCreated: Timestamp = Timestamp.now(),
-    @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_booking") var timestampToBooking: Timestamp? = null,
+    @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_booking") var timestampToBooking: Timestamp = Timestamp.now(),
     // @get:PropertyName("is_requeue") @set:PropertyName("is_requeue") var isRequeue: Boolean = false,
 //    @get:PropertyName("dont_adjust_fee") @set:PropertyName("dont_adjust_fee") var dontAdjustFee: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
@@ -48,8 +48,8 @@ data class Reservation(
         copyCreatorWithReminder: Boolean,
         copyCreatorWithNotification: Boolean,
         copyCapsterDetail: Boolean
-    ): Reservation {
-        return Reservation(
+    ): ReservationData {
+        return ReservationData(
 //            applicantCapsterRef = this.applicantCapsterRef,
             shareProfitCapsterRef = this.shareProfitCapsterRef,
             fieldToFiltering = this.fieldToFiltering,

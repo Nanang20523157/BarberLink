@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import com.example.barberlink.Utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,6 +32,7 @@ object NetworkMonitor {
     private var lostConnection = false
     private var duplicateToast = false
     private var checkConnectionJob: Job? = null
+    private var modifyErrorMessage: Job? = null
     private var schedulingToast: Job? = null
 
     private var rechecking = false
@@ -49,16 +51,17 @@ object NetworkMonitor {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
+    private val handler = Handler(Looper.getMainLooper())
+
     fun init(context: Context) {
+        Logger.d("ConnectionUserCheck", "NETWORK INIT")
         appContext = context.applicationContext
         connectivityManager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-        if (networkCallback != null) {
-            connectivityManager.unregisterNetworkCallback(networkCallback!!)
-        }
-        val networkCallback = setupNetworkCallback()
+        networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
+        networkCallback = setupNetworkCallback()
         // Gunakan registerDefaultNetworkCallback untuk API 24+
-        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+        networkCallback?.let { connectivityManager.registerDefaultNetworkCallback(it) }
 
         observeConnectionChanges()
 //        startPeriodicPingCheck()
@@ -67,36 +70,48 @@ object NetworkMonitor {
     private fun setupNetworkCallback(): ConnectivityManager.NetworkCallback =
         object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
+                modifyErrorMessage?.cancel()
+                checkConnectionJob?.cancel()
+                modifyErrorMessage = null
+                checkConnectionJob = null
                 isConnected = true
                 lostConnection = false
-                checkConnectionJob?.cancel()
-                checkConnectionJob = null
-                rechecking = false
-                _errorMessage.value = ""
-                checkInternetConnection()
-                Log.d("NetMonitor", "ONLINE")
+                Logger.d("ConnectionUserCheck", "ONLINE")
+                modifyErrorMessage = scope.launch {
+                    delay(400)
+                    rechecking = false
+                    Logger.d("ConnectionUserCheck", "error message 1: ${errorMessage.value}")
+                    _errorMessage.value = ""
+                    checkInternetConnection()
+                }
             }
 
             override fun onLost(network: Network) {
-                lostConnection = true
+                modifyErrorMessage?.cancel()
                 checkConnectionJob?.cancel()
+                modifyErrorMessage = null
                 checkConnectionJob = null
-                Log.d("NetMonitor", "LOST CONNECTION")
-                scope.launch {
-                    delay(500)
+                lostConnection = true
+                Logger.d("ConnectionUserCheck", "LOST CONNECTION")
+                modifyErrorMessage = scope.launch {
+                    delay(400)
                     rechecking = false
+                    Logger.d("ConnectionUserCheck", "error message 2: ${errorMessage.value}")
                     if (lostConnection) _errorMessage.value = "Koneksi internet terputus. Periksa koneksi Anda."
                 }
             }
 
             override fun onUnavailable() {
-                lostConnection = true
+                modifyErrorMessage?.cancel()
                 checkConnectionJob?.cancel()
+                modifyErrorMessage = null
                 checkConnectionJob = null
-                Log.d("NetMonitor", "OFFLINE")
-                scope.launch {
-                    delay(500)
+                lostConnection = true
+                Logger.d("ConnectionUserCheck", "OFFLINE")
+                modifyErrorMessage = scope.launch {
+                    delay(400)
                     rechecking = false
+                    Logger.d("ConnectionUserCheck", "error message 3: ${errorMessage.value}")
                     if (lostConnection) _errorMessage.value = "Koneksi internet tidak tersedia. Periksa koneksi Anda."
                 }
             }
@@ -107,7 +122,7 @@ object NetworkMonitor {
             Log.d("NetMonitor", "Checking internet connection...")
             val reachable = try {
                 Log.d("NetMonitor", "AA +++")
-                InetAddress.getByName("8.8.8.8").isReachable(800)
+                InetAddress.getByName("8.8.8.8").isReachable(500)
             } catch (e: IOException) {
                 Log.d("NetMonitor", "AA ---")
                 false
@@ -125,11 +140,11 @@ object NetworkMonitor {
         checkConnectionJob = scope.launch {
             countDown = 2
             while (isActive) {
-                delay(1000) // Cek setiap 10 detik
+                delay(400) // Cek setiap 10 detik
 
                 val reachable = try {
                     Log.d("NetMonitor", "BB +++")
-                    InetAddress.getByName("8.8.8.8").isReachable(800)
+                    InetAddress.getByName("8.8.8.8").isReachable(500)
                 } catch (e: IOException) {
                     Log.d("NetMonitor", "BB ---")
                     false
@@ -171,13 +186,16 @@ object NetworkMonitor {
 
 
     private fun observeConnectionChanges() {
+        Logger.d("ConnectionUserCheck", "*************************")
+
         mainScope.launch {
             var previous: Boolean? = null
             errorMessage.collect { error ->
-                Log.d("NetMonitor", "============ previous: $previous ============")
+                Logger.d("ConnectionUserCheck", "============ previous: $previous ============")
+                Logger.d("ConnectionUserCheck2", "============ previous: $previous ============")
                 val toastMessage: String? = when {
                     rechecking -> {
-                        Log.d("NetMonitor", "rechecking blok")
+                        Logger.d("ConnectionUserCheck", "rechecking blok")
                         previous = error.isEmpty()
                         duplicateToast = false
                         if (error.isEmpty()) "Aplikasi kembali online" else "Koneksi internet tidak stabil. Periksa koneksi Anda."
@@ -185,7 +203,7 @@ object NetworkMonitor {
 
                     error == "Koneksi internet tidak stabil. Periksa koneksi Anda." -> {
                         // block #99
-                        Log.d("NetMonitor", "tidak stabil blok")
+                        Logger.d("ConnectionUserCheck", "tidak stabil blok")
                         previous = false
                         val value = if (duplicateToast) error else null
                         duplicateToast = false
@@ -193,7 +211,7 @@ object NetworkMonitor {
                     }
 
                     previous != null -> {
-                        Log.d("NetMonitor", "normal blok")
+                        Logger.d("ConnectionUserCheck", "normal blok")
                         previous = error.isEmpty()
                         // duplicateToast di set true saat Aplikasi kembali offline agar pemberitahuan koneksi tidak stabil hanya ketika memang ada koneksi yang tersedia tapi gak stabil soalnya setelah ini masuk ke block #99
                         duplicateToast = error.isEmpty() // true if online, false if error
@@ -203,14 +221,15 @@ object NetworkMonitor {
                     }
 
                     else -> {
-                        Log.d("NetMonitor", "first checking blok")
+                        Logger.d("ConnectionUserCheck", "first checking blok")
                         previous = isConnected
                         duplicateToast = false
                         null
                     }
                 }
 
-                Log.d("NetMonitor", "toastMessage: $toastMessage <> lastMessage: $lastMessage || duplicateToast: $duplicateToast || previous: $previous")
+                Logger.d("ConnectionUserCheck", "toastMessage: $toastMessage <> lastMessage: $lastMessage || duplicateToast: $duplicateToast || previous: $previous || current: ${isOnline.value}")
+                Logger.d("ConnectionUserCheck2", "toastMessage: $toastMessage <> lastMessage: $lastMessage || duplicateToast: $duplicateToast || previous: $previous || current: ${isOnline.value}")
                 toastMessage?.let { msg ->
                     // Cancel toast lama jika duplicateToast = false
 //                    if (!duplicateToast) {
@@ -221,7 +240,8 @@ object NetworkMonitor {
                             isSchedulingToast = true
                             schedulingToast?.cancel()
                             schedulingToast = scope.launch {
-                                delay(2000)
+                                // delay(2000)
+                                delay(1000)
                                 internalShowToast(msg, isFromScheduling = true)
                             }
                         } else if (msg == "Aplikasi kembali online" && rechecking && isSchedulingToast) {
@@ -246,7 +266,7 @@ object NetworkMonitor {
     }
 
     private fun updateConnection(value: Boolean) {
-        Log.d("NetMonitor", "UPDATE STATE")
+        Logger.d("ConnectionUserCheck", "UPDATE STATE")
         _isOnline.value = value
         rechecking = false
 //        checkConnectionInProcess = false
@@ -254,6 +274,7 @@ object NetworkMonitor {
 
     private fun internalShowToast(message: String, isFromScheduling: Boolean) {
         mainScope.launch {
+            Logger.d("ConnectionUserCheck", "NetworkMessage >> $message")
             currentToast?.cancel()
             currentToast = Toast.makeText(appContext, message, Toast.LENGTH_SHORT)
             lastMessage = message
@@ -266,24 +287,29 @@ object NetworkMonitor {
             }
 
             // Reset lastMessage setelah durasi toast selesai (2 detik)
-            Handler(Looper.getMainLooper()).postDelayed({
+            handler.postDelayed({
+                Logger.d("ConnectionUserCheck", "handling execution internal")
                 if (lastMessage == message) lastMessage = null
             }, 2000)
         }
     }
 
-    fun showToast(message: String, force: Boolean = false) {
+    fun showToast(message: String, forceDisplay: Boolean = false) {
         mainScope.launch {
-            if (force && message != lastMessage) {
+            if (forceDisplay && message != lastMessage) {
+                Logger.d("ConnectionUserCheck", "NetworkMessage >> $message")
                 currentToast?.cancel()
                 currentToast = Toast.makeText(appContext, message, Toast.LENGTH_SHORT)
-                currentToast?.show()
                 lastMessage = message
+                currentToast?.show()
 
                 // Reset lastMessage setelah durasi toast selesai (2 detik)
-                Handler(Looper.getMainLooper()).postDelayed({
+                handler.postDelayed({
+                    Logger.d("ConnectionUserCheck", "handling execution external")
                     if (lastMessage == message) lastMessage = null
                 }, 2000)
+            } else {
+                Logger.d("ConnectionUserCheck", "zzzz external showToast zzzz")
             }
         }
     }
@@ -298,13 +324,11 @@ object NetworkMonitor {
     fun stopMonitoring() {
         checkConnectionJob?.cancel()
         checkConnectionJob = null
-        mainScope.coroutineContext.cancelChildren()
     }
 
     // Fungsi untuk memulai monitor lagi
     fun startMonitoring() {
         recheckInternetConnection()
     }
-
 
 }

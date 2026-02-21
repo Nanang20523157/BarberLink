@@ -6,26 +6,28 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.barberlink.DataClass.UserFilterCategories
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.databinding.ItemFilterByCategoryBinding
 
 class ItemListTagFilteringAdapter(
     private val itemClicked: OnItemClicked,
-    private val viewModel: BonEmployeeViewModel
+    private val setActiveTag: ActiveTagCategory
 ) : ListAdapter<UserFilterCategories, RecyclerView.ViewHolder>(TagDiffCallback()) {
-    private lateinit var adapter: ItemListTagFilteringAdapter
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     interface OnItemClicked {
         fun onItemClickListener(item: UserFilterCategories)
     }
 
-    fun addAdapterReference(adapter: ItemListTagFilteringAdapter) {
-        this.adapter = adapter
+    interface ActiveTagCategory {
+        fun setActiveTagFilterCategory(position: Int)
     }
 
     fun resetTagFIlterCategory() {
-        viewModel.setActiveTagFilterCategory(0, adapter)
+        // reset after add new bon data
+        setActiveTag.setActiveTagFilterCategory(0)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -65,7 +67,9 @@ class ItemListTagFilteringAdapter(
                 }
 
                 root.setOnClickListener {
-                    viewModel.setActiveTagFilterCategory(adapterPosition, adapter)
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm
+                    setActiveTag.setActiveTagFilterCategory(adapterPosition)
                     itemClicked.onItemClickListener(item)
                 }
             }

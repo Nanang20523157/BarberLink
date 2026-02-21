@@ -1,7 +1,5 @@
 package com.example.barberlink.Adapter
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -15,49 +13,59 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BonEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.BonEmployeePage
-import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.example.barberlink.databinding.ItemListEmployeeBonAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeBonBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class ItemListEmployeeBonAdapter(
-    private val dbReference: FirebaseFirestore,
+    private val db: FirebaseFirestore,
     private val itemClicked: OnItemClicked,
-    private val lifecycleOwner: LifecycleOwner,
-    private val viewModel: BonEmployeeViewModel,
-    private val callbackUpdate: OnProcessUpdateCallback,
     private val callbackToast: DisplayThisToastMessage,
-    private val activity: BonEmployeePage
+    private val updateStatus: UpdateBonStatus,
+    private val deleteBon: DeleteBonItem
 ) : ListAdapter<BonEmployeeData, RecyclerView.ViewHolder>(ListBonDiffCallback()), LifecycleObserver {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private var shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var isOnline = false
-
-    private var isDestroyed = false
-    private val handler = Handler(Looper.getMainLooper())
+    private var blockAllUserClickAction: Boolean = false
 
     interface OnItemClicked {
         fun onItemClickListener(item: BonEmployeeData)
     }
 
-    interface OnProcessUpdateCallback {
-        fun onProcessUpdate(state: Boolean)
+    interface DisplayThisToastMessage {
+        fun displayThisToast(message: String, isImportant: Boolean)
     }
 
-    interface DisplayThisToastMessage {
-        fun displayThisToast(message: String)
+    interface UpdateBonStatus {
+        fun updateBonStatus(bonData: BonEmployeeData, newStatus: String)
     }
+
+    interface DeleteBonItem {
+        fun deleteBonItem(bonData: BonEmployeeData, isLastPosition: Boolean)
+    }
+
 
     fun stopAllShimmerEffects() {
         if (shimmerViewList.isNotEmpty()) {
@@ -68,19 +76,33 @@ class ItemListEmployeeBonAdapter(
         }
     }
 
-    init {
-        lifecycleOwner.lifecycle.addObserver(this)
-
-        lifecycleOwner.lifecycleScope.launch {
-            NetworkMonitor.isOnline.collect { status ->
-                isOnline = status
-                notifyDataSetChanged()
-            }
-        }
+    fun getLastScrollPosition(): Int {
+        return lastScrollPosition
     }
 
     fun setlastScrollPosition(position: Int) {
         this.lastScrollPosition = position
+    }
+
+    fun getShimmerItemCount(): Int {
+        return shimmerItemCount
+    }
+
+    fun setShimmerItemCount(size: Int) {
+        this.shimmerItemCount = size
+    }
+
+    fun updateNetworkStatus(status: Boolean) {
+        isOnline = status
+        notifyDataSetChanged()
+    }
+
+    fun setBlockStatusUI(value: Boolean) {
+        this.blockAllUserClickAction = value
+    }
+
+    fun getIsShimmer(): Boolean {
+        return isShimmer
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -158,57 +180,6 @@ class ItemListEmployeeBonAdapter(
             }
         }
 
-    }
-
-    fun letScrollToLastPosition() {
-        Log.d("ObjectReferences", "ItemListCollapseQueueAdapter >>>>>>>>")
-        // Log apakah recyclerView null
-        if (recyclerView == null) {
-            Log.e("ObjectReferences", "recyclerView is null")
-        } else {
-            Log.d("ObjectReferences", "recyclerView is not null")
-        }
-
-        waitForRecyclerView {
-            val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
-            recyclerView?.post {
-                val itemCount = recyclerView?.adapter?.itemCount ?: 0
-                val positionToScroll = if (isShimmer) {
-                    minOf(lastScrollPosition, shimmerItemCount - 1)
-                } else {
-                    lastScrollPosition
-                }
-
-                // Validasi posisi target
-                if (positionToScroll in 0 until itemCount) {
-                    Log.d("ObjectReferences", "adapter: $lastScrollPosition")
-                    layoutManager?.scrollToPosition(positionToScroll)
-                } else {
-                    // Log untuk debugging
-                    Log.e("ObjectReferences", "Invalid target position: $positionToScroll, itemCount: $itemCount")
-                }
-            }
-        }
-
-    }
-
-    private fun waitForRecyclerView(action: () -> Unit) {
-        val checkInterval = 50L
-
-        handler.post(object : Runnable {
-            override fun run() {
-                if (isDestroyed) {
-                    handler.removeCallbacks(this)
-                    return
-                }
-
-                if (recyclerView != null) {
-                    action()
-                } else {
-                    handler.postDelayed(this, checkInterval)
-                }
-            }
-        })
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutEmployeeBonBinding) :
@@ -308,7 +279,16 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData,  "canceled")
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
+                    updateStatus.updateBonStatus(bonData,  "canceled")
                 }
 
                 btnReSubmit.setOnClickListener {
@@ -318,7 +298,16 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData,  "waiting")
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
+                    updateStatus.updateBonStatus(bonData,  "waiting")
                 }
 
                 btnDelete.setOnClickListener {
@@ -328,12 +317,29 @@ class ItemListEmployeeBonAdapter(
                         return@setOnClickListener
                     }
 
-                    val isLastItem = position == currentList.lastIndex
-
-                    deleteBonItem(bonData, isLastItem)
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
+                    val isLastItem = adapterPosition == currentList.lastIndex
+                    deleteBon.deleteBonItem(bonData, isLastItem)
                 }
 
                 btnEdit.setOnClickListener {
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
                     itemClicked.onItemClickListener(bonData)
                 }
             }
@@ -358,44 +364,6 @@ class ItemListEmployeeBonAdapter(
                 binding.tvReturnStatus.visibility = RecyclerView.GONE
             }
 
-        }
-
-        private fun updateBonStatus(bonData: BonEmployeeData, newStatus: String) {
-            activity.showProgressBar(true) // Nyalakan progress bar
-
-            val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
-
-            bonRef.update("bon_status", newStatus)
-                .addOnSuccessListener {
-                    callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
-                }
-                .addOnFailureListener { e ->
-                    callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
-                    callbackToast.displayThisToast("Gagal memperbarui status: ${e.message}")
-                }
-                .addOnCompleteListener {
-                    activity.showProgressBar(false) // Matikan progress bar setelah selesai
-                }
-        }
-
-        private fun deleteBonItem(bonData: BonEmployeeData, isLastPosition: Boolean) {
-            bonData.isDeleteLastPosition = isLastPosition
-            activity.showProgressBar(true) // Nyalakan progress bar
-
-            val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
-
-            bonRef.delete()
-                .addOnSuccessListener {
-                    callbackUpdate.onProcessUpdate(true) // Callback untuk proses update
-                    viewModel.setDataBonDeleted(bonData, "Bon Pegawai Berhasil Dihapus")
-                }
-                .addOnFailureListener { e ->
-                    callbackUpdate.onProcessUpdate(false) // Callback untuk gagal update
-                    callbackToast.displayThisToast("Gagal menghapus data: ${e.message}")
-                }
-                .addOnCompleteListener {
-                    activity.showProgressBar(false) // Matikan progress bar setelah selesai
-                }
         }
 
     }

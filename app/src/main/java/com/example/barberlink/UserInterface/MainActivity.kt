@@ -6,8 +6,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.Toast
@@ -17,6 +15,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -29,7 +28,9 @@ import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Contract.DrawerController
 import com.example.barberlink.Contract.NavigationCallback
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Admin.ApproveOrRejectBonPage
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
@@ -37,6 +38,8 @@ import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
 import com.example.barberlink.databinding.ActivityMainBinding
 import com.google.android.material.navigation.NavigationView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.getValue
 
 class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
@@ -47,18 +50,18 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
     private val berandaAdminViewModel: BerandaAdminViewModel by viewModels {
         SaveStateViewModelFactory(this)
     }
+    private val debounce by lazy { ScopedUniversalDebounce() }
+    private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var userAdminData: UserAdminData
     private lateinit var navController: NavController
     private lateinit var drawerLayout: DrawerLayout
     private lateinit var navView: NavigationView
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
     private var shouldClearBackStack: Boolean = true
     private var pendingNavigation: (() -> Unit)? = null
-    private var currentToastMessage: String? = null
-    private var myCurrentToast: Toast? = null
     private var isHandlingBack: Boolean = false
 //    private var isDialogCapitalShow: Boolean = false
 //    private var originFromSuccesPage: Boolean = false
@@ -78,6 +81,14 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         setContentView(binding.root)
+
+        userAdminData = UserAdminData()
+
+        berandaAdminViewModel
+        toastViewModel
+        fragmentManager = supportFragmentManager
+        drawerLayout = binding.drawerLayout
+        navView = binding.navView
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
                 // Implementasi navigasi spesifik untuk MainActivity
@@ -89,13 +100,7 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
 
         if (savedInstanceState != null) {
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
-        userAdminData = UserAdminData()
-
-        fragmentManager = supportFragmentManager
-        drawerLayout = binding.drawerLayout
-        navView = binding.navView
 
         // Ambil data dari Intent
         @Suppress("DEPRECATION")
@@ -173,22 +178,27 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@MainActivity,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@MainActivity,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -196,7 +206,6 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     fun getMainBinding(): ActivityMainBinding {
@@ -226,16 +235,19 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
     private fun setupDrawerSelectedItemMenu() {
         // Tambahkan Listener untuk Drawer Menu
         navView.setNavigationItemSelectedListener { menuItem ->
+            if (!debounce.isSafeDrawerClick(menuItem.itemId)) return@setNavigationItemSelectedListener true
+
             var toastNavigation = false
             pendingNavigation = when (menuItem.itemId) {
                 R.id.nav_kasbon -> {
                     toastNavigation = true
                     {
+                        // hmmmmm
                         navigatePage(this@MainActivity, ApproveOrRejectBonPage::class.java)
                     }
                 }
                 else -> {
-                    { showToast("${menuItem.title} - This feature is under development") }
+                    { toastViewModel.showToast("${menuItem.title} - This feature is under development", true) }
                 }
             }
 
@@ -256,8 +268,8 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
     private fun navigatePage(context: Context, destination: Class<*>, view: View? = null) {
         Log.d("NavigationCorner", "Intent")
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root,this, false) {
-            view?.isClickable = false
-            currentView = view
+//            view?.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -278,6 +290,10 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
     @RequiresApi(Build.VERSION_CODES.S)
     override fun requestShowCapitalDialog() {
         showCapitalInputDialog()
+    }
+
+    override fun onCapitalDialogDismissed() {
+        berandaAdminViewModel.setCapitalDialogShow(false)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -362,7 +378,7 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         }
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -433,8 +449,6 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         if (isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     private fun clearBackStack() {

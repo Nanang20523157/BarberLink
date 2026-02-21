@@ -13,33 +13,46 @@ import android.util.Log
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
 import com.example.barberlink.Factory.RegisterViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.SignUp.ViewModel.StepThreeViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivitySignUpStepThreeBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpStepThreeBinding
-    private lateinit var stepThreeViewModel: StepThreeViewModel
-    private lateinit var registerViewModelFactory: RegisterViewModelFactory
+    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val stepThreeViewModel: StepThreeViewModel by viewModels {
+        RegisterViewModelFactory(db, storage, auth, this)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
 
     private var isPasswordValid = false
@@ -58,10 +71,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     private var blockAllUserClickAction: Boolean = false
 
     private var isNavigating = false
-    private var currentView: View? = null
-    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
-    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+//    private var currentView: View? = null
     private lateinit var textWatcher1: TextWatcher
     private lateinit var textWatcher2: TextWatcher
     private var isHandlingBack: Boolean = false
@@ -93,8 +103,9 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
-        stepThreeViewModel = ViewModelProvider(this, registerViewModelFactory)[StepThreeViewModel::class.java]
+        stepThreeViewModel
+        toastViewModel
+
         if (savedInstanceState != null) {
             isPasswordValid = savedInstanceState.getBoolean("is_password_valid")
             isConfirmPasswordValid = savedInstanceState.getBoolean("is_confirm_password_valid")
@@ -110,7 +121,6 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             isProcessError = savedInstanceState.getBoolean("is_process_error")
             retryStep = savedInstanceState.getString("retry_step") ?: ""
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action")
 
 //            binding.apply {
 //                etPassword.setText(textInputPassword)
@@ -252,6 +262,28 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@SignUpStepThree,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
@@ -268,14 +300,22 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         outState.putString("retry_step", retryStep)
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnCreateAccount -> {
-                if (!blockAllUserClickAction) {
+                if (!debounce.run {
+                    v.isSafeClick(
+                        isLoading = blockAllUserClickAction,
+                        onLoadingBlocked = {
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                        }
+                    )
+                }) return
+                // hmmmmm
+                if (validateInputs()) {
                     checkNetworkConnection {
                         if (isProcessError) {
                             when (retryStep) {
@@ -288,11 +328,17 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                             }
                         } else stepThreeViewModel.createNewAccount(stepThreeViewModel.getUserAdminData().email, stepThreeViewModel.getUserAdminData().password)
                     }
-                } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                } else {
+                    toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
+                    if (!isPasswordValid) setFocus(binding.etPassword)
+                    else if (!isConfirmPasswordValid) setFocus(binding.etConfirmPassword)
+                }
+//                if (!blockAllUserClickAction) {
+//                } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
             }
             R.id.ivBack -> {
                 if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
-                else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
             }
         }
     }
@@ -310,16 +356,24 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
     private fun handleFailure(message: String, step: String) {
         binding.progressBar.visibility = View.GONE
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-        isProcessError = true
-        retryStep = step
+        if (message.isNotEmpty()) {
+            when (message) {
+                NetworkMonitor.errorMessage.value, "Koneksi internet tidak tersedia. Periksa koneksi Anda." -> {
+                    NetworkMonitor.showToast(message, true)
+                } else -> toastViewModel.showToast(message, true)
+            }
+        }
+        if (step.isNotEmpty()) {
+            isProcessError = true
+            retryStep = step
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 isProcessError = false
@@ -336,16 +390,6 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
     private fun setupEditTextListeners() {
         with (binding) {
             textWatcher1 = object : TextWatcher {
@@ -355,6 +399,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "PasswordInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
                             isPasswordValid = validatePasswordInput()
                             checkBtnStateCondition(validateInputs())
@@ -371,6 +416,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "ConfirmInputCheck inputManualCheckTwo >> ${inputManualCheckTwo == null}")
                         inputManualCheckTwo?.invoke() ?: run {
                             isConfirmPasswordValid = validateConfirmPasswordInput()
                             checkBtnStateCondition(validateInputs())
@@ -380,6 +426,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== SignUpStepThree ===")
             etPassword.addTextChangedListener(textWatcher1)
             etConfirmPassword.addTextChangedListener(textWatcher2)
         }
@@ -485,6 +532,16 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+//        currentView?.isClickable = true
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     fun handleCustomBack() {
         // 🚫 BLOCK DOUBLE BACK
         if (isHandlingBack) return
@@ -505,11 +562,24 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
                 // ⛔ TIDAK dilepas → activity selesai
             }
         } else {
-            Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
             // ⛔ Lepas lock setelah frame selesai
             isHandlingBack = false
         }
 
+    }
+
+    private fun setFocus(editText: View) {
+        editText.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
     }
 
     override fun onDestroy() {

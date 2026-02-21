@@ -11,27 +11,38 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListPackageBookingAdapter
 import com.example.barberlink.Adapter.ItemListServiceBookingAdapter
+import com.example.barberlink.Contract.BackRequestHost
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.DataClass.ItemInfo
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
+import com.example.barberlink.Factory.DatabaseViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Capster.ViewModel.EditOrderViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.UserInterface.Teller.Fragment.PaymentMethodFragment
+import com.example.barberlink.UserInterface.Teller.ViewModel.ExitTrackerViewModel
 import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.example.barberlink.databinding.FragmentEditOrderBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -48,18 +59,23 @@ private const val ARG_PARAM4 = "param4"
 class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAdapter.OnItemClicked, ItemListPackageBookingAdapter.OnItemClicked {
     private var _binding: FragmentEditOrderBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val editOrderViewModel: QueueControlViewModel by activityViewModels()
-    private var currentReservation: Reservation? = null
-    private var duplicateReservation: Reservation? = null
+    private val queueControlViewModel: QueueControlViewModel by activityViewModels()
+    private val editOrderViewModel: EditOrderViewModel by viewModels {
+        DatabaseViewModelFactory(db)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
+    private var currentReservationData: ReservationData? = null
+    private var duplicateReservationData: ReservationData? = null
     private lateinit var context: Context
     private lateinit var serviceAdapter: ItemListServiceBookingAdapter
     private lateinit var bundlingAdapter: ItemListPackageBookingAdapter
-
     private var isFirstLoad: Boolean = true
     private var userUID: String? = null
     private var useUidApplicantCapsterRef: Boolean = false
     private var priceText: String? = null
     private var paymentMethod: String = ""
+    private var blockAllUserClickAction: Boolean = false
 
     private lateinit var behavior: BottomSheetBehavior<View>
     private lateinit var shape: GradientDrawable
@@ -100,15 +116,18 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        queueControlViewModel
+        editOrderViewModel
+        toastViewModel
         arguments?.let {
             toolbarTitle = it.getString(ARG_PARAM2)
             useUidApplicantCapsterRef = it.getBoolean(ARG_PARAM3)
-            priceText = if (savedInstanceState == null) {
-                it.getString(ARG_PARAM4)
-        //                paymentMethod = currentReservation?.paymentDetail?.paymentMethod ?: ""
-            } else {
+            priceText = if (savedInstanceState != null) {
                 savedInstanceState.getString("price_text") ?: ""
         //                paymentMethod = savedInstanceState.getString("payment_method") ?: ""
+            } else {
+                it.getString(ARG_PARAM4)
+        //                paymentMethod = currentReservation?.paymentDetail?.paymentMethod ?: ""
             }
 
 //            currentReservation = it.getParcelable(ARG_PARAM1)
@@ -135,12 +154,37 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         super.onViewCreated(view, savedInstanceState)
         serviceAdapter = ItemListServiceBookingAdapter(this@EditOrderFragment, false)
         bundlingAdapter = ItemListPackageBookingAdapter(this@EditOrderFragment, false)
+
+        editOrderViewModel.updateStateResult.observe(this) { result ->
+            when (result) {
+                is EditOrderViewModel.ResultState.Loading -> {
+                    if (!blockAllUserClickAction) listener?.showLoading()
+                    blockAllUserClickAction = true
+                }
+                is EditOrderViewModel.ResultState.Success -> {
+                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                    listener?.hideLoading()
+                    dismiss()
+                    editOrderViewModel.setUpdateStateResult(null)
+                }
+                is EditOrderViewModel.ResultState.Failure -> {
+                    toastViewModel.showToast(result.message, true)
+                    listener?.hideLoading()
+                    editOrderViewModel.setUpdateStateResult(null)
+                }
+                else -> {
+                    blockAllUserClickAction = false
+                }
+            }
+        }
+
         binding.apply {
             tvTitle.text = toolbarTitle
             binding.tvPaymentAmount.text = priceText
-            editOrderViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+            queueControlViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
                 if (reservation != null) {
-                    currentReservation = reservation
+                    currentReservationData = reservation
+                    editOrderViewModel.setCurrentReservationData(reservation)
                     paymentMethod = if (savedInstanceState == null) {
                         reservation.paymentDetail.paymentMethod
                     } else {
@@ -154,24 +198,27 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                         "CASHLESS"
                     }
                     binding.tvPaymentMethod.text = textData
-                    userUID = if (useUidApplicantCapsterRef) currentReservation?.shareProfitCapsterRef?.split("/")?.lastOrNull() else currentReservation?.capsterInfo?.capsterRef?.split("/")?.lastOrNull()
+                    userUID = if (useUidApplicantCapsterRef) currentReservationData?.shareProfitCapsterRef?.split("/")?.lastOrNull() else currentReservationData?.capsterInfo?.capsterRef?.split("/")?.lastOrNull()
 
                     serviceAdapter.setCapsterRef(userUID ?: "")
                     bundlingAdapter.setCapsterRef(userUID ?: "")
-                    duplicateReservation = reservation.deepCopy(
+                    duplicateReservationData = reservation.deepCopy(
                         copyCreatorDetail = false,
                         copyCreatorWithReminder = false,
                         copyCreatorWithNotification = false,
                         copyCapsterDetail = true
                     )
+                    duplicateReservationData?.let {
+                        editOrderViewModel.setDuplicateReservationData(it)
+                    }
                 }
             }
 
-            rvListServices.layoutManager = GridLayoutManager(requireContext(), 2)
+            rvListServices.layoutManager = GridLayoutManager(context, 2)
             rvListServices.adapter = serviceAdapter
             serviceAdapter.setShimmer(true)
 
-            rvListPaketBundling.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+            rvListPaketBundling.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
             rvListPaketBundling.adapter = bundlingAdapter
             bundlingAdapter.setShimmer(true)
         }
@@ -183,7 +230,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         dialog?.setOnShowListener { dialog ->
             val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             shape = GradientDrawable().apply {
-                setColor(ContextCompat.getColor(requireContext(), R.color.white)) // Set background color
+                setColor(ContextCompat.getColor(context, R.color.white)) // Set background color
             }
 
             // Ambil max radius dalam dp dan konversi ke px
@@ -218,10 +265,10 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             }
         }
 
-        editOrderViewModel.triggerSubmitDisplayServices.observe(viewLifecycleOwner) { isDisplay ->
+        queueControlViewModel.triggerSubmitDisplayServices.observe(viewLifecycleOwner) { isDisplay ->
             if (isDisplay == true) {
                 lifecycleScope.launch {
-                    val serviceList = editOrderViewModel.duplicateServiceList.value ?: emptyList()
+                    val serviceList = queueControlViewModel.duplicateServiceList.value ?: emptyList()
                     if (isFirstLoad) delay(500)
                     serviceAdapter.submitList(serviceList)
                     if (isFirstLoad) {
@@ -233,10 +280,10 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             }
         }
 
-        editOrderViewModel.triggerSubmitDisplayBundling.observe(viewLifecycleOwner) { isDisplay ->
+        queueControlViewModel.triggerSubmitDisplayBundling.observe(viewLifecycleOwner) { isDisplay ->
             if (isDisplay == true) {
                 lifecycleScope.launch {
-                    val bundlingList = editOrderViewModel.duplicateBundlingPackageList.value ?: emptyList()
+                    val bundlingList = queueControlViewModel.duplicateBundlingPackageList.value ?: emptyList()
                     if (isFirstLoad) delay(500)
                     bundlingAdapter.submitList(bundlingList)
                     if (isFirstLoad) {
@@ -248,12 +295,12 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             }
         }
 
-        editOrderViewModel.duplicateServiceList.observe(viewLifecycleOwner) { originalList ->
-            val reSetup = editOrderViewModel.triggerSubmitDisplayServices.value
+        queueControlViewModel.duplicateServiceList.observe(viewLifecycleOwner) { originalList ->
+            val reSetup = queueControlViewModel.triggerSubmitDisplayServices.value
             if (reSetup != true) {
                 val copiedList = originalList.toMutableList()
                 if (savedInstanceState == null && reSetup == false) {
-                    val orderInfoList = currentReservation?.itemInfo
+                    val orderInfoList = currentReservationData?.itemInfo
                     orderInfoList?.forEach { orderInfo ->
                         if (orderInfo.nonPackage) {
                             copiedList.find { it.uid == orderInfo.itemRef}.apply {
@@ -281,16 +328,16 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
                 copiedList.sortByDescending { it.autoSelected || it.defaultItem }
 
-                editOrderViewModel.setDuplicateServiceList(copiedList, true)
+                queueControlViewModel.setDuplicateServiceList(copiedList, true)
             }
         }
 
-        editOrderViewModel.duplicateBundlingPackageList.observe(viewLifecycleOwner) { originalList ->
-            val reSetup = editOrderViewModel.triggerSubmitDisplayBundling.value
+        queueControlViewModel.duplicateBundlingPackageList.observe(viewLifecycleOwner) { originalList ->
+            val reSetup = queueControlViewModel.triggerSubmitDisplayBundling.value
             if (reSetup != true) {
                 val copiedList = originalList.toMutableList()
                 if (savedInstanceState == null && reSetup == false) {
-                    val orderInfoList = currentReservation?.itemInfo
+                    val orderInfoList = currentReservationData?.itemInfo
                     orderInfoList?.forEach { orderInfo ->
                         if (!orderInfo.nonPackage) {
                             copiedList.find { it.uid == orderInfo.itemRef}.apply {
@@ -318,52 +365,35 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
                 copiedList.sortByDescending { it.autoSelected || it.defaultItem }
 
-                editOrderViewModel.setDuplicateBundlingPackageList(copiedList, true)
+                queueControlViewModel.setDuplicateBundlingPackageList(copiedList, true)
             }
         }
 
         binding.btnSaveChange.setOnClickListener{
-            checkNetworkConnection {
-                listener?.showLoading()
-                val serviceList = serviceAdapter.currentList
-                val bundlingList = bundlingAdapter.currentList
-
-                val totalShareProfit = calculateTotalShareProfit(serviceList, bundlingList, userUID ?: "----------------")
-                val accumulatedItemPrice = bundlingList.sumOf { it.bundlingQuantity * it.priceToDisplay }
-                    .let { result ->
-                        serviceList.sumOf { it.serviceQuantity * it.priceToDisplay }
-                            .plus(result)
-                    }
-
-                val finalPrice = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
-                val orderInfo = createOrderInfoList(serviceList, bundlingList)
-
-                duplicateReservation?.apply {
-                    this.shareProfitCapsterRef = if (useUidApplicantCapsterRef) currentReservation?.shareProfitCapsterRef ?: "" else currentReservation?.capsterInfo?.capsterRef ?: ""
-                    this.capsterInfo?.shareProfit = totalShareProfit.toInt()
-                    this.paymentDetail.subtotalItems = accumulatedItemPrice
-                    this.paymentDetail.finalPrice = finalPrice
-                    this.paymentDetail.paymentMethod = paymentMethod
-
-                    this.itemInfo = orderInfo
-                }
-
-                updateReservation(duplicateReservation ?: return@checkNetworkConnection,
-                    onSuccess = {
-//                    listener?.hideLoading()
-                        Toast.makeText(context, "Reservasi berhasil diperbarui", Toast.LENGTH_SHORT).show()
-                        dismiss()
-                    },
-                    onFailure = { e ->
-                        listener?.hideLoading()
-                        Toast.makeText(context, "Gagal memperbarui reservasi: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            if (!debounce.run {
+                it.isSafeClick(
+                    isLoading = blockAllUserClickAction,
+                    onLoadingBlocked = {
+                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                     }
                 )
+            }) return@setOnClickListener
+            // hmmmmm
+            checkNetworkConnection {
+                editOrderViewModel.updatingDataReservation(serviceAdapter.currentList, bundlingAdapter.currentList, useUidApplicantCapsterRef, paymentMethod, userUID)
             }
-
         }
 
         binding.ivSelectPaymentMethod.setOnClickListener {
+            if (!debounce.run {
+                it.isSafeClick(
+                    isLoading = blockAllUserClickAction,
+                    onLoadingBlocked = {
+                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                    }
+                )
+            }) return@setOnClickListener
+            // hmmmmm
             showPaymentMethodDialog()
         }
 
@@ -380,99 +410,32 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         }
     }
 
-    private fun updateReservation(reservation: Reservation, onSuccess: () -> Unit, onFailure: (Exception) -> Unit) {
-        val reservationRef = db.document(reservation.dataRef)
-
-        reservationRef.set(reservation)
-            .addOnCompleteListener {
-                if (it.isSuccessful) {
-                    // Update successful
-                    onSuccess()
-                } else {
-                    // Update failed
-                    onFailure(it.exception ?: Exception("Unknown error occurred"))
-                }
-            }
-    }
-
-    private fun createOrderInfoList(serviceList: List<Service>, bundlingList: List<BundlingPackage>): List<ItemInfo> {
-        val itemInfoList = mutableListOf<ItemInfo>()
-
-        // Proses bundlingPackagesList dari ViewModel
-        bundlingList.filter { it.bundlingQuantity > 0 }.forEach { bundling ->
-            val itemInfo = ItemInfo(
-                itemQuantity = bundling.bundlingQuantity,
-                itemRef = bundling.uid,  // Menggunakan atribut yang sesuai untuk referensi
-                nonPackage = false,  // Karena ini adalah bundling, nonPackage diatur menjadi false
-                sumOfPrice = bundling.bundlingQuantity * bundling.priceToDisplay
-            )
-            itemInfoList.add(itemInfo)
-        }
-
-        // Proses servicesList dari ViewModel
-        serviceList.filter { it.serviceQuantity > 0 }.forEach { service ->
-            val itemInfo = ItemInfo(
-                itemQuantity = service.serviceQuantity,
-                itemRef = service.uid,  // Menggunakan atribut yang sesuai untuk referensi
-                nonPackage = true,  // Karena ini adalah service, nonPackage diatur menjadi true
-                sumOfPrice = service.serviceQuantity * service.priceToDisplay
-            )
-            itemInfoList.add(itemInfo)
-        }
-
-        return itemInfoList
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString("payment_method", paymentMethod)
         outState.putString("price_text", priceText)
-    }
-
-    private fun calculateTotalShareProfit(
-        serviceList: List<Service>,
-        bundlingList: List<BundlingPackage>,
-        capsterUid: String
-    ): Double {
-        var totalShareProfit = 0.0
-
-        if (capsterUid != "----------------") {
-            // Hitung untuk setiap service
-            for (service in serviceList) {
-                // Ambil nilai share berdasarkan format dan apakah general atau specific capster
-                val resultsShareAmount = if (service.applyToGeneral) {
-                    service.resultsShareAmount?.get("all") ?: 0
-                } else {
-                    service.resultsShareAmount?.get(capsterUid) ?: 0
-                }
-
-                val serviceShare = if (service.resultsShareFormat == "persen") {
-                    (resultsShareAmount / 100.0) * service.servicePrice * service.serviceQuantity
-                } else { // fee
-                    resultsShareAmount * service.serviceQuantity
-                }
-                totalShareProfit += serviceShare.toDouble()
-            }
-
-            // Hitung untuk setiap bundling package
-            for (bundling in bundlingList) {
-                // Ambil nilai share berdasarkan format dan apakah general atau specific capster
-                val resultsShareAmount = if (bundling.applyToGeneral) {
-                    bundling.resultsShareAmount?.get("all") ?: 0
-                } else {
-                    bundling.resultsShareAmount?.get(capsterUid) ?: 0
-                }
-
-                val bundlingShare = if (bundling.resultsShareFormat == "persen") {
-                    (resultsShareAmount / 100.0) * bundling.packagePrice * bundling.bundlingQuantity
-                } else { // fee
-                    resultsShareAmount * bundling.bundlingQuantity
-                }
-                totalShareProfit += bundlingShare.toDouble()
-            }
-        }
-
-        return totalShareProfit
     }
 
     private fun calculatePriceToDisplay(
@@ -538,6 +501,13 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         return calculatedRadius.coerceAtMost(maxRadius) // Menggunakan Math.min untuk membatasi nilai
     }
 
+    override fun onStop() {
+        super.onStop()
+        if (requireActivity().isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         bundlingAdapter.stopAllShimmerEffects()
@@ -547,9 +517,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        editOrderViewModel.setCurrentReservationData(null)
-        editOrderViewModel.clearDuplicateServiceList()
-        editOrderViewModel.clearDuplicateBundlingPackageList()
+        queueControlViewModel.clearFragmentData()
     }
 
     companion object {
@@ -563,10 +531,10 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, toolbarTitle: String, useUidApplicantCapsterRef: Boolean, priceText: String) =
+        fun newInstance(currentReservationData: ReservationData, toolbarTitle: String, useUidApplicantCapsterRef: Boolean, priceText: String) =
             EditOrderFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putString(ARG_PARAM2, toolbarTitle)
                     putBoolean(ARG_PARAM3, useUidApplicantCapsterRef)
                     putString(ARG_PARAM4, priceText)
@@ -597,7 +565,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                     .plus(result)
             }
 
-        val finalPrice = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+        val finalPrice = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
         priceText = numberToCurrency(finalPrice.toDouble())
         binding.tvPaymentAmount.text = priceText
     }
@@ -611,7 +579,7 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
                     .plus(result)
             }
 
-        val finalPrice = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+        val finalPrice = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
         priceText = numberToCurrency(finalPrice.toDouble())
         binding.tvPaymentAmount.text = priceText
     }

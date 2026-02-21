@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
@@ -29,6 +30,7 @@ class ItemListCapsterAdapter(
     private val lifecycleOwner: LifecycleOwner
 ) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private val shimmerItemCount = 4
@@ -179,6 +181,8 @@ class ItemListCapsterAdapter(
                         return@setOnClickListener
                     }
 
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm???
                     itemClicked.onItemClickListener(userEmployeeData, root)
                 }
 
@@ -190,6 +194,8 @@ class ItemListCapsterAdapter(
         }
 
         fun checkOverlap() {
+            binding.tvRating.visibility = View.VISIBLE
+
             binding.root.viewTreeObserver.addOnGlobalLayoutListener(object :
                 ViewTreeObserver.OnGlobalLayoutListener {
 
@@ -203,6 +209,13 @@ class ItemListCapsterAdapter(
                     // Ambil posisi dan ukuran llRestQueueFromCapster
                     binding.llRestQueueFromCapster.getGlobalVisibleRect(llRestQueueRect)
 
+                    // Konversi dp ke pixel
+                    val extra = (10 * binding.root.resources.displayMetrics.density).toInt()
+
+                    // Expand kedua rect supaya overlap lebih sensitif
+                    llRatingRect.inset(-extra, -extra)        // perbesar 5dp ke semua arah
+                    llRestQueueRect.inset(-extra, -extra)
+
                     // Periksa apakah kedua view tumpang tindih
                     val isOverlapping = Rect.intersects(llRatingRect, llRestQueueRect)
 
@@ -213,11 +226,15 @@ class ItemListCapsterAdapter(
                         binding.tvRating.visibility = View.VISIBLE
                     }
 
-                    Log.d("CheckingOverlap", "isOverlapping: $isOverlapping")
+                    Log.d(
+                        "CheckingOverlap",
+                        "isOverlapping: $isOverlapping || llRatingRect: $llRatingRect || llRestQueueRect: $llRestQueueRect"
+                    )
 
                     // Hapus listener untuk mencegah multiple calls
                     binding.root.viewTreeObserver.removeOnGlobalLayoutListener(this)
                 }
+
             })
         }
 

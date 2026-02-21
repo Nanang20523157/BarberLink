@@ -1,6 +1,8 @@
 package com.example.barberlink.UserInterface.Teller.ViewModel
 
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -11,13 +13,19 @@ import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserRolesData
+import com.example.barberlink.Network.NetworkMonitor
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
@@ -45,371 +53,350 @@ class AddCustomerViewModel(
     var onCustomerAddResult: ((Boolean) -> Unit)? = null
 
     sealed class ResultState {
-        data object Loading : ResultState()
-        data object ResetingInput : ResultState()
-        data object DisplayError : ResultState()
-        data class DisplayData(val userRole: String) : ResultState()
-        data class RetryProcess(val whichProcess: String, val userRef: String) : ResultState()
-        data class Failure(val message: String) : ResultState()
-        data class Success(val data: Customer) : ResultState()
+        data object Loading: ResultState()
+        data object ResetingInput: ResultState()
+        data object DisplayError: ResultState()
+        data class DisplayData(val userRole: String): ResultState()
+        data class RetryProcess(val whichProcess: String, val userRef: String): ResultState()
+        data class Failure(val message: String): ResultState()
+        data class Success(val data: Customer, val message: String): ResultState()
     }
 
-    fun setAddCustomerResult(result: ResultState?) {
-        _addCustomerResult.value = result
+    fun setAddCustomerResult(value: ResultState?) {
+        viewModelScope.launch {
+            _addCustomerResult.value = value
+        }
     }
 
     fun setButtonStatus(status: String) {
-        buttonStatus = status
+        viewModelScope.launch {
+            buttonStatus = status
+        }
     }
 
     fun setUserManualInput(isManualInput: Boolean) {
-        isUserManualInput = isManualInput
+        viewModelScope.launch {
+            isUserManualInput = isManualInput
+        }
     }
 
     fun setIsSaveData(isSaveData: Boolean) {
-        this.isSaveData = isSaveData
+        viewModelScope.launch {
+            this@AddCustomerViewModel.isSaveData = isSaveData
+        }
     }
 
     fun setUserPhoneNumber(phoneNumber: String) {
-        userPhoneNumber = phoneNumber
+        viewModelScope.launch {
+            userPhoneNumber = phoneNumber
+        }
     }
 
     fun setUserInputName(name: String) {
-        userInputName = name
+        viewModelScope.launch {
+            userInputName = name
+        }
     }
 
     fun setUserInputGander(gander: String) {
-        userInputGender = gander
+        viewModelScope.launch {
+            userInputGender = gander
+        }
     }
 
     fun setUserEmployeeData(userEmployeeData: UserEmployeeData) {
-        this.userEmployeeData = userEmployeeData
+        viewModelScope.launch {
+            this@AddCustomerViewModel.userEmployeeData = userEmployeeData
+        }
     }
 
     fun setUserAdminData(userAdminData: UserAdminData) {
-        this.userAdminData = userAdminData
+        viewModelScope.launch {
+            this@AddCustomerViewModel.userAdminData = userAdminData
+        }
     }
 
     fun setUserCustomerData(userCustomerData: UserCustomerData) {
-        this.userCustomerData = userCustomerData
+        viewModelScope.launch {
+            this@AddCustomerViewModel.userCustomerData = userCustomerData
+        }
     }
 
     fun setOutletSelected(outlet: Outlet) {
-        this.outletSelected = outlet
+        viewModelScope.launch {
+            this@AddCustomerViewModel.outletSelected = outlet
+        }
     }
 
     fun getButtonStatus(): String {
-        return buttonStatus
+        return runBlocking {
+            buttonStatus
+        }
     }
 
     fun getIsUserManualInput(): Boolean {
-        return isUserManualInput
+        return runBlocking {
+            isUserManualInput
+        }
     }
 
     fun getIsSaveData(): Boolean {
-        return isSaveData
+        return runBlocking {
+            isSaveData
+        }
     }
 
     fun getUserPhoneNumber(): String {
-        return userPhoneNumber
+        return runBlocking {
+            userPhoneNumber
+        }
     }
 
     fun getUserInputName(): String {
-        return userInputName
+        return runBlocking {
+            userInputName
+        }
     }
 
     fun getUserInputGander(): String {
-        return userInputGender
+        return runBlocking {
+            userInputGender
+        }
     }
 
     fun setUserRolesData(userRolesData: UserRolesData) {
-        this.userRolesData = userRolesData
+        viewModelScope.launch {
+            this@AddCustomerViewModel.userRolesData = userRolesData
+        }
     }
 
     fun getUserEmployeeData(): UserEmployeeData {
-        return userEmployeeData
+        return runBlocking {
+            userEmployeeData
+        }
     }
 
     fun getUserAdminData(): UserAdminData {
-        return userAdminData
+        return runBlocking {
+            userAdminData
+        }
     }
 
     fun getUserCustomerData(): UserCustomerData {
-        return userCustomerData
+        return runBlocking {
+            userCustomerData
+        }
     }
 
     fun getUserRolesData(): UserRolesData {
-        return userRolesData
+        return runBlocking {
+            userRolesData
+        }
     }
 
     fun getOutletSelected(): Outlet {
-        return outletSelected
+        return runBlocking {
+            outletSelected
+        }
     }
 
+    fun runningThisFunction(function: suspend () -> Unit) {
+        viewModelScope.launch {
+            function.invoke()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     fun checkAndAddCustomer() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             if (!isSaveData) {
                 Log.d("TriggerUU", "====**********====")
                 Log.d("TriggerUU", "X0X")
                 isSaveData = true
                 _addCustomerResult.postValue(ResultState.Loading)
-                // if (buttonStatus == "Add") binding.btnSave.isClickable = false
-                db.collection("users").document(userPhoneNumber).get()
-                    .addOnSuccessListener { document ->
-                        when {
-                            document.exists() -> handleExistingUser(document)
-                            isSaveData -> checkCustomerExistenceAndAdd(userPhoneNumber)
-                            else -> _addCustomerResult.postValue(ResultState.ResetingInput)
+
+                try {
+                    // Gunakan utilitas offline-aware
+                    val snapshot = withContext(Dispatchers.IO) {
+                        db.collection("users")
+                            .document(userPhoneNumber)
+                            .awaitGetWithOfflineFallback(tag = "CheckAndAddCustomer")
+                    }
+
+                    if (snapshot.isSuccessful) {
+                        val document = snapshot.data
+                        if (document != null) {
+                            when {
+                                document.exists() -> handleExistingUser(document)
+                                isSaveData -> checkCustomerExistenceAndAdd(userPhoneNumber)
+                                else -> _addCustomerResult.postValue(ResultState.ResetingInput)
+                            }
+                        } else {
+                            if (snapshot.displayMessage) _addCustomerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                            else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+                            // isSaveData = false lewat setter viewModel yang di panggil di fragment
                         }
+                    } else {
+                        if (snapshot.displayMessage) _addCustomerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                        else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+                        // isSaveData = false lewat setter viewModel yang di panggil di fragment
                     }
-                    .addOnFailureListener { exception ->
-                        _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-                    }
+                } catch (e: Exception) {
+                    _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+                    // isSaveData = false lewat setter viewModel yang di panggil di fragment
+                }
             }
         }
-
     }
 
     // Function to handle existing user and update their data if manual input is detected
-    private fun handleExistingUser(document: DocumentSnapshot) {
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun handleExistingUser(document: DocumentSnapshot) {
         Log.d("TriggerUU", "X1X")
-        document.toObject(UserRolesData::class.java)?.let {
-            userRolesData = it
-        }
-
-        if (buttonStatus == "Add") {
-            Log.d("TriggerUU", "X1.1X")
-            setupUserCard(gettingData = true)
-        } else if (buttonStatus == "Sync") {
-            when (userRolesData.role) {
-                "admin", "employee", "pairAE" -> {
-                    Log.d("TriggerUU", "X1.2X")
-                    addNewCustomer()
-                }
-                "customer", "pairEC(-)", "pairEC(+)", "pairAC(-)", "pairAC(+)", "hybrid(-)", "hybrid(+)" -> {
-                    if (!isUserManualInput) {
-                        Log.d("TriggerUU", "X1.3X")
-                        addCustomerToOutlet()
-                    } else {
-                        Log.d("TriggerUU", "X1.4X")
-                        // Update fullname and gender using data from userCustomerData
-                        //updateCustomerData(userRolesData?.customerRef)
-                        syncCustomerRelatedData(customerRef = "")
-                    }
-                }
-            }
-        }
-    }
-
-    fun syncCustomerRelatedData(customerRef: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val taskFailed = AtomicBoolean(false)
-            var updateCustomerJob: Deferred<Unit>? = null
-            var updateEmployeeJob: Deferred<Unit>? = null
-            var updateAdminJob: Deferred<Unit>? = null
-            when (userRolesData.role) {
-                "customer" -> {
-                    // Hanya update data customer
-                    updateCustomerJob = async {
-                        val prosesStatusA = updateCustomerData(userRolesData.customerRef)
-                        if (prosesStatusA) { taskFailed.set(true) }
-                    }
-                }
-                "pairEC(-)", "pairEC(+)" -> {
-                    // Update data customer dan employee
-                    var prosesStatusA = false
-                    var prosesStatusB = false
-                    updateCustomerJob = async {
-                        prosesStatusA = updateCustomerData(userRolesData.customerRef)
-                    }
-                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateEmployeeJob = async {
-                            prosesStatusB = updateEmployeeData(userRolesData.employeeRef)
-                        }
-                    }
-                    if (prosesStatusA || prosesStatusB) { taskFailed.set(true) }
-                }
-                "pairAC(-)", "pairAC(+)" -> {
-                    // Update data customer dan admin
-                    var prosesStatusA = false
-                    var prosesStatusB = false
-                    updateCustomerJob = async {
-                        prosesStatusA = updateCustomerData(userRolesData.customerRef)
-                    }
-                    if (userAdminData.ownerName != userInputName) {
-                        updateAdminJob = async {
-                            prosesStatusB = updateAdminData(userRolesData.adminRef)
-                        }
-                    }
-                    if (prosesStatusA || prosesStatusB) { taskFailed.set(true) }
-                }
-                "hybrid(-)", "hybrid(+)" -> {
-                    // Update data customer, employee, dan admin
-                    var prosesStatusA = false
-                    var prosesStatusB = false
-                    var prosesStatusC = false
-                    updateCustomerJob = async {
-                        prosesStatusA = updateCustomerData(userRolesData.customerRef)
-                    }
-                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateEmployeeJob = async {
-                            prosesStatusB = updateEmployeeData(userRolesData.employeeRef)
-                        }
-                    }
-                    if (userAdminData.ownerName != userInputName) {
-                        updateAdminJob = async {
-                            prosesStatusC = updateAdminData(userRolesData.adminRef)
-                        }
-                    }
-                    if (prosesStatusA || prosesStatusB || prosesStatusC) { taskFailed.set(true) }
-                }
-                else -> {
-                    // Kode yang disediakan untuk private fun checkCustomerExistenceAndAdd(phoneNumber: String)
-                    if (customerRef.isNotEmpty()) {
-                        updateCustomerJob = async {
-                            val prosesStatusA = updateCustomerData(customerRef)
-                            if (prosesStatusA) { taskFailed.set(true) }
-                        }
-                    }
-                }
+        try {
+            document.toObject(UserRolesData::class.java)?.let {
+                userRolesData = it
             }
 
-            try {
-                updateCustomerJob?.await()
-                updateEmployeeJob?.await()
-                updateAdminJob?.await()
-
-                if (!taskFailed.get()) {
-                    addCustomerToOutlet()
-                } else {
-                    _addCustomerResult.postValue(ResultState.RetryProcess("CustomerRelatedData", customerRef))
-                    isSaveData = false
-                }
-            } catch (exception: Exception) {
-                withContext(Dispatchers.Main) {
-                    _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-                }
-                throw exception
-            }
-        }
-    }
-
-    // New function to update fullname and gender in the customer document
-    private suspend fun updateCustomerData(customerRef: String?): Boolean {
-        val isFailed = AtomicBoolean(false)
-        Log.d("TriggerUU", "X[:]X")
-        Log.d("SyncData", "Updating Customer Data")
-        if (customerRef.isNullOrEmpty()) {
-            Log.d("SyncData", "Customer reference is null or empty")
-            return true
-        }
-
-        // Create a map with the fields to be updated
-        val updates = mutableMapOf<String, Any>()
-        updates["fullname"] = userInputName
-        updates["gender"] = userInputGender
-        Log.d("TriggerUU", "TT $userInputName $userInputGender")
-
-        // Update the customer document in Firestore
-        db.document(customerRef)
-            .update(updates)
-            .addOnSuccessListener {
-                Log.d("SyncData", "Customer data updated successfully")
-            }
-            .addOnFailureListener { exception ->
-                Log.d("TriggerUU", "X[N2]X")
-                Log.d("SyncData", "Failed to update customer data, $exception")
-                isFailed.set(true)
-            }.await()
-
-        return isFailed.get()
-    }
-
-    private suspend fun updateAdminData(adminRef: String?): Boolean {
-        val isFailed = AtomicBoolean(false)
-        Log.d("SyncData", "Updating Admin Data")
-        if (adminRef.isNullOrEmpty()) {
-            Log.e("SyncData", "Admin reference is null or empty")
-            return true
-        }
-
-        val updates = mutableMapOf<String, Any>("owner_name" to userInputName)
-        db.document(adminRef)
-            .update(updates)
-            .addOnSuccessListener {
-                Log.d("SyncData", "Admin data updated successfully")
-            }
-            .addOnFailureListener { exception ->
-                Log.e("SyncData", "Failed to update admin data, $exception")
-                isFailed.set(true)
-            }.await()
-
-        return isFailed.get()
-    }
-
-    private suspend fun updateEmployeeData(employeeRef: String?): Boolean {
-        val isFailed = AtomicBoolean(false)
-        Log.d("SyncData", "Updating Employee Data")
-        if (employeeRef.isNullOrEmpty()) {
-            Log.e("SyncData", "Employee reference is null or empty")
-            return true
-        }
-
-        val updates = mutableMapOf<String, Any>()
-        updates["fullname"] = userInputName
-        updates["gender"] = userInputGender
-
-        db.document(employeeRef)
-            .update(updates)
-            .addOnSuccessListener {
-                Log.d("SyncData", "Employee data updated successfully")
-            }
-            .addOnFailureListener { exception ->
-                Log.e("SyncData", "Failed to update employee data, $exception")
-                isFailed.set(true)
-            }.await()
-
-        return isFailed.get()
-    }
-
-    private fun checkCustomerExistenceAndAdd(phoneNumber: String) {
-        Log.d("TriggerUU", "X2X")
-        db.collection("customers").document(phoneNumber).get()
-            .addOnSuccessListener { customerDocument ->
-                if (!customerDocument.exists()) {
-                    Log.d("TriggerUU", "X2.1X")
-                    addNewCustomer()
-                } else {
-                    Log.d("TriggerUU", "X2.2X")
-
-                    if (buttonStatus == "Add") {
-                        customerDocument.toObject(UserCustomerData::class.java)?.apply {
-                            userRef = customerDocument.reference.path
-                            userCustomerData = this
-                        }
-                        Log.d("TriggerUU", "X2.2.1X")
-                        setupUserCard(gettingData = false)
-                    } else if (buttonStatus == "Sync") {
+            if (buttonStatus == "Add") {
+                Log.d("TriggerUU", "X1.1X")
+                setupUserCard(gettingData = true)
+            } else if (buttonStatus == "Sync") {
+                when (userRolesData.role) {
+                    "admin", "employee", "pairAE" -> {
+                        Log.d("TriggerUU", "X1.2X")
+                        addNewCustomer()
+                    }
+                    "customer", "pairEC(-)", "pairEC(+)", "pairAC(-)", "pairAC(+)", "hybrid(-)", "hybrid(+)" -> {
                         if (!isUserManualInput) {
-                            Log.d("TriggerUU", "X2.2.2X")
+                            Log.d("TriggerUU", "X1.3X")
                             addCustomerToOutlet()
                         } else {
-                            Log.d("TriggerUU", "X2.2.3X")
+                            Log.d("TriggerUU", "X1.4X")
                             // Update fullname and gender using data from userCustomerData
-                            // updateCustomerData("customers/$phoneNumber")
-                            syncCustomerRelatedData(customerRef = "customers/$phoneNumber")
+                            //updateCustomerData(userRolesData?.customerRef)
+                            syncCustomerRelatedData(customerRef = "")
                         }
                     }
                 }
             }
-            .addOnFailureListener { exception ->
-                _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-            }
+        } catch (e: Exception) {
+            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+            // isSaveData = false lewat setter viewModel yang di panggil di fragment
+        }
     }
 
-    private fun setupUserCard(gettingData: Boolean) {
-        Log.d("TriggerUU", "X4X")
+    @RequiresApi(Build.VERSION_CODES.S)
+    suspend fun syncCustomerRelatedData(customerRef: String) = coroutineScope {
+        try {
+            val updateJobs = mutableListOf<Deferred<Boolean>>()
 
+            when (userRolesData.role) {
+                "customer" -> {
+                    updateJobs += async { updateCustomerData(userRolesData.customerRef) }
+                }
+                "pairEC(-)", "pairEC(+)" -> {
+                    updateJobs += async { updateCustomerData(userRolesData.customerRef) }
+                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
+                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
+                    }
+                }
+                "pairAC(-)", "pairAC(+)" -> {
+                    updateJobs += async { updateCustomerData(userRolesData.customerRef) }
+                    if (userAdminData.ownerName != userInputName) {
+                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
+                    }
+                }
+                "hybrid(-)", "hybrid(+)" -> {
+                    updateJobs += async { updateCustomerData(userRolesData.customerRef) }
+                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
+                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
+                    }
+                    if (userAdminData.ownerName != userInputName) {
+                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
+                    }
+                }
+                else -> {
+                    if (customerRef.isNotEmpty()) {
+                        updateJobs += async { updateCustomerData(customerRef) }
+                    }
+                }
+            }
+
+            val results = updateJobs.awaitAll()
+            // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
+            // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
+            // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+            val allSuccess = results.all { !it } // remember: your update*Data returns true = fail, false = success
+
+            if (allSuccess) {
+                addCustomerToOutlet()
+            } else {
+                _addCustomerResult.postValue(ResultState.RetryProcess("CustomerRelatedData", customerRef))
+                isSaveData = false
+            }
+        } catch (e: Exception) {
+            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat sinkronisasi data pelanggan!"))
+            // isSaveData = false lewat setter viewModel yang di panggil di fragment
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun checkCustomerExistenceAndAdd(phoneNumber: String) {
+        Log.d("TriggerUU", "X2X")
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                db.collection("customers")
+                    .document(phoneNumber)
+                    .awaitGetWithOfflineFallback(tag = "CheckCustomerExistence")
+            }
+
+            if (snapshot.isSuccessful) {
+                val document = snapshot.data
+                if (document != null) {
+                    if (!document.exists()) {
+                        Log.d("TriggerUU", "X2.1X")
+                        addNewCustomer()
+                    } else {
+                        Log.d("TriggerUU", "X2.2X")
+
+                        if (buttonStatus == "Add") {
+                            document.toObject(UserCustomerData::class.java)?.apply {
+                                userRef = document.reference.path
+                                userCustomerData = this
+                            }
+                            Log.d("TriggerUU", "X2.2.1X")
+                            setupUserCard(gettingData = false)
+                        } else if (buttonStatus == "Sync") {
+                            if (!isUserManualInput) {
+                                Log.d("TriggerUU", "X2.2.2X")
+                                addCustomerToOutlet()
+                            } else {
+                                Log.d("TriggerUU", "X2.2.3X")
+                                // Update fullname dan gender menggunakan data userCustomerData
+                                syncCustomerRelatedData(customerRef = "customers/$phoneNumber")
+                            }
+                        }
+                    }
+                } else {
+                    if (snapshot.displayMessage) _addCustomerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                    else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+                    // isSaveData = false lewat setter viewModel yang di panggil di fragment
+                }
+            } else {
+                if (snapshot.displayMessage) _addCustomerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+                // isSaveData = false lewat setter viewModel yang di panggil di fragment
+            }
+        } catch (e: Exception) {
+            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pelanggan!"))
+            // isSaveData = false lewat setter viewModel yang di panggil di fragment
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun setupUserCard(gettingData: Boolean) {
+        Log.d("TriggerUU", "X4X")
         // setValidInput(binding.wrapperPhone, binding.etPhone)
         if (gettingData) {
             Log.d("TriggerUU", "X4.1X")
@@ -434,62 +421,59 @@ class AddCustomerViewModel(
         }
     }
 
-    fun resetObtainedData(savetyData: String) {
-        userAdminData = UserAdminData()
-        userEmployeeData = UserEmployeeData()
-        userRolesData = UserRolesData()
-        userCustomerData = UserCustomerData(
-            userReminder = null,
-            email = "",
-            fullname = userInputName,
-            gender = userInputGender.ifEmpty { savetyData },
-            membership = false,
-            password = "",
-            phone = userPhoneNumber,
-            photoProfile = "",
-            userNotification = null,
-            uid = userPhoneNumber,
-            username = "",
-            userCoins = 0
-        )
-    }
-
-    // Function getDataReference berdasarkan contoh kode getDataCustomerReference
-    private fun getDataReference(reference: String, role: String) {
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun getDataReference(reference: String, role: String) {
         Log.d("TriggerUU", "X5X")
-        db.document(reference).get()
-            .addOnSuccessListener { document ->
-                document.takeIf { it.exists() }?.let {
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                db.document(reference)
+                    .awaitGetWithOfflineFallback(tag = "GetDataReference")
+            }
+
+            if (snapshot.isSuccessful) {
+                val document = snapshot.data
+                if (document != null && document.exists()) {
                     when (role) {
                         "admin" -> {
                             Log.d("TriggerUU", "X5.1X")
-                            it.toObject(UserAdminData::class.java)?.apply {
-                                userRef = it.reference.path
+                            document.toObject(UserAdminData::class.java)?.apply {
+                                userRef = document.reference.path
                                 userAdminData = this
                             }
                         }
+
                         "employee" -> {
                             Log.d("TriggerUU", "X5.2X")
-                            it.toObject(UserEmployeeData::class.java)?.apply {
-                                userRef = it.reference.path
+                            document.toObject(UserEmployeeData::class.java)?.apply {
+                                userRef = document.reference.path
                                 userEmployeeData = this
                             }
                         }
+
                         else -> {
                             Log.d("TriggerUU", "X5.3X")
-                            it.toObject(UserCustomerData::class.java)?.apply {
-                                userRef = it.reference.path
+                            document.toObject(UserCustomerData::class.java)?.apply {
+                                userRef = document.reference.path
                                 userCustomerData = this
                             }
                         }
                     }
 
                     setupCustomerData()
+                } else {
+                    if (snapshot.displayMessage) _addCustomerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                    else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menginisiasi data pelanggan!"))
+                    // isSaveData = false lewat setter viewModel yang di panggil di fragment
                 }
+            } else {
+                if (snapshot.displayMessage) _addCustomerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menginisiasi data pelanggan!"))
+                // isSaveData = false lewat setter viewModel yang di panggil di fragment
             }
-            .addOnFailureListener { exception ->
-                _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-            }
+        } catch (e: Exception) {
+            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menginisiasi data pelanggan!"))
+            // isSaveData = false lewat setter viewModel yang di panggil di fragment
+        }
     }
 
     private fun setupCustomerData() {
@@ -504,8 +488,8 @@ class AddCustomerViewModel(
                 _addCustomerResult.postValue(ResultState.DisplayError)
             } else {
                 Log.d("TriggerUU", "X6.2X")
-    //                userInputName = binding.etFullname.text.toString().trim()
-    //                userInputGender = binding.genderDropdown.text.toString().trim()
+                //                userInputName = binding.etFullname.text.toString().trim()
+                //                userInputGender = binding.genderDropdown.text.toString().trim()
                 when (userRolesData.role) {
                     "admin" -> {
                         Log.d("TriggerUU", "X6.2.1X")
@@ -548,143 +532,88 @@ class AddCustomerViewModel(
                 isSaveData = false
             }
         }
-
     }
 
-    private fun addNewCustomer() {
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun addNewCustomer() {
         Log.d("TriggerUU", "X7X")
-        // binding.progressBar.visibility = View.VISIBLE
         userCustomerData.let { userData ->
-            db.collection("customers").document(userData.uid).set(userData)
-                .addOnSuccessListener {
+            try {
+                val task = withContext(Dispatchers.IO) {
+                    db.collection("customers")
+                        .document(userData.uid)
+                        .set(userData)
+                        .awaitWriteWithOfflineFallback(tag = "AddNewCustomer")
+                }
+
+                if (task.isSuccessful) {
+                    // not end process
                     if (userAdminData.uid.isNotEmpty() || userEmployeeData.uid != "----------------") {
                         Log.d("TriggerUU", "X7.1X")
-                        // updateRoleInUsersCollection()
                         syncDataForAdminEmployeeRole()
-                    }
-                    else {
+                    } else {
                         Log.d("TriggerUU", "X7.2X")
                         addCustomerToOutlet()
                     }
+                } else {
+                    if (task.displayMessage) _addCustomerResult.postValue(ResultState.Failure(task.errorMessage.toString()))
+                    else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data pelanggan!"))
+                    // isSaveData = false lewat setter viewModel yang di panggil di fragment
                 }
-                .addOnFailureListener { exception ->
-                    _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-                }
+            } catch (e: Exception) {
+                _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data pelanggan!"))
+            }
         }
     }
 
-    fun syncDataForAdminEmployeeRole() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val taskFailed = AtomicBoolean(false)
-            var updateAdminJob: Deferred<Unit>? = null
-            var updateEmployeeJob: Deferred<Unit>? = null
-            var updateRoleJob: Deferred<Unit>? = null
+    @RequiresApi(Build.VERSION_CODES.S)
+    suspend fun syncDataForAdminEmployeeRole() = coroutineScope {
+        try {
+            val updateJobs = mutableListOf<Deferred<Boolean>>()
+
             when (userRolesData.role) {
                 "admin" -> {
-                    var prosesStatusA = false
-                    var prosesStatusB = false
                     if (userAdminData.ownerName != userInputName) {
-                        updateAdminJob = async {
-                            prosesStatusA = updateAdminData(userRolesData.adminRef)
-                        }
+                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
                     }
-                    updateRoleJob = async {
-                        prosesStatusB = updateRoleInUsersCollection()
-                    }
-                    if (prosesStatusA || prosesStatusB) { taskFailed.set(true) }
+                    updateJobs += async { updateRoleInUsersCollection() }
                 }
                 "employee" -> {
-                    var prosesStatusA = false
-                    var prosesStatusB = false
                     if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateEmployeeJob = async {
-                            prosesStatusA = updateEmployeeData(userRolesData.employeeRef)
-                        }
+                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
                     }
-                    updateRoleJob = async {
-                        prosesStatusB = updateRoleInUsersCollection()
-                    }
-                    if (prosesStatusA || prosesStatusB) { taskFailed.set(true) }
+                    updateJobs += async { updateRoleInUsersCollection() }
                 }
                 "pairAE" -> {
-                    var prosesStatusA = false
-                    var prosesStatusB = false
-                    var prosesStatusC = false
                     if (userAdminData.ownerName != userInputName) {
-                        updateAdminJob = async {
-                            prosesStatusA = updateAdminData(userRolesData.adminRef)
-                        }
+                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
                     }
                     if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateEmployeeJob = async {
-                            prosesStatusB = updateEmployeeData(userRolesData.employeeRef)
-                        }
+                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
                     }
-                    updateRoleJob = async {
-                        prosesStatusC = updateRoleInUsersCollection()
-                    }
-                    if (prosesStatusA || prosesStatusB || prosesStatusC) { taskFailed.set(true) }
+                    updateJobs += async { updateRoleInUsersCollection() }
                 }
             }
 
-            try {
-                updateAdminJob?.await()
-                updateEmployeeJob?.await()
-                updateRoleJob?.await()
+            val results = updateJobs.awaitAll()
+            // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
+            // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
+            // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+            val allSuccess = results.all { !it } // false = success, true = failed
 
-                if (!taskFailed.get()) {
-                    addCustomerToOutlet()
-                } else {
-                    _addCustomerResult.postValue(ResultState.RetryProcess("AdminEmployeeRole", ""))
-                    isSaveData = false
-                }
-            } catch (exception: Exception) {
-                withContext(Dispatchers.Main) {
-                    _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-                }
-                throw exception
+            if (allSuccess) {
+                addCustomerToOutlet()
+            } else {
+                _addCustomerResult.postValue(ResultState.RetryProcess("AdminEmployeeRole", ""))
+                isSaveData = false
             }
-
+        } catch (e: Exception) {
+            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat sinkronisasi data pelanggan!"))
+            // isSaveData = false lewat setter viewModel yang di panggil di fragment
         }
     }
 
-
-    private suspend fun updateRoleInUsersCollection(): Boolean {
-        val isFailed = AtomicBoolean(false)
-        Log.d("TriggerUU", "X8X")
-        userRolesData.apply {
-            // Menentukan nilai role baru berdasarkan kondisi
-            this.role = when (role) {
-                "admin" -> "pairAC(-)"
-                "employee" -> "pairEC(-)"
-                "pairAE" -> "hybrid(-)"
-                else -> "customer" // Tidak ada perubahan jika tidak sesuai dengan kondisi di atas
-            }
-
-            // Memperbarui customer_ref dan customer_provider
-            this.customerRef = "customers/${userCustomerData.uid}"
-            this.customerProvider = "none"
-            this.uid = userPhoneNumber
-        }.let {
-            Log.d("SyncData", "Updating user role")
-            userRolesData = it
-
-            // Mengirimkan perubahan ke Firestore
-            db.collection("users").document(userPhoneNumber).set(it)
-                .addOnSuccessListener {
-                    Log.d("SyncData", "User role updated successfully")
-                }
-                .addOnFailureListener { exception ->
-                    Log.d("SyncData", "Failed to update user role, $exception")
-                    isFailed.set(true)
-                    _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
-                }.await()
-        }
-
-        return isFailed.get()
-    }
-
-    private fun addCustomerToOutlet() {
+    private suspend fun addCustomerToOutlet() {
         Log.d("TriggerUU", "X9X")
         outletSelected.let { outlet ->
             val newCustomer = Customer(
@@ -701,28 +630,160 @@ class AddCustomerViewModel(
         }
     }
 
-    private fun updateOutletListCustomers(outlet: Outlet) {
+    private suspend fun updateOutletListCustomers(outlet: Outlet) {
         Log.d("TriggerUU", "X10X")
-        val outletRef = db.document(outlet.rootRef)
-            .collection("outlets")
-            .document(outlet.uid)
+        try {
+            val outletRef = db.document(outlet.rootRef)
+                .collection("outlets")
+                .document(outlet.uid)
 
-        outletRef.update("list_customers", outlet.listCustomers)
-            .addOnSuccessListener {
+            onCustomerAddResult?.invoke(true)
+
+            val task = withContext(Dispatchers.IO) {
+                outletRef
+                    .update("list_customers", outlet.listCustomers)
+                    .awaitWriteWithOfflineFallback(tag = "UpdateOutletCustomers")
+            }
+
+            if (task.isSuccessful) {
+                // end process with local toast checking
                 val lastCustomer = outlet.listCustomers?.lastOrNull()
                 lastCustomer?.let {
-                    onCustomerAddResult?.invoke(true)
-                    _addCustomerResult.postValue(ResultState.Success(it))
+                    val message = if (task.displayMessage) task.errorMessage.toString() else "Pelanggan baru berhasil ditambahkan."
+                    _addCustomerResult.postValue(ResultState.Success(it, message))
                 } ?: run {
                     onCustomerAddResult?.invoke(false)
-                    _addCustomerResult.postValue(ResultState.Failure("Terjadi suatu kesalahan saat menambahkan data."))
+                    _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data pelanggan!"))
+                    // isSaveData = false lewat setter viewModel yang di panggil di fragment
                 }
-            }
-            .addOnFailureListener { exception ->
+            } else {
                 onCustomerAddResult?.invoke(false)
-                _addCustomerResult.postValue(ResultState.Failure(exception.message.toString()))
+                if (task.displayMessage) _addCustomerResult.postValue(ResultState.Failure(task.errorMessage.toString()))
+                else _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data pelanggan!"))
+                // isSaveData = false lewat setter viewModel yang di panggil di fragment
             }
+        } catch (e: Exception) {
+            onCustomerAddResult?.invoke(false)
+            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data pelanggan!"))
+        }
     }
 
+    // New function to update fullname and gender in the customer document
+    private suspend fun updateCustomerData(customerRef: String?): Boolean {
+        if (customerRef.isNullOrEmpty()) return true
+        Log.d("SyncData", "Updating Customer Data")
+
+        val updates = mutableMapOf<String, Any>(
+            "fullname" to userInputName,
+            "gender" to userInputGender
+        )
+
+        val task = withContext(Dispatchers.IO) {
+            db.document(customerRef)
+                .update(updates)
+                .awaitWriteWithOfflineFallback(tag = "UpdateCustomerData")
+        }
+
+        if (task.isSuccessful)
+            Log.d("SyncData", "✅ Customer data updated (local/server)")
+        else
+            Log.e("SyncData", "❌ Failed to update customer data")
+
+        return !task.isSuccessful // false = success, true = failed
+    }
+
+    private suspend fun updateAdminData(adminRef: String?): Boolean {
+        if (adminRef.isNullOrEmpty()) return true
+        Log.d("SyncData", "Updating Admin Data")
+
+        val updates = mapOf("owner_name" to userInputName)
+
+        val task = withContext(Dispatchers.IO) {
+            db.document(adminRef)
+                .update(updates)
+                .awaitWriteWithOfflineFallback(tag = "UpdateAdminData")
+        }
+
+        if (task.isSuccessful)
+            Log.d("SyncData", "✅ Admin data updated (local/server)")
+        else
+            Log.e("SyncData", "❌ Failed to update admin data")
+
+        return !task.isSuccessful
+    }
+
+    private suspend fun updateEmployeeData(employeeRef: String?): Boolean {
+        if (employeeRef.isNullOrEmpty()) return true
+        Log.d("SyncData", "Updating Employee Data")
+
+        val updates = mutableMapOf<String, Any>(
+            "fullname" to userInputName,
+            "gender" to userInputGender
+        )
+
+        val task = withContext(Dispatchers.IO) {
+            db.document(employeeRef)
+                .update(updates)
+                .awaitWriteWithOfflineFallback(tag = "UpdateEmployeeData")
+        }
+
+        if (task.isSuccessful)
+            Log.d("SyncData", "✅ Employee data updated (local/server)")
+        else
+            Log.e("SyncData", "❌ Failed to update employee data")
+
+        return !task.isSuccessful
+    }
+
+    private suspend fun updateRoleInUsersCollection(): Boolean {
+        Log.d("TriggerUU", "X8X")
+        userRolesData.apply {
+            role = when (role) {
+                "admin" -> "pairAC(-)"
+                "employee" -> "pairEC(-)"
+                "pairAE" -> "hybrid(-)"
+                else -> "customer"
+            }
+            customerRef = "customers/${userCustomerData.uid}"
+            customerProvider = "none"
+            uid = userPhoneNumber
+        }
+
+        val task = withContext(Dispatchers.IO) {
+            db.collection("users")
+                .document(userPhoneNumber)
+                .set(userRolesData)
+                .awaitWriteWithOfflineFallback(tag = "UpdateUserRoles")
+        }
+
+        if (task.isSuccessful)
+            Log.d("SyncData", "✅ User role updated (local/server)")
+        else
+            Log.d("SyncData", "❌ Failed to update user role")
+
+        return !task.isSuccessful
+    }
+
+    fun resetObtainedData(savetyData: String) {
+        viewModelScope.launch {
+            userAdminData = UserAdminData()
+            userEmployeeData = UserEmployeeData()
+            userRolesData = UserRolesData()
+            userCustomerData = UserCustomerData(
+                userReminder = null,
+                email = "",
+                fullname = userInputName,
+                gender = userInputGender.ifEmpty { savetyData },
+                membership = false,
+                password = "",
+                phone = userPhoneNumber,
+                photoProfile = "",
+                userNotification = null,
+                uid = userPhoneNumber,
+                username = "",
+                userCoins = 0
+            )
+        }
+    }
 
 }

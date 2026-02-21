@@ -9,12 +9,14 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.Factory.ShareDataViewModelFactory
 import com.example.barberlink.Helper.Injection
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
@@ -24,13 +26,15 @@ import com.example.barberlink.databinding.ActivityCompleteOrderPageBinding
 
 class CompleteOrderPage : AppCompatActivity() {
     private lateinit var binding: ActivityCompleteOrderPageBinding
-    private lateinit var userReservationData: Reservation
-    private lateinit var completePageViewModel: SharedReserveViewModel
-    private lateinit var viewModelFactory: ShareDataViewModelFactory
+    private val completePageViewModel: SharedReserveViewModel by viewModels {
+        Injection.provideViewModelFactory()
+    }
+    private val debounce by lazy { ScopedUniversalDebounce() }
+    private lateinit var userReservationDataData: ReservationData
     // private val servicesList = mutableListOf<Service>()
     // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -61,18 +65,14 @@ class CompleteOrderPage : AppCompatActivity() {
         }
 
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
-        viewModelFactory = Injection.provideViewModelFactory()
-        completePageViewModel = ViewModelProvider(
-            this,
-            viewModelFactory
-        )[SharedReserveViewModel::class.java]
+        completePageViewModel
 
         if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         @Suppress("DEPRECATION")
-        userReservationData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, Reservation::class.java) ?: Reservation()
+        userReservationDataData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA, ReservationData::class.java) ?: ReservationData()
         } else {
-            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA) ?: Reservation()
+            intent.getParcelableExtra(ReviewOrderPage.RESERVATION_DATA) ?: ReservationData()
         }
 //        intent.getParcelableArrayListExtra(ReviewOrderPage.SERVICE_DATA_KEY, Service::class.java)?.let {
 //            servicesList.addAll(it)
@@ -83,6 +83,8 @@ class CompleteOrderPage : AppCompatActivity() {
 
         setupView()
         binding.realLayout.btnNavigateToHomePage.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             navigatePage(this@CompleteOrderPage, QueueTrackerPage::class.java, it)
         }
 
@@ -98,20 +100,13 @@ class CompleteOrderPage : AppCompatActivity() {
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
-//    @RequiresApi(Build.VERSION_CODES.S)
-//    override fun onResume() {
-//        super.onResume()
-//        // Set sudut dinamis sesuai perangkat
-//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-//    }
-
     private fun setupView() {
         binding.apply {
-            realLayout.tvCustomerName.text = userReservationData.dataCreator?.userFullname
-            realLayout.tvCustomerPhone.text = userReservationData.dataCreator?.userPhone
-            realLayout.tvSelectedCapster.text = userReservationData.capsterInfo?.capsterName?.ifEmpty { "???" } ?: ""
+            realLayout.tvCustomerName.text = userReservationDataData.dataCreator?.userFullname
+            realLayout.tvCustomerPhone.text = userReservationDataData.dataCreator?.userPhone
+            realLayout.tvSelectedCapster.text = userReservationDataData.capsterInfo?.capsterName?.ifEmpty { "???" } ?: ""
 
-            val serviceAndBundlingNames = userReservationData.itemInfo?.mapNotNull { order ->
+            val serviceAndBundlingNames = userReservationDataData.itemInfo?.mapNotNull { order ->
                 if (order.nonPackage) {
                     // Mencari di servicesList dari ViewModel
                     completePageViewModel.servicesList.value?.find { it.uid == order.itemRef }?.serviceName
@@ -123,27 +118,27 @@ class CompleteOrderPage : AppCompatActivity() {
 
 
             realLayout.tvOrderDetails.text = if (serviceAndBundlingNames?.isNotEmpty() == true) "$serviceAndBundlingNames." else "-"
-            realLayout.tvNotes.text = userReservationData.notes.ifEmpty { "-" }
-            realLayout.queueNumber.text = userReservationData.queueNumber
+            realLayout.tvNotes.text = userReservationDataData.notes.ifEmpty { "-" }
+            realLayout.queueNumber.text = userReservationDataData.queueNumber
 
-            realLayout.tvSubTotalItems.text = NumberUtils.numberToCurrency(userReservationData.paymentDetail.subtotalItems.toDouble())
-            val discountAmount = userReservationData.paymentDetail.promoUsed + userReservationData.paymentDetail.coinsUsed
+            realLayout.tvSubTotalItems.text = NumberUtils.numberToCurrency(userReservationDataData.paymentDetail.subtotalItems.toDouble())
+            val discountAmount = userReservationDataData.paymentDetail.promoUsed + userReservationDataData.paymentDetail.coinsUsed
             realLayout.tvDiscountsAmount.text = if (discountAmount > 0) {
                 getString(R.string.negatif_nominal_template, NumberUtils.numberToCurrency(discountAmount.toDouble())) }
             else { "-" }
 
-            realLayout.tvTotalPriceOrders.text = NumberUtils.numberToCurrency(userReservationData.paymentDetail.finalPrice.toDouble())
+            realLayout.tvTotalPriceOrders.text = NumberUtils.numberToCurrency(userReservationDataData.paymentDetail.finalPrice.toDouble())
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
-                val data = userReservationData.capsterInfo?.capsterName?.ifEmpty { "Semua" } ?: "Semua"
+                val data = userReservationDataData.capsterInfo?.capsterName?.ifEmpty { "Semua" } ?: "Semua"
                 val intent = Intent(context, destination).apply {
 //                flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -153,7 +148,6 @@ class CompleteOrderPage : AppCompatActivity() {
                 overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
 //            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
                 finish()
-                completePageViewModel.clearAllData()
             } else {
                 // ⛔ Lepas lock setelah frame selesai
                 binding.root.post {
@@ -162,6 +156,18 @@ class CompleteOrderPage : AppCompatActivity() {
                 return@setDynamicWindowAllCorner
             }
         }
+    }
+
+//    @RequiresApi(Build.VERSION_CODES.S)
+//    override fun onResume() {
+//        super.onResume()
+//        // Set sudut dinamis sesuai perangkat
+//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+//    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        completePageViewModel.clearAllData()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

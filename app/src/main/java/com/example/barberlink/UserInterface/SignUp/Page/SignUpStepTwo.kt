@@ -20,10 +20,12 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.PopupWindow
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -31,28 +33,35 @@ import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
 import com.example.barberlink.Factory.RegisterViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.SignUp.Fragment.ImagePickerFragment
 import com.example.barberlink.UserInterface.SignUp.ViewModel.StepTwoViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivitySignUpStepTwoBinding
 import com.example.barberlink.databinding.InquiryConfirmationWindowBinding
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpStepTwoBinding
-    private lateinit var stepTwoViewModel: StepTwoViewModel
-    private lateinit var registerViewModelFactory: RegisterViewModelFactory
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val stepTwoViewModel: StepTwoViewModel by viewModels {
+        RegisterViewModelFactory(db, storage, auth, this)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private lateinit var windowBinding: InquiryConfirmationWindowBinding
 
@@ -72,7 +81,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private var blockAllUserClickAction: Boolean = false
 
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private lateinit var textWatcher1: TextWatcher
     private lateinit var textWatcher2: TextWatcher
     private var isHandlingBack: Boolean = false
@@ -105,8 +114,9 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
-        stepTwoViewModel = ViewModelProvider(this, registerViewModelFactory)[StepTwoViewModel::class.java]
+        stepTwoViewModel
+        toastViewModel
+
         if (savedInstanceState != null) {
             isBarberNameValid = savedInstanceState.getBoolean("is_barber_name_valid")
             isBarberEmailValid = savedInstanceState.getBoolean("is_barber_email_valid")
@@ -120,7 +130,6 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             isProcessError = savedInstanceState.getBoolean("is_process_error")
             retryStep = savedInstanceState.getString("retry_step") ?: ""
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action")
 
             val imageUri = stepTwoViewModel.getImageUri()
             if (imageUri != null) {
@@ -328,6 +337,28 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@SignUpStepTwo,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
@@ -344,7 +375,6 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         outState.putString("retry_step", retryStep)
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -352,70 +382,99 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.btnNext -> {
-                    if (!blockAllUserClickAction) {
-                        if (validateInputs()) {
-                            checkNetworkConnection {
-                                val barbershopName = etBarbershopName.text.toString().trim()
-                                stepTwoViewModel.checkBarbershopName(barbershopName) { exists ->
-                                    if (exists) {
-                                        isBarberNameValid = false
-                                        setHeightOfWrapperInputLayout(wrapperBarbershopName, true)
-                                        textErrorForBarberName =  getString(R.string.barbershop_name_exists)
-                                        wrapperBarbershopName.error = textErrorForBarberName
-                                    } else {
-                                        isBarberNameValid = true
-                                        setHeightOfWrapperInputLayout(wrapperBarbershopName, false)
-                                        textErrorForBarberName = ""
-                                        wrapperBarbershopName.error = null
-                                        val userAdminData = stepTwoViewModel.getUserAdminData().apply {
-                                            if (ownerName.isEmpty()) {
-                                                ownerName = "Owner Barbershop"
-                                                Log.d("OwnerName", "Owner Name: $ownerName")
-                                            }
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
+                    if (validateInputs()) {
+                        checkNetworkConnection {
+                            val barbershopName = etBarbershopName.text.toString().trim()
+                            stepTwoViewModel.checkBarbershopName(barbershopName) { exists ->
+                                if (exists) {
+                                    isBarberNameValid = false
+                                    setHeightOfWrapperInputLayout(wrapperBarbershopName, true)
+                                    textErrorForBarberName =  getString(R.string.barbershop_name_exists)
+                                    wrapperBarbershopName.error = textErrorForBarberName
+                                } else {
+                                    isBarberNameValid = true
+                                    setHeightOfWrapperInputLayout(wrapperBarbershopName, false)
+                                    textErrorForBarberName = ""
+                                    wrapperBarbershopName.error = null
+                                    val userAdminData = stepTwoViewModel.getUserAdminData().apply {
+                                        if (ownerName.isEmpty()) {
+                                            ownerName = "Owner Barbershop"
+                                            Log.d("OwnerName", "Owner Name: $ownerName")
                                         }
-                                        stepTwoViewModel.setUserAdminData(userAdminData)
-                                        Log.d("UAD", "$userAdminData")
+                                    }
+                                    stepTwoViewModel.setUserAdminData(userAdminData)
+                                    Log.d("UAD", "$userAdminData")
 //                            userAdminData.ownerName = "Owner $barbershopName"
 
-                                        if (userAdminData.uid.isNotEmpty()) showConfirmationWindow() else {
-                                            stepTwoViewModel.checkEmailExists(userAdminData.email) { emailExists ->
-                                                if (emailExists) {
-                                                    isBarberEmailValid = false
-                                                    setHeightOfWrapperInputLayout(wrapperBarbershopEmail, true)
-                                                    textErrorForEmail = getString(R.string.email_already_exist)
-                                                    wrapperBarbershopEmail.error = textErrorForEmail
-                                                } else {
-                                                    isBarberEmailValid = true
-                                                    setHeightOfWrapperInputLayout(wrapperBarbershopEmail, false)
-                                                    textErrorForEmail = ""
-                                                    wrapperBarbershopEmail.error = null
+                                    if (userAdminData.uid.isNotEmpty()) showConfirmationWindow() else {
+                                        stepTwoViewModel.checkEmailExists(userAdminData.email) { emailExists ->
+                                            if (emailExists) {
+                                                isBarberEmailValid = false
+                                                setHeightOfWrapperInputLayout(wrapperBarbershopEmail, true)
+                                                textErrorForEmail = getString(R.string.email_already_exist)
+                                                wrapperBarbershopEmail.error = textErrorForEmail
+                                            } else {
+                                                isBarberEmailValid = true
+                                                setHeightOfWrapperInputLayout(wrapperBarbershopEmail, false)
+                                                textErrorForEmail = ""
+                                                wrapperBarbershopEmail.error = null
 
-                                                    Log.d("UAD", "123")
-                                                    stepTwoViewModel.addNewUserAdminToDatabase(false)
-                                                }
+                                                Log.d("UAD", "123")
+                                                stepTwoViewModel.addNewUserAdminToDatabase(false)
                                             }
                                         }
                                     }
                                 }
                             }
-                        } else {
-                            Toast.makeText(this@SignUpStepTwo, "Mohon periksa kembali data yang dimasukkan", Toast.LENGTH_SHORT).show()
-                            if (!isBarberNameValid) setFocus(etBarbershopName)
-                            else if (!isBarberEmailValid) setFocus(etBarbershopEmail)
                         }
-                    } else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
+                        if (!isBarberNameValid) setFocus(etBarbershopName)
+                        else if (!isBarberEmailValid) setFocus(etBarbershopEmail)
+                    }
+//                    if (!blockAllUserClickAction) {
+//                    } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                 }
                 R.id.ivProfile -> {
-                    if (!blockAllUserClickAction) showImagePickerDialog()
-                    else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
+                    showImagePickerDialog()
+//                    if (!blockAllUserClickAction)
+//                    else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                 }
                 R.id.ivEmptyProfile -> {
-                    if (!blockAllUserClickAction) showImagePickerDialog()
-                    else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
+                    showImagePickerDialog()
+//                    if (!blockAllUserClickAction)
+//                    else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                 }
                 R.id.ivBack -> {
                     if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
-                    else Toast.makeText(this@SignUpStepTwo, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                    else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                 }
             }
         }
@@ -457,19 +516,28 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
         // Menangani klik pada tombol "Get Directions"
         windowBinding.btnAccept.setOnClickListener {
-            if (!blockAllUserClickAction) {
-                checkNetworkConnection {
-                    if (isProcessError) {
-                        when (retryStep) {
-                            "UPLOAD_IMAGE" -> stepTwoViewModel.addNewUserAdminToDatabase(true)
-                            "SAVE_DATA" -> stepTwoViewModel.saveNewDataAdminToFirestore()
-                            "BATCH_DELETE" -> stepTwoViewModel.clearOutletsAndAddNew()
-                            "ADD_SUPPORT_DATA" -> stepTwoViewModel.runAddOutletAndService()
-                            "UPDATE_ROLES" -> stepTwoViewModel.updateUserRolesAndProfile()
-                        }
-                    } else stepTwoViewModel.addNewUserAdminToDatabase(true)
-                }
-            } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+            if (!debounce.run {
+                it.isSafeClick(
+                    isLoading = blockAllUserClickAction,
+                    onLoadingBlocked = {
+                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                    }
+                )
+            }) return@setOnClickListener
+            // hmmmmm
+            checkNetworkConnection {
+                if (isProcessError) {
+                    when (retryStep) {
+                        "UPLOAD_IMAGE" -> stepTwoViewModel.addNewUserAdminToDatabase(true)
+                        "SAVE_DATA" -> stepTwoViewModel.saveNewDataAdminToFirestore()
+                        "BATCH_DELETE" -> stepTwoViewModel.clearOutletsAndAddNew()
+                        "ADD_SUPPORT_DATA" -> stepTwoViewModel.runAddOutletAndService()
+                        "UPDATE_ROLES" -> stepTwoViewModel.updateUserRolesAndProfile()
+                    }
+                } else stepTwoViewModel.addNewUserAdminToDatabase(true)
+            }
+//            if (!blockAllUserClickAction) {
+//            } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
 
             isShowDialogAccountExist = false
             popupWindow.dismiss() // Tutup pop-up setelah mengklik tombol
@@ -478,7 +546,13 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
     private fun handleFailure(message: String, step: String) {
         binding.progressBar.visibility = View.GONE
-        if (message.isNotEmpty()) Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        if (message.isNotEmpty()) {
+            when (message) {
+                NetworkMonitor.errorMessage.value, "Koneksi internet tidak tersedia. Periksa koneksi Anda." -> {
+                    NetworkMonitor.showToast(message, true)
+                } else -> toastViewModel.showToast(message, true)
+            }
+        }
         if (step.isNotEmpty()) {
             isProcessError = true
             retryStep = step
@@ -503,8 +577,8 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 isProcessError = false
@@ -523,16 +597,6 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
-    }
-
     private fun setupEditTextListeners() {
         with (binding) {
             textWatcher1 = object : TextWatcher {
@@ -542,6 +606,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "BarberInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
                             isBarberNameValid = validateBarbershopName()
                             checkBtnStateCondition(validateInputs())
@@ -558,6 +623,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        Logger.d("UserInputCheck", "EmailInputCheck inputManualCheckTwo >> ${inputManualCheckTwo == null}")
                         inputManualCheckTwo?.invoke() ?: run {
                             isBarberEmailValid = validateBarbershopEmail()
                             checkBtnStateCondition(validateInputs())
@@ -567,6 +633,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== SignUpStepTwo ===")
             // Add TextWatcher for barbershop name validation
             etBarbershopName.addTextChangedListener(textWatcher1)
             // Add TextWatcher for barbershop email validation
@@ -675,17 +742,14 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    private fun setFocus(editText: View) {
-        editText.requestFocus()
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-        binding.etBarbershopName.removeTextChangedListener(textWatcher1)
-        binding.etBarbershopEmail.removeTextChangedListener(textWatcher2)
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+//        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -709,11 +773,31 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 // ⛔ TIDAK dilepas → activity selesai
             }
         } else {
-            Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
             // ⛔ Lepas lock setelah frame selesai
             isHandlingBack = false
         }
 
+    }
+
+    private fun setFocus(editText: View) {
+        editText.requestFocus()
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        binding.etBarbershopName.removeTextChangedListener(textWatcher1)
+        binding.etBarbershopEmail.removeTextChangedListener(textWatcher2)
     }
 
     companion object {

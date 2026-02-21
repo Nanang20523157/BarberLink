@@ -10,7 +10,9 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListPackageBundlingAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPackageBundlingBinding
@@ -20,6 +22,7 @@ class ItemListPackageBundlingAdapter(
     private val callbackToast: DisplayThisToastMessage,
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private val shimmerItemCount = 3
@@ -27,7 +30,7 @@ class ItemListPackageBundlingAdapter(
     private var lastScrollPosition = 0
 
     interface DisplayThisToastMessage {
-        fun displayThisToast(message: String)
+        fun displayThisToast(message: String, isImportant: Boolean)
     }
 
     fun stopAllShimmerEffects() {
@@ -133,13 +136,16 @@ class ItemListPackageBundlingAdapter(
                 tvHargaPaket.text = NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
 
                 btnDeletePackage.setOnClickListener {
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm
                     callbackToast.displayThisToast(
-                        "Delete feature is under development..."
+                        "Delete feature is under development...", true
                     )
                 }
-                
+
                 val serviceCount = packageBundling.listItemDetails?.size ?: 0
-                
+                Logger.d("CheckShimmer", "service count list itm bundling: $serviceCount")
+
                 if (serviceCount >= 1) {
                     Glide.with(root.context)
                         .load(packageBundling.listItemDetails?.get(0)?.serviceIcon)

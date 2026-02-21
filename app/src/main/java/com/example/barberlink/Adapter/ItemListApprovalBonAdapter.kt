@@ -1,7 +1,5 @@
 package com.example.barberlink.Adapter
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -16,48 +14,57 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BonEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.ApproveOrRejectBonPage
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.example.barberlink.databinding.ItemApproveOrRejectBonBinding
 import com.example.barberlink.databinding.ShimmerApproveOrRejectBonBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class ItemListApprovalBonAdapter(
-    private val dbReference: FirebaseFirestore,
+    private val db: FirebaseFirestore,
     private val itemClicked: OnItemClicked,
-    private val lifecycleOwner: LifecycleOwner,
-    private val callbackUpdate: OnProcessUpdateCallback,
     private val callbackToast: DisplayThisToastMessage,
-    private val activity: ApproveOrRejectBonPage
+    private val updateStatus: UpdateBonStatus,
+    private val updateReturn: UpdateReturnStatus
 ) : ListAdapter<BonEmployeeData, RecyclerView.ViewHolder>(ListBonDiffCallback()), LifecycleObserver {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
-    private val shimmerItemCount = 3
+    private var shimmerItemCount = 3
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var copyData: BonEmployeeData? = null
     private var isOnline = false
-
-    private var isDestroyed = false
-    private val handler = Handler(Looper.getMainLooper())
+    private var blockAllUserClickAction: Boolean = false
 
     interface OnItemClicked {
         fun onItemClickListener(item: BonEmployeeData)
     }
 
-    interface OnProcessUpdateCallback {
-        fun onProcessUpdate(state: Boolean)
+    interface DisplayThisToastMessage {
+        fun displayThisToast(message: String, isImportant: Boolean)
     }
 
-    interface DisplayThisToastMessage {
-        fun displayThisToast(message: String)
+    interface UpdateBonStatus {
+        fun updateBonStatus(bonData: BonEmployeeData, bonStatus: String, isApproved: Boolean, index: Int)
+    }
+
+    interface UpdateReturnStatus {
+        fun updateReturnStatus(bonData: BonEmployeeData, oldBonData: BonEmployeeData, isChecked: Boolean, oldStatus: String, index: Int)
     }
 
     fun stopAllShimmerEffects() {
@@ -69,19 +76,33 @@ class ItemListApprovalBonAdapter(
         }
     }
 
-    init {
-        lifecycleOwner.lifecycle.addObserver(this)
-
-        lifecycleOwner.lifecycleScope.launch {
-            NetworkMonitor.isOnline.collect { status ->
-                isOnline = status
-                notifyDataSetChanged()
-            }
-        }
+    fun getLastScrollPosition(): Int {
+        return lastScrollPosition
     }
 
     fun setlastScrollPosition(position: Int) {
         this.lastScrollPosition = position
+    }
+
+    fun getShimmerItemCount(): Int {
+        return shimmerItemCount
+    }
+
+    fun setShimmerItemCount(size: Int) {
+        this.shimmerItemCount = size
+    }
+
+    fun updateNetworkStatus(status: Boolean) {
+        isOnline = status
+        notifyDataSetChanged()
+    }
+
+    fun setBlockStatusUI(value: Boolean) {
+        this.blockAllUserClickAction = value
+    }
+
+    fun getIsShimmer(): Boolean {
+        return isShimmer
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -156,57 +177,6 @@ class ItemListApprovalBonAdapter(
             }
         }
 
-    }
-
-    fun letScrollToLastPosition() {
-        Log.d("ObjectReferences", "ItemListCollapseQueueAdapter >>>>>>>>")
-        // Log apakah recyclerView null
-        if (recyclerView == null) {
-            Log.e("ObjectReferences", "recyclerView is null")
-        } else {
-            Log.d("ObjectReferences", "recyclerView is not null")
-        }
-
-        waitForRecyclerView {
-            val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
-            recyclerView?.post {
-                val itemCount = recyclerView?.adapter?.itemCount ?: 0
-                val positionToScroll = if (isShimmer) {
-                    minOf(lastScrollPosition, shimmerItemCount - 1)
-                } else {
-                    lastScrollPosition
-                }
-
-                // Validasi posisi target
-                if (positionToScroll in 0 until itemCount) {
-                    Log.d("ObjectReferences", "adapter: $lastScrollPosition")
-                    layoutManager?.scrollToPosition(positionToScroll)
-                } else {
-                    // Log untuk debugging
-                    Log.e("ObjectReferences", "Invalid target position: $positionToScroll, itemCount: $itemCount")
-                }
-            }
-        }
-
-    }
-
-    private fun waitForRecyclerView(action: () -> Unit) {
-        val checkInterval = 50L
-
-        handler.post(object : Runnable {
-            override fun run() {
-                if (isDestroyed) {
-                    handler.removeCallbacks(this)
-                    return
-                }
-
-                if (recyclerView != null) {
-                    action()
-                } else {
-                    handler.postDelayed(this, checkInterval)
-                }
-            }
-        })
     }
 
     inner class ShimmerViewHolder(private val binding: ShimmerApproveOrRejectBonBinding) :
@@ -309,7 +279,16 @@ class ItemListApprovalBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData, adapterPosition, "approved", true)
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
+                    updateStatus.updateBonStatus(bonData, "approved", true, adapterPosition)
                 }
 
                 btnReject.setOnClickListener {
@@ -319,12 +298,30 @@ class ItemListApprovalBonAdapter(
                         return@setOnClickListener
                     }
 
-                    updateBonStatus(bonData, adapterPosition, "rejected", false)
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
+                    updateStatus.updateBonStatus(bonData, "rejected", false, adapterPosition)
                 }
 
                 btnRecordInstallment.setOnClickListener {
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
                     if (bonData.bonStatus == "waiting") {
-                        callbackToast.displayThisToast("Anda belum menyetujui permintaan bon ini!")
+                        callbackToast.displayThisToast("Anda belum menyetujui permintaan bon ini!", true)
                     } else {
                         itemClicked.onItemClickListener(bonData)
                     }
@@ -335,7 +332,17 @@ class ItemListApprovalBonAdapter(
                     switch2.isEnabled = true
                     switch2.setOnClickListener {
                         switch2.isChecked = true
-                        callbackToast.displayThisToast("Bon telah dilunasi, Jika ingin melakukan perubahan lakukan melalui Catatan Angsuran!!!")
+                        switch2.jumpDrawablesToCurrentState()
+                        // hmmmmm
+                        if (!debounce.run {
+                            it.isSafeClick(
+                                isLoading = blockAllUserClickAction,
+                                onLoadingBlocked = {
+                                    callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                                }
+                            )
+                        }) return@setOnClickListener
+                        callbackToast.displayThisToast("Bon telah dilunasi, Jika ingin melakukan perubahan lakukan melalui Catatan Angsuran!!!", true)
                     }
                 } else {
                     when (bonData.bonStatus) {
@@ -354,6 +361,13 @@ class ItemListApprovalBonAdapter(
                                     return@setOnCheckedChangeListener // ✅ pakai label bawaan dari interface
                                 }
 
+                                if (blockAllUserClickAction) {
+                                    switch2.isChecked = !isChecked
+                                    switch2.jumpDrawablesToCurrentState()
+                                    callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                                    return@setOnCheckedChangeListener
+                                }
+                                // hmmmmm switch
                                 copyData = bonData.deepCopy(
                                     copyCreatorDetail = false,
                                     copyCreatorWithReminder = false,
@@ -377,12 +391,7 @@ class ItemListApprovalBonAdapter(
                                     }
                                 }
 
-                                lifecycleOwner.lifecycleScope.launch {
-                                    delay(200)
-                                    copyData?.let {
-                                        updateReturnStatus(it, bonData, isChecked, bonData.returnStatus)
-                                    }
-                                }
+                                copyData?.let { updateReturn.updateReturnStatus(it, bonData, isChecked, bonData.returnStatus, adapterPosition) }
                             }
                         }
                         "rejected" -> {
@@ -398,7 +407,17 @@ class ItemListApprovalBonAdapter(
                             switch2.isEnabled = true
                             switch2.setOnClickListener {
                                 switch2.isChecked = false
-                                callbackToast.displayThisToast("Anda belum menyetujui permintaan bon ini!")
+                                switch2.jumpDrawablesToCurrentState()
+                                // hmmmmm
+                                if (!debounce.run {
+                                    it.isSafeClick(
+                                        isLoading = blockAllUserClickAction,
+                                        onLoadingBlocked = {
+                                            callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                                        }
+                                    )
+                                }) return@setOnClickListener
+                                callbackToast.displayThisToast("Anda belum menyetujui permintaan bon ini!", true)
                             }
                         }
                     }
@@ -470,58 +489,20 @@ class ItemListApprovalBonAdapter(
 
         }
 
-        private fun updateBonStatus(bonData: BonEmployeeData, position: Int, newStatus: String, isBtnApprove: Boolean) {
-            activity.showProgressBar(true) // Nyalakan progress bar
-
-            val bonRef = dbReference.collection("${bonData.rootRef}/employee_bon").document(bonData.uid)
-
-            val updateData = mutableMapOf<String, Any>(
-                "bon_status" to newStatus
-            )
-
-            // Jika tombol Approve ditekan, tambahkan perubahan return_status
-            if (isBtnApprove) {
-                updateData["return_status"] = "Belum Bayar"
-            }
-
-            bonRef.update(updateData)
-                .addOnSuccessListener {
-                    callbackUpdate.onProcessUpdate(true)
-                }
-                .addOnFailureListener { e ->
-                    callbackUpdate.onProcessUpdate(false)
-                    callbackToast.displayThisToast("Gagal memperbarui status: ${e.message}")
-                }
-                .addOnCompleteListener {
-                    activity.showProgressBar(false) // Matikan progress bar setelah selesai
-                }
-        }
-
-
-        private fun updateReturnStatus(data: BonEmployeeData, bonData: BonEmployeeData, isCheck: Boolean, oldStatus: String) {
-            bonData.returnStatus = data.returnStatus
-            activity.showProgressBar(true) // Nyalakan progress bar
-
-            val bonRef = dbReference.collection("${data.rootRef}/employee_bon").document(data.uid)
-
-            bonRef.set(data)
-                .addOnSuccessListener {
-                    callbackUpdate.onProcessUpdate(true)
-                }
-                .addOnFailureListener { e ->
-                    callbackUpdate.onProcessUpdate(false)
-                    callbackToast.displayThisToast("Gagal memperbarui status: ${e.message}")
-                    binding.switch2.isChecked = !isCheck // Kembalikan status switch ke semula
-                    bonData.returnStatus = oldStatus // Kembalikan status bonData ke semula
-                }
-                .addOnCompleteListener {
-                    activity.showProgressBar(false) // Matikan progress bar setelah selesai
-                }
-
-            copyData = null
-        }
-
     }
+
+    fun restoreSwitchState(isChecked : Boolean, oldStatus: String, index: Int) {
+        Log.d("SwitchAnomali", "index: $index || isChecked: $isChecked")
+        val bonData = getItem(index)
+        val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemListOutletAdapter.ItemViewHolder)?.binding
+        if (binding != null) {
+            binding.switch2.isChecked = isChecked
+            binding.switch2.jumpDrawablesToCurrentState() // Kembalikan status switch ke semula
+            bonData.returnStatus = oldStatus // Kembalikan status bonData ke semula
+        }
+    }
+
+    fun resetCopyData() { copyData = null }
 
     companion object {
         private const val VIEW_TYPE_ITEM = 0

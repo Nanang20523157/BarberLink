@@ -29,6 +29,10 @@ class ItemListServiceOrdersAdapter(
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
 
+    interface OnItemClicked {
+        fun onItemClickListener(service: Service, index: Int, addCount: Boolean, currentList: List<Service>?)
+    }
+
     fun stopAllShimmerEffects() {
         if (shimmerViewList.isNotEmpty()) {
             shimmerViewList.forEach {
@@ -44,10 +48,6 @@ class ItemListServiceOrdersAdapter(
 
     fun setlastScrollPosition(position: Int) {
         this.lastScrollPosition = position
-    }
-
-    interface OnItemClicked {
-        fun onItemClickListener(service: Service, index: Int, addCount: Boolean, currentList: List<Service>?)
     }
 
     override fun getItemViewType(position: Int): Int {

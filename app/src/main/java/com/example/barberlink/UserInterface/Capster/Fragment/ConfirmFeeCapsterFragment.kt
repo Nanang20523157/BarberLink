@@ -20,8 +20,9 @@ import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.example.barberlink.DataClass.BundlingPackage
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.Utils.NumberUtils
@@ -42,8 +43,9 @@ private const val ARG_PARAM4 = "param4"
 class ConfirmFeeCapsterFragment : DialogFragment() {
     private var _binding: FragmentConfirmFeeCapsterBinding? = null
     private val confirmFeeCapsViewModel: QueueControlViewModel by activityViewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     // private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private var currentReservation: Reservation? = null
+    private var currentReservationData: ReservationData? = null
     //private var serviceList: ArrayList<Service>? = null
     //private var bundlingList: ArrayList<BundlingPackage>? = null
     private var useUidApplicantCapsterRef: Boolean = true
@@ -63,6 +65,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        confirmFeeCapsViewModel
         arguments?.let {
 //            currentReservation = it.getParcelable(ARG_PARAM1)
 //            val dataListService: ArrayList<Service> = it.getParcelableArrayList(ARG_PARAM2) ?: arrayListOf()
@@ -89,18 +92,18 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvUseMyFormat.isSelected = true
-        confirmFeeCapsViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+        confirmFeeCapsViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
-                currentReservation = reservation
-                currentReservation?.let {
+                currentReservationData = reservation
+                currentReservationData?.let {
                     val text = getString(R.string.text_content_fee_capster_fragment)
                     val htmlText = String.format(text, capsterApplicantName)
                     val formattedText: Spanned =
                         HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
                     binding.tvMessage.text = formattedText
                 }
-                priceApplicantCapster = currentReservation?.paymentDetail?.finalPrice?.toDouble() ?: 0.0
-                adjustOrderItemData(confirmFeeCapsViewModel.duplicateServiceList.value ?: emptyList(), confirmFeeCapsViewModel.duplicateBundlingPackageList.value ?: emptyList(), currentReservation?.capsterInfo?.capsterRef?.split("/")?.lastOrNull() ?: "")
+                priceApplicantCapster = currentReservationData?.paymentDetail?.finalPrice?.toDouble() ?: 0.0
+                adjustOrderItemData(confirmFeeCapsViewModel.duplicateServiceList.value ?: emptyList(), confirmFeeCapsViewModel.duplicateBundlingPackageList.value ?: emptyList(), currentReservationData?.capsterInfo?.capsterRef?.split("/")?.lastOrNull() ?: "----------------")
                 // saat di di adjustOrderItemData list duplication di set ulang
                 // tapi pada saat accumulatedItemPrice kemungkinan besar list duplication yang dipakai masih list lama tapi gak papa emang harusnya nya saat pertama kali priceApplicantCapster == priceReceiverCapster
                 // tapi pas orientasi change nanti list duplication yang dipakek udah list yang disesuaikan sama capsterRef nya jadi priceReceiverCapster pakek nominal yang udah disesuaikan juga
@@ -110,7 +113,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
                 } ?: 0
 
                 priceReceiverCapster =
-                    (accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )).toDouble()
+                    (accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )).toDouble()
 
                 // HARUSNYA SWITCH AWAL SELALU OFF
                 if (savedInstanceState == null) binding.switchAdjustPrice.isChecked = !useUidApplicantCapsterRef
@@ -157,11 +160,14 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
         })
 
         binding.btnNext.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             setFragmentResult("open_edit_order_page", bundleOf(
-                "current_reservation" to currentReservation,
+                "current_reservation" to currentReservationData,
                 "use_uid_applicant_capster_ref" to useUidApplicantCapsterRef,
                 "final_price_text" to finalPriceText
             ))
+
             dismiss()
             parentFragmentManager.popBackStack()
         }
@@ -274,7 +280,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
                 bundling.resultsShareFormat,
                 bundling.resultsShareAmount,
                 bundling.applyToGeneral,
-                capsterUid ?: "----------------"
+                capsterUid
             )
             Log.d("CheckAdapter", "Service Data: ${bundling.packageName} - ${bundling.bundlingQuantity} - ${bundling.priceToDisplay}")
         }
@@ -286,7 +292,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
                 service.resultsShareFormat,
                 service.resultsShareAmount,
                 service.applyToGeneral,
-                capsterUid ?: "----------------"
+                capsterUid
             )
             Log.d("CheckAdapter", "Service Data: ${service.serviceName} - ${service.serviceQuantity} - ${service.priceToDisplay}")
         }
@@ -325,9 +331,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        confirmFeeCapsViewModel.clearDuplicateServiceList()
-        confirmFeeCapsViewModel.clearDuplicateBundlingPackageList()
-        confirmFeeCapsViewModel.setCurrentReservationData(null)
+        confirmFeeCapsViewModel.clearFragmentData()
     }
 
     companion object {
@@ -341,10 +345,10 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, serviceList: ArrayList<Service>, bundlingList: ArrayList<BundlingPackage>, capsterApplicantName: String) =
+        fun newInstance(currentReservationData: ReservationData, serviceList: ArrayList<Service>, bundlingList: ArrayList<BundlingPackage>, capsterApplicantName: String) =
             ConfirmFeeCapsterFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putParcelableArrayList(ARG_PARAM2, serviceList)
                     putParcelableArrayList(ARG_PARAM3, bundlingList)
                     putString(ARG_PARAM4, capsterApplicantName)

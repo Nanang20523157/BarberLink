@@ -9,9 +9,15 @@ import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.databinding.FragmentPaymentMethodBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -30,12 +36,15 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
     // TNODO: Rename and change types of parameters
 //    private var paymentMethod: String? = null
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var param2: String? = null
     private var selectedPaymentMethod: String? = null
     private lateinit var context: Context
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        toastViewModel
         if (savedInstanceState != null) {
             // Restore the selected payment method from the saved instance state
             selectedPaymentMethod = savedInstanceState.getString(ARG_PARAM1)
@@ -74,6 +83,8 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
         }
 
         binding.btnSelectPayment.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             val selectedRadioButtonId = binding.radioGroup.checkedRadioButtonId
             selectedPaymentMethod = when (selectedRadioButtonId) {
                 R.id.rbCash -> "CASH"
@@ -85,15 +96,44 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
                 setFragmentResult("user_payment_method", bundleOf("payment_method" to selectedPaymentMethod))
                 dismiss()
             } ?: run {
-                Toast.makeText(context, "Anda belum memilih metode pembayaran!!", Toast.LENGTH_SHORT).show()
+                toastViewModel.showToast("Anda belum memilih metode pembayaran!!", true)
             }
         }
     }
+
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         // Save the selected payment method to the outState bundle
         outState.putString(ARG_PARAM1, selectedPaymentMethod)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (requireActivity().isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
     }
 
     override fun onDestroyView() {

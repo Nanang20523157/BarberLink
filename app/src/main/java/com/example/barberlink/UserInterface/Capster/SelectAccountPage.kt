@@ -4,8 +4,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.animation.Animation
@@ -25,10 +23,12 @@ import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.PinInputFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.SelectAccountViewModel
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.databinding.ActivitySelectAccountPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -37,6 +37,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -44,24 +45,20 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     private lateinit var binding: ActivitySelectAccountPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val selectAccountViewModel: SelectAccountViewModel by viewModels()
-
+    private val toastViewModel: ToastViewModel by viewModels()
     private var isFirstLoad: Boolean = true
     private var skippedProcess: Boolean = false
     private var keyword: String = ""
-    private var currentToastMessage: String? = null
     private var isRecreated: Boolean = false
     private var isShimmerVisible: Boolean = false
-
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: PinInputFragment
     private lateinit var employeeAdapter: ItemListPickUserAdapter
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var outletListener: ListenerRegistration
-    private val handler = Handler(Looper.getMainLooper())
     private val employeeMutex = Mutex()
     private var remainingListeners = AtomicInteger(2)
     private var shouldClearBackStack = true
-    private var myCurrentToast: Toast? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -94,13 +91,15 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             binding.mainContent.startAnimation(fadeIn)
         }
 
+        selectAccountViewModel
+        toastViewModel
         fragmentManager = supportFragmentManager
+
         @Suppress("DEPRECATION")
         if (savedInstanceState != null) {
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             keyword = savedInstanceState.getString("keyword", "") ?: ""
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
@@ -146,9 +145,9 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             if (savedInstanceState != null) {
                 val filteredResult = selectAccountViewModel.filteredEmployeeList.value ?: emptyList()
                 employeeAdapter.submitList(filteredResult)
-                binding.tvEmptyEmployee.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
                 employeeAdapter.setShimmer(false)
                 isShimmerVisible = false
+                binding.tvEmptyEmployee.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
 
                 if (!isFirstLoad) setupListeners(skippedProcess = true)
             }
@@ -175,12 +174,12 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             if (withShimmer != null) {
                 val filteredResult = selectAccountViewModel.filteredEmployeeList.value ?: emptyList()
                 employeeAdapter.submitList(filteredResult)
-                binding.tvEmptyEmployee.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
                 if (withShimmer) {
                     employeeAdapter.setShimmer(false)
                     isShimmerVisible = false
                 }
                 else employeeAdapter.notifyDataSetChanged()
+                binding.tvEmptyEmployee.visibility = if (filteredResult.isEmpty()) View.VISIBLE else View.GONE
             }
         }
 
@@ -195,22 +194,26 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@SelectAccountPage,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@SelectAccountPage,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -222,7 +225,6 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putString("keyword", keyword)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun setupListeners(skippedProcess: Boolean = false) {
@@ -241,27 +243,16 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        // WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        if (!isRecreated) {
-            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
-                val intent = Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                }
-                startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
-            }
-        }
-        isRecreated = false
-    }
-
     private fun listenSpecificOutletData() {
         selectAccountViewModel.outletSelected.value?.let { outletSelected ->
             if (::outletListener.isInitialized) {
                 outletListener.remove()
+            }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
             }
             var decrementGlobalListener = false
 
@@ -269,70 +260,32 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                 .collection("outlets")
                 .document(outletSelected.uid)
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to outlet data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        if (!isFirstLoad && !skippedProcess && it.exists()) {
-                            val outletData = it.toObject(Outlet::class.java)?.apply {
-                                outletReference = it.reference.path
-                            }
-                            outletData?.let { outlet ->
-                                selectAccountViewModel.setOutletSelected(outlet)
-                            }
-                        }
-
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                    }
-                }
-        }
-    }
-
-    private fun listenToEmployeesData() {
-        selectAccountViewModel.outletSelected.value?.let { outletSelected ->
-            if (::employeeListener.isInitialized) {
-                employeeListener.remove()
-            }
-            var decrementGlobalListener = false
-
-            employeeListener = db.collectionGroup("employees")
-                .whereEqualTo("root_ref", outletSelected.rootRef)
-                .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to employee data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                val outletData = selectAccountViewModel.outletSelected.value ?: return@launch
-                                val employeeUidList = outletData.listEmployees
-
-                                val newEmployeesList = it.documents.mapNotNull { document ->
-                                    document.toObject(UserEmployeeData::class.java)?.apply {
-                                        userRef = document.reference.path
-                                        outletRef = outletData.outletReference
-                                    }?.takeIf { it.uid in employeeUidList }
+                    lifecycleScope.launch {
+                        selectAccountViewModel.listenerOutletDataMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlet data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
                                 }
-
-                                employeeMutex.withLock {
-                                    selectAccountViewModel.setEmployeeList(newEmployeesList.toMutableList())
-                                    selectAccountViewModel.triggerFilteringDataEmployee(false)
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            val outletData = docs.toObject(Outlet::class.java)?.apply {
+                                                outletReference = docs.reference.path
+                                            }
+                                            outletData?.let { outlet ->
+                                                selectAccountViewModel.setOutletSelected(outlet)
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -340,14 +293,82 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                         }
                     }
                 }
+        } ?: run {
+            outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        }
+    }
+
+    private fun listenToEmployeesData() {
+        selectAccountViewModel.outletSelected.value?.let { outletSelected ->
+            // jika listener maka tidak perlu ada pemberitahuan untuk (employeeUidList) kosong
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
+            }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            employeeListener = db.collectionGroup("employees")
+                .whereEqualTo("root_ref", outletSelected.rootRef)
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        selectAccountViewModel.listenerEmployeeListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        selectAccountViewModel.outletSelected.value?.let { outletData ->
+                                            val employeeUidList = outletData.listEmployees
+
+                                            val newEmployeesList = docs.documents.mapNotNull { document ->
+                                                document.toObject(UserEmployeeData::class.java)?.apply {
+                                                    userRef = document.reference.path
+                                                    outletRef = outletData.outletReference
+                                                }?.takeIf { it.uid in employeeUidList }
+                                            }
+
+                                            selectAccountViewModel.employeeMutex.withStateLock {
+                                                selectAccountViewModel.setEmployeeList(newEmployeesList.toMutableList())
+                                                selectAccountViewModel.triggerFilteringDataEmployee(false)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        } ?: run {
+            employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
     private fun displayAllData() {
-        // filterOutlets(keyword, shimmerState)  // Update UI with the data
-        selectAccountViewModel.triggerFilteringDataEmployee(true)
+        lifecycleScope.launch {
+            // filterOutlets(keyword, shimmerState)  // Update UI with the data
+            selectAccountViewModel.triggerFilteringDataEmployee(true)
 
-        if (isFirstLoad) setupListeners()
+            if (isFirstLoad) setupListeners()
+        }
     }
 
     private fun filterEmployee(query: String, withShimmer: Boolean) {
@@ -389,6 +410,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onItemClickListener(userEmployeeData: UserEmployeeData) {
+        // hmmmmm???--
         StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
         shouldClearBackStack = false
         if (supportFragmentManager.findFragmentByTag("PinInputFragment") != null) {
@@ -416,6 +438,23 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                 .addToBackStack("PinInputFragment")
                 .commit()
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        // WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        if (!isRecreated) {
+            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                toastViewModel.showToast("Sesi telah berakhir silahkan masuk kembali", false)
+            }
+        }
+        isRecreated = false
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -476,15 +515,12 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         if (isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     override fun onDestroy() {
         super.onDestroy()
         employeeAdapter.stopAllShimmerEffects()
 
-        handler.removeCallbacksAndMessages(null)
         selectAccountViewModel.clearState()
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()

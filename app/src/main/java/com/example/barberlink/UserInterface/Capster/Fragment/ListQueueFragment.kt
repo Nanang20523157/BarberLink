@@ -8,12 +8,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListExpandQueueAdapter
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.databinding.FragmentListQueueBinding
@@ -73,6 +75,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        listQueueViewModel
 //        arguments?.let {
 //            reservations = it.getParcelableArrayList(ARG_PARAM1)
 //            currentIndex = it.getInt(ARG_PARAM2)
@@ -107,8 +110,10 @@ class ListQueueFragment : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         queueAdapter = ItemListExpandQueueAdapter(object : ItemListExpandQueueAdapter.OnItemClicked {
-            override fun onItemClickListener(reservation: Reservation, rootView: View, position: Int) {
+            override fun onItemClickListener(position: Int) {
                 // Handle onItemClickListener
+                setFragmentResult("load_reservation_data", bundleOf("position_current_index" to position))
+                dismiss()
             }
         })
 
@@ -142,7 +147,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
             }
         }
 
-        listQueueViewModel.reservationList.observe(viewLifecycleOwner) { reservations ->
+        listQueueViewModel.reservationDataList.observe(viewLifecycleOwner) { reservations ->
             // Menggunakan coroutine untuk menunda eksekusi submitList
             reservations?.let {
                 lifecycleScope.launch {
@@ -214,10 +219,10 @@ class ListQueueFragment : BottomSheetDialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(listReservation: ArrayList<Reservation>, currentIndex: Int) =
+        fun newInstance(listReservationData: ArrayList<ReservationData>, currentIndex: Int) =
             ListQueueFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelableArrayList(ARG_PARAM1, listReservation)
+                    putParcelableArrayList(ARG_PARAM1, listReservationData)
                     putInt(ARG_PARAM2, currentIndex)
                 }
             }

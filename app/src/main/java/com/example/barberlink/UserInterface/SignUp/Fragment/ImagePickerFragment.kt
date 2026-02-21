@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.DialogFragment
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.databinding.FragmentImagePickerBinding
 import com.github.dhaval2404.imagepicker.ImagePicker
 
@@ -22,6 +23,7 @@ private const val ARG_PARAM2 = "param2"
  */
 class ImagePickerFragment : DialogFragment() {
     private var _binding: FragmentImagePickerBinding? = null
+    private val debounce by lazy { ScopedUniversalDebounce() }
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
@@ -54,6 +56,8 @@ class ImagePickerFragment : DialogFragment() {
         }
 
         binding.btnCamera.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             ImagePicker.with(this)
                 .cameraOnly()
                 .crop()
@@ -63,6 +67,8 @@ class ImagePickerFragment : DialogFragment() {
         }
 
         binding.btnGallery.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             ImagePicker.with(this)
                 .galleryOnly()
                 .crop()

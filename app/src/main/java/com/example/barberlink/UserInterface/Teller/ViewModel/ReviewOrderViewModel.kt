@@ -8,9 +8,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.Customer
 import com.example.barberlink.DataClass.NotificationReminder
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.TimeUtil
 import com.google.firebase.Timestamp
@@ -18,9 +20,11 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
@@ -29,40 +33,63 @@ class ReviewOrderViewModel(
     private val db: FirebaseFirestore,
 ) : ViewModel() {
 
+    private val listenerReservationsMutex = ReentrantCoroutineMutex()
+    private val listenerLocationMutex = ReentrantCoroutineMutex()
+
+    // =========================================================
+    // === UTILITAS DASAR
+    // =========================================================
+
+    private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
+        withContext(Dispatchers.Main) { value = newValue }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.addItem(item: T) {
+        val updated = (value ?: mutableListOf()).apply { add(item) }
+        updateOnMain(updated)
+    }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.clearList() =
+        updateOnMain(mutableListOf())
+
+    // =======================================================================
+
     private lateinit var reservationRef: DocumentReference
     private lateinit var outletSelected: Outlet
     private lateinit var capsterSelected: UserEmployeeData
     private lateinit var customerData: UserCustomerData
-    private lateinit var userReservationData: Reservation
+    private lateinit var userReservationData: ReservationData
     private var isSchedulingReservation: Boolean = false
     private var isAddCapsterReminderFailed: Boolean = false
     private var isAddCustomerReminderFailed: Boolean = false
     private var isAddCapsterNotificationFailed: Boolean = false
     private var reservationUid: String = ""
-
     private var isUpdateCustomerOutletFailed: Boolean = false
+    private var isUpdateUserCoinsFailed: Boolean = false
     private var isTriggerAddUserDataIsFailed: Boolean = false
     private lateinit var reservationListener: ListenerRegistration
     private lateinit var locationListener: ListenerRegistration
 
+    sealed class ResultState {
+        data object Loading: ResultState()
+        data object Success: ResultState()
+        data class Failure(val message: String): ResultState()
+    }
+
     private val _reservationResult = MutableLiveData<ResultState?>()
     val reservationResult: LiveData<ResultState?> = _reservationResult
 
+    sealed class TriggerToast {
+        data object LocalToast: TriggerToast()
+        data class CommonToast(val message: String): TriggerToast()
+    }
+
     private val _toastDetection = MutableLiveData<TriggerToast?>()
     val toastDetection: LiveData<TriggerToast?> = _toastDetection
-
-    sealed class ResultState {
-        data object Loading : ResultState()
-        data object Success : ResultState()
-        data class Failure(val message: String) : ResultState()
-
-    }
 
     private var isFirstLoad: Boolean = true
     private var skippedProcess: Boolean = false
     private var btnRequestClicked: Boolean = false
     private var isSuccessGetReservation: Boolean = false
-    private var isProcessUpdatingData: Boolean = false
     private var totalQueueNumber: Int = 0
 
     fun isReservationListenerInitialized(): Boolean {
@@ -70,115 +97,150 @@ class ReviewOrderViewModel(
     }
 
     fun isLocationListenerInitialized(): Boolean {
-        return ::locationListener.isInitialized
+        return runBlocking {
+            ::locationListener.isInitialized
+        }
     }
 
     fun getIsFirstLoad(): Boolean {
-        return isFirstLoad
+        return runBlocking {
+            isFirstLoad
+        }
     }
 
     fun setBtnRequestClicked(value: Boolean) {
-        btnRequestClicked = value
+        viewModelScope.launch {
+            btnRequestClicked = value
+        }
     }
 
     fun getIsSuccessGetReservation(): Boolean {
-        return isSuccessGetReservation
+        return runBlocking {
+            isSuccessGetReservation
+        }
     }
 
     fun getTotalQueueNumber(): Int {
-        return totalQueueNumber
-    }
-
-    sealed class TriggerToast {
-        data object LocalToast : TriggerToast()
-        data class CommonToast(val message: String) : TriggerToast()
+        return runBlocking {
+            totalQueueNumber
+        }
     }
 
     fun setReservationResult(value: ResultState?) {
-        _reservationResult.value = value
+        viewModelScope.launch {
+            _reservationResult.value = value
+        }
     }
 
     fun setOutletSelected(outlet: Outlet) {
-        outletSelected = outlet
+        viewModelScope.launch {
+            outletSelected = outlet
+        }
     }
 
     fun setCapsterSelected(capster: UserEmployeeData) {
-        capsterSelected = capster
+        viewModelScope.launch {
+            capsterSelected = capster
+        }
     }
 
     fun setCustomerData(customer: UserCustomerData) {
-        customerData = customer
+        viewModelScope.launch {
+            customerData = customer
+        }
     }
 
-    private fun setUserReservationData(reservation: Reservation) {
-        userReservationData = reservation
+    private fun setUserReservationData(reservationData: ReservationData) {
+        viewModelScope.launch {
+            userReservationData = reservationData
+        }
     }
 
     fun getOutletSelected(): Outlet {
-        return outletSelected
+        return runBlocking {
+            outletSelected
+        }
     }
 
     fun getCapsterSelected(): UserEmployeeData {
-        return capsterSelected
+        return runBlocking {
+            capsterSelected
+        }
     }
 
     fun getCustomerData(): UserCustomerData {
-        return customerData
+        return runBlocking {
+            customerData
+        }
     }
 
-    fun getUserReservationData(): Reservation {
-        return userReservationData
+    fun getUserReservationData(): ReservationData {
+        return runBlocking {
+            userReservationData
+        }
     }
 
     fun getIsTriggerAddUserDataIsFailed(): Boolean {
-        return isTriggerAddUserDataIsFailed
+        return runBlocking {
+            isTriggerAddUserDataIsFailed
+        }
     }
 
     fun listenToReservationData(startOfDay: Timestamp, startOfNextDay: Timestamp) {
-        if (::reservationListener.isInitialized) {
-            reservationListener.remove()
-        }
+        outletSelected.let { outletSelected ->
+            if (::reservationListener.isInitialized) {
+                reservationListener.remove()
+            }
 
-        outletSelected.let { outlet ->
-            reservationListener = db.collection("${outlet.rootRef}/reservations")
+            if (outletSelected.rootRef.isEmpty()) {
+                reservationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                btnRequestClicked = false
+                return@let
+            }
+
+            reservationListener = db.collection("${outletSelected.rootRef}/reservations")
                 .where(
                     Filter.and(
-                        Filter.equalTo("outlet_identifier", outlet.uid),
+                        Filter.equalTo("outlet_identifier", outletSelected.uid),
                         Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
                         Filter.lessThan("timestamp_to_booking", startOfNextDay)
                     )
                 )
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        btnRequestClicked = false
-                        // displayAllData()
-                        _toastDetection.value = TriggerToast.CommonToast("Error getting reservations: ${exception.message}")
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        val metadata = it.metadata
-
-                        viewModelScope.launch(Dispatchers.Default) {
-                            if (!btnRequestClicked) {
-                                val newReservationList = it.documents.mapNotNull { document ->
-                                    document.toObject(Reservation::class.java)?.apply {
-                                        dataRef = document.reference.path
-                                    }
-                                }.filter { it.queueStatus !in listOf("pending", "expired") }
-
-                                Log.d("CheckListenerLog", "ROP TOTAL QUEUE NUMBER: ${newReservationList.size} FROM LISTENER")
-                                totalQueueNumber = newReservationList.size
-                                // withContext(Dispatchers.Main) { displayAllData() }
-                                isSuccessGetReservation = true
-                            } else {
+                    viewModelScope.launch {
+                        listenerReservationsMutex.withStateLock {
+                            exception?.let {
                                 btnRequestClicked = false
+                                _toastDetection.postValue(TriggerToast.CommonToast("Error getting reservations: ${exception.message}"))
+                                return@withStateLock
                             }
+                            documents?.let { docs ->
+                                if (!btnRequestClicked) {
+                                    withContext(Dispatchers.Default) {
+                                        val outletData = this@ReviewOrderViewModel.outletSelected
+                                        val employeeUidList = outletData.listEmployees
 
-                            withContext(Dispatchers.Main) {
-                                if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                                    _toastDetection.value = TriggerToast.LocalToast
+                                        val newReservationList = docs.mapNotNull { document ->
+                                            val reservationData = document.toObject(ReservationData::class.java).apply {
+                                                dataRef = document.reference.path
+                                            }
+
+                                            val capsterUid = reservationData.capsterInfo?.capsterRef?.split("/")?.lastOrNull() // Ambil UID dari path terakhir
+                                            // Filter berdasarkan queueStatus dan juga employeeUidList
+                                            reservationData.takeIf {
+                                                it.queueStatus !in listOf("pending", "expired") &&
+                                                        capsterUid == "" ||
+                                                        capsterUid in employeeUidList
+                                            }
+                                        }
+
+                                        Log.d("CheckListenerLog", "ROP TOTAL QUEUE NUMBER: ${newReservationList.size} FROM LISTENER")
+                                        totalQueueNumber = newReservationList.size
+                                        isSuccessGetReservation = true
+                                    }
+                                } else {
+                                    btnRequestClicked = false
                                 }
-                                isProcessUpdatingData = false
                             }
                         }
                     }
@@ -187,66 +249,93 @@ class ReviewOrderViewModel(
     }
 
     fun listenSpecificOutletData(skippedProcess: Boolean = false) {
-        this.skippedProcess = skippedProcess
-        if (::locationListener.isInitialized) {
-            locationListener.remove()
-        }
+        outletSelected.let { outletSelected ->
+            this.skippedProcess = skippedProcess
+            if (::locationListener.isInitialized) {
+                locationListener.remove()
+            }
 
-        locationListener = db.document(outletSelected.rootRef)
-            .collection("outlets")
-            .document(outletSelected.uid)
-            .addSnapshotListener { documents, exception ->
-                exception?.let {
-                    _toastDetection.value = TriggerToast.CommonToast("Error listening to outlet data: ${exception.message}")
-                    this@ReviewOrderViewModel.isFirstLoad = false
-                    this@ReviewOrderViewModel.skippedProcess = false
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    if (!this@ReviewOrderViewModel.isFirstLoad && !this@ReviewOrderViewModel.skippedProcess && it.exists()) {
-                        val outletData = it.toObject(Outlet::class.java)
-                        outletData?.let { outlet ->
-                            // Assign the document reference path to outletReference
-                            outlet.outletReference = it.reference.path
-                            outletSelected = outlet
-                            Log.d("CheckListenerLog", "ROP OUTLET NAME SELECTED: ${outletSelected.outletName} FROM LISTENER")
+            if (outletSelected.rootRef.isEmpty()) {
+                locationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                this@ReviewOrderViewModel.isFirstLoad = false
+                this@ReviewOrderViewModel.skippedProcess = false
+                return@let
+            }
+
+            locationListener = db.document(outletSelected.rootRef)
+                .collection("outlets")
+                .document(outletSelected.uid)
+                .addSnapshotListener { documents, exception ->
+                    viewModelScope.launch {
+                        listenerLocationMutex.withStateLock {
+                            exception?.let {
+                                _toastDetection.postValue(TriggerToast.CommonToast("Error listening to outlet data: ${exception.message}"))
+                                this@ReviewOrderViewModel.isFirstLoad = false
+                                this@ReviewOrderViewModel.skippedProcess = false
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!this@ReviewOrderViewModel.isFirstLoad && !this@ReviewOrderViewModel.skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            val outletData = docs.toObject(Outlet::class.java)
+                                            outletData?.let { outlet ->
+                                                // Assign the document reference path to outletReference
+                                                outlet.outletReference = docs.reference.path
+                                                this@ReviewOrderViewModel.outletSelected = outlet
+                                                Log.d("CheckListenerLog", "ROP OUTLET NAME SELECTED: ${outletSelected.outletName} FROM LISTENER")
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    this@ReviewOrderViewModel.isFirstLoad = false
+                                    this@ReviewOrderViewModel.skippedProcess = false
+                                }
+                            }
                         }
-                    } else {
-                        this@ReviewOrderViewModel.isFirstLoad = false
-                        this@ReviewOrderViewModel.skippedProcess = false
                     }
                 }
-            }
+        }
     }
 
-    fun addNewReservationAndNavigate(reservationData: Reservation) {
-        viewModelScope.launch(Dispatchers.IO) {
+    fun addNewReservationAndNavigate(reservationData: ReservationData) {
+        viewModelScope.launch {
             _reservationResult.postValue(ResultState.Loading)
-            setUserReservationData(reservationData)
 
-            val collectionReference = db.collection("${outletSelected.rootRef}/reservations")
-            reservationRef = if (reservationUid.isEmpty()) collectionReference.document() else collectionReference.document(reservationUid)
-            reservationUid = reservationRef.id
+            try {
+                val collectionReference = db.collection("${outletSelected.rootRef}/reservations")
+                reservationRef = if (reservationUid.isEmpty()) collectionReference.document()
+                else collectionReference.document(reservationUid)
+                reservationUid = reservationRef.id
 
-            userReservationData = userReservationData.copy(
-                uid = reservationUid,
-                dataRef = reservationRef.path
-            )
+                userReservationData = reservationData.copy(
+                    uid = reservationUid,
+                    dataRef = reservationRef.path
+                )
 
-            reservationRef.set(userReservationData)
-                .addOnSuccessListener {
-                    isProcessUpdatingData = true
+                val task = withContext(Dispatchers.IO) {
+                    reservationRef
+                        .set(userReservationData)
+                        .awaitWriteWithOfflineFallback(tag = "AddReservation")
+                }
+
+                if (task.isSuccessful) {
                     trigerAddCustomerAndReminderData(false)
+                } else {
+                    _reservationResult.postValue(
+                        ResultState.Failure("Permintaan reservasi anda gagal diproses. Silakan coba lagi.")
+                    )
                 }
-                .addOnFailureListener {
-                    isProcessUpdatingData = false
-                    _reservationResult.postValue(ResultState.Failure("Permintaan reservasi Anda gagal diproses. Silakan coba lagi nanti."))
-                }
+            } catch (e: Exception) {
+                _reservationResult.postValue(
+                    ResultState.Failure("Permintaan reservasi anda gagal diproses. Silakan coba lagi.")
+                )
+            }
         }
     }
 
     fun trigerAddCustomerAndReminderData(setLoading: Boolean) {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch {
             if (setLoading) _reservationResult.postValue(ResultState.Loading)
 
             val isGuestAccount = customerData.guestAccount
@@ -262,11 +351,16 @@ class ReviewOrderViewModel(
                 messageTitle = "",
                 messageBody = "",
                 imageUrl = "",
-                dataTimestamp = userReservationData.timestampToBooking ?: Timestamp.now()
+                dataTimestamp = userReservationData.timestampToBooking
             )
 
             try {
                 val taskFailed = AtomicBoolean(false)
+
+                val updateUserCoins = if (userReservationData.paymentDetail.coinsUsed != 0 && !isGuestAccount) async {
+                    val prosesStatus = updateUserCoins()
+                    if (prosesStatus) taskFailed.set(true)
+                } else null
 
                 val notificationTask = async {
                     if (!isSchedulingReservation) {
@@ -287,56 +381,61 @@ class ReviewOrderViewModel(
                 }
 
                 val updateTask = if (!customerData.guestAccount) async {
-                    val prosesStatus = updateOutletListCustomerData()
+                    val prosesStatus = updateOutletCustomerList()
                     if (prosesStatus) taskFailed.set(true)
                 } else null
 
+                updateUserCoins?.await()
                 notificationTask.await()
                 updateTask?.await()
 
                 if (taskFailed.get()) {
                     isTriggerAddUserDataIsFailed = true
-                    _reservationResult.postValue(ResultState.Failure("Terjadi kesalahan, silahkan coba lagi!!!"))
+                    _reservationResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data, silahkan coba lagi!!!"))
                 } else {
                     _reservationResult.postValue(ResultState.Success)
                 }
 
             } catch (e: Exception) {
                 isTriggerAddUserDataIsFailed = true
-                _reservationResult.postValue(ResultState.Failure("Terjadi kesalahan, silahkan coba lagi!!!"))
+                _reservationResult.postValue(ResultState.Failure("Terjadi kesalahan saat menambahkan data, silahkan coba lagi!!!"))
             }
         }
     }
 
-    private suspend fun addUserStackNotification(data: NotificationReminder, skipThisStep: Boolean): Boolean {
-        val isFailed = AtomicBoolean(false)
+    private suspend fun addUserStackNotification(
+        data: NotificationReminder,
+        skipThisStep: Boolean
+    ): Boolean {
+        if (data.capsterRef.isEmpty() || skipThisStep) return false
+        var isFailed: Boolean
+
         try {
-            if (data.capsterRef.isNotEmpty() && !skipThisStep) {
-                if (!isAddCapsterNotificationFailed) {
-                    // Perbarui notifikasi lokal capster
-                    capsterSelected.userNotification = capsterSelected.userNotification?.apply {
-                        add(data)
-                    } ?: mutableListOf(data)
-
-                }
-
-                db.document(data.capsterRef).update("user_notification", capsterSelected.userNotification)
-                    .addOnSuccessListener { isAddCapsterNotificationFailed = false }
-                    .addOnFailureListener {
-                        isAddCapsterNotificationFailed = true
-                        isFailed.set(true)
-                    }.await()
+            if (!isAddCapsterNotificationFailed) {
+                capsterSelected.userNotification = capsterSelected.userNotification?.apply {
+                    add(data)
+                } ?: mutableListOf(data)
             }
 
+            val task = withContext(Dispatchers.IO) {
+                db.document(data.capsterRef)
+                    .update("user_notification", capsterSelected.userNotification)
+                    .awaitWriteWithOfflineFallback(tag = "AddCapsterNotification")
+            }
+
+            isAddCapsterNotificationFailed = !task.isSuccessful
+            isFailed = !task.isSuccessful // return true jika gagal
         } catch (e: Exception) {
             Log.e("ReservationData", "Error updating capster notification: ${e.message}")
             throw e
         }
-        return isFailed.get()
+
+        return isFailed
     }
 
     private suspend fun addUserStackReminder(data: NotificationReminder, skipThisStep: Boolean): Boolean {
-        val isFailed = AtomicBoolean(false)
+        var isFirstFailed = false
+        var isSecondFailed = false
 
         try {
             if (data.customerRef.isNotEmpty() && !skipThisStep) {
@@ -361,12 +460,14 @@ class ReviewOrderViewModel(
                 }
 
                 // Update Firestore
-                db.document(data.customerRef).update("user_reminder", customerData.userReminder)
-                    .addOnSuccessListener { isAddCapsterReminderFailed = false }
-                    .addOnFailureListener {
-                        isAddCapsterReminderFailed = true
-                        isFailed.set(true)
-                    }.await()
+                val task = withContext(Dispatchers.IO) {
+                    db.document(data.customerRef)
+                        .update("user_reminder", customerData.userReminder)
+                        .awaitWriteWithOfflineFallback(tag = "AddCustomerReminder")
+                }
+
+                isAddCustomerReminderFailed = !task.isSuccessful
+                isFirstFailed = !task.isSuccessful
             }
 
             if (data.capsterRef.isNotEmpty() && !skipThisStep) {
@@ -391,12 +492,14 @@ class ReviewOrderViewModel(
                 }
 
                 // Update Firestore
-                db.document(data.capsterRef).update("user_reminder", capsterSelected.userReminder)
-                    .addOnSuccessListener { isAddCapsterReminderFailed = false }
-                    .addOnFailureListener {
-                        isAddCapsterReminderFailed = true
-                        isFailed.set(true)
-                    }.await()
+                val task = withContext(Dispatchers.IO) {
+                    db.document(data.capsterRef)
+                        .update("user_reminder", capsterSelected.userReminder)
+                        .awaitWriteWithOfflineFallback(tag = "AddCapsterReminder")
+                }
+
+                isAddCapsterReminderFailed = !task.isSuccessful
+                isSecondFailed = !task.isSuccessful
             }
 
         } catch (e: Exception) {
@@ -404,7 +507,7 @@ class ReviewOrderViewModel(
             throw e
         }
 
-        return isFailed.get()
+        return isFirstFailed || isSecondFailed
     }
 
     private fun generateReminderMessage(
@@ -454,8 +557,32 @@ class ReviewOrderViewModel(
         """.trimIndent()
     }
 
-    private suspend fun updateOutletListCustomerData(): Boolean {
-        val isFailed = AtomicBoolean(false)
+    private suspend fun updateUserCoins(): Boolean {
+        var isFailed: Boolean
+        try {
+            if (!isUpdateUserCoinsFailed) {
+                customerData.userCoins = customerData.userCoins.minus(userReservationData.paymentDetail.coinsUsed)
+            }
+
+            // Update Firestore
+            val task = withContext(Dispatchers.IO) {
+                db.document(customerData.userRef)
+                    .update("user_coins", customerData.userCoins)
+                    .awaitWriteWithOfflineFallback(tag = "UpdateUserCoins")
+            }
+
+            isUpdateUserCoinsFailed = !task.isSuccessful
+            isFailed = !task.isSuccessful
+        } catch (e: Exception) {
+            Log.e("ReservationData", "Error updating outlet list customers: ${e.message}")
+            throw e
+        }
+
+        return isFailed
+    }
+
+    private suspend fun updateOutletCustomerList(): Boolean {
+        var isFailed: Boolean
         try {
             outletSelected.let { outlet ->
                 val outletRef = db.document(outlet.rootRef)
@@ -480,23 +607,27 @@ class ReviewOrderViewModel(
                 }
 
                 // Update Firestore
-                outletRef.update("list_customers", outlet.listCustomers)
-                    .addOnSuccessListener { isUpdateCustomerOutletFailed = false }
-                    .addOnFailureListener {
-                        isUpdateCustomerOutletFailed = true
-                        isFailed.set(true)
-                    }.await()
+                val task = withContext(Dispatchers.IO) {
+                    outletRef
+                        .update("list_customers", outlet.listCustomers)
+                        .awaitWriteWithOfflineFallback(tag = "UpdateOutletCustomerList")
+                }
+
+                isUpdateCustomerOutletFailed = !task.isSuccessful
+                isFailed = !task.isSuccessful
             }
         } catch (e: Exception) {
             Log.e("ReservationData", "Error updating outlet list customers: ${e.message}")
             throw e
         }
 
-        return isFailed.get()
+        return isFailed
     }
 
     fun clearToastDetection() {
-        _toastDetection.value = null
+        viewModelScope.launch {
+            _toastDetection.postValue(null)
+        }
     }
 
     override fun onCleared() {

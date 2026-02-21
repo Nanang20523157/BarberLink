@@ -34,6 +34,10 @@
                     android:id="@+id/nav_promo"
                     android:icon="@drawable/ic_barbershop_promo_outline"
                     android:title="Promo" />
+                <item
+                    android:id="@+id/nav_customer"
+                    android:icon="@drawable/ic_customer_list_outline"
+                    android:title="Daftar Pelanggan" />
             </menu>
         </item>
 

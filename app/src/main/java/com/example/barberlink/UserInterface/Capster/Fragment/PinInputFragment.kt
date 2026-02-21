@@ -6,8 +6,6 @@ import android.content.Intent
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.GestureDetector
@@ -20,18 +18,25 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.bundleOf
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.Capster.ViewModel.SelectAccountViewModel
 import com.example.barberlink.databinding.FragmentPinInputBinding
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -47,15 +52,14 @@ class PinInputFragment : DialogFragment() {
     private var _binding: FragmentPinInputBinding? = null
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
     private val pinInputViewModel: SelectAccountViewModel by activityViewModels()
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var context: Context
     private val binding get() = _binding!!
-    private val handler = Handler(Looper.getMainLooper())
-    private var currentToastMessage: String? = null
     // TNODO: Rename and change types of parameters
 //    private var userEmployeeData: UserEmployeeData? = null
 //    private var outletSelected: Outlet? = null
     private lateinit var textWatcher: TextWatcher
-    private var myCurrentToast: Toast? = null
 
     // Interface yang akan diimplementasikan oleh Activity
     interface OnClearBackStackListener {
@@ -66,11 +70,12 @@ class PinInputFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pinInputViewModel
+        toastViewModel
 //        arguments?.let {
 //            userEmployeeData = it.getParcelable(ARG_PARAM1)
 //            outletSelected = it.getParcelable(ARG_PARAM2)
 //        }
-        currentToastMessage = savedInstanceState?.getString("current_toast_message", null)
 
         context = requireContext()
     }
@@ -118,26 +123,30 @@ class PinInputFragment : DialogFragment() {
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -220,15 +229,18 @@ class PinInputFragment : DialogFragment() {
                                         null
                                     )
                                 )
+                                //if (!debounce.run { binding.pinView.isSafeClick(binding.progressBar.isVisible) }) return
+                                // hmmmmm
                                 binding.progressBar.visibility = View.VISIBLE
-                                handler.postDelayed({
+                                viewLifecycleOwner.lifecycleScope.launch {
+                                    delay(800)
+                                    if (!isAdded) return@launch
+
                                     binding.progressBar.visibility = View.GONE
                                     sessionManager.setSessionCapster(true)
                                     userEmployeeData.userRef.let { sessionManager.setDataCapsterRef(it) }
-                                    // Log.d("OutletSelected", "${outletSelected?.rootRef}/outlets/${outletSelected?.uid}")
-                                    // outletSelected?.uid?.let { sessionManager.setOutletSelectedRef("${outletSelected?.rootRef}/outlets/$it") }
-                                    navigatePage(context, HomePageCapster::class.java)
-                                }, 800)
+                                    navigatePage(requireContext(), HomePageCapster::class.java)
+                                }
                             } else {
                                 setLineColor(
                                     ResourcesCompat.getColorStateList(
@@ -240,7 +252,7 @@ class PinInputFragment : DialogFragment() {
                             }
                         }
                     } ?: run {
-                        showToast("PIN pegawai belum diatur. Silakan atur PIN terlebih dahulu.")
+                        toastViewModel.showToast("PIN pegawai belum diatur. Silakan atur PIN terlebih dahulu.", true)
                     }
                 }
             }
@@ -280,7 +292,6 @@ class PinInputFragment : DialogFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         binding.pinView.removeTextChangedListener(textWatcher)
-        handler.removeCallbacksAndMessages(null)
 
         _binding = null
     }

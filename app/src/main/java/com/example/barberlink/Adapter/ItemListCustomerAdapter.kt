@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ItemListCustomerAdapterBinding
@@ -20,6 +21,7 @@ class ItemListCustomerAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<UserCustomerData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private val shimmerItemCount = 3
@@ -149,6 +151,8 @@ class ItemListCustomerAdapter(
                 }
 
                 root.setOnClickListener {
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm
                     // Set all customers' dataSelected to false
                     // currentList.forEach { it.dataSelected = false }
 

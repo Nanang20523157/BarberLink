@@ -13,30 +13,42 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.addCallback
+import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.Factory.RegisterViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.ViewModel.StepOneViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivitySignUpStepOneBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpStepOneBinding
-    private lateinit var stepOneViewModel: StepOneViewModel
-    private lateinit var registerViewModelFactory: RegisterViewModelFactory
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val stepOneViewModel: StepOneViewModel by viewModels {
+        RegisterViewModelFactory(db, storage, auth, this)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isBtnEnableState: Boolean = false
     private var textErrorForPhoneNumber: String = "undefined"
     private lateinit var textWatcher: TextWatcher
@@ -46,7 +58,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
 
     private var originPageFrom: String? = null
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var userNumberInput: String = ""
     private var isHandlingBack: Boolean = false
 
@@ -77,16 +89,17 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        registerViewModelFactory = RegisterViewModelFactory(db, storage, auth, this)
-        stepOneViewModel = ViewModelProvider(this, registerViewModelFactory)[StepOneViewModel::class.java]
+        stepOneViewModel
+        toastViewModel
+
         if (savedInstanceState != null) {
             userNumberInput = savedInstanceState.getString("user_number_input") ?: ""
             textErrorForPhoneNumber = savedInstanceState.getString("text_error_for_phone_number", "undefined")
                 ?: "undefined"
             isBtnEnableState = savedInstanceState.getBoolean("is_btn_enable_state", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action", false)
         } else {
+            // BISA DARI LOGINPAGE ATAU LANDINGPAGE
             originPageFrom = intent.getStringExtra("origin_page_key").toString()
         }
 
@@ -155,6 +168,27 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@SignUpStepOne,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -162,7 +196,6 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         outState.putString("text_error_for_phone_number", textErrorForPhoneNumber)
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
         outState.putString("user_number_input", binding.etPhoneNumber.text.toString())
     }
 
@@ -170,33 +203,35 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.btnNext -> {
-                if (!blockAllUserClickAction) {
-                    // checkPhoneNumberInFirestoreAndNavigate()
-                    stepOneViewModel.checkPhoneNumberAndNavigate()
-                } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                if (!debounce.run {
+                    v.isSafeClick(
+                        isLoading = blockAllUserClickAction,
+                        onLoadingBlocked = {
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                        }
+                    )
+                }) return
+                // hmmmmm
+                stepOneViewModel.checkPhoneNumberAndNavigate()
             }
             R.id.tvSignIn -> {
-                if (!blockAllUserClickAction) {
-                    if (originPageFrom == "LandingPage") {
-                        navigatePage(this@SignUpStepOne, LoginAdminPage::class.java, null, binding.tvSignIn)
-                    } else onBackPressedDispatcher.onBackPressed()
-                } else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+                if (!debounce.run {
+                    v.isSafeClick(
+                        isLoading = blockAllUserClickAction,
+                        onLoadingBlocked = {
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                        }
+                    )
+                }) return
+                // hmmmmm
+                if (originPageFrom == "LandingPage") {
+                    navigatePage(this@SignUpStepOne, LoginAdminPage::class.java, null, binding.tvSignIn)
+                } else onBackPressedDispatcher.onBackPressed()
             }
             R.id.ivBack -> {
-                if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
-                else Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
+//                onBackPressedDispatcher.onBackPressed()
             }
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
     }
 
     private fun setupEditTextListeners() {
@@ -208,7 +243,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             override fun afterTextChanged(s: Editable?) {
                 // Implementasi opsional saat teks berubah
                 if (s != null) {
-                    Log.d("SignUpOne", "inputManualCheck >> ${inputManualCheck == null}")
+                    Logger.d("UserInputCheck", "PhoneInputCheck inputManualCheck >> ${inputManualCheck == null}")
                     inputManualCheck?.invoke() ?: run {
                         stepOneViewModel.setPhoneNumberValid(validateAndFormatInput(s.toString()))
                     }
@@ -217,6 +252,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
             }
         }
 
+        Logger.d("UserInputCheck", "=== SignUpStepOne ===")
         binding.etPhoneNumber.addTextChangedListener(textWatcher)
     }
 
@@ -258,7 +294,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         with (binding) {
             textErrorForPhoneNumber = ""
             ivInfo.setImageResource(R.drawable.ic_secure_shield)
-            tvInfo.setText(R.string.data_secure)
+            tvInfo.text = getString(R.string.data_secure)
             tvInfo.setTextColor(resources.getColor(R.color.charcoal_grey_background))
         }
     }
@@ -283,44 +319,11 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-//    private fun checkPhoneNumberInFirestoreAndNavigate() {
-//        binding.progressBar.visibility = View.VISIBLE
-//        userAdminData = UserAdminData()
-//        userRolesData = UserRolesData()
-//        userCustomerData = UserCustomerData()
-//
-//        formattedPhoneNumber?.let { phoneNumber ->
-//            db.collection("users").document(phoneNumber).get()
-//                .addOnSuccessListener { document ->
-//                    if (document.exists()) {
-//                        document.toObject(UserRolesData::class.java)?.let {
-//                            userRolesData = it
-//                        }
-//
-//                        if (userRolesData?.role == "admin" || userRolesData?.role == "hybrid") {
-//                            binding.progressBar.visibility = View.GONE
-//                            setTextViewToErrorState(R.string.phone_number_already_exists_text)
-//                        } else if (userRolesData?.role == "customer") {
-//                            userRolesData?.customerRef?.let { getDataCustomerReference(it) }
-//                        }
-//                    } else {
-//                        binding.progressBar.visibility = View.GONE
-//                        setTextViewToValidState()
-//                        navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
-//                    }
-//                }
-//                .addOnFailureListener { exception ->
-//                    handleError(exception)
-//                }
-//
-//        }
-//    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, phoneNumber: String?, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -347,13 +350,27 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
 
     private fun handleError(message: String) {
         binding.progressBar.visibility = View.GONE
-        if (message == "Failed to get document because the client is offline.") {
-            Toast.makeText(
-                this@SignUpStepOne,
-                "Koneksi internet tidak tersedia. Periksa koneksi Anda.",
-                Toast.LENGTH_LONG
-            ).show()
-        } else Toast.makeText(this@SignUpStepOne, "Error : $message", Toast.LENGTH_LONG).show()
+        when (message) {
+            //"Failed to get document because the client is offline." -> {}
+            NetworkMonitor.errorMessage.value, "Koneksi internet tidak tersedia. Periksa koneksi Anda." -> {
+                NetworkMonitor.showToast(message, true)
+                //            Toast.makeText(
+                //                this@SignUpStepOne,
+                //                "Koneksi internet tidak tersedia. Periksa koneksi Anda.",
+                //                Toast.LENGTH_LONG
+                //            ).show()
+            } else -> toastViewModel.showToast(message, true)
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+//        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -362,93 +379,41 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         if (isHandlingBack) return
         isHandlingBack = true
 
-        if (!blockAllUserClickAction) {
-            // CASE 2️⃣ — ACTIVITY FINISH
-            WindowInsetsHandler.setDynamicWindowAllCorner(
-                binding.root,
-                this,
-                false
-            ) {
-                finish()
-                overridePendingTransition(
-                    R.anim.slide_miximize_in_left,
-                    R.anim.slide_minimize_out_right
-                )
-                // ⛔ TIDAK dilepas → activity selesai
-            }
-        } else {
-            Toast.makeText(this, "Tolong tunggu sampai proses selesai!!!", Toast.LENGTH_SHORT).show()
-            // ⛔ Lepas lock setelah frame selesai
-            isHandlingBack = false
+        // CASE 2️⃣ — ACTIVITY FINISH
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
+            finish()
+            overridePendingTransition(
+                R.anim.slide_miximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+            // ⛔ TIDAK dilepas → activity selesai
         }
+//        if (!blockAllUserClickAction) {
+//        } else {
+//            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+//            // ⛔ Lepas lock setelah frame selesai
+//            isHandlingBack = false
+//        }
 
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Jangan hapus data jika hanya orientasi yang berubah
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        currentView = null
+//        currentView = null
 
         binding.etPhoneNumber.removeTextChangedListener(textWatcher)
     }
-
-//    private fun applyAllDataToUserRolesData(document: DocumentSnapshot) {
-//        document.toObject(UserRolesData::class.java)?.let {
-//            userRolesData?.apply {
-//                adminProvider = it.adminProvider
-//                adminRef = it.adminRef
-//                customerProvider = it.customerProvider
-//                customerRef = it.customerRef
-//                role = it.role
-//                uid = it.uid
-//            }
-//        }
-//    }
-
-//    private fun getDataCustomerReference(customerRef: String) {
-//        db.document(customerRef).get()
-//            .addOnSuccessListener { customerDocument ->
-//                binding.progressBar.visibility = View.GONE
-//                if (customerDocument.exists()) {
-//                    customerDocument.toObject(UserCustomerData::class.java)?.let { customerData ->
-//                        customerData.userRef = customerDocument.reference.path
-//                        userCustomerData = customerData
-//                    }
-//
-//                    userAdminData?.apply {
-//                        uid = userCustomerData?.uid.toString()
-//                        imageCompanyProfile = userCustomerData?.photoProfile.toString()
-//                        ownerName = userCustomerData?.fullname.toString()
-//                        email = userCustomerData?.email.toString()
-//                        password = userCustomerData?.password.toString()
-//                    }
-//
-//                    setTextViewToValidState()
-//                    navigatePage(this@SignUpStepOne, SignUpStepTwo::class.java, formattedPhoneNumber, binding.btnNext)
-//                }
-//            }
-//            .addOnFailureListener { exception ->
-//                binding.progressBar.visibility = View.GONE
-//                Toast.makeText(this@SignUpStepOne, "Error accessing customerRef: ${exception.message}", Toast.LENGTH_LONG).show()
-//            }
-//    }
-
-//    private fun applyAllDataToUserCustomerData(document: DocumentSnapshot) {
-//        document.toObject(UserCustomerData::class.java)?.let {
-//            userCustomerData?.apply {
-//                email = it.email
-//                fullname = it.fullname
-//                gender = it.gender
-//                membership = it.membership
-//                password = it.password
-//                phone = it.phone
-//                photoProfile = it.photoProfile
-//                uid = it.uid
-//                username = it.username
-//                appointmentList = it.appointmentList
-//                reservationList = it.reservationList
-//            }
-//        }
-//    }
 
     companion object {
         const val ADMIN_KEY = "admin_key_step_one"

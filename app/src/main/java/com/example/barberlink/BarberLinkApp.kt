@@ -17,13 +17,19 @@ import com.example.barberlink.Services.SessionCleanupService
 
 class BarberLinkApp : Application(), LifecycleObserver {
 
-    private val monitoredActivities = listOf(
+    private val monitoredSeasonCleanUp = listOf(
         "MainActivity",
         "DashboardAdminPage",
         "ManageOutletPage",
         "HomePageCapster",
         "QueueControlPage",
-        "SettingPageScreen"
+        "SettingPageScreen",
+    )
+
+    private val monitoredActiveDevice = listOf(
+        "QueueTrackerPage",
+        "BarberBookingPage",
+        "ReviewOrderPage"
     )
 
     override fun onCreate() {
@@ -54,8 +60,9 @@ class BarberLinkApp : Application(), LifecycleObserver {
                     "Activity Destroyed: $activityName || isAppInRecentApps: $isAppInRecentApps"
                 )
 
-                if (activityName in monitoredActivities && !isAppInRecentApps) {
-                    triggerSessionCleanupWorker()
+                if (!isAppInRecentApps) {
+                    if (activityName in monitoredSeasonCleanUp) triggerSessionCleanupWorker()
+                    // else if (activityName in monitoredActiveDevice) TNODO("Implementation Decrement Active Device")
                 }
             }
 
@@ -75,11 +82,13 @@ class BarberLinkApp : Application(), LifecycleObserver {
     fun onAppBackgrounded() {
         NetworkMonitor.stopMonitoring()
         Log.d("UserInteraction", "App moved to background or removed from Recent Apps")
+        Log.d("ConnectionUserCheck", "App moved to background or removed from Recent Apps")
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
     fun onAppDestroyed() {
         Log.d("UserInteraction", "App destroyed")
+        Log.d("ConnectionUserCheck", "App destroyed")
     }
 
     private fun startCleanupService() {

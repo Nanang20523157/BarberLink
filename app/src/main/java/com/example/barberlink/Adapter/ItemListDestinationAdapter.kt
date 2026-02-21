@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListSelectOutletAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutSelectOutletCardBinding
@@ -20,6 +21,7 @@ class ItemListDestinationAdapter(
     private val itemClicked: OnItemClicked
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(DestinationDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private val shimmerItemCount = 7
@@ -145,10 +147,14 @@ class ItemListDestinationAdapter(
                 }
 
                 cvMainInfoOutlet.setOnClickListener {
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm
                     itemClicked.onItemClickListener(outlet)
                 }
 
                 btnSelectOutlet.setOnClickListener {
+                    if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+                    // hmmmmm
                     itemClicked.onItemClickListener(outlet)
                 }
 

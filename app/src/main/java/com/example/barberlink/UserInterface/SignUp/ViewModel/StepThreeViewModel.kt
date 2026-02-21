@@ -19,9 +19,14 @@ import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
@@ -42,46 +47,64 @@ class StepThreeViewModel(
     val registerResult: LiveData<ResultState?> = _registerResult
 
     sealed class ResultState {
-        data object Loading : ResultState()
+        data object Loading: ResultState()
         data class Navigate(val isAddData: Boolean, val uid: String): ResultState()
-        data class Failure(val message: String, val step: String) : ResultState()
-        data class ShowToast(val message: String, val hideLoading: Boolean) : ResultState()
+        data class Failure(val message: String, val step: String): ResultState()
+        data class ShowToast(val message: String, val hideLoading: Boolean): ResultState()
     }
 
     fun setRegisterResult(value: ResultState?) {
-        _registerResult.value = value
+        viewModelScope.launch {
+            _registerResult.value = value
+        }
     }
 
     fun setImageUri(uri: Uri?) {
-        this.imageUri = uri
+        viewModelScope.launch {
+            imageUri = uri
+        }
     }
 
     fun setUserAdminData(data: UserAdminData) {
-        this.userAdminData = data
+        viewModelScope.launch {
+            userAdminData = data
+        }
     }
 
     fun setUserRolesData(data: UserRolesData) {
-        this.userRolesData = data
+        viewModelScope.launch {
+            userRolesData = data
+        }
     }
 
     fun setUserAdminCopy(data: UserAdminData) {
-        this.userAdminCopy = data
+        viewModelScope.launch {
+            userAdminCopy = data
+        }
     }
 
     fun getImageUri(): Uri? {
-        return imageUri
+        return runBlocking {
+            imageUri
+        }
     }
 
     fun getUserAdminData(): UserAdminData {
-        return userAdminData
+        return runBlocking {
+            userAdminData
+        }
     }
 
     fun getUserRolesData(): UserRolesData {
-        return userRolesData
+        return runBlocking {
+            userRolesData
+        }
     }
 
     fun getUserAdminCopy(): UserAdminData {
-        return userAdminData
+        return runBlocking {
+            userAdminData
+        }
     }
 
 //    private fun isConnectedToInternet(): Boolean {
@@ -117,34 +140,41 @@ class StepThreeViewModel(
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun createNewAccount(email: String, password: String) {
-        if (!NetworkMonitor.isOnline.value) {
-            val errMessage = NetworkMonitor.errorMessage.value
-            NetworkMonitor.showToast(errMessage, true)
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
+            // PENGECHECKAN MANUAL KARENA GAK OFFLINEAWARE
+            if (!NetworkMonitor.isOnline.value) {
+                val errMessage = NetworkMonitor.errorMessage.value
+                NetworkMonitor.showToast(errMessage, true)
 
-            _registerResult.postValue(ResultState.ShowToast("", false))
+                _registerResult.postValue(ResultState.ShowToast("", true)) // Loadingnya belum nyala
 //            _registerResult.postValue(ResultState.ShowToast("Koneksi internet tidak tersedia. Periksa koneksi Anda.", false))
-            return
-        }
-
-        _registerResult.postValue(ResultState.Loading)
-        _registerResult.postValue(ResultState.ShowToast("Prepare the necessary data...", false))
-        auth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val user = auth.currentUser
-                    //val user = task.result?.user
-                    userAdminCopy = userAdminData.copy()
-                    if (user != null) {
-                        userAdminData.uid = user.uid
-                        addNewUserAdminToDatabase()
-                    } else {
-                        _registerResult.postValue(ResultState.Failure("Gagal mengambil kembali informasi akun pengguna.", "RETRIEVE_UID"))
-                    }
-                } else {
-                    _registerResult.postValue(ResultState.ShowToast( "Error creating account: ${task.exception?.message}", true))
-                }
+                return@launch
             }
-        // Cek apakah koneksi internet benar-benar dapat mengakses server
+
+            _registerResult.postValue(ResultState.ShowToast("Menginisiasi akun barbershop...", false))
+
+            try {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val user = auth.currentUser
+                            //val user = task.result?.user
+                            userAdminCopy = userAdminData.copy()
+                            if (user != null) {
+                                userAdminData.uid = user.uid
+                                addNewUserAdminToDatabase()
+                            } else {
+                                _registerResult.postValue(ResultState.Failure("Gagal menginisiasi akun barbershop!", "RETRIEVE_UID"))
+                            }
+                        } else {
+                            _registerResult.postValue(ResultState.ShowToast( "Gagal menginisiasi akun barbershop!", true))
+                        }
+                    }
+            } catch (e: Exception) {
+                _registerResult.postValue(ResultState.ShowToast("Gagal menginisiasi akun barbershop!", true))
+            }
+            // Cek apakah koneksi internet benar-benar dapat mengakses server
 //        InternetCheck { internet ->
 //            if (internet) {
 //
@@ -152,60 +182,72 @@ class StepThreeViewModel(
 //                _registerResult.postValue(ResultState.ShowToast("Koneksi internet tidak stabil. Periksa koneksi Anda.", true))
 //            }
 //        }.execute() // Pastikan untuk mengeksekusi AsyncTask
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun getUserUidFromAuth(email: String, password: String) {
-        if (!NetworkMonitor.isOnline.value) {
-            val errMessage = NetworkMonitor.errorMessage.value
-            NetworkMonitor.showToast(errMessage, true)
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
+            // PENGECHECKAN MANUAL KARENA GAK OFFLINEAWARE
+            if (!NetworkMonitor.isOnline.value) {
+                val errMessage = NetworkMonitor.errorMessage.value
+                NetworkMonitor.showToast(errMessage, true)
 
-            _registerResult.postValue(ResultState.Failure("", "RETRIEVE_UID"))
+                _registerResult.postValue(ResultState.Failure("", "RETRIEVE_UID"))
 //            _registerResult.postValue(ResultState.Failure("Koneksi internet tidak tersedia. Periksa koneksi Anda.", "RETRIEVE_UID"))
-            return
-        }
+                return@launch
+            }
 
-        _registerResult.postValue(ResultState.Loading)
-        _registerResult.postValue(ResultState.ShowToast("Prepare the necessary data...", false))
-        if ((userAdminCopy.email == userAdminData.email) && (userAdminCopy.password == userAdminData.password)) {
-            // Login ulang untuk mendapatkan token pengguna
-            auth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener { signInTask ->
-                    if (signInTask.isSuccessful) {
-                        val user = auth.currentUser
-                        if (user != null) {
-                            userAdminData.uid = user.uid
-                            addNewUserAdminToDatabase()
-                        } else {
-                            _registerResult.postValue(ResultState.Failure("Gagal mengambil kembali informasi akun pengguna.", "RETRIEVE_UID"))
-                        }
-                    } else {
-                        _registerResult.postValue(ResultState.Failure("Error signing in: ${signInTask.exception?.message}", "RETRIEVE_UID"))
-                    }
-                }
-        } else {
-            val user = auth.currentUser
-            val credential = user?.email?.let { EmailAuthProvider.getCredential(it, userAdminCopy.password) }
-            // Re-authenticate the user with the current password
-            if (credential != null) {
-                user.reauthenticate(credential).addOnCompleteListener { reAuthTask ->
-                    if (reAuthTask.isSuccessful) {
-                        // Update the password
-                        user.updatePassword(password).addOnCompleteListener { updateTask ->
-                            if (updateTask.isSuccessful) {
-                                userAdminCopy = userAdminData.copy()
-                                addNewUserAdminToDatabase()
+            _registerResult.postValue(ResultState.ShowToast("Menyiapkan data yang dibutuhkan...", false))
+
+            try {
+                if ((userAdminCopy.email == userAdminData.email) && (userAdminCopy.password == userAdminData.password)) {
+                    // Login ulang untuk mendapatkan token pengguna
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { signInTask ->
+                            if (signInTask.isSuccessful) {
+                                val user = auth.currentUser
+                                if (user != null) {
+                                    userAdminData.uid = user.uid
+                                    addNewUserAdminToDatabase()
+                                } else {
+                                    _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
+                                }
                             } else {
-                                _registerResult.postValue(ResultState.Failure("Failed to update account: ${updateTask.exception?.message}", "RETRIEVE_UID"))
+                                _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
                             }
                         }
-                    } else {
-                        _registerResult.postValue(ResultState.Failure("Re-authentication failed: ${reAuthTask.exception?.message}", "RETRIEVE_UID"))
-                    }
+                } else {
+                    val user = auth.currentUser
+                    val credential = user?.email?.let { EmailAuthProvider.getCredential(it, userAdminCopy.password) }
+                    // Re-authenticate the user with the current password
+                    if (credential != null) {
+                        user.reauthenticate(credential)
+                            .addOnCompleteListener { reAuthTask ->
+                            if (reAuthTask.isSuccessful) {
+                                // Update the password
+                                try {
+                                    user.updatePassword(password)
+                                        .addOnCompleteListener { updateTask ->
+                                            if (updateTask.isSuccessful) {
+                                                userAdminCopy = userAdminData.copy()
+                                                addNewUserAdminToDatabase()
+                                            } else {
+                                                _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
+                                            }
+                                        }
+                                } catch (e: Exception) {
+                                    _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
+                                }
+                            } else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
+                        }
+                    } else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
                 }
+            } catch (e: Exception) {
+                _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyiapkan data yang dibutuhkan!", "RETRIEVE_UID"))
             }
-        }
-        // Cek apakah koneksi internet benar-benar dapat mengakses server
+            // Cek apakah koneksi internet benar-benar dapat mengakses server
 //        InternetCheck { internet ->
 //            if (internet) {
 //
@@ -213,113 +255,150 @@ class StepThreeViewModel(
 //                _registerResult.postValue(ResultState.Failure("Koneksi internet tidak stabil. Periksa koneksi Anda.", "RETRIEVE_UID"))
 //            }
 //        }.execute() // Pastikan untuk mengeksekusi AsyncTask
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun addNewUserAdminToDatabase() {
-        imageUri?.let {
-            _registerResult.postValue(ResultState.ShowToast("Creating your Account...", false))
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
+            // PENGECHECKAN MANUAL KARENA GAK OFFLINEAWARE
+            if (!NetworkMonitor.isOnline.value) {
+                val errMessage = NetworkMonitor.errorMessage.value
+                NetworkMonitor.showToast(errMessage, true)
+
+                _registerResult.postValue(ResultState.Failure("", "UPLOAD_IMAGE"))
+//            _registerResult.postValue(ResultState.Failure("Koneksi internet tidak tersedia. Periksa koneksi Anda.", "UPLOAD_IMAGE"))
+                return@launch
+            }
+
+            imageUri?.let {
+                _registerResult.postValue(ResultState.ShowToast("Membuat akun barbershop!", false))
 //            Toast.makeText(this, "Uploading Image...", Toast.LENGTH_SHORT).show()
-            val storageRef = storage.reference.child("profiles/${userAdminData.uid}")
-            storageRef.putFile(it)
-                .addOnSuccessListener {
-                    storageRef.downloadUrl.addOnSuccessListener { url ->
-                        userAdminData.imageCompanyProfile = url.toString()
-                        saveNewDataAdminToFirestore()
-                    }.addOnFailureListener { exception ->
-                        _registerResult.postValue(ResultState.Failure("Error getting download URL: ${exception.message}", "UPLOAD_IMAGE"))
-                    }
-                }.addOnFailureListener { exception ->
-                    _registerResult.postValue(ResultState.Failure( "Error uploading image: ${exception.message}", "UPLOAD_IMAGE"))
+                // Upload image to Firebase Storage
+                try {
+                    val storageRef = storage.reference.child("profiles/${userAdminData.uid}")
+                    storageRef.putFile(it)
+                        .addOnSuccessListener {
+                            storageRef.downloadUrl.addOnSuccessListener { url ->
+                                userAdminData.imageCompanyProfile = url.toString()
+                                saveNewDataAdminToFirestore()
+                            }.addOnFailureListener { exception ->
+                                _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat mengunggah gambar barbershop!", "UPLOAD_IMAGE"))
+                            }
+                        }.addOnFailureListener { exception ->
+                            _registerResult.postValue(ResultState.Failure( "Terjadi kesalahan saat mengunggah gambar barbershop!", "UPLOAD_IMAGE"))
+                        }
+                } catch (e: Exception) {
+                    _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat mengunggah gambar barbershop!", "UPLOAD_IMAGE"))
                 }
-        } ?: saveNewDataAdminToFirestore()
+            } ?: saveNewDataAdminToFirestore()
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun saveNewDataAdminToFirestore() {
-//        Toast.makeText(this, "Create your Account...", Toast.LENGTH_SHORT).show()
-//        Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
-        db.collection("barbershops")
-            .document(userAdminData.uid)
-            .set(userAdminData)
-            .addOnSuccessListener {
-                clearOutletsAndAddNew()
-            }.addOnFailureListener { exception ->
-                _registerResult.postValue(ResultState.Failure("Error saving document: ${exception.message}", "SAVE_DATA"))
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
+            try {
+                val task = withContext(Dispatchers.IO) {
+                    db.collection("barbershops")
+                        .document(userAdminData.uid)
+                        .set(userAdminData)
+                        .awaitWriteWithOfflineFallback(tag = "SaveNewAdminData")
+                }
+
+                if (task.isSuccessful) {
+                    // not end process
+                    userAdminCopy = userAdminData.copy()
+                    clearOutletsAndAddNew()
+                } else {
+                    if (task.displayMessage) _registerResult.postValue(ResultState.Failure(task.errorMessage.toString(), "SAVE_DATA"))
+                    else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyimpan data admin barbershop!", "SAVE_DATA"))
+                }
+            } catch (e:  Exception) {
+                _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat menyimpan data admin barbershop!", "SAVE_DATA"))
             }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun clearOutletsAndAddNew() {
-        val outletsCollection = db.collection("barbershops")
-            .document(userAdminData.uid)
-            .collection("outlets")
-
-        // Get all documents in the "outlets" sub-collection
-        outletsCollection.get()
-            .addOnSuccessListener { querySnapshot ->
-//                Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
-//                Toast.makeText(this@SignUpStepThree, "Data Synchronization...", Toast.LENGTH_SHORT).show()
-                if (querySnapshot.isEmpty) {
-                    // No documents found, add new outlet and default service directly
-                    runAddOutletAndService()
-                } else {
-                    val batch = db.batch()
-                    // Delete each document in the "outlets" sub-collection
-                    for (document in querySnapshot.documents) {
-                        batch.delete(document.reference)
-                    }
-                    // Commit the batch
-                    batch.commit().addOnSuccessListener {
-                        // Add the new outlet and default service after deleting old ones
-                        runAddOutletAndService()
-                    }.addOnFailureListener { exception ->
-                        _registerResult.postValue(ResultState.Failure("Error committing batch delete: ${exception.message}", "BATCH_DELETE"))
-                    }
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
+            try {
+                val snapshot = withContext(Dispatchers.IO) {
+                    db.collection("barbershops")
+                        .document(userAdminData.uid)
+                        .collection("outlets")
+                        .awaitGetWithOfflineFallback(tag = "clearOutletsAndAddNew")
                 }
+
+                if (snapshot.isSuccessful) {
+                    val documents = snapshot.data
+                    if (documents != null) {
+                        if (documents.isEmpty) {
+                            runAddOutletAndService()
+                        } else {
+                            val batch = db.batch()
+                            documents.forEach { batch.delete(it.reference) }
+
+                            val task = withContext(Dispatchers.IO) {
+                                batch.commit().awaitWriteWithOfflineFallback(tag = "ClearOutletsBatch")
+                            }
+                            if (task.isSuccessful) {
+                                // not end process
+                                runAddOutletAndService()
+                            } else {
+                                if (task.displayMessage) _registerResult.postValue(ResultState.Failure(task.errorMessage.toString(), "BATCH_DELETE"))
+                                else _registerResult.postValue(ResultState.Failure("Gagal menginisiasi data outlet barbershop!", "BATCH_DELETE"))
+                            }
+                        }
+                    } else {
+                        if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString(), "BATCH_DELETE"))
+                        else _registerResult.postValue(ResultState.Failure("Gagal menginisiasi data outlet barbershop!", "BATCH_DELETE"))
+                    }
+                } else {
+                    if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString(), "BATCH_DELETE"))
+                    else _registerResult.postValue(ResultState.Failure("Gagal menginisiasi data outlet barbershop!", "BATCH_DELETE"))
+                }
+            } catch (e: Exception) {
+                _registerResult.postValue(ResultState.Failure("Gagal menginisiasi data outlet barbershop!", "BATCH_DELETE"))
             }
-            .addOnFailureListener { exception ->
-                _registerResult.postValue(ResultState.Failure("Error clearing outlets: ${exception.message}", "BATCH_DELETE"))
-            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun runAddOutletAndService() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val taskFailed = AtomicBoolean(false)
-            val addOutletJob = async {
-                val prosesStatus = addOutletDataBarbershopAsync()
-                if (prosesStatus) { taskFailed.set(true) }
-            }
-            val addServiceJob = async {
-                val prosesStatus = addDefaultItemServiceAsync()
-                if (prosesStatus) { taskFailed.set(true) }
-            }
-
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
             try {
+                val taskFailed = AtomicBoolean(false)
+                val addOutletJob = async {
+                    val prosesStatus = addOutletDataBarbershopAsync()
+                    if (prosesStatus) { taskFailed.set(true) }
+                }
+                val addServiceJob = async {
+                    val prosesStatus = addDefaultItemServiceAsync()
+                    if (prosesStatus) { taskFailed.set(true) }
+                }
                 // Wait for both tasks to complete
                 addOutletJob.await()
                 addServiceJob.await()
 
                 if (taskFailed.get()) {
-                    withContext(Dispatchers.Main) {
-                        _registerResult.postValue(ResultState.Failure("Gagal menambahkan data yang dibutuhkan", "ADD_SUPPORT_DATA"))
-                    }
+                    _registerResult.postValue(ResultState.Failure("Gagal menambahkan data outlet barbershop!", "ADD_SUPPORT_DATA"))
                 } else {
-                    // Run updateOrAddUserRoles if both are successful
+                    // Run updateUserRolesAndProfile if both are successful
                     updateUserRolesAndProfile()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _registerResult.postValue(ResultState.Failure("Error running tasks: ${e.message}", "ADD_SUPPORT_DATA"))
-                }
-                throw e
+                _registerResult.postValue(ResultState.Failure("Gagal menambahkan data outlet barbershop!", "ADD_SUPPORT_DATA"))
             }
         }
     }
 
     private suspend fun addOutletDataBarbershopAsync(): Boolean {
-        val isFailed = AtomicBoolean(false)
         val uidOutlet = userAdminData.barbershopIdentifier + "01"
         val outletData = Outlet(
             uid = uidOutlet,
@@ -328,19 +407,20 @@ class StepThreeViewModel(
             rootRef = "barbershops/${userAdminData.uid}",
             listServices = mutableListOf("BSoBVRz4H5wkAeppmTJw")
         )
-        db.collection("barbershops")
-            .document(userAdminData.uid)
-            .collection("outlets")
-            .document(uidOutlet)
-            .set(outletData)
-            .addOnFailureListener { isFailed.set(true) }
-            .await() // Convert to coroutine-friendly await
 
-        return isFailed.get()
+        val task = withContext(Dispatchers.IO) {
+            db.collection("barbershops")
+                .document(userAdminData.uid)
+                .collection("outlets")
+                .document(uidOutlet)
+                .set(outletData)
+                .awaitWriteWithOfflineFallback(tag = "AddOutletData")
+        }
+
+        return !task.isSuccessful // true = gagal
     }
 
     private suspend fun addDefaultItemServiceAsync(): Boolean {
-        val isFailed = AtomicBoolean(false)
         val defaultService = Service(
             applyToGeneral = true,
             autoSelected = true,
@@ -351,47 +431,54 @@ class StepThreeViewModel(
             rootRef = "barbershops/${userAdminData.uid}",
             serviceCategory = "Conversation",
             serviceCounting = 0,
-            serviceDesc = "Hair Care and Consultation adalah layanan komprehensif yang menghadirkan Tim ahli kami untuk memberikan edukasi mengenai perawatan rambut yang sesuai dengan kebutuhan spesifik Anda, mulai dari pembersihan, perawatan kulit kepala, hingga pemilihan produk perawatan yang tepat. Selain itu, kami juga menawarkan konsultasi mendalam untuk membantu Anda memahami kondisi rambut Anda dan memberikan rekomendasi terbaik untuk perawatan lanjutan.",
+            serviceDesc = "Hair Care and Consultation ...",
             serviceIcon = "https://firebasestorage.googleapis.com/v0/b/barberlink-bfb66.appspot.com/o/services%2Ficons%2FBSoBVRz4H5wkAeppmTJw.png?alt=media&token=3c3f9c48-5368-4507-bc65-1da71b0d1ab3",
             serviceImg = "https://firebasestorage.googleapis.com/v0/b/barberlink-bfb66.appspot.com/o/services%2Fimages%2FBSoBVRz4H5wkAeppmTJw.png?alt=media&token=958c06d4-14f5-42f8-a912-410ede1aa6e7",
             serviceName = "Hair Care and Consultation",
             servicePrice = 0,
             serviceRating = 4.5,
-            uid = "BSoBVRz4H5wkAeppmTJw",
+            uid = "BSoBVRz4H5wkAeppmTJw"
         )
 
-        db.collection("barbershops")
-            .document(userAdminData.uid)
-            .collection("services")
-            .document(defaultService.uid)
-            .set(defaultService)
-            .addOnFailureListener { isFailed.set(true) }
-            .await() // Convert to coroutine-friendly await
+        val task = withContext(Dispatchers.IO) {
+            db.collection("barbershops")
+                .document(userAdminData.uid)
+                .collection("services")
+                .document(defaultService.uid)
+                .set(defaultService)
+                .awaitWriteWithOfflineFallback(tag = "AddDefaultService")
+        }
 
-        return isFailed.get()
+        return !task.isSuccessful
     }
 
-    private fun updateCustomerPhotoProfile(): Task<Void> {
-        // profilenya mau disamakan atau enggak?
+    private suspend fun updateCustomerPhotoProfile(): Boolean {
         val updates = hashMapOf<String, Any?>(
             "photo_profile" to userAdminData.imageCompanyProfile
         )
+        val task = withContext(Dispatchers.IO) {
+            db.document(userRolesData.customerRef)
+                .update(updates)
+                .awaitWriteWithOfflineFallback(tag = "UpdateCustomerPhotoProfile")
+        }
 
-        return db.document(userRolesData.customerRef)
-            .update(updates)
+        return !task.isSuccessful
     }
 
-    private fun updateEmployeePhotoProfile(): Task<Void> {
-        // profilenya mau disamakan atau enggak?
+    private suspend fun updateEmployeePhotoProfile(): Boolean {
         val updates = hashMapOf<String, Any?>(
             "photo_profile" to userAdminData.imageCompanyProfile
         )
+        val task = withContext(Dispatchers.IO) {
+            db.document(userRolesData.employeeRef)
+                .update(updates)
+                .awaitWriteWithOfflineFallback(tag = "UpdateEmployeePhotoProfile")
+        }
 
-        return db.document(userRolesData.employeeRef)
-            .update(updates)
+        return !task.isSuccessful
     }
 
-    private fun updateOrAddUserRoles(): Task<Void> {
+    private suspend fun updateOrAddUserRoles(): Boolean {
         val userRolesCopy = userRolesData.copy().apply {
             role = when (role) {
                 "" -> "admin"
@@ -403,108 +490,116 @@ class StepThreeViewModel(
             }
         }
 
-        return db.collection("users")
-            .document(userAdminData.phone)
-            .set(userRolesCopy)
+        val task = withContext(Dispatchers.IO) {
+            db.collection("users")
+                .document(userAdminData.phone)
+                .set(userRolesCopy)
+                .awaitWriteWithOfflineFallback(tag = "UpdateUserRoles")
+        }
+
+        return !task.isSuccessful
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun updateUserRolesAndProfile() {
-        userRolesData.apply {
-            adminProvider = "email"
-            adminRef = "barbershops/${userAdminData.uid}"
-            customerProvider = if (this.role == "undefined") "none" else this.customerProvider
-            customerRef = if (this.role == "undefined") "customers/${userAdminData.phone}" else this.customerRef
-            uid = userAdminData.phone
-        }
-        val allTasks = mutableListOf(updateOrAddUserRoles()) // List untuk menampung semua task
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
+            try {
+                userRolesData.apply {
+                    adminProvider = "email"
+                    adminRef = "barbershops/${userAdminData.uid}"
+                    customerProvider = if (this.role == "undefined") "none" else this.customerProvider
+                    customerRef = if (this.role == "undefined") "customers/${userAdminData.phone}" else this.customerRef
+                    uid = userAdminData.phone
+                }
 
-        when (userRolesData.role) {
-            "" -> {
-                // Tidak melakukan update profile
-            }
-            "employee" -> {
-                allTasks.add(updateEmployeePhotoProfile())
-            }
-            "pairEC(-)" -> {
-                allTasks.add(updateEmployeePhotoProfile())
-                allTasks.add(updateCustomerPhotoProfile())
-            }
-            "pairEC(+)" -> {
-                allTasks.add(updateEmployeePhotoProfile())
-                allTasks.add(updateCustomerPhotoProfile())
-            }
-            "customer" -> {
-                allTasks.add(updateCustomerPhotoProfile())
-            }
-            else -> {
-                allTasks.add(updateCustomerPhotoProfile())
-            }
-        }
+                val updateJobs = mutableListOf<Deferred<Boolean>>()
 
-        Tasks.whenAllSuccess<Void>(allTasks)
-            .addOnSuccessListener {
-//                Toast.makeText(this, "Please wait a moment...", Toast.LENGTH_SHORT).show()
+                updateJobs.add(async { updateOrAddUserRoles() })
+                when (userRolesData.role) {
+                    "" -> {}
+                    "employee" -> updateJobs.add(async { updateEmployeePhotoProfile() })
+                    "pairEC(-)", "pairEC(+)" -> {
+                        updateJobs.add(async { updateEmployeePhotoProfile() })
+                        updateJobs.add(async { updateCustomerPhotoProfile() })
+                    }
+                    "customer" -> {
+                        updateJobs.add(async { updateCustomerPhotoProfile() })
+                    } else -> updateJobs.add(async { updateCustomerPhotoProfile() })
 
-                if (auth.currentUser != null) {
+                }
+
+                val results = updateJobs.awaitAll()
+                // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
+                // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
+                // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+                val allSuccess = results.all { it }
+
+                if (allSuccess) {
                     val user = auth.currentUser
-                    user?.let {
-                        // Update account_verification to true
-                        db.collection("barbershops")
-                            .document(it.uid)
-                            .update("account_verification", true)
-                            .addOnSuccessListener {
-                                _registerResult.postValue(ResultState.Navigate(true, user.uid))
-                            }
-                            .addOnFailureListener { _ ->
-                                _registerResult.postValue(ResultState.Failure("Gagal melakukan verifikasi akun pengguna!", "UPDATE_ROLES"))
-                            }
-                    }
-                } else {
-                    if (!NetworkMonitor.isOnline.value) {
-                        val errMessage = NetworkMonitor.errorMessage.value
-                        NetworkMonitor.showToast(errMessage, true)
-
-                        _registerResult.postValue(ResultState.Failure("", "UPDATE_ROLES"))
-//                        _registerResult.postValue(ResultState.Failure("Koneksi internet tidak tersedia. Periksa koneksi Anda.", "UPDATE_ROLES"))
-                        return@addOnSuccessListener
-                    }
-
-                    auth.signInWithEmailAndPassword(
-                        userAdminData.email,
-                        userAdminData.password
-                    ).addOnCompleteListener { task ->
-                        if (task.isSuccessful) {
-                            val user = auth.currentUser
-                            user?.let {
-                                // Update account_verification to true
+                    if (user != null) {
+                        user.let {
+                            val task = withContext(Dispatchers.IO) {
                                 db.collection("barbershops")
                                     .document(it.uid)
                                     .update("account_verification", true)
-                                    .addOnSuccessListener {
-                                        _registerResult.postValue(ResultState.Navigate(true, user.uid))
-                                    }
-                                    .addOnFailureListener {
-                                        _registerResult.postValue(ResultState.Failure("Gagal melakukan verifikasi akun pengguna!", "UPDATE_ROLES"))
-                                    }
+                                    .awaitWriteWithOfflineFallback(tag = "VerifyAccountAfterLogin")
                             }
-                        } else {
-                            _registerResult.postValue(ResultState.Failure("Login failed: ${task.exception?.message}", "UPDATE_ROLES"))
+
+                            if (task.isSuccessful)
+                                // end process without local toast checking
+                                _registerResult.postValue(ResultState.Navigate(true, it.uid))
+                            else {
+                                if (task.displayMessage) _registerResult.postValue(ResultState.Failure(task.errorMessage.toString(), "UPDATE_ROLES"))
+                                else _registerResult.postValue(ResultState.Failure("Gagal memverifikasi akun pengguna!", "UPDATE_ROLES"))
+                            }
+                        }
+                    } else {
+                        // PENGECHECKAN MANUAL KARENA GAK OFFLINEAWARE
+                        if (!NetworkMonitor.isOnline.value) {
+                            val errMessage = NetworkMonitor.errorMessage.value
+                            NetworkMonitor.showToast(errMessage, true)
+                            _registerResult.postValue(ResultState.Failure("", "UPDATE_ROLES"))
+//                        _registerResult.postValue(ResultState.Failure("Koneksi internet tidak tersedia. Periksa koneksi Anda.", "UPDATE_ROLES"))
+                            return@launch
+                        }
+
+                        auth.signInWithEmailAndPassword(
+                            userAdminData.email,
+                            userAdminData.password
+                        ).addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                val user = auth.currentUser
+                                user?.let {
+                                    viewModelScope.launch {
+                                        try {
+                                            val task = withContext(Dispatchers.IO) {
+                                                db.collection("barbershops")
+                                                    .document(it.uid)
+                                                    .update("account_verification", true)
+                                                    .awaitWriteWithOfflineFallback(tag = "VerifyAccountAfterLogin")
+                                            }
+
+                                            if (task.isSuccessful)
+                                                // end process without local toast checking
+                                                _registerResult.postValue(ResultState.Navigate(true, it.uid))
+                                            else {
+                                                if (task.displayMessage) _registerResult.postValue(ResultState.Failure(task.errorMessage.toString(), "UPDATE_ROLES"))
+                                                else _registerResult.postValue(ResultState.Failure("Gagal memverifikasi akun pengguna!", "UPDATE_ROLES"))
+                                            }
+                                        } catch (e: Exception) {
+                                            _registerResult.postValue(ResultState.Failure("Gagal memverifikasi akun pengguna!", "UPDATE_ROLES"))
+                                        }
+                                    }
+                                } ?: run { _registerResult.postValue(ResultState.Failure("Gagal memverifikasi akun pengguna!", "UPDATE_ROLES")) }
+                            } else _registerResult.postValue(ResultState.Failure("Gagal masuk dengan akun pengguna!", "UPDATE_ROLES"))
                         }
                     }
-                    // Cek apakah koneksi internet benar-benar dapat mengakses server
-//                    InternetCheck { internet ->
-//                        if (internet) {
-//
-//                        } else {
-//                            _registerResult.postValue(ResultState.Failure("Koneksi internet tidak stabil. Periksa koneksi Anda.", "UPDATE_ROLES"))
-//                        }
-//                    }.execute() // Pastikan untuk mengeksekusi AsyncTask
-                }
+                } else _registerResult.postValue(ResultState.Failure("Gagal memperbarui data pengguna!", "UPDATE_ROLES"))
+            } catch (e: Exception) {
+                _registerResult.postValue(ResultState.Failure("Gagal memperbarui data pengguna!", "UPDATE_ROLES"))
             }
-            .addOnFailureListener { exception ->
-                _registerResult.postValue(ResultState.Failure("Error updating data: ${exception.message}", "UPDATE_ROLES"))
-            }
+        }
     }
 
 }

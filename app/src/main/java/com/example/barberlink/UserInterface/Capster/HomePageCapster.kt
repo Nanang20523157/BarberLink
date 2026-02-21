@@ -5,8 +5,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -22,26 +20,30 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.marginBottom
 import androidx.core.view.marginEnd
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
 import com.example.barberlink.Adapter.ItemAnalyticsProductAdapter
+import com.example.barberlink.Contract.CapitalDialogHost
 import com.example.barberlink.DataClass.AppointmentData
 import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.ManualIncomeData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.ProductSales
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Contract.NavigationCallback
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
 import com.example.barberlink.UserInterface.Capster.Fragment.SwitchAvailabilityFragment
@@ -49,8 +51,11 @@ import com.example.barberlink.UserInterface.Capster.ViewModel.HomePageViewModel
 import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.CopyUtils
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityHomePageCapsterBinding
 import com.google.android.gms.tasks.Tasks
@@ -60,6 +65,7 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
+import com.yourapp.utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -72,13 +78,15 @@ import java.util.Calendar
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class HomePageCapster : BaseActivity(), View.OnClickListener {
+class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost {
     private lateinit var binding: ActivityHomePageCapsterBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private val homePageViewModel: HomePageViewModel by viewModels {
         SaveStateViewModelFactory(this)
     }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 //    private lateinit var outletSelected: Outlet
     private var sessionCapster: Boolean = false
     private var dataCapsterRef: String = ""
@@ -86,14 +94,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     private var isNavigating = false
     private var isProcessingFABAnimation: Boolean = false
     private var remainingListeners = AtomicInteger(8)
-    private var currentView: View? = null
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
     private lateinit var calendar: Calendar
     private lateinit var startOfMonth: Timestamp
     private lateinit var startOfNextMonth: Timestamp
     private lateinit var productAdapter: ItemAnalyticsProductAdapter
-    private val handler = Handler(Looper.getMainLooper())
 
     //private lateinit var userEmployeeData: Employee
     private var isFirstLoad: Boolean = true
@@ -101,7 +107,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private val pointDummy = 9999
-    private var currentToastMessage: String? = null
 
 //    private var amountProductRevenue: Int = 0
 //    private var amountServiceRevenue: Int = 0
@@ -123,19 +128,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     // private lateinit var locationListener: ListenerRegistration
     private val daysMonth = GetDateUtils.getDaysInCurrentMonth()
     private var currentMonth: String = ""
-    private val reservationListMutex = Mutex()
-    private val appointmentListMutex = Mutex()
-    private val manualReportListMutex = Mutex()
-    private val productSalesListMutex = Mutex()
-    private val outletsListMutex = Mutex()
-    private val productListMutex = Mutex()
 
 //    private val reservationList = mutableListOf<Reservation>()
 //    private val productSalesList = mutableListOf<ProductSales>()
 //    private val outletsList = mutableListOf<Outlet>()
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
-    private var myCurrentToast: Toast? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -185,6 +183,14 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
 
+        homePageViewModel
+        toastViewModel
+        fragmentManager = supportFragmentManager
+        sessionCapster = sessionManager.getSessionCapster()
+        dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
+//        outletCapsterRef = sessionManager.getOutletSelectedRef() ?: ""
+//        Log.d("OutletSelected", "$outletCapsterRef")
+        Log.d("CapterReference", dataCapsterRef)
         setNavigationCallback(object : NavigationCallback {
             override fun navigate() {
                 // Implementasi navigasi spesifik untuk MainActivity
@@ -194,13 +200,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             }
         })
 
-        fragmentManager = supportFragmentManager
-        sessionCapster = sessionManager.getSessionCapster()
-        dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
-//        outletCapsterRef = sessionManager.getOutletSelectedRef() ?: ""
-//        Log.d("OutletSelected", "$outletCapsterRef")
-        Log.d("CapterReference", dataCapsterRef)
-
         if (savedInstanceState != null) {
             Log.d("CheckShimmer", "Animate First Load HPC >>> savedInstanceState != null")
             //userEmployeeData = savedInstanceState.getParcelable("user_employee_data") ?: Employee()
@@ -209,7 +208,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         } else { Log.d("CheckShimmer", "Orientation Change HPC >>> savedInstanceState == null") }
 
         binding.realLayout.tvValueKomisiJasa.isSelected = true
@@ -311,6 +309,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         if (savedInstanceState == null) {
             // Check if the intent has the key ACTION_GET_DATA
             if (intent.hasExtra(SelectUserRolePage.ACTION_GET_DATA) && sessionCapster) {
+                Log.d("CheckShimmer", "getCapsterData()")
                 getCapsterData()
             } else {
                 Log.d("CheckShimmer", "Intent Data")
@@ -335,22 +334,26 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
 
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                this@HomePageCapster,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    this@HomePageCapster,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -362,7 +365,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_uid_hidden_text", isUidHiddenText)
         outState.putBoolean("is_handling_back", isHandlingBack)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
         //outState.putParcelable("user_employee_data", userEmployeeData)
     }
 
@@ -370,30 +372,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
 //        BarberLinkApp.sessionManager.setActivePage("Employee")
 //        super.onStart()
 //    }
-
-    private fun setupListeners(skippedProcess: Boolean = false) {
-        this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(8)
-//        listenSpecificOutletData()
-        listenToUserCapsterData()
-        listenToOutletList()
-        listenToReservationsData()
-        listenToAppointmentsData()
-        listenToManualReportData()
-        listenToSalesData()
-        listenUserAccumulationBon()
-        listenToProductsData()
-
-        // Tambahkan logika sinkronisasi di sini
-        lifecycleScope.launch {
-            while (remainingListeners.get() > 0) {
-                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
-            }
-            this@HomePageCapster.isFirstLoad = false
-            this@HomePageCapster.skippedProcess = false
-            Log.d("FirstLoopEdited", "First Load HPC = false")
-        }
-    }
 
     private fun hideFab(fab: FloatingActionButton) {
         fab.animate()
@@ -457,83 +435,104 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     }
 
     private suspend fun resetVariabel() {
-        withContext(Dispatchers.Main) {
-            reservationListMutex.withLock {
-                homePageViewModel.clearReservationList()
-                homePageViewModel.resetReservationVariables()
-            }
-            appointmentListMutex.withLock {
-                homePageViewModel.clearAppointmentList()
-                homePageViewModel.resetAppointmentVariables()
-            }
-            manualReportListMutex.withLock {
-                homePageViewModel.clearManualReportList()
-                homePageViewModel.resetManualReportVariables()
-            }
-            productSalesListMutex.withLock {
-                homePageViewModel.clearProductSalesList()
-                homePageViewModel.resetSalesVariables()
-            }
-            outletsListMutex.withLock {
-                homePageViewModel.clearOutletsList()
-            }
-            productListMutex.withLock {
-                homePageViewModel.clearProductList()
-            }
+        homePageViewModel.resetBonAccumulation()
+        homePageViewModel.reservationListMutex.withStateLock {
+            homePageViewModel.clearReservationList()
+            homePageViewModel.resetReservationVariables()
+        }
+        homePageViewModel.appointmentListMutex.withStateLock {
+            homePageViewModel.clearAppointmentList()
+            homePageViewModel.resetAppointmentVariables()
+        }
+        homePageViewModel.manualReportListMutex.withStateLock {
+            homePageViewModel.clearManualReportList()
+            homePageViewModel.resetManualReportVariables()
+        }
+        homePageViewModel.productSalesListMutex.withStateLock {
+            homePageViewModel.clearProductSalesList()
+            homePageViewModel.resetSalesVariables()
+        }
+        homePageViewModel.outletsListMutex.withStateLock {
+            homePageViewModel.clearOutletsList()
+        }
+        homePageViewModel.productListMutex.withStateLock {
+            homePageViewModel.clearProductList()
         }
     }
 
+    private fun setupListeners(skippedProcess: Boolean = false) {
+        this.skippedProcess = skippedProcess
+        if (skippedProcess) remainingListeners.set(8)
+//        listenSpecificOutletData()
+        listenToUserCapsterData()
+        listenToOutletList()
+        listenToReservationsData()
+        listenToAppointmentsData()
+        listenToManualReportData()
+        listenToSalesData()
+        listenUserAccumulationBon()
+        listenToProductsData()
 
-//    private fun listenSpecificOutletData() {
-//        locationListener = db.document(outletCapsterRef).addSnapshotListener { documentSnapshot, exception ->
-//            if (exception != null) {
-//                Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
-//                return@addSnapshotListener
-//            }
-//
-//            documentSnapshot?.let { document ->
-//                if (document.exists()) {
-//                    val outletData = document.toObject(Outlet::class.java)
-//                    outletData?.let {
-//                        outletSelected = it
-//                    }
-//                }
-//            }
-//        }
-//    }
+        // Tambahkan logika sinkronisasi di sini
+        lifecycleScope.launch {
+            while (remainingListeners.get() > 0) {
+                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
+            }
+            this@HomePageCapster.isFirstLoad = false
+            this@HomePageCapster.skippedProcess = false
+            Log.d("FirstLoopEdited", "First Load HPC = false")
+        }
+    }
 
     private fun listenToUserCapsterData() {
-        if (::employeeListener.isInitialized) {
-            employeeListener.remove()
-        }
-        var decrementGlobalListener = false
-
-        employeeListener = db.document(dataCapsterRef).addSnapshotListener { documents, exception ->
-            exception?.let {
-                showToast("Error listening to employee data: ${it.message}")
-                if (!decrementGlobalListener) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
-                return@addSnapshotListener
+        dataCapsterRef.let {
+            if (::employeeListener.isInitialized) {
+                employeeListener.remove()
             }
-            documents?.let {
-                if (!isFirstLoad && !skippedProcess && it.exists()) {
-                    val userEmployeeData = it.toObject(UserEmployeeData::class.java)?.apply {
-                        userRef = documents.reference.path
-                        outletRef = ""
-                    }
-                    userEmployeeData?.let {
-                        homePageViewModel.setUserEmployeeData(userEmployeeData, true)
-                    }
-                    // displayEmployeeData()
-                }
 
-                if (!decrementGlobalListener) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
+            if (it.isEmpty()) {
+                employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
             }
+            var decrementGlobalListener = false
+
+            employeeListener = db.document(dataCapsterRef)
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        homePageViewModel.listenerEmployeeDataMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee data: ${it.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    if (docs.exists()) {
+                                        withContext(Dispatchers.Default) {
+                                            val userEmployeeData = docs.toObject(UserEmployeeData::class.java)?.apply {
+                                                userRef = docs.reference.path
+                                                outletRef = ""
+                                            }
+                                            userEmployeeData?.let {
+                                                homePageViewModel.setUserEmployeeData(userEmployeeData, true)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
         }
     }
 
@@ -542,32 +541,43 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (::outletListener.isInitialized) {
                 outletListener.remove()
             }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             var decrementGlobalListener = false
 
             outletListener = db.document(userEmployeeData.rootRef)
                 .collection("outlets")
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to outlets data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                outletsListMutex.withLock {
-                                    val outlets = it.mapNotNull { doc ->
-                                        val outlet = doc.toObject(Outlet::class.java)
-                                        outlet.outletReference = doc.reference.path
-                                        outlet
+                    lifecycleScope.launch {
+                        homePageViewModel.listenerOutletListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlets data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        homePageViewModel.outletsListMutex.withStateLock {
+                                            val outlets = docs.mapNotNull { document ->
+                                                val outlet = document.toObject(Outlet::class.java)
+                                                outlet.outletReference = document.reference.path
+                                                outlet
+                                            }
+                                            homePageViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
+                                        }
                                     }
-                                    homePageViewModel.setOutletList(outlets, setupDropdown = false, isSavedInstanceStateNull = true)
                                 }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -575,6 +585,9 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                         }
                     }
                 }
+        } ?: run {
+            outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -583,39 +596,48 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (::productListener.isInitialized) {
                 productListener.remove()
             }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                productListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             var decrementGlobalListener = false
 
             productListener = db.document(userEmployeeData.rootRef)
                 .collection("products")
                 .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to products data: ${exception.message}")
-                        if (!decrementGlobalListener) {
-                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                            decrementGlobalListener = true
-                        }
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isFirstLoad && !skippedProcess) {
-                                productListMutex.withLock {
-                                    val products = it.mapNotNull { doc ->
-                                        val product = doc.toObject(Product::class.java)
-                                        product.dataRef = doc.reference.path
-                                        product
-                                    }
+                    lifecycleScope.launch {
+                        homePageViewModel.listenerProductListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to products data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        homePageViewModel.productListMutex.withStateLock {
+                                            val products = docs.mapNotNull { document ->
+                                                val product = document.toObject(Product::class.java)
+                                                product.dataRef = document.reference.path
+                                                product
+                                            }
 
-                                    // Menjalankan setProductList secara async dan menunggu hasilnya sebelum lanjut
-                                    val setProductJob = async { homePageViewModel.setProductList(products) }
-                                    setProductJob.await() // Tunggu hingga setProductList selesai
+                                            // Menjalankan setProductList secara async dan menunggu hasilnya sebelum lanjut
+                                            val setProductJob = async { homePageViewModel.setProductList(products) }
+                                            setProductJob.await() // Tunggu hingga setProductList selesai
 
-                                    withContext(Dispatchers.Main) {
-                                        displayEmployeeData() // Dipanggil setelah setProductList selesai
+                                            displayEmployeeData() // Dipanggil setelah setProductList selesai
+                                        }
                                     }
                                 }
                             }
 
+                            // Kurangi counter pada snapshot pertama
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -623,15 +645,19 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                         }
                     }
                 }
+        } ?: run {
+            productListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
-    private fun listenToData(
+    private fun <T> listenToData(
         collectionPath: String,
+        dataClass: Class<T>,
         dateField: String,
         userEmployeeData: UserEmployeeData,
         decrementFlag: AtomicBoolean,
-        onSuccess: (QuerySnapshot) -> Unit
+        onSuccess: suspend (QuerySnapshot, ReentrantCoroutineMutex) -> Unit
     ): ListenerRegistration {
         val query = if (collectionPath.contains("/")) {
             // Koleksi biasa dengan filter AND
@@ -657,19 +683,43 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         }
 
         return query.addSnapshotListener { documents, exception ->
-            exception?.let {
-                showToast("Error listening to $collectionPath data: ${it.message}")
-                if (!decrementFlag.get()) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementFlag.set(true)
+            lifecycleScope.launch {
+                val listenerMutex = when (dataClass) {
+                    ReservationData::class.java -> homePageViewModel.listenerReservationsMutex
+                    AppointmentData::class.java -> homePageViewModel.listenerAppointmentsMutex
+                    ManualIncomeData::class.java -> homePageViewModel.listenerManualReportsMutex
+                    ProductSales::class.java -> homePageViewModel.listenerProductSalesMutex
+                    else -> ReentrantCoroutineMutex()
                 }
-                return@addSnapshotListener
-            }
-            documents?.let { onSuccess(it) } ?: run {
-                // Jaga-jaga kalau null tanpa exception
-                if (!decrementFlag.get()) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementFlag.set(true)
+
+                listenerMutex.withStateLock {
+                    exception?.let {
+                        toastViewModel.showToast("Error listening to $collectionPath data: ${it.message}", false)
+                        if (!decrementFlag.get()) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementFlag.set(true)
+                        }
+                        return@withStateLock
+                    }
+                    documents?.let { docs ->
+                        withContext(Dispatchers.Default) {
+                            val mutex = when (dataClass) {
+                                ReservationData::class.java -> homePageViewModel.reservationListMutex
+                                AppointmentData::class.java -> homePageViewModel.appointmentListMutex
+                                ManualIncomeData::class.java -> homePageViewModel.manualReportListMutex
+                                ProductSales::class.java -> homePageViewModel.productSalesListMutex
+                                else -> ReentrantCoroutineMutex()
+                            }
+
+                            onSuccess(docs, mutex)
+                        }
+                    }
+
+                    // Kurangi counter pada snapshot pertama
+                    if (!decrementFlag.get()) {
+                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                        decrementFlag.set(true)
+                    }
                 }
             }
         }
@@ -681,39 +731,39 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (::reservationListener.isInitialized) {
                 reservationListener.remove()
             }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                reservationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             val isReservationDecremented = AtomicBoolean(false)
 
             reservationListener = listenToData(
                 collectionPath = "${userEmployeeData.rootRef}/reservations",
+                dataClass = ReservationData::class.java,
                 dateField = "timestamp_to_booking",
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isReservationDecremented
-            ) { result ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!isFirstLoad && !skippedProcess) {
-                        reservationListMutex.withLock {
-                            homePageViewModel.clearReservationList()
-                            homePageViewModel.resetReservationVariables()
+            ) { result, mutex ->
+                if (!isFirstLoad && !skippedProcess) {
+                    mutex.withStateLock {
+                        homePageViewModel.clearReservationList()
+                        homePageViewModel.resetReservationVariables()
 
-                            homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
-                                val reservation = document.toObject(Reservation::class.java)?.apply {
-                                    dataRef = document.reference.path
-                                }
-                                reservation?.let { homePageViewModel.processReservationDataAsync(it) }
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                displayEmployeeData()
-                            }
+                        homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
+                            document.toObject(ReservationData::class.java)?.apply {
+                                dataRef = document.reference.path
+                            }?.let { homePageViewModel.processReservationDataAsync(it) }
                         }
-                    }
 
-                    if (!isReservationDecremented.get()) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        isReservationDecremented.set(true)
+                        displayEmployeeData()
                     }
                 }
             }
+        } ?: run {
+            reservationListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -722,39 +772,39 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (::appointmentListener.isInitialized) {
                 appointmentListener.remove()
             }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                appointmentListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             val isAppointmentDecremented = AtomicBoolean(false)
 
             appointmentListener = listenToData(
                 collectionPath = "${userEmployeeData.rootRef}/appointment",
+                dataClass = AppointmentData::class.java,
                 dateField = "timestamp_to_booking",
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isAppointmentDecremented
-            ) { result ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!isFirstLoad && !skippedProcess) {
-                        appointmentListMutex.withLock {
-                            homePageViewModel.clearAppointmentList()
-                            homePageViewModel.resetAppointmentVariables()
+            ) { result, mutex ->
+                if (!isFirstLoad && !skippedProcess) {
+                    mutex.withStateLock {
+                        homePageViewModel.clearAppointmentList()
+                        homePageViewModel.resetAppointmentVariables()
 
-                            homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
-                                val appointment = document.toObject(AppointmentData::class.java)?.apply {
-                                    dataRef = document.reference.path
-                                }
-                                appointment?.let { homePageViewModel.processAppointmentDataAsync(it) }
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                displayEmployeeData()
-                            }
+                        homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
+                            document.toObject(AppointmentData::class.java)?.apply {
+                                dataRef = document.reference.path
+                            }?.let { homePageViewModel.processAppointmentDataAsync(it) }
                         }
-                    }
 
-                    if (!isAppointmentDecremented.get()) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        isAppointmentDecremented.set(true)
+                        displayEmployeeData()
                     }
                 }
             }
+        } ?: run {
+            appointmentListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -763,39 +813,39 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (::salesListener.isInitialized) {
                 salesListener.remove()
             }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                salesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             val isSalesDecremented = AtomicBoolean(false)
 
             salesListener = listenToData(
                 collectionPath = "${userEmployeeData.rootRef}/sales",
+                dataClass = ProductSales::class.java,
                 dateField = "timestamp_created",
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isSalesDecremented
-            ) { result ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!isFirstLoad && !skippedProcess) {
-                        productSalesListMutex.withLock {
-                            homePageViewModel.clearProductSalesList()
-                            homePageViewModel.resetSalesVariables()
+            ) { result, mutex ->
+                if (!isFirstLoad && !skippedProcess) {
+                    mutex.withStateLock {
+                        homePageViewModel.clearProductSalesList()
+                        homePageViewModel.resetSalesVariables()
 
-                            homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
-                                val productSales = document.toObject(ProductSales::class.java)?.apply {
-                                    dataRef = document.reference.path
-                                }
-                                productSales?.let { homePageViewModel.processSalesDataAsync(it) }
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                displayEmployeeData()
-                            }
+                        homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
+                            document.toObject(ProductSales::class.java)?.apply {
+                                dataRef = document.reference.path
+                            }?.let { homePageViewModel.processSalesDataAsync(it) }
                         }
-                    }
 
-                    if (!isSalesDecremented.get()) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        isSalesDecremented.set(true)
+                        displayEmployeeData()
                     }
                 }
             }
+        } ?: run {
+            salesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -804,39 +854,39 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             if (::manualReportListener.isInitialized) {
                 manualReportListener.remove()
             }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                manualReportListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
             val isManualReportDecremented = AtomicBoolean(false)
 
             manualReportListener = listenToData(
                 collectionPath = "${userEmployeeData.rootRef}/manual_report",
+                dataClass = ManualIncomeData::class.java,
                 dateField = "timestamp_created",
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isManualReportDecremented
-            ) { result ->
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if (!isFirstLoad && !skippedProcess) {
-                        manualReportListMutex.withLock {
-                            homePageViewModel.clearManualReportList()
-                            homePageViewModel.resetManualReportVariables()
+            ) { result, mutex ->
+                if (!isFirstLoad && !skippedProcess) {
+                    mutex.withStateLock {
+                        homePageViewModel.clearManualReportList()
+                        homePageViewModel.resetManualReportVariables()
 
-                            homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
-                                val manualReport = document.toObject(ManualIncomeData::class.java)?.apply {
-                                    dataRef = document.reference.path
-                                }
-                                manualReport?.let { homePageViewModel.processManualReportDataAsync(it) }
-                            }
-
-                            withContext(Dispatchers.Main) {
-                                displayEmployeeData()
-                            }
+                        homePageViewModel.processDocumentsConcurrently(result.documents) { document ->
+                            document.toObject(ManualIncomeData::class.java)?.apply {
+                                dataRef = document.reference.path
+                            }?.let { homePageViewModel.processManualReportDataAsync(it) }
                         }
-                    }
 
-                    if (!isManualReportDecremented.get()) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        isManualReportDecremented.set(true)
+                        displayEmployeeData()
                     }
                 }
             }
+        } ?: run {
+            manualReportListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
@@ -844,6 +894,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
             if (::userBonListener.isInitialized) {
                 userBonListener.remove()
+            }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                userBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
             }
             var decrementGlobalListener = false
 
@@ -856,269 +912,334 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                     Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
                 )
             ).addSnapshotListener { documents, exception ->
-                exception?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        homePageViewModel.setUserAccumulationBon(-999)
-                    }
-                    showToast("Error listening to user bon data: ${it.message}")
-                    if (!decrementGlobalListener) {
-                        if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                        decrementGlobalListener = true
-                    }
-                    return@addSnapshotListener
-                }
-                documents?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        if (!isFirstLoad && !skippedProcess) {
-                            val totalBonAmount = documents.documents.sumOf { doc ->
-                                doc.toObject(BonEmployeeData::class.java)?.bonDetails?.remainingBon ?: 0
+                lifecycleScope.launch {
+                    homePageViewModel.listenerBonAccumulationMutex.withStateLock {
+                        exception?.let {
+                            homePageViewModel.setUserAccumulationBon(-999)
+                            toastViewModel.showToast("Error listening to user bon data: ${it.message}", false)
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
                             }
+                            return@withStateLock
+                        }
+                        documents?.let { docs ->
+                            if (!isFirstLoad && !skippedProcess) {
+                                withContext(Dispatchers.Default) {
+                                    val totalBonAmount = docs.documents.sumOf { document ->
+                                        document.toObject(BonEmployeeData::class.java)?.bonDetails?.remainingBon ?: 0
+                                    }
+                                    homePageViewModel.setUserAccumulationBon(totalBonAmount)
 
-                            homePageViewModel.setUserAccumulationBon(totalBonAmount)
-                            withContext(Dispatchers.Main) {
-                                displayEmployeeData()
+                                    displayEmployeeData()
+                                }
                             }
+                        }
+
+                        // Kurangi counter pada snapshot pertama
+                        if (!decrementGlobalListener) {
+                            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                            decrementGlobalListener = true
                         }
                     }
                 }
-
-                if (!decrementGlobalListener) {
-                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
-                    decrementGlobalListener = true
-                }
             }
+        } ?: run {
+            userBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
 
-//    private fun getSpecificOutletData() {
-//        db.document(outletCapsterRef).get().addOnSuccessListener { documentSnapshot ->
-//            if (documentSnapshot.exists()) {
-//                val outletData = documentSnapshot.toObject(Outlet::class.java)
-//                outletData?.let {
-//                    outletSelected = it
-//                    getCapsterData()
-//                }
-//            } else {
-//                Toast.makeText(this, "Outlet document does not exist", Toast.LENGTH_SHORT).show()
-//            }
-//        }.addOnFailureListener { exception ->
-//            Toast.makeText(this, "Error getting outlet document: ${exception.message}", Toast.LENGTH_SHORT).show()
-//        }
-//    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     private fun getCapsterData() {
-        db.document(dataCapsterRef).get()
-            .addOnSuccessListener { documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    val data = documentSnapshot.toObject(UserEmployeeData::class.java) ?: UserEmployeeData()
-                    val userEmployeeData = data.apply {
-                        userRef = documentSnapshot.reference.path
-                        outletRef = ""
+        lifecycleScope.launch {
+            dataCapsterRef.let {
+                if (it.isEmpty()) {
+                    homePageViewModel.setUserAccumulationBon(-999)
+                    displayEmployeeData()
+                    Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                    toastViewModel.showToast("Gagal memuat data pengguna!", false)
+                    return@let
+                }
+
+                try {
+                    // 🔹 Ambil dokumen dengan mekanisme Offline Aware
+                    val snapshot = withContext(Dispatchers.IO) {
+                        db.document(dataCapsterRef)
+                            .awaitGetWithOfflineFallback(tag = "GetCapsterData")
                     }
-                    Log.d("CheckShimmer", "getCapsterData Success >> documentSnapshot.exists() == true")
-                    // Lakukan sesuatu dengan data employee
-                    homePageViewModel.setUserEmployeeData(userEmployeeData, false)
-                } else {
-                    Log.d("CheckShimmer", "getCapsterData Success >> documentSnapshot.exists() == false")
-                    showToast("Document does not exist")
+
+                    if (snapshot.isSuccessful) {
+                        val document = snapshot.data
+                        if (document != null && document.exists()) {
+                            withContext(Dispatchers.Default) {
+                                val userEmployeeData = document.toObject(UserEmployeeData::class.java)?.apply {
+                                    userRef = document.reference.path
+                                    outletRef = ""
+                                } ?: UserEmployeeData()
+
+                                Log.d("CheckShimmer", "✅ getCapsterData Success (Offline-Aware)")
+                                homePageViewModel.setUserEmployeeData(userEmployeeData, false)
+                            }
+                        } else {
+                            homePageViewModel.setUserAccumulationBon(-999)
+                            displayEmployeeData()
+                            Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                            if (snapshot.displayMessage) toastViewModel.showToast(snapshot.errorMessage.toString(), false)
+                            else toastViewModel.showToast("Gagal memuat data pengguna!", false)
+                        }
+                    } else {
+                        homePageViewModel.setUserAccumulationBon(-999)
+                        displayEmployeeData()
+                        Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                        if (snapshot.displayMessage) {
+                            if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
+                                NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
+                            } else toastViewModel.showToast(snapshot.errorMessage.toString(), false)
+                        } else toastViewModel.showToast("Gagal memuat data pengguna!", false)
+                    }
+                } catch (e: Exception) {
+                    homePageViewModel.setUserAccumulationBon(-999)
+                    displayEmployeeData()
+                    Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                    toastViewModel.showToast("Gagal memuat data pengguna!", false)
                 }
             }
-            .addOnFailureListener { exception ->
-                Log.d("CheckShimmer", "getCapsterData Failed")
-                showToast("Error getting document: ${exception.message}")
-            }
-
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun getAllData() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            if (!NetworkMonitor.isOnline.value) delay(550L)
-            homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
-                val bookFilter = Filter.and(
-                    Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
-                    Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfMonth),
-                    Filter.lessThan("timestamp_to_booking", startOfNextMonth)
-                )
+        lifecycleScope.launch {
+            homePageViewModel.allDataMutex.withStateLock {
+                if (!NetworkMonitor.isOnline.value) delay(550L)
+                homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
+                    if (userEmployeeData.userRef.isEmpty()) {
+                        homePageViewModel.setUserAccumulationBon(-999)
+                        displayEmployeeData()
+                        Logger.d("CheckError", "❌ getAllData: Gagal memuat data yang dibutuhkan!!!")
+                        toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
+                        return@let
+                    }
 
-                val createFilter = Filter.and(
-                    Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
-                    Filter.greaterThanOrEqualTo("timestamp_created", startOfMonth),
-                    Filter.lessThan("timestamp_created", startOfNextMonth)
-                )
+                    try {
+                        // 🔹 Siapkan filter untuk setiap koleksi
+                        val bookFilter = Filter.and(
+                            Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
+                            Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfMonth),
+                            Filter.lessThan("timestamp_to_booking", startOfNextMonth)
+                        )
 
-                val bonFilter = Filter.and(
-                    Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
-                    Filter.greaterThan("bon_details.remaining_bon", 0),
-                    Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
-                )
+                        val createFilter = Filter.and(
+                            Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
+                            Filter.greaterThanOrEqualTo("timestamp_created", startOfMonth),
+                            Filter.lessThan("timestamp_created", startOfNextMonth)
+                        )
 
-                val tasks = listOf(
-                    db.collection("${userEmployeeData.rootRef}/reservations")
-                        .where(bookFilter)
-                        .get(),
+                        val bonFilter = Filter.and(
+                            Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
+                            Filter.greaterThan("bon_details.remaining_bon", 0),
+                            Filter.inArray("return_status", listOf("Belum Bayar", "Terangsur"))
+                        )
 
-                    db.collection("${userEmployeeData.rootRef}/appointment") // Menggunakan koleksi biasa
-                        .where(bookFilter)
-                        .get(),
+                        // 🔹 Jalankan semua operasi Firestore secara paralel
+                        val reservationsJob = async(Dispatchers.IO) {
+                            db.collection("${userEmployeeData.rootRef}/reservations")
+                                .where(bookFilter)
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterReservations")
+                        }
 
-                    db.collection("${userEmployeeData.rootRef}/sales") // Menggunakan koleksi biasa
-                        .where(createFilter)
-                        .get(),
+                        val appointmentJob = async(Dispatchers.IO) {
+                            db.collection("${userEmployeeData.rootRef}/appointment")
+                                .where(bookFilter)
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterAppointments")
+                        }
 
-                    db.collection("${userEmployeeData.rootRef}/manual_report") // Menggunakan koleksi biasa
-                        .where(createFilter)
-                        .get(),
+                        val salesJob = async(Dispatchers.IO) {
+                            db.collection("${userEmployeeData.rootRef}/sales")
+                                .where(createFilter)
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterSales")
+                        }
 
-                    db.document(userEmployeeData.rootRef)
-                        .collection("outlets")
-                        .get(),
+                        val manualReportJob = async(Dispatchers.IO) {
+                            db.collection("${userEmployeeData.rootRef}/manual_report")
+                                .where(createFilter)
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterManualReports")
+                        }
 
-                    db.collection("${userEmployeeData.rootRef}/employee_bon")
-                        .where(bonFilter)
-                        .get(),
+                        val outletsJob = async(Dispatchers.IO) {
+                            db.document(userEmployeeData.rootRef)
+                                .collection("outlets")
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterOutlets")
+                        }
 
-                    db.collection("${userEmployeeData.rootRef}/products")
-                        .get()
-                )
+                        val bonJob = async(Dispatchers.IO) {
+                            db.collection("${userEmployeeData.rootRef}/employee_bon")
+                                .where(bonFilter)
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterBon")
+                        }
 
-                Tasks.whenAllSuccess<QuerySnapshot>(tasks)
-                    .addOnSuccessListener { results ->
-                        lifecycleScope.launch(Dispatchers.Default) {
+                        val productsJob = async(Dispatchers.IO) {
+                            db.collection("${userEmployeeData.rootRef}/products")
+                                .awaitGetWithOfflineFallback(tag = "GetCapsterProducts")
+                        }
+
+                        // 🔹 Tunggu semua operasi selesai
+                        val snapshotJobs = awaitAll(
+                            reservationsJob,
+                            appointmentJob,
+                            salesJob,
+                            manualReportJob,
+                            outletsJob,
+                            bonJob,
+                            productsJob
+                        )
+                        // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
+                        // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
+                        // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+
+                        withContext(Dispatchers.Default) {
                             resetVariabel()
 
-                            val reservationsResult = results[0]
-                            val appointmentResult = results[1]
-                            val salesResult = results[2]
-                            val manualReportResult = results[3]
-                            val outletResult = results[4]
-                            val bonResult = results[5]
-                            val productResult = results[6]
+                            val mappedResults = snapshotJobs.map { it.data }
+                            val reservationsResult = mappedResults.getOrNull(0)
+                            val appointmentResult = mappedResults.getOrNull(1)
+                            val salesResult = mappedResults.getOrNull(2)
+                            val manualReportResult = mappedResults.getOrNull(3)
+                            val outletResult = mappedResults.getOrNull(4)
+                            val bonResult = mappedResults.getOrNull(5)
+                            val productResult = mappedResults.getOrNull(6)
 
-                            // Proses setiap hasil secara paralel
+                            // 🔹 Proses hasil secara paralel
                             val jobs = listOf(
                                 async {
-                                    reservationsResult?.let { result ->
-                                        reservationListMutex.withLock {
-                                            homePageViewModel.iterateReservationData(result)
-                                        }
+                                    homePageViewModel.reservationListMutex.withStateLock {
+                                        homePageViewModel.iterateReservationData(reservationsResult)
                                     }
                                 },
                                 async {
-                                    appointmentResult?.let { result ->
-                                        reservationListMutex.withLock {
-                                            homePageViewModel.iterateAppointmentData(result)
-                                        }
+                                    homePageViewModel.appointmentListMutex.withStateLock {
+                                        homePageViewModel.iterateAppointmentData(appointmentResult)
                                     }
                                 },
                                 async {
-                                    salesResult?.let { result ->
-                                        productSalesListMutex.withLock {
-                                            homePageViewModel.iterateSalesData(result)
-                                        }
+                                    homePageViewModel.productSalesListMutex.withStateLock {
+                                        homePageViewModel.iterateSalesData(salesResult)
                                     }
                                 },
                                 async {
-                                    manualReportResult?.let { result ->
-                                        reservationListMutex.withLock {
-                                            homePageViewModel.iterateManualReportData(result)
-                                        }
+                                    homePageViewModel.manualReportListMutex.withStateLock {
+                                        homePageViewModel.iterateManualReportData(manualReportResult)
                                     }
                                 },
                                 async {
-                                    outletResult?.let { result ->
-                                        outletsListMutex.withLock {
-                                            //setOutletList
-                                            homePageViewModel.iterateOutletData(result)
-                                        }
+                                    homePageViewModel.outletsListMutex.withStateLock {
+                                        //setOutletList
+                                        homePageViewModel.iterateOutletData(outletResult)
                                     }
                                 },
                                 async {
-                                    bonResult?.let { result ->
-                                        homePageViewModel.accumulateBonData(result)
-                                    }
+                                    homePageViewModel.accumulateBonData(bonResult)
                                 },
                                 async {
-                                    productResult?.let { result ->
-                                        homePageViewModel.iterateProductData(result)
-                                    }
+                                    homePageViewModel.iterateProductData(productResult)
                                 }
                             )
 
-                            // Menunggu semua pekerjaan selesai
-                            jobs.awaitAll()
+                            val iterateJob = jobs.awaitAll()
+                            // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
+                            // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
+                            // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+                            val allSuccess = snapshotJobs.all { it.isSuccessful } && iterateJob.all { it }
 
-                            withContext(Dispatchers.Main) {
-                                Log.d("CheckShimmer", "getAllData Success")
+                            if (allSuccess) {
+                                Log.d("CapsterData", "✅ getAllData Success (Offline-Aware)")
                                 displayEmployeeData()
-                                if (!homePageViewModel.getIsCapitalDialogShow()) {
-                                    handler.postDelayed({
-                                        showCapitalInputDialog()
-                                    }, 300)
+
+                                if (isFirstLoad) {
+                                    if (!homePageViewModel.getIsCapitalDialogShow() && homePageViewModel.outletList.value?.isEmpty() == false) {
+                                        lifecycleScope.launch {
+                                            delay(300)
+                                            if (isDestroyed) return@launch
+
+                                            showCapitalInputDialog()
+                                        }
+                                    } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", false)
                                 }
+                            } else {
+                                Logger.d("CheckError", "❌ getAllData: Gagal memuat data yang dibutuhkan!!!")
+                                throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
                             }
                         }
-                    }
-                    .addOnFailureListener { e ->
-                        Log.d("CheckShimmer", "getAllData Failed")
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            homePageViewModel.setUserAccumulationBon(-999)
-                        }
+                    } catch (e: Exception) {
+                        resetVariabel()
+                        homePageViewModel.setUserAccumulationBon(-999)
                         displayEmployeeData()
-                        showToast("Error getting data: ${e.message}")
+                        Logger.d("CheckError", "❌ getAllData: ${e.message}")
+                        toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
                     }
+                } ?: run {
+                    homePageViewModel.setUserAccumulationBon(-999)
+                    displayEmployeeData()
+                    Logger.d("CheckError", "❌ getAllData: Gagal memuat data yang dibutuhkan!!!")
+                    toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
+                }
             }
         }
     }
 
-
     private fun displayEmployeeData() {
-        homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
-            // Implementasi untuk menampilkan data employee
-            with (binding) {
-                loadImageWithGlide(userEmployeeData.photoProfile)
-                realLayout.tvName.text = userEmployeeData.fullname.ifEmpty { "-" }
-                // realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userEmployeeData.amountOfBon.toDouble())
-                val userAccumulationBon = homePageViewModel.userAccumulationBon.value ?: 0
-                if (userAccumulationBon != -999) {
-                    realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userAccumulationBon.toDouble())
-                    realLayout.tvNominalBon.setTextColor(ContextCompat.getColor(root.context, R.color.platinum_grey_background))
-                } else {
-                    realLayout.tvNominalBon.text = getString(R.string.error_text_for_user_accumulation_bon)
-                    realLayout.tvNominalBon.setTextColor(ContextCompat.getColor(root.context, R.color.red))
+        lifecycleScope.launch {
+            homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
+                // Implementasi untuk menampilkan data employee
+                with (binding) {
+                    loadImageWithGlide(userEmployeeData.photoProfile)
+                    realLayout.tvName.text = userEmployeeData.fullname.ifEmpty { "-" }
+                    // realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userEmployeeData.amountOfBon.toDouble())
+                    val userAccumulationBon = homePageViewModel.userAccumulationBon.value ?: 0
+                    if (userAccumulationBon == -999) {
+                        realLayout.tvNominalBon.text = getString(R.string.error_text_for_user_accumulation_bon)
+                        realLayout.tvNominalBon.setTextColor(ContextCompat.getColor(root.context, R.color.red))
+                    } else {
+                        realLayout.tvNominalBon.text = NumberUtils.numberToCurrency(userAccumulationBon.toDouble())
+                        realLayout.tvNominalBon.setTextColor(ContextCompat.getColor(root.context, R.color.platinum_grey_background))
+                    }
+                    realLayout.tvPoint.text = pointDummy.toString()
+                    if (isUidHiddenText) hideUid(userEmployeeData.uid) else showUid(userEmployeeData.uid)
+
+                    val amountReserveRevenue = homePageViewModel.amountReserveRevenue.value ?: 0
+                    val amountSalesRevenue = homePageViewModel.amountSalesRevenue.value ?: 0
+                    val amountAppointmentRevenue = homePageViewModel.amountAppointmentRevenue.value ?: 0
+                    val amountManualServiceRevenue = homePageViewModel.amountManualServiceRevenue.value ?: 0
+                    val amountManualProductRevenue = homePageViewModel.amountManualProductRevenue.value ?: 0
+                    val amountManualOtherRevenue = homePageViewModel.amountManualOtherRevenue.value ?: 0
+
+                    val amountServiceRevenue = amountReserveRevenue + amountAppointmentRevenue + amountManualServiceRevenue
+                    val amountProductRevenue = amountSalesRevenue + amountManualProductRevenue
+                    realLayout.tvValueKomisiJasa.text =
+                        NumberUtils.numberToCurrency(
+                            (amountServiceRevenue / daysMonth).toDouble())
+                    realLayout.tvValueKomisiProduk.text =
+                        NumberUtils.numberToCurrency(
+                            (amountProductRevenue / daysMonth).toDouble())
+
+                    // val userIncome = (userEmployeeData.salary + amountServiceRevenue + amountProductRevenue - userEmployeeData.amountOfBon)
+                    val userIncome = (userEmployeeData.salary + amountServiceRevenue + amountProductRevenue + amountManualOtherRevenue)
+                    realLayout.tvSaldo.text = NumberUtils.numberToCurrency(userIncome.toDouble())
+
+                    realLayout.tvCompletedQueueValue.text = homePageViewModel.numberOfCompletedQueue.value.toString()
+                    realLayout.tvWaitingQueueValue.text = homePageViewModel.numberOfWaitingQueue.value.toString()
+                    realLayout.tvCancelQueueValue.text = homePageViewModel.numberOfCanceledQueue.value.toString()
                 }
-                realLayout.tvPoint.text = pointDummy.toString()
-                if (isUidHiddenText) hideUid(userEmployeeData.uid) else showUid(userEmployeeData.uid)
 
-                val amountReserveRevenue = homePageViewModel.amountReserveRevenue.value ?: 0
-                val amountSalesRevenue = homePageViewModel.amountSalesRevenue.value ?: 0
-                val amountAppointmentRevenue = homePageViewModel.amountAppointmentRevenue.value ?: 0
-                val amountManualServiceRevenue = homePageViewModel.amountManualServiceRevenue.value ?: 0
-                val amountManualProductRevenue = homePageViewModel.amountManualProductRevenue.value ?: 0
-                val amountManualOtherRevenue = homePageViewModel.amountManualOtherRevenue.value ?: 0
-
-                val amountServiceRevenue = amountReserveRevenue + amountAppointmentRevenue + amountManualServiceRevenue
-                val amountProductRevenue = amountSalesRevenue + amountManualProductRevenue
-                realLayout.tvValueKomisiJasa.text =
-                    NumberUtils.numberToCurrency(
-                        (amountServiceRevenue / daysMonth).toDouble())
-                realLayout.tvValueKomisiProduk.text =
-                    NumberUtils.numberToCurrency(
-                        (amountProductRevenue / daysMonth).toDouble())
-
-                // val userIncome = (userEmployeeData.salary + amountServiceRevenue + amountProductRevenue - userEmployeeData.amountOfBon)
-                val userIncome = (userEmployeeData.salary + amountServiceRevenue + amountProductRevenue + amountManualOtherRevenue)
-                realLayout.tvSaldo.text = NumberUtils.numberToCurrency(userIncome.toDouble())
-
-                realLayout.tvCompletedQueueValue.text = homePageViewModel.numberOfCompletedQueue.value.toString()
-                realLayout.tvWaitingQueueValue.text = homePageViewModel.numberOfWaitingQueue.value.toString()
-                realLayout.tvCancelQueueValue.text = homePageViewModel.numberOfCanceledQueue.value.toString()
+                Log.d("CheckShimmer", "displayEmployeeData >> isShimmer: $isShimmerVisible || isFirstLoad: $isFirstLoad")
+                homePageViewModel.setDisplayCounterProduct(true)
             }
-
-            Log.d("CheckShimmer", "displayEmployeeData >> isShimmer: $isShimmerVisible || isFirstLoad: $isFirstLoad")
-            homePageViewModel.setDisplayCounterProduct(true)
         }
+    }
+
+    override fun onCapitalDialogDismissed() {
+        homePageViewModel.setCapitalDialogShow(false)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -1194,11 +1315,16 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
             when (v?.id) {
                 R.id.fabListQueue -> {
                     Log.d("ClickAble", "clickable: ${fabListQueue.isClickable}")
-                    navigatePage(this@HomePageCapster, QueueControlPage::class.java, true, fabListQueue)
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
+                    if (homePageViewModel.userEmployeeData.value?.uid != "----------------") {
+                        navigatePage(this@HomePageCapster, QueueControlPage::class.java, true, fabListQueue)
+                    } else toastViewModel.showToast("Data pengguna tidak tersedia!", true)
 //                    Toast.makeText(this@HomePageCapster, "Queue control feature is under development...", Toast.LENGTH_SHORT).show()
                 }
                 R.id.btnCopyCode -> {
-                    CopyUtils.copyUidToClipboard(this@HomePageCapster, homePageViewModel.userEmployeeData.value?.uid ?: "")
+                    val viewIdentity = System.identityHashCode(realLayout.btnCopyCode)
+                    CopyUtils.copyUidToClipboard(this@HomePageCapster, homePageViewModel.userEmployeeData.value?.uid ?: "", viewIdentity)
                 }
                 R.id.tvUid -> {
                     if (isUidHiddenText) {
@@ -1208,40 +1334,45 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
                     }
                 }
                 R.id.btnBonPegawai -> {
-                    navigatePage(this@HomePageCapster, BonEmployeePage::class.java, true, realLayout.btnBonPegawai)
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
+                    if (homePageViewModel.userEmployeeData.value?.uid != "----------------") {
+                        navigatePage(this@HomePageCapster, BonEmployeePage::class.java, true, realLayout.btnBonPegawai)
+                    } else toastViewModel.showToast("Data pengguna tidak tersedia!", true)
                     // Toast.makeText(this@HomePageCapster, "Added BON feature is under development...", Toast.LENGTH_SHORT).show()
                 }
                 R.id.cvPerijinan -> {
-                    disableBtnWhenShowDialog(v) {
-                        showSwitchAvailabilityDialog()
-                    }
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
+                    showSwitchAvailabilityDialog()
                     // Toast.makeText(this@HomePageCapster, "Permit application feature is under development...", Toast.LENGTH_SHORT).show()
                 }
                 R.id.cvPresensi -> {
-                    showToast("Employee attendance feature is under development...")
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
+                    toastViewModel.showToast("Employee attendance feature is under development...", true)
                 }
                 R.id.ivSettings -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
                     navigatePage(this@HomePageCapster, SettingPageScreen::class.java, false, realLayout.ivSettings)
                 }
                 R.id.fabInputCapital -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
                     if (!isShimmerVisible) {
-                        showCapitalInputDialog()
+                        if (!homePageViewModel.getIsCapitalDialogShow() && homePageViewModel.outletList.value?.isEmpty() == false) {
+                            showCapitalInputDialog()
+                        } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", true)
                     }
                 }
                 R.id.fabAddManualReport -> {
-                    showToast("Manual report feature is under development...")
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
+                    toastViewModel.showToast("Manual report feature is under development...", true)
                 }
             }
         }
-    }
-
-    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
-        v.isClickable = false
-        currentView = v
-        if (!isNavigating) {
-            isNavigating = true
-            functionShowDialog()
-        } else return
     }
 
     private fun showSwitchAvailabilityDialog() {
@@ -1252,10 +1383,11 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
 
         //val dialogFragment = SwitchAvailabilityFragment.newInstance(userEmployeeData)
         val dialogFragment = SwitchAvailabilityFragment.newInstance()
+        // hmmmmm
         dialogFragment.setOnDismissListener(object : SwitchAvailabilityFragment.OnDismissListener {
             override fun onDialogDismissed() {
-                isNavigating = false
-                currentView?.isClickable = true
+//                isNavigating = false
+//                currentView?.isClickable = true
                 Log.d("DialogDismiss", "Dialog was dismissed")
             }
         })
@@ -1265,9 +1397,8 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, isSendData: Boolean, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
-            // setFilteringForToday()
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -1302,27 +1433,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         }
     }
 
-//    private fun setFilteringForToday() {
-//        val calendar = Calendar.getInstance()
-//        calendar.set(Calendar.HOUR_OF_DAY, 0)
-//        calendar.set(Calendar.MINUTE, 0)
-//        calendar.set(Calendar.SECOND, 0)
-//        calendar.set(Calendar.MILLISECOND, 0)
-//        startOfDay = Timestamp(calendar.time)
-//
-//        calendar.add(Calendar.DAY_OF_MONTH, 1)
-//        startOfNextDay = Timestamp(calendar.time)
-//    }
-//
-//    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
-//        v.isClickable = false
-//        currentView = v
-//        if (!isNavigating) {
-//            isNavigating = true
-//            functionShowDialog()
-//        } else return
-//    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
         Log.d("CheckLifecycle", "==================== ON RESUME HOMEPAGE =====================")
@@ -1331,14 +1441,14 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
         if (!isRecreated) {
             if ((!::outletListener.isInitialized || !::reservationListener.isInitialized || !::salesListener.isInitialized || !::employeeListener.isInitialized && !::userBonListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 startActivity(intent)
-                showToast("Sesi telah berakhir silahkan masuk kembali")
+                toastViewModel.showToast("Sesi telah berakhir silahkan masuk kembali", false)
             }
         }
         isRecreated = false
@@ -1403,8 +1513,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
         if (isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     private fun clearBackStack() {
@@ -1416,7 +1524,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener {
     override fun onDestroy() {
         super.onDestroy()
 
-        handler.removeCallbacksAndMessages(null)
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()
         if (::reservationListener.isInitialized) reservationListener.remove()

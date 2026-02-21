@@ -70,7 +70,7 @@
 
                     <!-- AutoCompleteTextView for Dropdown -->
                     <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/textInputLayout"
+                        android:id="@+id/tilCapsterName"
                         android:layout_width="match_parent"
                         android:layout_height="43dp"
                         app:hintEnabled="false"

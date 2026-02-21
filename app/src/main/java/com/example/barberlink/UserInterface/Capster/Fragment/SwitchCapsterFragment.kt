@@ -7,6 +7,8 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.GestureDetector
 import android.view.LayoutInflater
@@ -22,6 +24,7 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -29,19 +32,24 @@ import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.ItemInfo
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.SwitchCapsterViewModel
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentSwitchQueueBinding
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -61,95 +69,58 @@ private const val ARG_PARAM5 = "outletSelected"
  */
 class SwitchCapsterFragment : DialogFragment() {
     private var _binding: FragmentSwitchQueueBinding? = null
-    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val queueControlViewModel: QueueControlViewModel by activityViewModels()
-    private val switchCapsterViewModel: SwitchCapsterViewModel by activityViewModels {
-        SaveStateViewModelFactory(requireActivity())
-    }
+    private val switchCapsterViewModel: SwitchCapsterViewModel by activityViewModels()
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var context: Context
-    private var duplicateReservation: Reservation? = null
-    private var currentReservation: Reservation? = null
-    private var capsterData: UserEmployeeData? = null
+    private var duplicateReservationData: ReservationData? = null
+    private var currentReservationData: ReservationData? = null
     private var isFirstLoad: Boolean = true
     private var uidDropdownPosition: String = "----------------"
     private var textDropdownCapsterName: String = "Semua"
     private var isOrientationChanged: Boolean = false
-    //private var serviceList: ArrayList<Service>? = null
-    //private var bundlingList: ArrayList<BundlingPackage>? = null
-    //private var outletSelected: Outlet? = null
-    //private val capsterList = mutableListOf<Employee>()
     private var initialUidCapster: String = ""
     private var accumulatedItemPrice: Int = 0
     private var priceBeforeChange: Int = 0
     private var priceAfterChange: Int = 0
-    private var currentToastMessage: String? = null
     private var lifecycleListener: DefaultLifecycleObserver? = null
-    private lateinit var capsterListener: ListenerRegistration
-
     private val binding get() = _binding!!
-    // TNODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-    private var myCurrentToast: Toast? = null
+    private lateinit var textWatcher: TextWatcher
+    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var adapter: ArrayAdapter<String>
+    private var isUserTyping: Boolean = false
+    private var isCapsterDropdownFocus: Boolean = false
+    private var isPopUpDropdownShow: Boolean = false
+    private var isCompleteSearch: Boolean = false
 
-//    private lateinit var sessionDelegate: FragmentSessionDelegate
-
-//    override fun onAttach(context: Context) {
-//        super.onAttach(context)
-//        sessionDelegate = FragmentSessionDelegate(context)
-//    }
+    private var popupObserverJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        queueControlViewModel
+        switchCapsterViewModel
+        toastViewModel
         if (savedInstanceState != null) {
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
-            capsterData = savedInstanceState.getParcelable("capster_data")
+//            capsterData = savedInstanceState.getParcelable("capster_data")
             initialUidCapster = savedInstanceState.getString("initial_uid_capster", "")
-            duplicateReservation = savedInstanceState.getParcelable("duplicate_reservation")
+            duplicateReservationData = savedInstanceState.getParcelable("duplicate_reservation")
             uidDropdownPosition = savedInstanceState.getString("uid_dropdown_position", "----------------")
             textDropdownCapsterName = savedInstanceState.getString("text_dropdown_capster_name", "Semua")
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
+            isUserTyping = savedInstanceState.getBoolean("is_user_typing", false)
+            isCapsterDropdownFocus = savedInstanceState.getBoolean("is_capster_dropdown_focus", false)
+            isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
+            isCompleteSearch = savedInstanceState.getBoolean("is_complete_search", false)
 
             switchCapsterViewModel.setupDropdownFilterWithNullState()
         } else {
             switchCapsterViewModel.setupDropdownWithInitialState()
         }
-//        arguments?.let {
-//            currentReservation = it.getParcelable(ARG_PARAM1)
-//            val dataListService: ArrayList<Service> = it.getParcelableArrayList(ARG_PARAM2) ?: arrayListOf()
-//            val dataListBundling: ArrayList<BundlingPackage> = it.getParcelableArrayList(ARG_PARAM3) ?: arrayListOf()
-//            val userData: Employee = it.getParcelable(ARG_PARAM4) ?: Employee()
-//            outletSelected = it.getParcelable(ARG_PARAM5)
-//
-//            duplicateReservation = currentReservation?.deepCopy(
-//                copyCustomerDetail = false,
-//                copyCustomerWithAppointment = false,
-//                copyCustomerWithReservation = false
-//            )
-//            val (copiedServices, copiedBundlings) = createDeepCopy(dataListService, dataListBundling)
-//            serviceList = copiedServices as ArrayList<Service>
-//            bundlingList = copiedBundlings as ArrayList<BundlingPackage>
-//            capsterData = userData.deepCopy(copyReminder =  false, copyNotification = false)
-//        }
 
         context = requireContext()
     }
-
-//    override fun onStart() {
-//        BarberLinkApp.sessionManager.setActivePage("Employee")
-//        super.onStart()
-//        sessionDelegate.checkSession {
-//            handleSessionExpired()
-//        }
-//    }
-
-//    private fun handleSessionExpired() {
-//        dismiss()
-//        parentFragmentManager.popBackStack()
-//
-//        sessionDelegate.handleSessionExpired(context, SelectUserRolePage::class.java)
-//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -163,30 +134,27 @@ class SwitchCapsterFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvEmployeeName.isSelected = true
-        showToast("Pilih capster pengganti melalui Dropdown yang tersedia")
+        switchCapsterViewModel.getCapsterData()?.let {
+            Logger.d("DisplayCapsterData", "onViewCreated: ${it.fullname}")
+            displayCapsterData(it)
+        } ?: Logger.d("DisplayCapsterData", "onViewCreated: NULL")
+        if (isFirstLoad) toastViewModel.showToast("Pilih capster pengganti melalui Dropdown yang tersedia", false)
+
+        init()
         queueControlViewModel.userEmployeeData.observe(viewLifecycleOwner) { employee ->
             if (employee != null) {
                 if (initialUidCapster.isEmpty()) { initialUidCapster = employee.uid }
-                if (capsterData == null || initialUidCapster == capsterData?.uid) {
-                    capsterData = employee.deepCopy(copyReminder =  false, copyNotification = false)
-                    setBtnNextToDisableState()
-                } else {
-                    setBtnNextToEnableState()
-                }
-                Log.d("SwitchTagFragment", "TT Capster Data: ${capsterData?.fullname} || Initial Capster: $initialUidCapster")
-                binding.acCapsterName.setText(capsterData?.fullname, false)
-                capsterData?.let { displayCapsterData(it) }
             }
         }
 
-        queueControlViewModel.currentReservation.observe(viewLifecycleOwner) { reservation ->
+        queueControlViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->
             if (reservation != null) {
-                currentReservation = reservation
+                currentReservationData = reservation
                 Log.d("SwitchTagFragment", "TT Current Reservation: $reservation")
                 priceBeforeChange = reservation.paymentDetail.finalPrice
                 if (savedInstanceState == null) {
 //                    priceAfterChange = reservation.paymentDetail.finalPrice
-                    duplicateReservation = reservation.deepCopy(
+                    duplicateReservationData = reservation.deepCopy(
                         copyCreatorDetail = false,
                         copyCreatorWithReminder = false,
                         copyCreatorWithNotification = false,
@@ -210,15 +178,18 @@ class SwitchCapsterFragment : DialogFragment() {
             if (isSavedInstanceStateNull != null) setupDropdownCapster(setupDropdown, isSavedInstanceStateNull)
         }
 
-        getAndListenCapsterData()
+//        getAndListenCapsterData()
         binding.switchAdjustPrice.setOnCheckedChangeListener { _, isChecked: Boolean ->
             queueControlViewModel.setReservationDataChange(isChecked)
         }
+
         binding.btnSaveChanges.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             checkNetworkConnection {
                 setFragmentResult("switch_result_data", bundleOf(
-                    "new_reservation_data" to duplicateReservation,
-                    "is_delete_data_reservation" to (capsterData?.uid != initialUidCapster),
+                    "new_reservation_data" to duplicateReservationData,
+                    "is_delete_data_reservation" to (switchCapsterViewModel.getCapsterData()?.uid != initialUidCapster),
                     "dismiss_dialog" to true
                 ))
 
@@ -282,33 +253,111 @@ class SwitchCapsterFragment : DialogFragment() {
         }
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_first_load", isFirstLoad)
-        outState.putParcelable("capster_data", capsterData)
+//        outState.putParcelable("capster_data", capsterData)
         outState.putString("initial_uid_capster", initialUidCapster)
-        outState.putParcelable("duplicate_reservation", duplicateReservation)
+        outState.putParcelable("duplicate_reservation", duplicateReservationData)
         outState.putString("uid_dropdown_position", uidDropdownPosition)
         outState.putString("text_dropdown_capster_name", textDropdownCapsterName)
         outState.putBoolean("is_orientation_changed", true)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
+        outState.putBoolean("is_user_typing", isUserTyping)
+        outState.putBoolean("is_capster_dropdown_focus", isCapsterDropdownFocus)
+        outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
+        outState.putBoolean("is_complete_search", isCompleteSearch)
+        Logger.d("DisplayCapsterData", "onSaveInstanceState: ${switchCapsterViewModel.getCapsterData()?.fullname ?: "NULL"}")
+    }
+
+    private fun init() {
+        // Tambahkan TextWatcher untuk AutoCompleteTextView
+        textWatcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                Log.d("BindingFocus", "beforeTextChanged: $s")
+                // Tidak perlu melakukan apapun sebelum teks berubah
+            }
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (isUserTyping) return
+
+                isUserTyping = true
+                val capitalized = s.toString()
+                    .split(" ")
+                    .joinToString(" ") { word ->
+                        word.lowercase().replaceFirstChar { it.uppercase() }
+                    }
+
+                Log.d("BindingFocus", "current Text: $capitalized")
+                if (capitalized != s.toString()) {
+                    Logger.d("SetDropdown", "Reset Text Capitalized: $capitalized")
+                    binding.acCapsterName.setText(capitalized)
+                    binding.acCapsterName.setSelection(capitalized.length)
+                }
+            }
+
+            override fun afterTextChanged(s: Editable?) {
+                setupTextFieldInputType(s.toString(), isOrientationChanged)
+
+                isUserTyping = false
+            }
+        }
+
+        binding.acCapsterName.addTextChangedListener(textWatcher)
+    }
+
+    private fun setupTextFieldInputType(s: String, isRecreated: Boolean) {
+        if (!isRecreated) {
+            val capsterList = switchCapsterViewModel.capsterList.value ?: emptyList()
+//            val modifiedCapsterList = mutableListOf(UserEmployeeData(uid = "Semua", fullname = "Semua"))
+//            modifiedCapsterList.addAll(capsterList)
+            val selectedCapster: UserEmployeeData? = capsterList.find { it.fullname == s }
+            isCompleteSearch = selectedCapster != null
+            uidDropdownPosition = selectedCapster?.uid ?: "----------------"
+            textDropdownCapsterName = s
+
+            if (isCompleteSearch || s.isEmpty()) {
+                Log.d("BindingFocus", "isCompleteSearch: true")
+                // Kembalikan ke dropdown menu
+                binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                binding.acCapsterName.dismissDropDown()
+                if (::adapter.isInitialized) adapter.filter.filter(null)
+                if (s.isEmpty()) {
+                    // Tunda sedikit agar showDropDown tidak ditimpa oleh dismiss bawaan
+                    handler.postDelayed({
+                        Log.d("BindingFocus", "123")
+                        if (!binding.acCapsterName.isPopupShowing) {
+                            binding.acCapsterName.showDropDown()
+                        }
+                    }, 50)
+                }
+            } else {
+                // Ubah ikon jadi clear
+//                binding.realLayout.textInputLayout.end
+                Log.d("BindingFocus", "isCompleteSearch: false")
+                binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+            }
+        }
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -341,111 +390,109 @@ class SwitchCapsterFragment : DialogFragment() {
         return (dp * resources.displayMetrics.density).toInt()
     }
 
-//    private fun createDeepCopy(
-//        serviceList: List<Service>,
-//        bundlingList: List<BundlingPackage>
-//    ): Pair<List<Service>, List<BundlingPackage>> {
-//        val copiedServices = serviceList.map { it.copy() }
-//        val copiedBundlings = bundlingList.map { it.copy() }
-//        return Pair(copiedServices, copiedBundlings)
-//    }
-
-    private fun getAndListenCapsterData() {
-        queueControlViewModel.outletSelected.value?.let { outletSelected ->
-            if (outletSelected.listEmployees.isEmpty()) {
-                showToast("Anda belum menambahkan daftar capster untuk outlet")
-                return
-            }
-
-            Log.d("SwitchTagFragment", "Listening to: ${outletSelected.rootRef}/divisions/capster/employees")
-            // Hapus listener sebelumnya jika ada
-            if (::capsterListener.isInitialized) {
-                capsterListener.remove()
-            }
-
-            capsterListener = db.document(outletSelected.rootRef)
-                .collection("divisions")
-                .document("capster")
-                .collection("employees")
-                .addSnapshotListener { documents, exception ->
-                    exception?.let {
-                        showToast("Error listening to capster data: ${exception.message}")
-                        return@addSnapshotListener
-                    }
-                    documents?.let {
-                        lifecycleScope.launch(Dispatchers.Default) {
-                            if (!isOrientationChanged) {
-                                val outletData = queueControlViewModel.outletSelected.value ?: return@launch
-                                val employeeUidList = outletData.listEmployees
-
-                                val newCapsterList = it.mapNotNull { document ->
-                                    document.toObject(UserEmployeeData::class.java).apply {
-                                        userRef = document.reference.path
-                                        outletRef = outletData.outletReference
-                                    }.takeIf { it.uid in employeeUidList && it.availabilityStatus }
-                                }
-
-                                withContext(Dispatchers.Main) {
-                                    // queueControlViewModel.setCapsterList(newCapsterList)
-                                    if (newCapsterList.isNotEmpty()) {
-                                        if (capsterData != null && initialUidCapster != capsterData?.uid) {
-                                            capsterData = newCapsterList.find { it.uid == capsterData?.uid }
-                                        }
-                                    } else showToast("Tidak ditemukan data capster yang sesuai")
-
-                                    if (isFirstLoad) switchCapsterViewModel.setCapsterList(newCapsterList, setupDropdown = true, isSavedInstanceStateNull = true)
-                                    else switchCapsterViewModel.setCapsterList(newCapsterList, setupDropdown = false, isSavedInstanceStateNull = true)
-                                }
-                            } else isOrientationChanged = false
-                        }
-                    }
-                }
-        }
-    }
-
     private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
             switchCapsterViewModel.capsterList.value?.let { capsterList ->
+                Logger.d("DropdownCheck", "isFirstLoad: $isFirstLoad || setupDropdown: $setupDropdown || isSavedInstanceStateNull: $isSavedInstanceStateNull")
+                Logger.d("DropdownCheck", "==========================================================================")
                 val capsterItemDropdown = capsterList
-                    .distinctBy { it.fullname }
+                    .filterNot { it.uid == initialUidCapster } // hilangkan nama sendiri
+                    .distinctBy { it.fullname } // Pastikan setiap nama capster unik
                     .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
                     .ifEmpty { listOf(UserEmployeeData(uid = "---", fullname = "---")) }
 
+                capsterItemDropdown.forEach {
+                    Logger.d("SetDropdown", "Dropdown Item: ${it.fullname}" )
+                }
                 val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
-                val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
+                adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
                 binding.acCapsterName.setAdapter(adapter)
-
-                binding.acCapsterName.setOnItemClickListener { _, _, position, _ ->
-                    val dataCapster = capsterItemDropdown[position]
-                    binding.acCapsterName.setText(dataCapster.fullname, false)
-                    uidDropdownPosition = dataCapster.uid
-                    textDropdownCapsterName = dataCapster.fullname
-
-                    triggeredDataChange(dataCapster)
+                binding.acCapsterName.threshold = 0
+                binding.acCapsterName.setOnFocusChangeListener { _, state ->
+                    isCapsterDropdownFocus = state
+                    Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
                 }
 
-                if (setupDropdown) {
-                    val dataCapster = capsterItemDropdown.first()
-                    binding.acCapsterName.setText(dataCapster.fullname, false)
-                    uidDropdownPosition = dataCapster.uid
-                    textDropdownCapsterName = dataCapster.fullname
+                binding.acCapsterName.setOnItemClickListener { _, _, position, _ ->
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        // xxxxx y if (blockAllUserClickAction) { gak perlu gak ada loading }
+                        // Dapatkan teks yang dipilih dari dropdown
+                        val selectedName = adapter.getItem(position)
+                        // Cari UserEmployeeData yang sesuai dari capsterItemDropdown
+                        val dataCapster = capsterItemDropdown.find { it.fullname == selectedName } ?: capsterItemDropdown.first()
 
-                    triggeredDataChange(dataCapster)
-                } else {
-                    if (isSavedInstanceStateNull) {
-                        val selectedIndex = capsterItemDropdown.indexOfFirst {
-                            it.uid.equals(uidDropdownPosition, ignoreCase = true)
-                        }.takeIf { it != -1 } ?: -1
-                        val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
-                        if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                        Logger.d("SetDropdown", "Dropdown Clicked Item position: $position || dataCapster: ${dataCapster.fullname}")
+                        binding.acCapsterName.setText(dataCapster.fullname, false)
+                        binding.acCapsterName.setSelection(dataCapster.fullname.length)
                         uidDropdownPosition = dataCapster.uid
                         textDropdownCapsterName = dataCapster.fullname
 
-                        triggeredDataChange(dataCapster)
-                    } else {
-                        Log.d("CheckShimmer", "setup dropdown by orientationChange")
+                        Logger.d("DisplayCapsterData", "DropdownClick: ${dataCapster.fullname}")
+                        triggeredDataChange(dataCapster, false)
                     }
                 }
+
+                if (setupDropdown) {
+                    Logger.d("DropdownCheck", "SetupDropdown")
+                    capsterItemDropdown.forEach { it ->
+                        Logger.d("DropdownCheck", it.fullname)
+                    }
+                    val dataCapster = capsterItemDropdown.first()
+                    Logger.d("SetDropdown", "Setup Dropdown First Item")
+                    binding.acCapsterName.setText(dataCapster.fullname, false)
+                    uidDropdownPosition = dataCapster.uid
+                    textDropdownCapsterName = dataCapster.fullname
+
+                    Logger.d("DisplayCapsterData", "SetupDropdown: ${dataCapster.fullname}")
+                    triggeredDataChange(dataCapster, false)
+                } else {
+                    if (isSavedInstanceStateNull) {
+                        if (isCompleteSearch) {
+                            Logger.d("DropdownCheck", "DropdownListener")
+                            // selectedIndex == -1 ketika employee sudah tidak lagi terdaftar sebagai listEmployee dari oitlet atau ketika datanya sudah dihapus dari database employee perusahaan
+                            val selectedIndex = capsterItemDropdown.indexOfFirst {
+                                it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                            }.takeIf { it != -1 } ?: -1
+                            val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
+                            Logger.d("SetDropdown", "Dropdown Listener Selected Item, textDropdownCapsterName: $textDropdownCapsterName")
+                            if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                            uidDropdownPosition = dataCapster.uid
+                            textDropdownCapsterName = dataCapster.fullname
+
+                            Logger.d("DisplayCapsterData", "DropdownListener: ${dataCapster.fullname}")
+                            triggeredDataChange(dataCapster, true)
+                        }
+                    } else {
+                        Logger.d("DisplayCapsterData", "DropdownOrientation ${switchCapsterViewModel.getCapsterData()?.fullname ?: "NULL"}")
+                    }
+                }
+
+                val textDropdownSelected = binding.acCapsterName.text.toString().trim()
+                if (isFirstLoad) {
+                    // Langsung set nilai "All" di AutoCompleteTextView
+                    if (textDropdownSelected.isEmpty()) {
+                        Logger.d("SetDropdown", "First Load Set Text All, But Not Used in This Case")
+                        binding.acCapsterName.setText(getString(R.string.all_text), false)
+                    }
+
+                    binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
+                } else {
+                    Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
+                    if (isCompleteSearch || textDropdownSelected.isEmpty()) {
+                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                    } else {
+                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                        adapter.filter.filter(textDropdownCapsterName)
+                    }
+                    if (isPopUpDropdownShow) {
+                        Log.d("BindingFocus", "LLL")
+                        binding.acCapsterName.showDropDown()
+                    }
+                }
+
+                Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
+                if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
+                startPopupObserver()
             }
 
             isFirstLoad = false
@@ -453,30 +500,66 @@ class SwitchCapsterFragment : DialogFragment() {
 
     }
 
-    private fun triggeredDataChange(dataCapster: UserEmployeeData) {
-        dataCapster.let {
-            displayCapsterData(it)
-            adjustOrderItemData(queueControlViewModel.duplicateServiceList.value ?: emptyList(), queueControlViewModel.duplicateBundlingPackageList.value ?: emptyList(), it.uid)
+    private fun startPopupObserver() {
+        popupObserverJob?.cancel()
 
-            if (initialUidCapster != it.uid) {
+        popupObserverJob = lifecycleScope.launch {
+            while (isActive) {
+                observePopupState()
+                delay(50)
+            }
+        }
+    }
+
+    private fun observePopupState() {
+        val currentStatePopUp = binding.acCapsterName.isPopupShowing
+
+        if (currentStatePopUp != isPopUpDropdownShow) {
+            val text = binding.acCapsterName.text.toString().trim()
+            isPopUpDropdownShow = currentStatePopUp
+
+            Log.d("BindingFocus", "Popup: $isPopUpDropdownShow")
+
+            val icon = when {
+                text.isEmpty() || isCompleteSearch -> {
+                    if (isPopUpDropdownShow)
+                        com.google.android.material.R.drawable.mtrl_ic_arrow_drop_up
+                    else
+                        com.google.android.material.R.drawable.mtrl_ic_arrow_drop_down
+                }
+                else -> com.google.android.material.R.drawable.mtrl_ic_cancel
+            }
+
+            binding.tilCapsterName.setEndIconDrawable(icon)
+        }
+    }
+
+    private fun triggeredDataChange(dataCapster: UserEmployeeData, isFromListener: Boolean) {
+        dataCapster.let { data ->
+            displayCapsterData(data)
+            adjustOrderItemData(queueControlViewModel.duplicateServiceList.value ?: emptyList(), queueControlViewModel.duplicateBundlingPackageList.value ?: emptyList(), data.uid)
+
+            if (initialUidCapster != data.uid) {
                 if (textDropdownCapsterName != "---") {
                     setBtnNextToEnableState()
-                    showToast("Anda memilih ${it.fullname} sebagai capster pengganti.")
+                    switchCapsterViewModel.getCapsterData()?.let {
+                        if (!isFromListener) toastViewModel.showToast("Anda memilih ${data.fullname} sebagai capster pengganti.", true)
+                    }
                 } else {
                     setBtnNextToDisableState()
-                    showToast("Tidak ada data yang sesuai untuk ${binding.acCapsterName.text.toString().trim()}")
+                    toastViewModel.showToast("Tidak ada data yang sesuai untuk ${binding.acCapsterName.text.toString().trim()}", true)
                 }
             } else {
                 setBtnNextToDisableState()
-                showToast("Anda tidak dapat memilih diri Anda sendiri sebagai capster penganti.")
+                toastViewModel.showToast("Anda tidak dapat memilih diri Anda sendiri sebagai capster penganti.", true)
             }
 
-            duplicateReservation?.apply {
-                capsterInfo?.capsterName = it.fullname
-                capsterInfo?.capsterRef = it.userRef
+            duplicateReservationData?.apply {
+                capsterInfo?.capsterName = data.fullname
+                capsterInfo?.capsterRef = data.userRef
                 capsterInfo?.shareProfit = this.capsterInfo?.shareProfit ?: 0
             }
-            capsterData = it
+            switchCapsterViewModel.setCapsterData(data)
 
             queueControlViewModel.setReservationDataChange(binding.switchAdjustPrice.isChecked)
         }
@@ -513,7 +596,6 @@ class SwitchCapsterFragment : DialogFragment() {
 
         queueControlViewModel.setDuplicateServiceList(serviceList, false)
         queueControlViewModel.setDuplicateBundlingPackageList(bundlingList, false)
-
     }
 
     private fun setBtnNextToDisableState() {
@@ -538,7 +620,7 @@ class SwitchCapsterFragment : DialogFragment() {
         val serviceList = queueControlViewModel.duplicateServiceList.value
         val bundlingList = queueControlViewModel.duplicateBundlingPackageList.value
         if (isChecked) {
-            val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), capsterData?.uid ?: "----------------")
+            val totalShareProfit = calculateTotalShareProfit(serviceList ?: emptyList(), bundlingList ?: emptyList(), switchCapsterViewModel.getCapsterData()?.uid ?: "----------------")
             val orderInfo = updateOrderInfoList(serviceList ?: emptyList(), bundlingList ?: emptyList())
 
             accumulatedItemPrice = bundlingList?.sumOf { it.bundlingQuantity * it.priceToDisplay }?.let {result ->
@@ -546,24 +628,24 @@ class SwitchCapsterFragment : DialogFragment() {
                     ?.plus(result)
             } ?: 0
 
-            priceAfterChange = accumulatedItemPrice - (currentReservation?.paymentDetail?.coinsUsed ?: 0) - (currentReservation?.paymentDetail?.promoUsed ?: 0 )
+            priceAfterChange = accumulatedItemPrice - (currentReservationData?.paymentDetail?.coinsUsed ?: 0) - (currentReservationData?.paymentDetail?.promoUsed ?: 0 )
 
-            duplicateReservation?.apply {
-                shareProfitCapsterRef = capsterData?.userRef ?: ""
+            duplicateReservationData?.apply {
+                shareProfitCapsterRef = switchCapsterViewModel.getCapsterData()?.userRef ?: ""
                 capsterInfo?.shareProfit = totalShareProfit.toInt()
                 paymentDetail.subtotalItems = accumulatedItemPrice
                 paymentDetail.finalPrice = priceAfterChange
                 itemInfo = orderInfo
             }
         } else {
-            priceAfterChange = currentReservation?.paymentDetail?.finalPrice ?: 0
+            priceAfterChange = currentReservationData?.paymentDetail?.finalPrice ?: 0
 
-            duplicateReservation?.apply {
-                shareProfitCapsterRef = currentReservation?.shareProfitCapsterRef ?: ""
-                capsterInfo?.shareProfit = currentReservation?.capsterInfo?.shareProfit ?: 0
-                paymentDetail.subtotalItems = currentReservation?.paymentDetail?.subtotalItems ?: 0
-                paymentDetail.finalPrice = currentReservation?.paymentDetail?.finalPrice ?: 0
-                itemInfo = currentReservation?.itemInfo ?: emptyList()
+            duplicateReservationData?.apply {
+                shareProfitCapsterRef = currentReservationData?.shareProfitCapsterRef ?: ""
+                capsterInfo?.shareProfit = currentReservationData?.capsterInfo?.shareProfit ?: 0
+                paymentDetail.subtotalItems = currentReservationData?.paymentDetail?.subtotalItems ?: 0
+                paymentDetail.finalPrice = currentReservationData?.paymentDetail?.finalPrice ?: 0
+                itemInfo = currentReservationData?.itemInfo ?: emptyList()
             }
         }
 
@@ -666,7 +748,7 @@ class SwitchCapsterFragment : DialogFragment() {
                 resultsShareFormat = bundling.resultsShareFormat,
                 resultsShareAmount = bundling.resultsShareAmount,
                 applyToGeneral = bundling.applyToGeneral,
-                userId = capsterData?.uid ?: "----------------"
+                userId = switchCapsterViewModel.getCapsterData()?.uid ?: "----------------"
             )
 
             val itemInfo = ItemInfo(
@@ -685,7 +767,7 @@ class SwitchCapsterFragment : DialogFragment() {
                 resultsShareFormat = service.resultsShareFormat,
                 resultsShareAmount = service.resultsShareAmount,
                 applyToGeneral = service.applyToGeneral,
-                userId = capsterData?.uid ?: "----------------"
+                userId = switchCapsterViewModel.getCapsterData()?.uid ?: "----------------"
             )
 
             val itemInfo = ItemInfo(
@@ -869,20 +951,23 @@ class SwitchCapsterFragment : DialogFragment() {
 
     }
 
+    override fun onResume() {
+        super.onResume()
+        isOrientationChanged = false
+    }
+
     override fun onStop() {
         super.onStop()
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
 
-        if (::capsterListener.isInitialized) capsterListener.remove()
+//        if (::capsterListener.isInitialized) capsterListener.remove()
 //        queueControlViewModel.clearCapsterList()
         lifecycleListener?.let {
             viewLifecycleOwner.lifecycle.removeObserver(it)
@@ -891,9 +976,8 @@ class SwitchCapsterFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        queueControlViewModel.clearDuplicateServiceList()
-        queueControlViewModel.clearDuplicateBundlingPackageList()
-        queueControlViewModel.setCurrentReservationData(null)
+        switchCapsterViewModel.clearCapsterData()
+        queueControlViewModel.clearFragmentData()
     }
 
     companion object {
@@ -907,10 +991,10 @@ class SwitchCapsterFragment : DialogFragment() {
          */
         // TNODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(currentReservation: Reservation, serviceList: ArrayList<Service>, bundlingList: ArrayList<BundlingPackage>, capsterData: UserEmployeeData, outlet: Outlet) =
+        fun newInstance(currentReservationData: ReservationData, serviceList: ArrayList<Service>, bundlingList: ArrayList<BundlingPackage>, capsterData: UserEmployeeData, outlet: Outlet) =
             SwitchCapsterFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelable(ARG_PARAM1, currentReservation)
+                    putParcelable(ARG_PARAM1, currentReservationData)
                     putParcelableArrayList(ARG_PARAM2, serviceList)
                     putParcelableArrayList(ARG_PARAM3, bundlingList)
                     putParcelable(ARG_PARAM4, capsterData)

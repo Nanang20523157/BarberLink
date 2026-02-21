@@ -12,6 +12,7 @@ import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
@@ -25,9 +26,10 @@ import com.google.firebase.auth.FirebaseAuth
 class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpSuccessBinding
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var userAdminData: UserAdminData
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -97,6 +99,8 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.btnDone -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
                     if (auth.currentUser != null) {
                         // navigatePage(this@SignUpSuccess, BerandaAdminActivity::class.java, btnDone)
                         navigatePage(this@SignUpSuccess, MainActivity::class.java, btnDone)
@@ -106,16 +110,6 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
                 }
             }
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    override fun onResume() {
-        super.onResume()
-        // Set sudut dinamis sesuai perangkat
-        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        // Reset the navigation flag and view's clickable state
-        isNavigating = false
-        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -135,8 +129,8 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
 
@@ -168,6 +162,16 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
                 return@setDynamicWindowAllCorner
             }
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onResume() {
+        super.onResume()
+        // Set sudut dinamis sesuai perangkat
+        if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
+//        currentView?.isClickable = true
     }
 
     companion object {

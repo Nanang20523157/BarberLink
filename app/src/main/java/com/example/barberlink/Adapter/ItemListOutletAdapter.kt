@@ -8,6 +8,7 @@ import android.view.animation.Animation
 import android.view.animation.RotateAnimation
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
@@ -17,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
@@ -24,23 +26,27 @@ import com.example.barberlink.Utils.CodeGeneratorUtils
 import com.example.barberlink.Utils.CopyUtils
 import com.example.barberlink.Utils.DateComparisonUtils
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ItemListManageOutletAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageOutletCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ItemListOutletAdapter(
     private val vegaManager: VegaLayoutManager,
     private val itemClicked: OnItemClicked,
     private val listener: OnQueueResetListener,
-    private val lifecycleOwner: LifecycleOwner,
-    private val callbackUpdate: OnProcessUpdateCallback,
     private val callbackToast: DisplayThisToastMessage,
-    private val isDialogVisibleProvider: () -> Boolean
+    private val updateStatus: UpdateOutletStatus,
+    private val updateCode: UpdateOutletAccessCode,
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
     private val shimmerItemCount = 7
@@ -48,7 +54,7 @@ class ItemListOutletAdapter(
     private var lastScrollPosition = 0
     private var isRestoring = false
     private var isOnline = false
-    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private var blockAllUserClickAction: Boolean = false
     private val userEmployeeDataList: MutableList<UserEmployeeData> = mutableListOf()
 
     interface OnQueueResetListener {
@@ -59,12 +65,16 @@ class ItemListOutletAdapter(
         fun onItemClickListener(outlet: Outlet)
     }
 
-    interface OnProcessUpdateCallback {
-        fun onProcessUpdate(state: Boolean)
+    interface DisplayThisToastMessage {
+        fun displayThisToast(message: String, isImportant: Boolean)
     }
 
-    interface DisplayThisToastMessage {
-        fun displayThisToast(message: String)
+    interface UpdateOutletStatus {
+        fun updateOutletStatus(outlet: Outlet, isOpen: Boolean, index: Int)
+    }
+
+    interface UpdateOutletAccessCode {
+        fun updateOutletAccessCode(outlet: Outlet, newCode: String, oldCode: String, index: Int)
     }
 
     fun stopAllShimmerEffects() {
@@ -76,15 +86,13 @@ class ItemListOutletAdapter(
         }
     }
 
-    init {
-        lifecycleOwner.lifecycleScope.launch {
-            NetworkMonitor.isOnline.collect { status ->
-                isOnline = status
-                if (!isDialogVisibleProvider()) {
-                    notifyDataSetChanged()
-                }
-            }
-        }
+    fun updateNetworkStatus(status: Boolean) {
+        isOnline = status
+        notifyDataSetChanged()
+    }
+
+    fun setBlockStatusUI(value: Boolean) {
+        this.blockAllUserClickAction = value
     }
 
     fun setEmployeeList(userEmployeeDataList: MutableList<UserEmployeeData>) {
@@ -218,6 +226,13 @@ class ItemListOutletAdapter(
                         NetworkMonitor.showToast(errMessage, true)
                         return@setOnCheckedChangeListener // ✅ pakai label bawaan dari interface
                     }
+                    if (blockAllUserClickAction) {
+                        switch2.isChecked = !isChecked
+                        switch2.jumpDrawablesToCurrentState()
+                        callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                        return@setOnCheckedChangeListener
+                    }
+                    // hmmmmm switch
                     // Jika sedang dalam proses restore, abaikan listener
                     if (isRestoring) return@setOnCheckedChangeListener
 //                    outlet.openStatus = isChecked
@@ -261,7 +276,7 @@ class ItemListOutletAdapter(
                     // save data
                     if (!skip) {
                         Log.d("SwitchAnomali", "!Skip $isChecked")
-                        updateOutletStatus(outlet, isChecked, binding)
+                        updateStatus.updateOutletStatus(outlet, isChecked, adapterPosition)
                     }
                 }
 
@@ -270,18 +285,39 @@ class ItemListOutletAdapter(
                     val code = tvAksesCode.text.toString().trim()
 
                     if (code == root.context.getString(R.string.default_empty_code_access)) {
-                        callbackToast.displayThisToast("Code is still empty, please generate it")
-                    } else { CopyUtils.copyCodeToClipboard(root.context, code) }
+                        callbackToast.displayThisToast("Code is still empty, please generate it", true)
+                    } else {
+                        val viewIdentity = System.identityHashCode(btnCopyCode)
+                        CopyUtils.copyCodeToClipboard(root.context, code, viewIdentity)
+                    }
                 }
 
                 btnEdit.setOnClickListener {
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
                     // Edit outlet
-                    callbackToast.displayThisToast("Edit feature is under development...")
+                    callbackToast.displayThisToast("Edit feature is under development...", true)
                 }
 
                 btnView.setOnClickListener {
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
                     // Delete outlet
-                    callbackToast.displayThisToast("View detail feature is under development...")
+                    callbackToast.displayThisToast("View detail feature is under development...", true)
                 }
 
                 if (!outlet.isCollapseCard) {
@@ -330,7 +366,6 @@ class ItemListOutletAdapter(
                     Log.d("TestCLickMore", "OriginalHeight ${binding.root.height} || New Height: $newHeight")
 
                     vegaManager.setItemExpanded(adapterPosition, !isCollapse, newHeight) // <-- Panggil fungsi ini
-
                 }
 
                 btnGenerateCode.setOnClickListener {
@@ -339,22 +374,21 @@ class ItemListOutletAdapter(
                         NetworkMonitor.showToast(errMessage, true)
                         return@setOnClickListener
                     }
+                    if (!debounce.run {
+                        it.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return@setOnClickListener
+                    // hmmmmm
                     // Generate or revoke code access
                     val code = tvAksesCode.text.toString().trim()
                     val result = CodeGeneratorUtils.generateRandomCode()
-                    binding.tvAksesCode.text = result
                     setButtonAccessCode(result, Timestamp.now(), binding)
                     // saveData
-                    updateOutletAccessCode(outlet, result, binding)
-
-                    if (code == root.context.getString(R.string.default_empty_code_access)) {
-                        // Generate code
-                        callbackToast.displayThisToast("Generate code successfully")
-                    } else {
-                        // Revoke code
-                        callbackToast.displayThisToast("Revoke code successfully")
-                    }
-
+                    updateCode.updateOutletAccessCode(outlet, result, code, adapterPosition)
                 }
 
             }
@@ -380,11 +414,39 @@ class ItemListOutletAdapter(
         }
     }
 
+    fun restoreButtonAccessCode(oldCode: String, index: Int) {
+        val outlet = getItem(index)
+        val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
+        if (binding != null) {
+            // Update status switch
+            setButtonAccessCode(oldCode, outlet.lastUpdated, binding)
+        }
+    }
+
     fun triggerUpdateStatus(index: Int) {
         val outlet = getItem(index)
         val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
         if (binding != null) {
-            updateOutletStatus(outlet, !outlet.openStatus, binding)
+            updateStatus.updateOutletStatus(outlet, !outlet.openStatus, index)
+        }
+    }
+
+    private fun setButtonAccessCode(code: String, timestamp: Timestamp, binding: ItemListManageOutletAdapterBinding) {
+        with (binding) {
+            if (code.isNotEmpty()) {
+                tvLastUpdatedValue.text = GetDateUtils.formatTimestampToDate(timestamp)
+                tvAksesCode.text = code
+                tvBtnGenerateCode.text = root.context.getString(R.string.revoke_btn)
+                btnGenerateCode.background = AppCompatResources.getDrawable(root.context, R.drawable.background_btn_revoke)
+            } else {
+                tvLastUpdatedValue.text = "-"
+                tvAksesCode.text = root.context.getString(R.string.default_empty_code_access)
+                tvBtnGenerateCode.text = root.context.getString(R.string.generate_btn)
+                btnGenerateCode.background = AppCompatResources.getDrawable(
+                    root.context,
+                    R.drawable.background_btn_generate
+                )
+            }
         }
     }
 
@@ -397,59 +459,6 @@ class ItemListOutletAdapter(
         )
         Log.d("TestCLickMore", "New 1: ${binding.root.measuredHeight}")
         return binding.root.measuredHeight
-    }
-
-    private fun updateOutletStatus(outlet: Outlet, isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {
-        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
-
-        val isSameDay = DateComparisonUtils.isSameDay(
-            Timestamp.now().toDate(),
-            outlet.timestampModify.toDate()
-        )
-        // Create a new map with the same keys as currentQueue, but all values set to "00"
-        val updatedCurrentQueue = if (isOpen && isSameDay) outlet.currentQueue ?: emptyMap()
-        else outlet.currentQueue?.keys?.associateWith { "00" } ?: emptyMap()
-
-        Log.d("IsOpen", "outlet: ${outlet.openStatus} || isOpen: $isOpen || updatedCurrentQueue: ${updatedCurrentQueue}")
-
-        // Update the outlet status and current queue in Firestore
-        outletRef.update(mapOf(
-            "open_status" to isOpen,
-            "current_queue" to updatedCurrentQueue, // Update currentQueue to all "00"
-            "timestamp_modify" to Timestamp.now()
-        ))
-            .addOnSuccessListener {
-                // Jika sama berarti berhasil diubah
-                if (isOpen == outlet.openStatus) {
-                    callbackUpdate.onProcessUpdate(true)
-                    callbackToast.displayThisToast("Outlet status updated")
-                    Log.d("IsOpen", "Show Toast")
-                } else {
-                    callbackUpdate.onProcessUpdate(false)
-                    Log.d("IsOpen", "No Toast")
-                }
-            }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false)
-                callbackToast.displayThisToast("Failed to update status: ${e.message}")
-            }
-    }
-
-
-    private fun updateOutletAccessCode(outlet: Outlet, newCode: String, binding: ItemListManageOutletAdapterBinding) {
-        val outletRef = db.document(outlet.rootRef).collection("outlets").document(outlet.uid)
-        outletRef.update(mapOf(
-            "outlet_access_code" to newCode,
-            "last_updated" to Timestamp.now()
-        ))
-            .addOnSuccessListener {
-                callbackUpdate.onProcessUpdate(true)
-                callbackToast.displayThisToast("Outlet access code updated")
-            }
-            .addOnFailureListener { e ->
-                callbackUpdate.onProcessUpdate(false)
-                callbackToast.displayThisToast("Failed to update access code: ${e.message}")
-            }
     }
 
     private fun setStatusOutlet(isOpen: Boolean, binding: ItemListManageOutletAdapterBinding) {
@@ -478,25 +487,6 @@ class ItemListOutletAdapter(
                 tvStatusOutlet.setTextColor(root.context.getColor(R.color.magenta))
                 Log.d("SwitchAnomali", "ZZ")
                 switch2.isChecked = false
-            }
-        }
-    }
-
-    private fun setButtonAccessCode(code: String, timestamp: Timestamp, binding: ItemListManageOutletAdapterBinding) {
-        with (binding) {
-            if (code.isNotEmpty()) {
-                tvLastUpdatedValue.text = GetDateUtils.formatTimestampToDate(timestamp)
-                tvAksesCode.text = code
-                tvBtnGenerateCode.text = root.context.getString(R.string.revoke_btn)
-                btnGenerateCode.background = AppCompatResources.getDrawable(root.context, R.drawable.background_btn_revoke)
-            } else {
-                tvLastUpdatedValue.text = "-"
-                tvAksesCode.text = root.context.getString(R.string.default_empty_code_access)
-                tvBtnGenerateCode.text = root.context.getString(R.string.generate_btn)
-                btnGenerateCode.background = AppCompatResources.getDrawable(
-                    root.context,
-                    R.drawable.background_btn_generate
-                )
             }
         }
     }

@@ -51,7 +51,7 @@ class SharedGestureManager private constructor() {
         listenerRunnable = Runnable {
             checkActiveness()
         }
-        handler.postDelayed(listenerRunnable!!, timeset)
+        listenerRunnable?.let { handler.postDelayed(it, timeset) }
     }
 
     private fun checkActiveness() {
@@ -68,7 +68,7 @@ class SharedGestureManager private constructor() {
                 noOfClicks = 0
             }
         }
-        handler.postDelayed(activenessRunnable!!, 5000)
+        activenessRunnable?.let { handler.postDelayed(it, 5000) }
     }
 
     fun performNavigation() {

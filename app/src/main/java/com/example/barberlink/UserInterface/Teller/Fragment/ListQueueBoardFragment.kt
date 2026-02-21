@@ -50,6 +50,7 @@ class ListQueueBoardFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        queueBoardViewModel
         arguments?.let {
 //            capsterList = it.getParcelableArrayList(ARG_PARAM1)
 //            outlet = it.getParcelable(ARG_PARAM2)

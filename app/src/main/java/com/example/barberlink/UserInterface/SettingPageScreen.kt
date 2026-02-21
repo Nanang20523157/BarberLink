@@ -10,6 +10,7 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.activity.addCallback
 import androidx.annotation.RequiresApi
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
@@ -21,12 +22,13 @@ import com.google.firebase.auth.FirebaseAuth
 class SettingPageScreen : BaseActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySettingPageScreenBinding
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
     private var originOfIntent: String? = null
     private var sessionAdmin: Boolean = false
     private var sessionCapster: Boolean = false
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
     private var isHandlingBack: Boolean = false
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -94,6 +96,8 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
                 onBackPressedDispatcher.onBackPressed()
             }
             R.id.btnLogout -> {
+                if (!debounce.run { v.isSafeClick() }) return
+                // hmmmmm
                 logout()
             }
         }
@@ -111,8 +115,8 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intentNavigate = Intent(context, destination).apply {
@@ -134,7 +138,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
         if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

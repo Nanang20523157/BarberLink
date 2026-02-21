@@ -10,17 +10,54 @@ import com.example.barberlink.DataClass.ManualIncomeData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.ProductSales
-import com.example.barberlink.DataClass.Reservation
+import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
+
+    val reservationListMutex = ReentrantCoroutineMutex()
+    val appointmentListMutex = ReentrantCoroutineMutex()
+    val manualReportListMutex = ReentrantCoroutineMutex()
+    val productSalesListMutex = ReentrantCoroutineMutex()
+    val outletsListMutex = ReentrantCoroutineMutex()
+    val productListMutex = ReentrantCoroutineMutex()
+    val allDataMutex = ReentrantCoroutineMutex()
+    val listenerEmployeeDataMutex = ReentrantCoroutineMutex()
+    val listenerReservationsMutex = ReentrantCoroutineMutex()
+    val listenerAppointmentsMutex = ReentrantCoroutineMutex()
+    val listenerManualReportsMutex = ReentrantCoroutineMutex()
+    val listenerProductSalesMutex = ReentrantCoroutineMutex()
+    val listenerOutletListMutex = ReentrantCoroutineMutex()
+    val listenerProductListMutex = ReentrantCoroutineMutex()
+    val listenerBonAccumulationMutex = ReentrantCoroutineMutex()
+
+    // =========================================================
+    // === UTILITAS DASAR
+    // =========================================================
+
+    private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
+        withContext(Dispatchers.Main) { value = newValue }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.addItem(item: T) {
+        val updated = (value ?: mutableListOf()).apply { add(item) }
+        updateOnMain(updated)
+    }
+
+    private suspend fun <T> MutableLiveData<MutableList<T>>.clearList() =
+        updateOnMain(mutableListOf())
+
+    // =======================================================================
+
     private val _productList = MutableLiveData<List<Product>>().apply { value = mutableListOf() }
     val productList: LiveData<List<Product>> = _productList
 
@@ -69,8 +106,8 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     private var _userAccumulationBon = MutableLiveData<Int>().apply { value = 0 }
     val userAccumulationBon: LiveData<Int> = _userAccumulationBon
 
-    private val _reservationList = MutableLiveData<MutableList<Reservation>>().apply { value = mutableListOf() }
-    val reservationList: LiveData<MutableList<Reservation>> = _reservationList
+    private val _reservationDataList = MutableLiveData<MutableList<ReservationData>>().apply { value = mutableListOf() }
+    val reservationDataList: LiveData<MutableList<ReservationData>> = _reservationDataList
 
     private val _appointmentList = MutableLiveData<MutableList<AppointmentData>>().apply { value = mutableListOf() }
     val appointmentList: LiveData<MutableList<AppointmentData>> = _appointmentList
@@ -93,7 +130,9 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     private var isCapitalDialogShow: Boolean = false
 
     fun getIsCapitalDialogShow(): Boolean {
-        return isCapitalDialogShow
+        return runBlocking {
+            isCapitalDialogShow
+        }
     }
 
     fun setCapitalDialogShow(show: Boolean) {
@@ -139,18 +178,16 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    // Metode untuk OutletList
-    private fun addOutletData(outlet: Outlet) {
+    override fun clearDropdownStateValue() {
         viewModelScope.launch {
-            val list = _outletList.value?.toMutableList() ?: mutableListOf()
-            list.add(outlet)
-            _outletList.value = list
+            _setupDropdownFilter.value = null
+            _setupDropdownFilterWithNullState.value = null
         }
     }
 
-    fun clearOutletsList() {
+    fun setProductList(list: List<Product>) {
         viewModelScope.launch {
-            _outletList.value = mutableListOf()
+            _productList.value = list
         }
     }
 
@@ -165,9 +202,187 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    fun setProductList(list: List<Product>) {
+    fun resetReservationVariables() {
         viewModelScope.launch {
-            _productList.value = list
+            _numberOfCompletedQueue.value = 0
+            _numberOfWaitingQueue.value = 0
+            _numberOfCanceledQueue.value = 0
+            _numberOfProcessQueue.value = 0
+            _numberOfSkippedQueue.value = 0
+            _amountReserveRevenue.value = 0
+        }
+    }
+
+    fun resetAppointmentVariables() {
+        viewModelScope.launch {
+            _amountAppointmentRevenue.value = 0
+        }
+    }
+
+    fun resetSalesVariables() {
+        viewModelScope.launch {
+            _amountSalesRevenue.value = 0
+        }
+    }
+
+    fun resetManualReportVariables() {
+        viewModelScope.launch {
+            _amountManualServiceRevenue.value = 0
+            _amountManualProductRevenue.value = 0
+            _amountManualOtherRevenue.value = 0
+        }
+    }
+
+    fun resetBonAccumulation() {
+        viewModelScope.launch {
+            _userAccumulationBon.value = 0
+        }
+    }
+
+    suspend fun iterateReservationData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) return@coroutineScope true
+
+        try {
+            result.documents.map { document ->
+                async {
+                    document.toObject(ReservationData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processReservationDataAsync(it) }
+                }
+            }.awaitAll()
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun iterateAppointmentData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) return@coroutineScope true
+
+        try {
+            result.documents.map { document ->
+                async {
+                    document.toObject(AppointmentData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processAppointmentDataAsync(it) }
+                }
+            }.awaitAll()
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun iterateSalesData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) return@coroutineScope true
+
+        try {
+            result.documents.map { document ->
+                async {
+                    document.toObject(ProductSales::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processSalesDataAsync(it) }
+                }
+            }.awaitAll()
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun iterateManualReportData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) return@coroutineScope true
+
+        try {
+            result.documents.map { document ->
+                async {
+                    document.toObject(ManualIncomeData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processManualReportDataAsync(it) }
+                }
+            }.awaitAll()
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun iterateOutletData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) {
+            _setupDropdownFilter.updateOnMain(null)
+            _setupDropdownFilterWithNullState.updateOnMain(null)
+            return@coroutineScope true
+        }
+
+        try {
+            result.documents.map { document ->
+                async {
+                    document.toObject(Outlet::class.java)?.apply {
+                        outletReference = document.reference.path
+                    }?.let { addOutletData(it) }
+                }
+            }.awaitAll()
+
+            _setupDropdownFilter.updateOnMain(null)
+            _setupDropdownFilterWithNullState.updateOnMain(null)
+            true
+        } catch (e: Exception) {
+            _setupDropdownFilter.updateOnMain(null)
+            _setupDropdownFilterWithNullState.updateOnMain(null)
+            false
+        }
+    }
+
+    suspend fun iterateProductData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) return@coroutineScope true
+
+        try {
+            result.documents.map { document ->
+                async {
+                    document.toObject(Product::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { addProductData(it) }
+                }
+            }.awaitAll()
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun accumulateBonData(result: QuerySnapshot?): Boolean = coroutineScope {
+        if (result == null) return@coroutineScope true
+
+        try {
+            val totalBonAmount = result.documents.sumOf { doc ->
+                doc.toObject(BonEmployeeData::class.java)?.bonDetails?.remainingBon ?: 0
+            }
+
+            _userAccumulationBon.updateOnMain(totalBonAmount)
+
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // Metode untuk OutletList
+    private fun addOutletData(outlet: Outlet) {
+        viewModelScope.launch {
+            val list = _outletList.value?.toMutableList() ?: mutableListOf()
+            list.add(outlet)
+            _outletList.value = list
+        }
+    }
+
+    fun clearOutletsList() {
+        viewModelScope.launch {
+            _outletList.value = mutableListOf()
         }
     }
 
@@ -185,18 +400,114 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    // Metode untuk ReservationList
-    private fun addReservation(reservation: Reservation) {
+     fun setUserAccumulationBon(bon: Int) {
         viewModelScope.launch {
-            val list = _reservationList.value ?: mutableListOf()
-            list.add(reservation)
-            _reservationList.value = list
+            _userAccumulationBon.value = bon
+        }
+     }
+
+    suspend fun processDocumentsConcurrently(
+        documents: List<DocumentSnapshot>,
+        processFunction: suspend (document: DocumentSnapshot) -> Unit
+    ) = coroutineScope {
+        try {
+            documents.map { document ->
+                async {
+                    processFunction(document)
+                }
+            }.awaitAll()
+        } catch (e: Exception) {}
+    }
+
+    suspend fun processReservationDataAsync(reservationData: ReservationData) {
+        when (reservationData.queueStatus) {
+            "completed" -> _numberOfCompletedQueue.updateOnMain((_numberOfCompletedQueue.value ?: 0) + 1)
+            "waiting" -> _numberOfWaitingQueue.updateOnMain((_numberOfWaitingQueue.value ?: 0) + 1)
+            "canceled" -> _numberOfCanceledQueue.updateOnMain((_numberOfCanceledQueue.value ?: 0) + 1)
+            "skipped" -> _numberOfSkippedQueue.updateOnMain((_numberOfSkippedQueue.value ?: 0) + 1)
+            "process" -> _numberOfProcessQueue.updateOnMain((_numberOfProcessQueue.value ?: 0) + 1)
+        }
+        if (reservationData.paymentDetail.paymentStatus && reservationData.queueStatus == "completed") {
+            reservationData.capsterInfo?.shareProfit?.let { _amountReserveRevenue.updateOnMain((_amountReserveRevenue.value ?: 0) + it) }
+        }
+        if (reservationData.queueStatus !in listOf("pending", "expired")) {
+            addReservationData(reservationData)
+        }
+    }
+
+    suspend fun processAppointmentDataAsync(appointment: AppointmentData) {
+        if (appointment.paymentDetail.paymentStatus && appointment.appointmentStatus == "completed") {
+            appointment.capsterInfo?.shareProfit?.let { _amountAppointmentRevenue.updateOnMain((_amountAppointmentRevenue.value ?: 0) + it) }
+        }
+        if (appointment.appointmentStatus !in listOf("pending", "expired")) {
+            addAppointmentData(appointment)
+        }
+    }
+
+    suspend fun processSalesDataAsync(sale: ProductSales) {
+        if (sale.paymentDetail.paymentStatus && sale.orderStatus == "completed") {
+            sale.itemInfo?.forEach { order ->
+                _salesProductMarketCounter.updateOnMain(
+                    (_salesProductMarketCounter.value ?: emptyMap()).toMutableMap().apply {
+                        this[order.itemRef] = (this[order.itemRef] ?: 0) + order.itemQuantity
+                    }
+                )
+            }
+            sale.capsterInfo?.shareProfit?.let { _amountSalesRevenue.updateOnMain((_amountSalesRevenue.value ?: 0) + it) }
+        }
+        if (sale.orderStatus !in listOf("pending", "expired")) {
+            addProductSales(sale)
+        }
+    }
+
+    suspend fun processManualReportDataAsync(manualReport: ManualIncomeData) {
+        if (manualReport.paymentDetail.paymentStatus && manualReport.incomeStatus == "completed") {
+            when (manualReport.incomeType) {
+                "Pemasukkan Jasa" -> {
+                    manualReport.capsterInfo?.shareProfit?.let { _amountManualServiceRevenue.updateOnMain((_amountManualServiceRevenue.value ?: 0) + it) }
+                }
+                "Penjualan Produk" -> {
+                    manualReport.itemInfo?.forEach { order ->
+                        _salesProductManualCounter.updateOnMain(
+                            (_salesProductManualCounter.value ?: emptyMap()).toMutableMap().apply {
+                                this[order.itemRef] = (this[order.itemRef] ?: 0) + order.itemQuantity
+                            }
+                        )
+                    }
+                    manualReport.capsterInfo?.shareProfit?.let { _amountManualProductRevenue.updateOnMain((_amountManualProductRevenue.value ?: 0) + it) }
+                }
+                else -> {
+                    when (manualReport.incomeCategory) {
+                        "Produk" -> {
+                            manualReport.capsterInfo?.shareProfit?.let { _amountManualProductRevenue.updateOnMain((_amountManualProductRevenue.value ?: 0) + it) }
+                        }
+                        "Service", "Bundle" -> {
+                            manualReport.capsterInfo?.shareProfit?.let { _amountManualServiceRevenue.updateOnMain((_amountManualServiceRevenue.value ?: 0) + it) }
+                        }
+                        else -> {
+                            manualReport.capsterInfo?.shareProfit?.let { _amountManualOtherRevenue.updateOnMain((_amountManualOtherRevenue.value ?: 0) + it) }
+                        }
+                    }
+                }
+            }
+        }
+        if (manualReport.incomeStatus !in listOf("pending", "expired")) {
+            addManualReportList(manualReport)
+        }
+    }
+
+    // Metode untuk ReservationList
+    private fun addReservationData(reservationData: ReservationData) {
+        viewModelScope.launch {
+            val list = _reservationDataList.value ?: mutableListOf()
+            list.add(reservationData)
+            _reservationDataList.value = list
         }
     }
 
     fun clearReservationList() {
         viewModelScope.launch {
-            _reservationList.value = mutableListOf()
+            _reservationDataList.value = mutableListOf()
         }
     }
 
@@ -243,201 +554,6 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         viewModelScope.launch {
             _manualReportList.value = mutableListOf()
             _salesProductManualCounter.value = emptyMap()
-        }
-    }
-
-    fun resetReservationVariables() {
-        viewModelScope.launch {
-            _numberOfCompletedQueue.value = 0
-            _numberOfWaitingQueue.value = 0
-            _numberOfCanceledQueue.value = 0
-            _numberOfProcessQueue.value = 0
-            _numberOfSkippedQueue.value = 0
-            _amountReserveRevenue.value = 0
-        }
-    }
-
-    fun resetAppointmentVariables() {
-        viewModelScope.launch {
-            _amountAppointmentRevenue.value = 0
-        }
-    }
-
-    fun resetSalesVariables() {
-        viewModelScope.launch {
-            _amountSalesRevenue.value = 0
-        }
-    }
-
-    fun resetManualReportVariables() {
-        viewModelScope.launch {
-            _amountManualServiceRevenue.value = 0
-            _amountManualProductRevenue.value = 0
-            _amountManualOtherRevenue.value = 0
-        }
-    }
-
-    fun iterateReservationData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            result?.forEach { document ->
-                document.toObject(Reservation::class.java).apply {
-                    dataRef = document.reference.path
-                }.let { processReservationDataAsync(it) }
-            }
-        }
-    }
-
-    fun iterateAppointmentData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            result?.forEach { document ->
-                document.toObject(AppointmentData::class.java).apply {
-                    dataRef = document.reference.path
-                }.let { processAppointmentDataAsync(it) }
-            }
-        }
-    }
-
-    fun iterateSalesData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            result?.forEach { document ->
-                document.toObject(ProductSales::class.java).apply {
-                    dataRef = document.reference.path
-                }.let { processSalesDataAsync(it) }
-            }
-        }
-    }
-
-    fun iterateManualReportData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            result?.forEach { document ->
-                document.toObject(ManualIncomeData::class.java).apply {
-                    dataRef = document.reference.path
-                }.let { processManualReportDataAsync(it) }
-            }
-        }
-    }
-
-    fun iterateOutletData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            result?.forEach { document ->
-                document.toObject(Outlet::class.java).apply {
-                    outletReference = document.reference.path
-                }.let { addOutletData(it) }
-            }
-            _setupDropdownFilter.value = null
-            _setupDropdownFilterWithNullState.value = null
-        }
-    }
-
-    fun iterateProductData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            result?.forEach { document ->
-                document.toObject(Product::class.java).apply {
-                    dataRef = document.reference.path
-                }.let { addProductData(it) }
-            }
-        }
-    }
-
-    fun accumulateBonData(result: QuerySnapshot?) {
-        viewModelScope.launch {
-            val totalBonAmount = result?.documents?.sumOf { doc ->
-                doc.toObject(BonEmployeeData::class.java)?.bonDetails?.remainingBon ?: 0
-            }
-
-            _userAccumulationBon.value = totalBonAmount
-        }
-    }
-
-    suspend fun setUserAccumulationBon(bon: Int) {
-        withContext(Dispatchers.Main) {
-            _userAccumulationBon.value = bon
-        }
-    }
-
-    suspend fun processDocumentsConcurrently(
-        documents: List<DocumentSnapshot>,
-        processFunction: (document: DocumentSnapshot) -> Unit
-    ) {
-        withContext(Dispatchers.Main) {
-            documents.map { document ->
-                async {
-                    processFunction(document)
-                }
-            }.awaitAll()
-        }
-    }
-
-    fun processReservationDataAsync(reservation: Reservation) {
-        when (reservation.queueStatus) {
-            "completed" -> _numberOfCompletedQueue.value = (_numberOfCompletedQueue.value ?: 0) + 1
-            "waiting" -> _numberOfWaitingQueue.value = (_numberOfWaitingQueue.value ?: 0) + 1
-            "canceled" -> _numberOfCanceledQueue.value = (_numberOfCanceledQueue.value ?: 0) + 1
-            "skipped" -> _numberOfSkippedQueue.value = (_numberOfSkippedQueue.value ?: 0) + 1
-            "process" -> _numberOfProcessQueue.value = (_numberOfProcessQueue.value ?: 0) + 1
-        }
-        if (reservation.paymentDetail.paymentStatus && reservation.queueStatus == "completed") {
-            reservation.capsterInfo?.shareProfit?.let { _amountReserveRevenue.value = (_amountReserveRevenue.value ?: 0) + it }
-        }
-        if (reservation.queueStatus !in listOf("pending", "expired")) {
-            addReservation(reservation)
-        }
-    }
-
-    fun processAppointmentDataAsync(appointment: AppointmentData) {
-        if (appointment.paymentDetail.paymentStatus && appointment.appointmentStatus == "completed") {
-            appointment.capsterInfo?.shareProfit?.let { _amountAppointmentRevenue.value = (_amountAppointmentRevenue.value ?: 0) + it }
-        }
-        if (appointment.appointmentStatus !in listOf("pending", "expired")) {
-            addAppointmentData(appointment)
-        }
-    }
-
-    fun processSalesDataAsync(sale: ProductSales) {
-        if (sale.paymentDetail.paymentStatus && sale.orderStatus == "completed") {
-            sale.itemInfo?.forEach { order ->
-                _salesProductMarketCounter.value = (_salesProductMarketCounter.value ?: emptyMap()).toMutableMap().apply {
-                    this[order.itemRef] = (this[order.itemRef] ?: 0) + order.itemQuantity
-                }
-            }
-            sale.capsterInfo?.shareProfit?.let { _amountSalesRevenue.value = (_amountSalesRevenue.value ?: 0) + it }
-        }
-        if (sale.orderStatus !in listOf("pending", "expired")) {
-            addProductSales(sale)
-        }
-    }
-
-    fun processManualReportDataAsync(manualReport: ManualIncomeData) {
-        if (manualReport.paymentDetail.paymentStatus && manualReport.incomeStatus == "completed") {
-            when (manualReport.incomeType) {
-                "Pemasukkan Jasa" -> {
-                    manualReport.capsterInfo?.shareProfit?.let { _amountManualServiceRevenue.value = (_amountManualServiceRevenue.value ?: 0) + it }
-                }
-                "Penjualan Produk" -> {
-                    manualReport.itemInfo?.forEach { order ->
-                        _salesProductManualCounter.value = (_salesProductManualCounter.value ?: emptyMap()).toMutableMap().apply {
-                            this[order.itemRef] = (this[order.itemRef] ?: 0) + order.itemQuantity
-                        }
-                    }
-                    manualReport.capsterInfo?.shareProfit?.let { _amountManualProductRevenue.value = (_amountManualProductRevenue.value ?: 0) + it }
-                }
-                else -> {
-                    when (manualReport.incomeCategory) {
-                        "Produk" -> {
-                            manualReport.capsterInfo?.shareProfit?.let { _amountManualProductRevenue.value = (_amountManualProductRevenue.value ?: 0) + it }
-                        }
-                        "Service", "Bundle" -> {
-                            manualReport.capsterInfo?.shareProfit?.let { _amountManualServiceRevenue.value = (_amountManualServiceRevenue.value ?: 0) + it }
-                        }
-                        else -> {
-                            manualReport.capsterInfo?.shareProfit?.let { _amountManualOtherRevenue.value = (_amountManualOtherRevenue.value ?: 0) + it }
-                        }
-                    }
-                }
-            }
-        }
-        if (manualReport.incomeStatus !in listOf("pending", "expired")) {
-            addManualReportList(manualReport)
         }
     }
 

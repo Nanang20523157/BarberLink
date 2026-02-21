@@ -7,16 +7,18 @@ import androidx.lifecycle.ViewModel
 import androidx.savedstate.SavedStateRegistryOwner
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.DashboardViewModel
-import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.HomePageViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.SwitchCapsterViewModel
 import com.example.barberlink.UserInterface.Teller.ViewModel.QueueTrackerViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 
 class SaveStateViewModelFactory(
     private val owner: SavedStateRegistryOwner,
-    private val defaultArgs: Bundle? = null
+    private val defaultArgs: Bundle? = null,
+    private val db: FirebaseFirestore? = null
 ) : AbstractSavedStateViewModelFactory(owner, defaultArgs) {
 
     override fun <T : ViewModel> create(
@@ -25,9 +27,18 @@ class SaveStateViewModelFactory(
         handle: SavedStateHandle
     ): T {
         return when {
+            // 🔥 ViewModel yang BUTUH Firestore
+            modelClass.isAssignableFrom(QueueControlViewModel::class.java) -> {
+                val firestore = db
+                    ?: throw IllegalArgumentException(
+                        "Firestore required for QueueControlViewModel"
+                    )
+                QueueControlViewModel(firestore, handle) as T
+            }
+
+            // 🔹 ViewModel TANPA Firestore
             modelClass.isAssignableFrom(HomePageViewModel::class.java) -> HomePageViewModel(handle) as T
             modelClass.isAssignableFrom(BerandaAdminViewModel::class.java) -> BerandaAdminViewModel(handle) as T
-            modelClass.isAssignableFrom(QueueControlViewModel::class.java) -> QueueControlViewModel(handle) as T
             modelClass.isAssignableFrom(InputFragmentViewModel::class.java) -> InputFragmentViewModel(handle) as T
             modelClass.isAssignableFrom(BonEmployeeViewModel::class.java) -> BonEmployeeViewModel(handle) as T
             modelClass.isAssignableFrom(DashboardViewModel::class.java) -> DashboardViewModel(handle) as T

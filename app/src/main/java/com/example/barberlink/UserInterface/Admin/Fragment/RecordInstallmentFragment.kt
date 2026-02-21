@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -15,25 +13,33 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
-import com.example.barberlink.DataClass.BonDetails
+import com.example.barberlink.Contract.BackRequestHost
 import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.Event
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
+import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.UserInterface.Teller.ViewModel.ExitTrackerViewModel
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentRecordInstallmentBinding
 import com.google.android.material.snackbar.Snackbar
@@ -41,6 +47,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Calendar
@@ -60,14 +67,17 @@ private const val ARG_PARAM3 = "param3"
 class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     private var _binding: FragmentRecordInstallmentBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val recordInstallmentViewModel: BonEmployeeViewModel by activityViewModels()
-
+    private val approveRejectViewModel: BonEmployeeViewModel by activityViewModels()
+    private val recordInstallmentViewModel: RecordInstallmentViewModel by viewModels {
+        DatabaseViewModelFactory(db)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isBonInstallmentValid: Boolean = false
     private var userRemainingBon: Int = 0
     private var bonInstallmentString: String = ""
     private var previousText: String = ""
     private var previousCursorPosition: Int = 0
-    private var isInSaveProcess: Boolean = false
     private var isFirstLoad: Boolean = true
     private var isOrientationChanged: Boolean = false
     //private var bonAccumulation: Int = 0
@@ -79,43 +89,38 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
     private var lifecycleListener: DefaultLifecycleObserver? = null
-    private val handler = Handler(Looper.getMainLooper())
     private lateinit var employeeBonListener: ListenerRegistration
     private lateinit var textWatcher: TextWatcher
     private var textErrorForInstallment = "undefined"
-    private var isProcessUpdatingData: Boolean = false
-    private var currentToastMessage: String? = null
     private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+    private var blockAllUserClickAction: Boolean = false
+
     // This property is only valid between onCreateView and
     // onDestroyView.
 
     private lateinit var context: Context
     // private var previousCapitalAmount: Long = 0
-    private var isNavigating = false
-    private var currentView: View? = null
 
     private val binding get() = _binding!!
     // TNODO: Rename and change types of parameters
     private var userEmployeeData: UserEmployeeData? = null
     private var currentSnackbar: Snackbar? = null
     private var inputManualCheckOne: (() -> Unit)? = null
-    private var localToast: Toast? = null
-    private var myCurrentToast: Toast? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        approveRejectViewModel
+        recordInstallmentViewModel
+        toastViewModel
         if (savedInstanceState != null) {
             isBonInstallmentValid = savedInstanceState.getBoolean("is_bon_installment_valid", false)
             userRemainingBon = savedInstanceState.getInt("user_remaining_bon", 0)
             bonInstallmentString = savedInstanceState.getString("bon_installment_string", "") ?: ""
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
-            isInSaveProcess = savedInstanceState.getBoolean("is_in_save_process", false)
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
             textErrorForInstallment = savedInstanceState.getString("text_error_for_installment", "undefined") ?: "undefined"
-            isProcessUpdatingData = savedInstanceState.getBoolean("is_process_updating_data", false)
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
 //        arguments?.let {
 //            userEmployeeData = it.getParcelable(ARG_PARAM1)
@@ -125,13 +130,6 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 //        }
 
         context = requireContext()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        isNavigating = false
-        currentView?.isClickable = true
-        Log.d("CheckPion", "isOrientationChanged = BB")
     }
 
     override fun onCreateView(
@@ -145,37 +143,62 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        recordInstallmentViewModel.userEmployeeData.observe(viewLifecycleOwner) { userData ->
+        recordInstallmentViewModel.savingStateResult.observe(this) { result ->
+            when (result) {
+                is RecordInstallmentViewModel.ResultState.Loading -> {
+                    if (binding.progressBar.isGone) binding.progressBar.visibility = View.VISIBLE
+                    blockAllUserClickAction = true
+                }
+                is RecordInstallmentViewModel.ResultState.Success -> {
+                    // Navigasi ke halaman sebelumnya
+                    binding.progressBar.visibility = View.GONE
+                    toastViewModel.showToast(result.message, true)
+                    recordInstallmentViewModel.setSavingStateResult(null)
+                }
+                is RecordInstallmentViewModel.ResultState.Failure -> {
+                    binding.progressBar.visibility = View.GONE
+                    toastViewModel.showToast(result.message, true)
+                    recordInstallmentViewModel.setSavingStateResult(null)
+                }
+                else -> {
+                    blockAllUserClickAction = false
+                }
+            }
+        }
+
+        approveRejectViewModel.userEmployeeData.observe(viewLifecycleOwner) { userData ->
             userData?.let {
                 userEmployeeData = it
+                recordInstallmentViewModel.setUserEmployeeData(it)
                 setUserIdentity()
             }
         }
 
-        recordInstallmentViewModel.userCurrentAccumulationBon.observe(viewLifecycleOwner) { currentNominalBon ->
+        approveRejectViewModel.userCurrentAccumulationBon.observe(viewLifecycleOwner) { currentNominalBon ->
             currentNominalBon?.let {
-                val previousNominalBon = recordInstallmentViewModel.userPreviousAccumulationBon.value ?: -999
+                val previousNominalBon = approveRejectViewModel.userPreviousAccumulationBon.value ?: -999
 
                 setUserBonInfo(currentNominalBon, previousNominalBon)
             }
         }
 
-        recordInstallmentViewModel.userPreviousAccumulationBon.observe(viewLifecycleOwner) { previousNominalBon ->
+        approveRejectViewModel.userPreviousAccumulationBon.observe(viewLifecycleOwner) { previousNominalBon ->
             previousNominalBon?.let {
-                val currentNominalBon = recordInstallmentViewModel.userCurrentAccumulationBon.value ?: -999
+                val currentNominalBon = approveRejectViewModel.userCurrentAccumulationBon.value ?: -999
 
                 setUserBonInfo(currentNominalBon, previousNominalBon)
             }
         }
 
-        recordInstallmentViewModel.bonEmployeeData.observe(viewLifecycleOwner) { bonData ->
+        approveRejectViewModel.bonEmployeeData.observe(viewLifecycleOwner) { bonData ->
             if (bonData != null) {
                 bonEmployeeData = bonData
+                recordInstallmentViewModel.setBonEmployeeData(bonData)
                 if (!isOrientationChanged) {
                     val previousInstallment = binding.etNominalInstallment.text.toString().ifEmpty { "0" }
                     setInitialInputForm()
                     if (isFirstLoad) init()
-                    else { if (!isInSaveProcess) showToast("Mendeteksi perubahan pada data Bon pegawai.") }
+                    else { if (!recordInstallmentViewModel.getIsSaveProcess()) toastViewModel.showToast("Mendeteksi perubahan pada data Bon pegawai.", false) }
                     //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
                     binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
                     binding.etNominalRemainingBon.setText(format.format(bonEmployeeData.bonDetails.remainingBon))
@@ -185,15 +208,16 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                         isBonInstallmentValid = validateInstallmentInput(true)
                     }
                     if (!isFirstLoad && bonInstallmentString != previousInstallment) {
-                        handler.postDelayed({
-                            if (isAdded) {
-                                currentSnackbar?.dismiss()
-                                recordInstallmentViewModel.showInputSnackBar(
-                                    previousInstallment,
-                                    getString(R.string.rollback_value, previousInstallment)
-                                )
-                            }
-                        }, 1000)
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            delay(1000)
+                            if (!isAdded) return@launch
+
+                            currentSnackbar?.dismiss()
+                            approveRejectViewModel.showInputSnackBar(
+                                previousInstallment,
+                                getString(R.string.rollback_value, previousInstallment)
+                            )
+                        }
                     }
                 } else {
                     Log.d("textErrorForInstallment", "eaffae")
@@ -201,7 +225,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                     // PERLU DI LAKUKAN SETTEXT KARENA HALAMAN INI TIDAK LANGSUNG MELAKUKAN SETUP PADA SAAT ONVIEWCREATED SECARA LANGSUNG MELAINKAN HARUS MENUNGGU BONEMPLOYEEDATA DARI OBSERVER SEHINGGA PROSES PENGECHECKAN AWAL DARI LISTENER LAMA TERLEWATKAN
                     //binding.etNominalInstallment.setText(binding.etNominalInstallment.text.toString().ifEmpty { "0" })
                 }
-                isInSaveProcess = false
+                recordInstallmentViewModel.setIsSaveProcess(false)
             }
         }
 
@@ -253,7 +277,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
         binding.btnSave.setOnClickListener(this@RecordInstallmentFragment)
 
-        recordInstallmentViewModel.snackBarInputMessage.observe(this) { showSnackBar(it) }
+        approveRejectViewModel.snackBarInputMessage.observe(this) { showSnackBar(it) }
     }
 
     private fun setInitialInputForm() {
@@ -273,33 +297,27 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun showLocalToast() {
-        if (localToast == null) {
-            localToast = Toast.makeText(context, "Perubahan hanya tersimpan secara lokal. Periksa koneksi internet Anda.", Toast.LENGTH_LONG)
-            localToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                localToast = null
-            }, 2000)
-        }
-    }
-
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        // myCurrentToast auto reset null saat orientasi change
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -308,12 +326,9 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         outState.putString("bon_installment_string", bonInstallmentString)
         outState.putString("previous_text", previousText)
         outState.putInt("previous_cursor_position", previousCursorPosition)
-        outState.putBoolean("is_in_save_process", isInSaveProcess)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("is_orientation_changed", true)
         outState.putString("text_error_for_installment", textErrorForInstallment)
-        outState.putBoolean("is_process_updating_data", isProcessUpdatingData)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
@@ -374,36 +389,46 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
 
         setupEditTextListeners()
+        handleInputInvokeData(isOrientationChanged)
         listenerEmployeeBon()
     }
 
-    private fun listenerEmployeeBon() {
-        if (::employeeBonListener.isInitialized) {
-            employeeBonListener.remove()
-        }
-
-        val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
-
-        employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
-            exception?.let {
-                showToast("Error listening to employee bon data: ${it.message}")
-                isFirstLoad = false
-                return@addSnapshotListener
+    private fun handleInputInvokeData(isRunningInvoke: Boolean) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            if (isRunningInvoke) {
+                inputManualCheckOne?.invoke()
+                inputManualCheckOne = null
             }
-            documents?.let {
-                val metadata = it.metadata
+        }
+    }
 
-                lifecycleScope.launch(Dispatchers.Default) {
-                    if ((!isFirstLoad && !isOrientationChanged && it.exists()) || isProcessUpdatingData) {
-                        val bonData = it.toObject(BonEmployeeData::class.java)
-                        bonData?.let { bon ->
-                            recordInstallmentViewModel.setBonEmployeeData(bon)
-                        }
+    private fun listenerEmployeeBon() {
+        bonEmployeeData.let { bonData ->
+            if (::employeeBonListener.isInitialized) {
+                employeeBonListener.remove()
+            }
 
-                        if (metadata.hasPendingWrites() && metadata.isFromCache && isProcessUpdatingData) {
-                            showLocalToast()
+            if (bonData.rootRef.isEmpty()) {
+                employeeBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                isFirstLoad = false
+                return@let
+            }
+            val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
+
+            employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
+                exception?.let {
+                    toastViewModel.showToast("Error listening to employee bon data: ${it.message}", false)
+                    isFirstLoad = false
+                    return@addSnapshotListener
+                }
+                documents?.let {
+                    if (!isFirstLoad && !isOrientationChanged) {
+                        if (it.exists()) {
+                            val bonData = it.toObject(BonEmployeeData::class.java)
+                            bonData?.let { bon ->
+                                approveRejectViewModel.setBonEmployeeData(bon)
+                            }
                         }
-                        isProcessUpdatingData = false
                     } else {
                         isFirstLoad = false
                         Log.d("CheckPion", "isOrientationChanged = AA")
@@ -460,13 +485,16 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
     private fun setUserBonInfo(currentNominalBon: Int, previousNominalBon: Int) {
         binding.apply {
-            val bonAccumulation = currentNominalBon + previousNominalBon
-            if (currentNominalBon != -999 && previousNominalBon != -999) {
-                tvBonValue.text = NumberUtils.numberToCurrency(bonAccumulation.toDouble())
-                binding.tvBonValue.setTextColor(ContextCompat.getColor(root.context, R.color.platinum_grey_background))
-            } else {
+            var bonAccumulation = 0
+            if (currentNominalBon != -999) bonAccumulation += currentNominalBon
+            if (previousNominalBon != -999) bonAccumulation += previousNominalBon
+
+            if (currentNominalBon == -999 && previousNominalBon == -999) {
                 tvBonValue.text = getString(R.string.error_text_for_user_accumulation_bon)
                 tvBonValue.setTextColor(ContextCompat.getColor(root.context, R.color.red))
+            } else {
+                tvBonValue.text = NumberUtils.numberToCurrency(bonAccumulation.toDouble())
+                binding.tvBonValue.setTextColor(ContextCompat.getColor(root.context, R.color.platinum_grey_background))
             }
         }
     }
@@ -475,16 +503,23 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.btnSave -> {
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
                     if (validateInputs()) {
                         val formattedAmount = format.parse(bonInstallmentString)?.toInt()
                         if (formattedAmount != null) {
                             checkNetworkConnection {
-                                disableBtnWhenShowDialog(v) {
-                                    saveEmployeeBon(formattedAmount)
-                                }
+                                recordInstallmentViewModel.saveEmployeeBon(formattedAmount, userRemainingBon)
                             }
                         } else {
-                            showToast("Input tidak valid karena menghasilkan null")
+                            toastViewModel.showToast("Data yang dimasukkan pengguna tidak valid!", true)
                             setFocus(binding.etNominalInstallment)
                         }
 
@@ -497,7 +532,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 //                            isBonInstallmentValid = validateInstallmentInput(true)
 //                        } else { }
                     } else {
-                        showToast("Mohon periksa kembali data yang dimasukkan")
+                        toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
                         //if (!isBonInstallmentValid) isBonInstallmentValid = validateInstallmentInput(true)
                         setFocus(binding.etNominalInstallment)
                     }
@@ -517,60 +552,6 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun saveEmployeeBon(userInstallment: Int) {
-        val returnStatus = when (userInstallment) {
-            bonEmployeeData.bonDetails.nominalBon -> {
-                "Lunas"
-            }
-            0 -> {
-                "Belum Bayar"
-            }
-            else -> {
-                "Terangsur"
-            }
-        }
-
-        val bonDetails = BonDetails(
-            nominalBon = bonEmployeeData.bonDetails.nominalBon,
-            remainingBon = userRemainingBon,
-            installmentsBon = userInstallment
-        )
-
-        bonEmployeeData.apply {
-            this.bonDetails = bonDetails
-            this.returnStatus = returnStatus
-        }
-
-        saveEmployeeBonToFirestore()
-    }
-
-    private fun saveEmployeeBonToFirestore() {
-        binding.progressBar.visibility = View.VISIBLE
-        isInSaveProcess = true
-
-        val bonReference = userEmployeeData?.rootRef?.let {
-            db.document(it)
-                .collection("employee_bon")
-        }
-
-        // Gak Auto keluar karena yang diubah pasti data pada bulan ini
-        bonReference?.document(bonEmployeeData.uid)
-            ?.set(bonEmployeeData)
-            ?.addOnSuccessListener {
-                isProcessUpdatingData = true
-                showToast("User Installment has been updated successfully!")
-            }
-            ?.addOnFailureListener { exception ->
-                isProcessUpdatingData = false
-                showToast("Failed to update user installment: ${exception.message}")
-            }
-            ?.addOnCompleteListener {
-                binding.progressBar.visibility = View.GONE
-                isNavigating = false
-                currentView?.isClickable = true
-            }
-    }
-
     private fun showSnackBar(eventMessage: Event<String>) {
         val message = eventMessage.getContentIfNotHandled() ?: return
         currentSnackbar = Snackbar.make(
@@ -578,7 +559,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             message,
             Snackbar.LENGTH_LONG
         ).setAction("Replace") {
-            binding.etNominalInstallment.setText(recordInstallmentViewModel.moneyAmount.value?.getContentIfNotHandled())
+            binding.etNominalInstallment.setText(approveRejectViewModel.moneyAmount.value?.getContentIfNotHandled())
         }
 
         currentSnackbar?.show()
@@ -674,7 +655,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                             nfe.printStackTrace()
                         }
 
-                        Log.d("textErrorForInstallment", "inputManualCheckOne: ${inputManualCheckOne == null}")
+                        Logger.d("UserInputCheck", "InstallmentInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
 //                            isBonInstallmentValid = validateInstallmentInput(false)
                             isBonInstallmentValid = validateInstallmentInput(true)
@@ -685,6 +666,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== RecordInstallmentFragment ===")
             etNominalInstallment.addTextChangedListener(textWatcher)
         }
     }
@@ -725,7 +707,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                 tvInfo.text = textErrorForInstallment
                 //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
                 val nominal = format.format(formattedAmount)
-                recordInstallmentViewModel.showInputSnackBar(
+                approveRejectViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
                 )
@@ -752,13 +734,9 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
-    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
-        v.isClickable = false
-        currentView = v
-        if (!isNavigating) {
-            isNavigating = true
-            functionShowDialog()
-        } else return
+    override fun onResume() {
+        super.onResume()
+        Log.d("CheckPion", "isOrientationChanged = BB")
     }
 
     override fun onStop() {
@@ -766,10 +744,6 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        localToast?.cancel()
-        myCurrentToast?.cancel()
-        localToast = null
-        currentToastMessage = null
     }
 
     override fun onDestroyView() {
@@ -777,7 +751,6 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         binding.etNominalInstallment.removeTextChangedListener(textWatcher)
 
         currentSnackbar?.dismiss()
-        handler.removeCallbacksAndMessages(null)
         if (::employeeBonListener.isInitialized) {
             employeeBonListener.remove()
         }
@@ -789,11 +762,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        recordInstallmentViewModel.setUserPreviousAccumulationBon(null)
-        recordInstallmentViewModel.setUserCurrentAccumulationBon(null)
-//        recordInstallmentViewModel.setUserEmployeeData(null, initPage = null, setupDropdown = null, isSavedInstanceStateNull = null)
-        recordInstallmentViewModel.setUserEmployeeData(null, setupDropdown = null, isSavedInstanceStateNull = null)
-        recordInstallmentViewModel.setBonEmployeeData(null)
+        approveRejectViewModel.clearAttacmentData()
+        approveRejectViewModel.clearBonEmployeeData()
     }
 
     companion object {

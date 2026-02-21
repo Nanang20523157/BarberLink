@@ -15,10 +15,12 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Intro.Splash.SplashScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
 import com.example.barberlink.Utils.SvgUtils.loadSVGFromResource
@@ -27,8 +29,9 @@ import kotlinx.coroutines.launch
 
 class LandingPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLandingPageBinding
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isNavigating = false
-    private var currentView: View? = null
+//    private var currentView: View? = null
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -50,13 +53,13 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         setContentView(binding.root)
-        if (intent.getStringExtra(ORIGIN_PAGE_KEY) == "splash_screen") {
+        if (intent.getStringExtra(SplashScreen.ORIGIN_PAGE_KEY) == "splash_screen") {
             Log.d("NetworkMonitorIO", "LandingPage: ${NetworkMonitor.errorMessage.value}")
             if (!NetworkMonitor.isOnline.value) {
                 if (NetworkMonitor.errorMessage.value == "Koneksi internet tidak stabil. Periksa koneksi Anda.") {
-                    Toast.makeText(this, "Koneksi internet tidak stabil. Periksa koneksi Anda.", Toast.LENGTH_SHORT).show()
+                    NetworkMonitor.showToast("Koneksi internet tidak stabil. Periksa koneksi Anda.", true)
                 } else {
-                    Toast.makeText(this, "Aplikasi offline", Toast.LENGTH_SHORT).show()
+                    NetworkMonitor.showToast("Aplikasi offline", true)
                 }
             }
         }
@@ -89,6 +92,8 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.btnSignIn -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
 //                    if (imageBarbershop.alpha.toInt() == 0) {
 //                        imageBarbershop.alpha = 1f // Tampilkan ImageView
 //                        wvGifBarbershop.apply {
@@ -100,6 +105,8 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
                     navigatePage(this@LandingPage, SelectUserRolePage::class.java, btnSignIn)
                 }
                 R.id.btnSignUp -> {
+                    if (!debounce.run { v.isSafeClick() }) return
+                    // hmmmmm
 //                    if (imageBarbershop.alpha.toInt() == 0) {
 //                        imageBarbershop.alpha = 1f // Tampilkan ImageView
 //                        wvGifBarbershop.apply {
@@ -117,8 +124,8 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(context: Context, destination: Class<*>, view: View) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
-            view.isClickable = false
-            currentView = view
+//            view.isClickable = false
+//            currentView = view
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
@@ -139,7 +146,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
         if (isNavigating) WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         // Reset the navigation flag and view's clickable state
         isNavigating = false
-        currentView?.isClickable = true
+//        currentView?.isClickable = true
     }
 
     private fun animateLandingPage() {

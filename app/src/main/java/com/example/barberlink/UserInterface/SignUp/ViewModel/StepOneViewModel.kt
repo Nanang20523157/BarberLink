@@ -7,6 +7,7 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
@@ -15,6 +16,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.yourapp.utils.awaitGetWithOfflineFallback
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 class StepOneViewModel(
     private val db: FirebaseFirestore,
@@ -34,177 +40,241 @@ class StepOneViewModel(
     val registerResult: LiveData<ResultState?> = _registerResult
 
     sealed class ResultState {
-        data object Loading : ResultState()
-        data object Success : ResultState()
-        data object InvalidState : ResultState()
-        data class Failure(val message: String) : ResultState()
+        data object Loading: ResultState()
+        data object Success: ResultState()
+        data object InvalidState: ResultState()
+        data class Failure(val message: String): ResultState()
     }
 
     fun setRegisterResult(value: ResultState?) {
-        _registerResult.value = value
+        viewModelScope.launch {
+            _registerResult.value = value
+        }
     }
 
     fun setUserAdminData(data: UserAdminData) {
-        this.userAdminData = data
+        viewModelScope.launch {
+            userAdminData = data
+        }
     }
 
     fun setUserRolesData(data: UserRolesData) {
-        this.userRolesData = data
+        viewModelScope.launch {
+            userRolesData = data
+        }
     }
 
     fun setUserCustomerData(data: UserCustomerData) {
-        this.userCustomerData = data
+        viewModelScope.launch {
+            userCustomerData = data
+        }
     }
 
     fun setUserEmployeeData(data: UserEmployeeData) {
-        this.userEmployeeData = data
+        viewModelScope.launch {
+            userEmployeeData = data
+        }
     }
 
     fun setFormattedPhoneNumber(phoneNumber: String) {
-        this.formattedPhoneNumber = phoneNumber
+        viewModelScope.launch {
+            formattedPhoneNumber = phoneNumber
+        }
     }
 
     fun setPhoneNumberValid(isValid: Boolean) {
-        this.isPhoneNumberValid = isValid
+        viewModelScope.launch {
+            isPhoneNumberValid = isValid
+        }
     }
 
     fun getUserAdminData(): UserAdminData {
-        return userAdminData
+        return runBlocking {
+            userAdminData
+        }
     }
 
     fun getUserRolesData(): UserRolesData {
-        return userRolesData
+        return runBlocking {
+            userRolesData
+        }
     }
 
     fun getUserCustomerData(): UserCustomerData {
-        return userCustomerData
+        return runBlocking {
+            userCustomerData
+        }
     }
 
     private fun getUserEmployeeData(): UserEmployeeData {
-        return userEmployeeData
+        return runBlocking {
+            userEmployeeData
+        }
     }
 
     fun getFormattedPhoneNumber(): String? {
-        return formattedPhoneNumber
+        return runBlocking {
+            formattedPhoneNumber
+        }
     }
 
     fun isPhoneNumberValid(): Boolean {
-        return isPhoneNumberValid
+        return runBlocking {
+            isPhoneNumberValid
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun checkPhoneNumberAndNavigate() {
-        _registerResult.postValue(ResultState.Loading)
-        userAdminData = UserAdminData()
-        userRolesData = UserRolesData()
-        userCustomerData = UserCustomerData()
-        userEmployeeData = UserEmployeeData()
+        viewModelScope.launch {
+            _registerResult.postValue(ResultState.Loading)
 
-        formattedPhoneNumber?.let { phoneNumber ->
-            Log.d("TriggerPP", phoneNumber)
-            db.collection("users").document(phoneNumber).get()
-                .addOnSuccessListener { document ->
-                    when {
-                        document.exists() -> handleExistingUser(document)
-                        else -> {
-                            checkCustomerExistenceAndAdd(phoneNumber)
-                        }
-                    }
+            userAdminData = UserAdminData()
+            userRolesData = UserRolesData()
+            userCustomerData = UserCustomerData()
+            userEmployeeData = UserEmployeeData()
+
+            val phoneNumber = formattedPhoneNumber
+            if (phoneNumber == null) {
+                _registerResult.value = ResultState.Failure("Nomor telepon tidak valid")
+                return@launch
+            }
+
+            try {
+                val snapshot = withContext(Dispatchers.IO) {
+                    db.collection("users")
+                        .document(phoneNumber)
+                        .awaitGetWithOfflineFallback(tag = "CheckUserPhone")
                 }
-                .addOnFailureListener { exception ->
-                    _registerResult.postValue(ResultState.Failure(exception.message.toString()))
-                }
-        }
-    }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun handleExistingUser(document: DocumentSnapshot) {
-        Log.d("TriggerPP", "X1X")
-        document.toObject(UserRolesData::class.java)?.let {
-            userRolesData = it
-        }
-
-        when (userRolesData.role) {
-            "admin", "pairAE", "pairAC(-)", "pairAC(+)", "hybrid(-)", "hybrid(+)" -> {
-                Log.d("TriggerPP", "X1X")
-                isPhoneNumberValid = false
-                _registerResult.postValue(ResultState.InvalidState)
-            }
-            "employee", "pairEC(-)", "pairEC(+)" -> {
-                Log.d("TriggerPP", "X2X")
-                getDataReference(userRolesData.employeeRef, "employee")
-            }
-            else -> {
-                Log.d("TriggerPP", "X3X")
-                getDataReference(userRolesData.customerRef, "customer")
-            }
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun checkCustomerExistenceAndAdd(phoneNumber: String) {
-        db.collection("customers").document(phoneNumber).get()
-            .addOnSuccessListener { customerDocument ->
-                if (customerDocument.exists()) {
-                    Log.d("TriggerPP", "X4X")
-                    userRolesData.role = "undefined"
-
-                    customerDocument.toObject(UserCustomerData::class.java)?.let { customerData ->
-                        customerData.userRef = customerDocument.reference.path
-                        userCustomerData = customerData
+                if (snapshot.isSuccessful) {
+                    val document = snapshot.data
+                    if (document != null) {
+                        if (document.exists()) handleExistingUser(document)
+                        else checkCustomerExistenceAndAdd(phoneNumber)
+                    } else {
+                        if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                        else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
                     }
-
-//                    userAdminData?.apply {
-//                        uid = ""
-//                        imageCompanyProfile = ""
-//                        ownerName = userCustomerData?.fullname.toString()
-//                        email = ""
-//                        password = ""
-//                        userRef = userCustomerData?.userRef.toString()
-//                    }
-
-                    setupCustomerData()
                 } else {
-                    Log.d("TriggerPP", "X5X")
-                    isPhoneNumberValid = true
-                    _registerResult.postValue(ResultState.Success)
+                    if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                    else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
                 }
+            } catch (e: Exception) {
+                _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
             }
-            .addOnFailureListener { exception ->
-                _registerResult.postValue(ResultState.Failure(exception.message.toString()))
-            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun getDataReference(reference: String, role: String) {
-        Log.d("TriggerUU", "X5X")
-        db.document(reference).get()
-            .addOnSuccessListener { document ->
-                document.takeIf { it.exists() }?.let {
-                    when (role) {
-                        "employee" -> {
-                            Log.d("TriggerUU", "X5.2X")
-                            it.toObject(UserEmployeeData::class.java)?.let { data ->
-                                data.userRef = document.reference.path
-                                userEmployeeData = data
-                            }
-                        }
-                        else -> {
-                            Log.d("TriggerUU", "X5.3X")
-                            it.toObject(UserCustomerData::class.java)?.let { data ->
-                                data.userRef = document.reference.path
-                                userCustomerData = data
-                            }
-                        }
-                    }
+    private suspend fun handleExistingUser(document: DocumentSnapshot) {
+        Log.d("TriggerPP", "X1X")
+        try {
+            document.toObject(UserRolesData::class.java)?.let {
+                userRolesData = it
+            }
 
-                    setupCustomerData()
+            when (userRolesData.role) {
+                "admin", "pairAE", "pairAC(-)", "pairAC(+)", "hybrid(-)", "hybrid(+)" -> {
+                    Log.d("TriggerPP", "X1X")
+                    isPhoneNumberValid = false
+                    _registerResult.postValue(ResultState.InvalidState)
+                }
+                "employee", "pairEC(-)", "pairEC(+)" -> {
+                    Log.d("TriggerPP", "X2X")
+                    getDataReference(userRolesData.employeeRef, "employee")
+                }
+                else -> {
+                    Log.d("TriggerPP", "X3X")
+                    getDataReference(userRolesData.customerRef, "customer")
                 }
             }
-            .addOnFailureListener { exception ->
-                _registerResult.postValue(ResultState.Failure(exception.message.toString()))
-            }
+        } catch (e: Exception) {
+            _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+        }
     }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun checkCustomerExistenceAndAdd(phoneNumber: String) {
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                db.collection("customers")
+                    .document(phoneNumber)
+                    .awaitGetWithOfflineFallback(tag = "CheckCustomerExistence")
+            }
+
+            if (snapshot.isSuccessful) {
+                val document = snapshot.data
+                if (document != null) {
+                    if (document.exists())  {
+                        userRolesData.role = "undefined"
+                        document.toObject(UserCustomerData::class.java)?.let {
+                            it.userRef = document.reference.path
+                            userCustomerData = it
+                        }
+
+                        setupCustomerData()
+                    } else {
+                        isPhoneNumberValid = true
+                        _registerResult.postValue(ResultState.Success)
+                    }
+                } else {
+                    if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                    else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+                }
+            } else {
+                if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+            }
+        } catch (e: Exception) {
+            _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private suspend fun getDataReference(reference: String, role: String) {
+        try {
+            val snapshot = withContext(Dispatchers.IO) {
+                db.document(reference)
+                    .awaitGetWithOfflineFallback(tag = "GetDataReference")
+            }
+
+            if (snapshot.isSuccessful) {
+                val document = snapshot.data
+                if (document != null) {
+                    if (document.exists()) {
+                        when (role) {
+                            "employee" -> {
+                                document.toObject(UserEmployeeData::class.java)?.let { data ->
+                                    data.userRef = document.reference.path
+                                    userEmployeeData = data
+                                }
+                            }
+                            else -> {
+                                document.toObject(UserCustomerData::class.java)?.let { data ->
+                                    data.userRef = document.reference.path
+                                    userCustomerData = data
+                                }
+                            }
+                        }
+
+                        setupCustomerData()
+                    } else {
+                        _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+                    }
+                } else {
+                    if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                    else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+                }
+            } else {
+                if (snapshot.displayMessage) _registerResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                else _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+            }
+        } catch (e: Exception) {
+            _registerResult.postValue(ResultState.Failure("Terjadi kesalahan saat memeriksa data pengguna!"))
+        }
+    }
+
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun setupCustomerData() {

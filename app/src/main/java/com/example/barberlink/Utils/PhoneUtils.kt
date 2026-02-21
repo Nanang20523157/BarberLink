@@ -15,7 +15,8 @@ object PhoneUtils {
         if (phoneNumber.isEmpty()) return ""
         val isStartWithZero = phoneNumber.startsWith("0")
         val isNumberNotValid = phoneNumber.startsWith("00")
-        if (!isStartWithZero || isNumberNotValid) return "???"
+        val isStartWithCountryCode = phoneNumber.startsWith(countryCode)
+        if ((!isStartWithZero || isNumberNotValid) && !isStartWithCountryCode) return "???"
         Log.d("CodeCountry", "phoneNumber: $phoneNumber")
 
         // Tentukan posisi awal untuk pemformatan dan buat nomor telepon tanpa kode negara

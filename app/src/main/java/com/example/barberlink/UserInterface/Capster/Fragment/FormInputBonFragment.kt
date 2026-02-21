@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -21,9 +19,12 @@ import android.widget.Toast
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
+import androidx.core.view.isGone
+import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -33,19 +34,28 @@ import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.DataCreator
 import com.example.barberlink.DataClass.UserData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.Event
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Capster.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
+import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
+import com.example.barberlink.UserInterface.Capster.ViewModel.FormInputBonViewModel
 import com.example.barberlink.Utils.GetDateUtils
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentFormInputBonBinding
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
@@ -64,8 +74,12 @@ private const val ARG_PARAM3 = "param3"
 class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     private var _binding: FragmentFormInputBonBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
-    private val formulirFragmentViewModel: BonEmployeeViewModel by activityViewModels()
-
+    private val bonEmployeeViewModel: BonEmployeeViewModel by activityViewModels()
+    private val formInputBonViewModel: FormInputBonViewModel by viewModels {
+        DatabaseViewModelFactory(db)
+    }
+    private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var isReturnTypeValid = true
     private var isBonAmountValid = false
     private var isEmployeeReasonValid = false
@@ -74,13 +88,11 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     private var returnTypeSelected: String = ""
     private var previousText: String = ""
     private var previousCursorPosition: Int = 0
-    private var isInSaveProcess: Boolean = false
     private var isFirstLoad: Boolean = true
     private var isOrientationChanged: Boolean = false
     private var textErrorForReturnType: String = "undefined"
     private var textErrorForBonAmount: String = "undefined"
     private var textErrorForUserReason: String = "undefined"
-    private var currentToastMessage: String? = null
     //private var bonAccumulation: Int = 0
 
     private lateinit var timeStampFilter: Timestamp
@@ -90,7 +102,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     private lateinit var startOfDay: Timestamp
     private lateinit var startOfNextDay: Timestamp
     private var lifecycleListener: DefaultLifecycleObserver? = null
-    private val handler = Handler(Looper.getMainLooper())
     private lateinit var employeeBonListener: ListenerRegistration
     private lateinit var textWatcher1: TextWatcher
     private lateinit var textWatcher2: TextWatcher
@@ -98,11 +109,10 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     private var inputManualCheckTwo: (() -> Unit)? = null
     private var inputManualCheckTri: (() -> Unit)? = null
     private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+    private var blockAllUserClickAction: Boolean = false
 
     private lateinit var context: Context
     // private var previousCapitalAmount: Long = 0
-    private var isNavigating = false
-    private var currentView: View? = null
 
     private var selectedCardView: CardView? = null
     private var selectedTextView: TextView? = null
@@ -117,13 +127,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     )
     private var userEmployeeData: UserEmployeeData? = null
     private var currentSnackbar: Snackbar? = null
-    private var bonProcessListener: OnBonProcessListener? = null
-    private var myCurrentToast: Toast? = null
-
-    interface OnBonProcessListener {
-        fun onBonProcessStateChanged(isSuccess: Boolean)
-    }
-
 
 //    private lateinit var sessionDelegate: FragmentSessionDelegate
 
@@ -134,6 +137,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        bonEmployeeViewModel
+        formInputBonViewModel
+        toastViewModel
         if (savedInstanceState != null) {
             isReturnTypeValid = savedInstanceState.getBoolean("is_return_type_valid", true)
             isBonAmountValid = savedInstanceState.getBoolean("is_bon_amount_valid", false)
@@ -143,13 +149,11 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             returnTypeSelected = savedInstanceState.getString("return_type_selected", "") ?: ""
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
-            isInSaveProcess = savedInstanceState.getBoolean("is_in_save_process", false)
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
             textErrorForBonAmount = savedInstanceState.getString("text_error_for_bon_amount", "undefined") ?: "undefined"
             textErrorForReturnType = savedInstanceState.getString("text_error_for_return_type", "undefined") ?: "undefined"
             textErrorForUserReason = savedInstanceState.getString("text_error_for_user_reason", "undefined") ?: "undefined"
-            currentToastMessage = savedInstanceState.getString("current_toast_message", null)
         }
 //        arguments?.let {
 //            userEmployeeData = it.getParcelable(ARG_PARAM1)
@@ -159,15 +163,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 //        }
 
         context = requireContext()
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is OnBonProcessListener) {
-            bonProcessListener = context
-        } else {
-            throw RuntimeException("$context must implement OnBonProcessListener")
-        }
     }
 
 //    override fun onStart() {
@@ -200,38 +195,99 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        formulirFragmentViewModel.userEmployeeData.observe(viewLifecycleOwner) { userData ->
+        formInputBonViewModel.savingStateResult.observe(this) { result ->
+            when (result) {
+                is FormInputBonViewModel.ResultState.Loading -> {
+                    if (binding.progressBar.isGone) {
+                        binding.progressBar.visibility = View.VISIBLE
+                        if (!bonEmployeeData.uid.isNotEmpty()) {
+                            setFragmentResult(
+                                "save_data_processing", bundleOf(
+                                    "is_save_data_process" to true
+                                )
+                            )
+                        }
+                    }
+                    blockAllUserClickAction = true
+                }
+                is FormInputBonViewModel.ResultState.Success -> {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                    if (bonEmployeeData.uid.isNotEmpty()) {
+                        setFragmentResult(
+                            "success_to_save_bon", bundleOf(
+                                "dismiss_dialog" to true,
+                                "timestamp_filter_seconds" to timeStampFilter.seconds,
+                                "timestamp_filter_nano" to timeStampFilter.nanoseconds,
+                                "filtering_reset" to false,
+                                "is_process_success" to true
+                            )
+                        )
+                    } else {
+                        setFragmentResult(
+                            "success_to_save_bon", bundleOf(
+                                "dismiss_dialog" to true,
+                                "timestamp_filter_seconds" to timeStampFilter.seconds,
+                                "timestamp_filter_nano" to timeStampFilter.nanoseconds,
+                                "filtering_reset" to true,
+                                "is_process_success" to true
+                            )
+                        )
+
+                    }
+                    // Navigasi ke halaman sebelumnya
+
+                    dismiss()
+                    parentFragmentManager.popBackStack()
+                    formInputBonViewModel.setSavingStateResult(null)
+                }
+                is FormInputBonViewModel.ResultState.Failure -> {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                    formInputBonViewModel.setSavingStateResult(null)
+                }
+                else -> {
+                    blockAllUserClickAction = false
+                }
+            }
+        }
+
+        bonEmployeeViewModel.userEmployeeData.observe(viewLifecycleOwner) { userData ->
             userData?.let {
                 userEmployeeData = it
+                formInputBonViewModel.setUserEmployeeData(it)
                 setUserIdentity()
             }
         }
 
-        formulirFragmentViewModel.userCurrentAccumulationBon.observe(viewLifecycleOwner) { currentNominalBon ->
+        bonEmployeeViewModel.userCurrentAccumulationBon.observe(viewLifecycleOwner) { currentNominalBon ->
             currentNominalBon?.let {
-                val previousNominalBon = formulirFragmentViewModel.userPreviousAccumulationBon.value ?: -999
+                val previousNominalBon = bonEmployeeViewModel.userPreviousAccumulationBon.value ?: -999
 
                 setUserBonInfo(currentNominalBon, previousNominalBon)
             }
         }
 
-        formulirFragmentViewModel.userPreviousAccumulationBon.observe(viewLifecycleOwner) { previousNominalBon ->
+        bonEmployeeViewModel.userPreviousAccumulationBon.observe(viewLifecycleOwner) { previousNominalBon ->
             previousNominalBon?.let {
-                val currentNominalBon = formulirFragmentViewModel.userCurrentAccumulationBon.value ?: -999
+                val currentNominalBon = bonEmployeeViewModel.userCurrentAccumulationBon.value ?: -999
 
                 setUserBonInfo(currentNominalBon, previousNominalBon)
             }
         }
 
-        formulirFragmentViewModel.bonEmployeeData.observe(viewLifecycleOwner) { bonData ->
+        bonEmployeeViewModel.bonEmployeeData.observe(viewLifecycleOwner) { bonData ->
             if (bonData != null) {
                 bonEmployeeData = bonData
+                formInputBonViewModel.setBonEmployeeData(bonData)
                 Log.d("CheckPion", "Z >> isOrientationChanged = $isOrientationChanged")
                 if (!isOrientationChanged) {
                     val previousNominalBon = binding.etBonAmount.text.toString().ifEmpty { "0" }
                     setInitialInputForm()
+                    returnTypeSelected = bonEmployeeData.returnType
+                    userReasonNotes = bonEmployeeData.reasonNoted
                     if (isFirstLoad) init(view)
-                    else { if (!isInSaveProcess) showToast("Mendeteksi perubahan pada data Bon pegawai.") }
+                    else { if (!formInputBonViewModel.getIsSaveProcess()) toastViewModel.showToast("Mendeteksi perubahan pada data Bon pegawai.", false) }
                     if (bonEmployeeData.reasonNoted.isNotEmpty()) binding.etUserReason.setText(bonEmployeeData.reasonNoted)
                     bonAmountString = binding.etBonAmount.text.toString()
                     // Seng marakke Edit ora Auto Focus sedangkan New malah Auto Focus >> bonAmountString != "0"
@@ -239,15 +295,16 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                         isBonAmountValid = validateBonAmountInput(true)
                     }
                     if (!isFirstLoad && bonAmountString != previousNominalBon) {
-                        handler.postDelayed({
-                            if (isAdded) {
-                                currentSnackbar?.dismiss()
-                                formulirFragmentViewModel.showInputSnackBar(
-                                    previousNominalBon,
-                                    getString(R.string.rollback_value, previousNominalBon)
-                                )
-                            }
-                        }, 1000)
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            delay(1000)
+                            if (!isAdded) return@launch
+
+                            currentSnackbar?.dismiss()
+                            bonEmployeeViewModel.showInputSnackBar(
+                                previousNominalBon,
+                                getString(R.string.rollback_value, previousNominalBon)
+                            )
+                        }
                     }
                 } else {
                     init(view)
@@ -256,7 +313,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 }
 
                 Log.d("ChangeOriented", "Line 1: $isOrientationChanged")
-                isInSaveProcess = false
+                formInputBonViewModel.setIsSaveProcess(false)
             }
         }
 
@@ -313,7 +370,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             cd200000.setOnClickListener(this@FormInputBonFragment)
         }
 
-        formulirFragmentViewModel.snackBarInputMessage.observe(this) { showSnackBar(it)  }
+        bonEmployeeViewModel.snackBarInputMessage.observe(this) { showSnackBar(it)  }
 
     }
 
@@ -321,7 +378,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
         binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
         binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
-        formulirFragmentViewModel.saveSelectedCard(null, null, bonEmployeeData.bonDetails.nominalBon)
+        setupBonInputValue(bonEmployeeData.bonDetails.nominalBon)
         if (binding.etBonAmount.isFocused) {
             binding.etBonAmount.clearFocus()
 
@@ -330,22 +387,26 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         }
     }
 
-    private fun showToast(message: String) {
-        if (message != currentToastMessage) {
-            myCurrentToast?.cancel()
-            myCurrentToast = Toast.makeText(
-                context,
-                message ,
-                Toast.LENGTH_SHORT
-            )
-            currentToastMessage = message
-            myCurrentToast?.show()
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (currentToastMessage == message) currentToastMessage = null
-            }, 2000)
-        }
-    }
+    // User Action
+//    private fun showToast(message: String) {
+//        viewLifecycleOwner.lifecycleScope.launch {
+//            if (message != currentToastMessage || myCurrentToast == null) {
+//                myCurrentToast?.cancel()
+//                myCurrentToast = Toast.makeText(
+//                    context,
+//                    message ,
+//                    Toast.LENGTH_SHORT
+//                )
+//                currentToastMessage = message
+//                myCurrentToast?.show()
+//
+//                delay(2000)
+//                if (currentToastMessage == message) {
+//                    currentToastMessage = null
+//                }
+//            }
+//        }
+//    }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -357,13 +418,11 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         outState.putString("return_type_selected", returnTypeSelected)
         outState.putString("previous_text", previousText)
         outState.putInt("previous_cursor_position", previousCursorPosition)
-        outState.putBoolean("is_in_save_process", isInSaveProcess)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("is_orientation_changed", true)
         outState.putString("text_error_for_bon_amount", textErrorForBonAmount)
         outState.putString("text_error_for_return_type", textErrorForReturnType)
         outState.putString("text_error_for_user_reason", textErrorForUserReason)
-        currentToastMessage?.let { outState.putString("current_toast_message", it) }
     }
 
 
@@ -410,9 +469,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             setDateFilterValue(bonEmployeeData.timestampCreated)
         }
 
-        formulirFragmentViewModel.inputAmountValue.observe(this@FormInputBonFragment) { amount ->
-            val cardId = formulirFragmentViewModel.selectedCardId.value
-            val textId = formulirFragmentViewModel.selectedTextId.value
+        bonEmployeeViewModel.inputAmountValue.observe(this@FormInputBonFragment) { amount ->
+            val cardId = bonEmployeeViewModel.selectedCardId.value
+            val textId = bonEmployeeViewModel.selectedTextId.value
 
             if (cardId != null && textId != null && cardId != -999 && textId != -999) {
                 val selectedCard: CardView = view.findViewById(cardId)
@@ -465,14 +524,34 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 if (textErrorForUserReason == "undefined" && textErrorForReturnType == "undefined" && textErrorForBonAmount == "undefined") binding.etBonAmount.requestFocus()
             }
         }
-        setupEditTextListeners()
+
         setupAutoCompleteTextView()
+        setupEditTextListeners()
+        handleInputInvokeData(isOrientationChanged)
         if (bonEmployeeData.uid.isNotEmpty()) listenerEmployeeBon()
         else {
             Log.d("CheckPion", "isOrientationChanged = AA1")
             isOrientationChanged = false
         }
         Log.d("ChangeOriented", "Line 2: $isOrientationChanged")
+    }
+
+    private fun handleInputInvokeData(isRunningInvoke: Boolean) {
+        lifecycleScope.launch(Dispatchers.Main) {
+            if (isRunningInvoke) {
+                inputManualCheckOne?.invoke()
+                inputManualCheckTwo?.invoke()
+                inputManualCheckTri?.invoke()
+                inputManualCheckOne = null
+                inputManualCheckTwo = null
+                inputManualCheckTri = null
+            } else {
+                if (isFirstLoad) {
+                    Log.d("CheckUserInput", "returnTypeSelected: $returnTypeSelected")
+                    isReturnTypeValid = validateReturnTypeInput()
+                }
+            }
+        }
     }
 
     private fun setDateFilterValue(timestamp: Timestamp) {
@@ -521,13 +600,16 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
     private fun setUserBonInfo(currentNominalBon: Int, previousNominalBon: Int) {
         binding.apply {
-            val bonAccumulation = currentNominalBon + previousNominalBon
-            if (currentNominalBon != -999 && previousNominalBon != -999) {
-                tvBonValue.text = NumberUtils.numberToCurrency(bonAccumulation.toDouble())
-                tvBonValue.setTextColor(ContextCompat.getColor(root.context, R.color.platinum_grey_background))
-            } else {
+            var bonAccumulation = 0
+            if (currentNominalBon != -999) bonAccumulation += currentNominalBon
+            if (previousNominalBon != -999) bonAccumulation += previousNominalBon
+
+            if (currentNominalBon == -999 && previousNominalBon == -999) {
                 tvBonValue.text = getString(R.string.error_text_for_user_accumulation_bon)
                 tvBonValue.setTextColor(ContextCompat.getColor(root.context, R.color.red))
+            } else {
+                tvBonValue.text = NumberUtils.numberToCurrency(bonAccumulation.toDouble())
+                binding.tvBonValue.setTextColor(ContextCompat.getColor(root.context, R.color.platinum_grey_background))
             }
         }
     }
@@ -544,6 +626,16 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                     // Set the adapter to the AutoCompleteTextView
                     binding.acTypeOfReturn.setAdapter(adapter)
                     binding.acTypeOfReturn.setOnItemClickListener { parent, _, position, _ ->
+                        // xxxxx y
+                        if (blockAllUserClickAction) {
+                            if (returnTypeSelected == "From Salary") {
+                                binding.acTypeOfReturn.setText("Bayar dari gaji bulanan pegawai", false)
+                            } else if (returnTypeSelected == "From Installment") {
+                                binding.acTypeOfReturn.setText("Bayar melalui sistem angsuran", false)
+                            }
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            return@setOnItemClickListener
+                        }
                         val userReturnType = parent.getItemAtPosition(position).toString()
                         binding.acTypeOfReturn.setText(userReturnType, false)
                         if (userReturnType == "Bayar dari gaji bulanan pegawai") {
@@ -551,6 +643,8 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                         } else if (userReturnType == "Bayar melalui sistem angsuran") {
                             returnTypeSelected = "From Installment"
                         }
+
+                        Logger.d("UserInputCheck", "ReturnInputCheck inputManualCheckTwo >> ${inputManualCheckTwo == null}")
                         inputManualCheckTwo?.invoke() ?: run {
                             isReturnTypeValid = validateReturnTypeInput()
                         }
@@ -558,16 +652,15 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                     }
 
                     // Set the text of acOutletName to the first outlet name
-                    returnTypeSelected = if (bonEmployeeData.returnType.isEmpty()) {
+                    if (returnTypeSelected.isEmpty()) {
                         binding.acTypeOfReturn.setText(it[0], false)
-                        "From Salary"
+                        returnTypeSelected = "From Salary"
                     } else {
-                        if (bonEmployeeData.returnType == "From Salary") {
+                        if (returnTypeSelected == "From Salary") {
                             binding.acTypeOfReturn.setText(it[0], false)
-                        } else if (bonEmployeeData.returnType == "From Installment") {
+                        } else if (returnTypeSelected == "From Installment") {
                             binding.acTypeOfReturn.setText(it[1], false)
                         }
-                        bonEmployeeData.returnType
                     }
                 }
             }
@@ -576,26 +669,33 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun listenerEmployeeBon() {
-        if (::employeeBonListener.isInitialized) {
-            employeeBonListener.remove()
-        }
-
-        val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
-
-        employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
-            exception?.let {
-                showToast("Error listening to employee bon data: ${it.message}")
-                isFirstLoad = false
-                return@addSnapshotListener
+        bonEmployeeData.let { bonData ->
+            if (::employeeBonListener.isInitialized) {
+                employeeBonListener.remove()
             }
-            documents?.let {
-                lifecycleScope.launch(Dispatchers.Default) {
+
+            if (bonData.rootRef.isEmpty()) {
+                employeeBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                isFirstLoad = false
+                return@let
+            }
+            val documentRef = db.document("${bonEmployeeData.rootRef}/employee_bon/${bonEmployeeData.uid}")
+
+            employeeBonListener = documentRef.addSnapshotListener { documents, exception ->
+                exception?.let {
+                    toastViewModel.showToast("Error listening to employee bon data: ${it.message}", false)
+                    isFirstLoad = false
+                    return@addSnapshotListener
+                }
+                documents?.let {
                     Log.d("ChangeOriented", "Listener 3: $isOrientationChanged")
-                    if (!isFirstLoad && !isOrientationChanged && it.exists()) {
-                        Log.d("ChangeOriented", "Listener 3: IF")
-                        val bonData = it.toObject(BonEmployeeData::class.java)
-                        bonData?.let { bon ->
-                            formulirFragmentViewModel.setBonEmployeeData(bon)
+                    if (!isFirstLoad && !isOrientationChanged) {
+                        if (it.exists()) {
+                            Log.d("ChangeOriented", "Listener 3: IF")
+                            val bonData = it.toObject(BonEmployeeData::class.java)
+                            bonData?.let { bon ->
+                                bonEmployeeViewModel.setBonEmployeeData(bon)
+                            }
                         }
                     } else {
                         Log.d("ChangeOriented", "Listener 3: ELSE")
@@ -612,17 +712,24 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.btnSave -> {
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    // hmmmmm
                     if (validateInputs()) {
                         val formattedAmount = format.parse(bonAmountString)?.toInt()
+                        Log.d("FormulirBon", "bonAmountString: $bonAmountString")
                         if (formattedAmount != null) {
                             checkNetworkConnection {
-                                Log.d("FormulirBon", "bonAmountString: $bonAmountString")
-                                disableBtnWhenShowDialog(v) {
-                                    saveEmployeeBon(formattedAmount, returnTypeSelected)
-                                }
+                                formInputBonViewModel.saveEmployeeBon(formattedAmount, returnTypeSelected, userReasonNotes, timeStampFilter)
                             }
                         } else {
-                            showToast("Input tidak valid karena menghasilkan null")
+                            toastViewModel.showToast("Data yang dimasukkan pengguna tidak valid!", true)
                             setFocus(binding.etBonAmount)
                         }
 //                        var originalString = bonAmountString
@@ -635,15 +742,18 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 //                            isBonAmountValid = validateBonAmountInput(true)
 //                        } else { }
                     } else {
-                        showToast("Mohon periksa kembali data yang dimasukkan")
+                        toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
                         Log.d("FormulirBon", "isReturnTypeValid: $isReturnTypeValid || isBonAmountValid: $isBonAmountValid || isEmployeeReasonValid: $isEmployeeReasonValid")
                         if (!isReturnTypeValid) {
+                            Logger.d("CheckUserInput", "isReturnTypeValid: $isReturnTypeValid || returnTypeSelected: $returnTypeSelected")
 //                            isReturnTypeValid = validateReturnTypeInput()
                             setFocus(binding.acTypeOfReturn)
                         } else if (!isBonAmountValid) {
+                            Logger.d("CheckUserInput", "isBonAmountValid: $isBonAmountValid || bonAmountString: $bonAmountString")
 //                            isBonAmountValid = validateBonAmountInput(true)
                             setFocus(binding.etBonAmount)
                         } else if (!isEmployeeReasonValid) {
+                            Logger.d("CheckUserInput", "isEmployeeReasonValid: $isEmployeeReasonValid || userReasonNotes: $userReasonNotes")
 //                            isEmployeeReasonValid = validateUserReasonInput()
                             setFocus(binding.etUserReason)
                         }
@@ -651,15 +761,15 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 }
                 R.id.cd100000 -> {
                     //selectCardView(cd100000, tv100000, 100000)
-                    formulirFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
+                    bonEmployeeViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
                 }
                 R.id.cd150000 -> {
                     //selectCardView(cd150000, tv150000, 150000)
-                    formulirFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
+                    bonEmployeeViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
                 }
                 R.id.cd200000 -> {
                     //selectCardView(cd200000, tv200000, 200000)
-                    formulirFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
+                    bonEmployeeViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
                 }
             }
         }
@@ -683,7 +793,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             message,
             Snackbar.LENGTH_LONG
         ).setAction("Replace") {
-            formulirFragmentViewModel.moneyAmount.value?.getContentIfNotHandled()?.let { it1 ->
+            bonEmployeeViewModel.moneyAmount.value?.getContentIfNotHandled()?.let { it1 ->
                 if (it1 == "-") {
                     setupBonInputValue(-777)
                 } else {
@@ -714,167 +824,26 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             when (number) {
                 100000 -> {
                     //selectCardView(cd100000, tv100000, 100000)
-                    formulirFragmentViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
+                    bonEmployeeViewModel.saveSelectedCard(cd100000.id, tv100000.id, 100000)
                 }
                 150000 -> {
                     //selectCardView(cd150000, tv150000, 150000)
-                    formulirFragmentViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
+                    bonEmployeeViewModel.saveSelectedCard(cd150000.id, tv150000.id, 150000)
                 }
                 200000 -> {
                     //selectCardView(cd200000, tv200000, 200000)
-                    formulirFragmentViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
+                    bonEmployeeViewModel.saveSelectedCard(cd200000.id, tv200000.id, 200000)
                 }
                 -777 -> {
                     //selectCardView(null, null, -999)
-                    formulirFragmentViewModel.saveSelectedCard(-999, -999, -777)
+                    bonEmployeeViewModel.saveSelectedCard(-999, -999, -777)
                 }
                 else -> {
                     //selectCardView(null, null, number)
-                    formulirFragmentViewModel.saveSelectedCard(null, null, number)
+                    bonEmployeeViewModel.saveSelectedCard(null, null, number)
                 }
             }
         }
-    }
-
-    private fun saveEmployeeBon(bonAmount: Int, returnType: String) {
-        // HARUSNYA VARIABEL userPhoto DIHILANGKAN KARENA NILAINYA TIDAK AKAN DIPERBARUI KETIKA USER MENGUBAH PHOTO PROFILNYA - HARUSNYA GET USER DATA DULU
-        val dataCreator = DataCreator<UserData>(
-            userFullname = userEmployeeData?.fullname ?: "",
-            userRole = userEmployeeData?.role ?: "",
-            userPhoto = userEmployeeData?.photoProfile ?: "",
-            userPhone = userEmployeeData?.phone ?: "",
-            userRef = userEmployeeData?.userRef ?: ""
-        )
-
-        val bonDetails = BonDetails(
-            nominalBon = bonAmount,
-            remainingBon = bonAmount,
-            installmentsBon = 0
-        )
-
-        bonEmployeeData.apply {
-            this.bonStatus = if (this.uid.isEmpty()) "waiting" else this.bonStatus
-            this.returnStatus = if (this.uid.isEmpty()) "" else this.returnStatus
-            this.returnType = returnType
-            this.reasonNoted = userReasonNotes
-            this.timestampCreated = timeStampFilter
-            this.rootRef = userEmployeeData?.rootRef ?: ""
-            this.dataCreator = dataCreator
-            this.bonDetails = bonDetails
-        }
-
-        saveEmployeeBonToFirestore()
-    }
-
-    private fun saveEmployeeBonToFirestore() {
-        binding.progressBar.visibility = View.VISIBLE
-        isInSaveProcess = true
-
-        val bonReference = userEmployeeData?.rootRef?.let {
-            db.document(it)
-                .collection("employee_bon")
-        }
-        var isProcessSuccess = false
-
-        // Auto keluar karena bisa jadi menambahkan data baru di Bulan yang Berbeda
-        if (bonEmployeeData.uid.isNotEmpty()) {
-            // Perbarui dokumen dengan ID yang diberikan
-            bonReference?.document(bonEmployeeData.uid)
-                ?.set(bonEmployeeData)
-                ?.addOnSuccessListener {
-                    isProcessSuccess = true
-                    bonProcessListener?.onBonProcessStateChanged(true)
-                    Toast.makeText(
-                        requireContext(),
-                        "Employee Bon successfully updated",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                ?.addOnFailureListener { exception ->
-                    isProcessSuccess = false
-                    bonProcessListener?.onBonProcessStateChanged(false)
-                    Toast.makeText(
-                        requireContext(),
-                        "Failed to update employee Bon: ${exception.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                ?.addOnCompleteListener {
-                    setFragmentResult(
-                        "success_to_save_bon", bundleOf(
-                            "dismiss_dialog" to true,
-                            "timestamp_filter_seconds" to timeStampFilter.seconds, // Kirim seconds
-                            "timestamp_filter_nano" to timeStampFilter.nanoseconds, // Kirim nanoseconds
-                            "filtering_reset" to false,
-                            "is_process_success" to isProcessSuccess
-                        )
-                    )
-                    binding.progressBar.visibility = View.GONE
-                    isNavigating = false
-                    currentView?.isClickable = true
-
-                    if (isProcessSuccess) {
-                        dismiss()
-                        parentFragmentManager.popBackStack()
-                    }
-                }
-        } else {
-            setFragmentResult(
-                "save_data_processing", bundleOf(
-                    "is_save_data_process" to true
-                )
-            )
-
-            // Generate a new document ID and set it to dailyCapital.uid
-            val newDocRef = bonReference?.document() // Get a new document reference with a generated ID
-            bonEmployeeData.uid = newDocRef?.id ?: "" // Set the generated ID to dailyCapital.uid
-
-            newDocRef?.set(bonEmployeeData)
-                ?.addOnSuccessListener {
-                    isProcessSuccess = true
-                    bonProcessListener?.onBonProcessStateChanged(true)
-                    Toast.makeText(
-                        requireContext(),
-                        "New Bon successfully saved",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                ?.addOnFailureListener { exception ->
-                    isProcessSuccess = false
-                    bonProcessListener?.onBonProcessStateChanged(false)
-                    Toast.makeText(
-                        requireContext(),
-                        "Failed to save new Bon: ${exception.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                ?.addOnCompleteListener {
-                    setFragmentResult(
-                        "success_to_save_bon", bundleOf(
-                            "dismiss_dialog" to true,
-                            "timestamp_filter_seconds" to timeStampFilter.seconds, // Kirim seconds
-                            "timestamp_filter_nano" to timeStampFilter.nanoseconds, // Kirim nanoseconds
-                            "filtering_reset" to true,
-                            "is_process_success" to isProcessSuccess
-                        )
-                    )
-                    binding.progressBar.visibility = View.GONE
-                    isNavigating = false
-                    currentView?.isClickable = true
-
-                    if (isProcessSuccess) {
-                        dismiss()
-                        parentFragmentManager.popBackStack()
-                    }
-                }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        isNavigating = false
-        currentView?.isClickable = true
-        Log.d("CheckPion", "isOrientationChanged = BB")
     }
 
     private fun setupEditTextListeners() {
@@ -887,8 +856,10 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
                 override fun afterTextChanged(s: Editable?) {
                     if (s != null) {
+                        userReasonNotes = s.toString()
+
+                        Logger.d("UserInputCheck", "ReasonInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
-                            userReasonNotes = s.toString()
                             isEmployeeReasonValid = validateUserReasonInput()
                         }
                         inputManualCheckOne = null
@@ -961,6 +932,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                             nfe.printStackTrace()
                         }
 
+                        Logger.d("UserInputCheck", "AmountInputCheck inputManualCheckTri >> ${inputManualCheckTri == null}")
                         inputManualCheckTri?.invoke() ?: run {
                             isBonAmountValid = validateBonAmountInput(true)
 //                            isBonAmountValid = validateBonAmountInput(false)
@@ -971,6 +943,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 }
             }
 
+            Logger.d("UserInputCheck", "=== FormInputBonFragment ===")
             etUserReason.addTextChangedListener(textWatcher1)
             etBonAmount.addTextChangedListener(textWatcher2)
         }
@@ -1031,7 +1004,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 && bonAmount != "150.000"
                 && bonAmount != "200.000") {
                 //selectCardView(null, null, null)
-                formulirFragmentViewModel.saveSelectedCard(null, null, null)
+                bonEmployeeViewModel.saveSelectedCard(null, null, null)
             }
             return if (bonAmount.isEmpty() || bonAmount == "0") {
                 textErrorForBonAmount = getString(R.string.bon_amount_cannot_be_empty)
@@ -1051,7 +1024,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 tvInfo.text = textErrorForBonAmount
                 //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
                 val nominal = format.format(formattedAmount)
-                formulirFragmentViewModel.showInputSnackBar(
+                bonEmployeeViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
                 )
@@ -1095,18 +1068,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
     }
 
-    private fun disableBtnWhenShowDialog(v: View, functionShowDialog: () -> Unit) {
-        v.isClickable = false
-        currentView = v
-        if (!isNavigating) {
-            isNavigating = true
-            functionShowDialog()
-        } else return
-    }
-
-    override fun onDetach() {
-        super.onDetach()
-        bonProcessListener = null
+    override fun onResume() {
+        super.onResume()
+        Log.d("CheckPion", "isOrientationChanged = BB")
     }
 
     override fun onStop() {
@@ -1114,8 +1078,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        myCurrentToast?.cancel()
-        currentToastMessage = null
     }
 
     override fun onDestroyView() {
@@ -1124,7 +1086,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         binding.etBonAmount.removeTextChangedListener(textWatcher2)
 
         currentSnackbar?.dismiss()
-        handler.removeCallbacksAndMessages(null)
         if (::employeeBonListener.isInitialized) {
             employeeBonListener.remove()
         }
@@ -1137,8 +1098,8 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
         Log.d("SnapshotUID", "DELETE CARD STATE")
-        formulirFragmentViewModel.saveSelectedCard(null, null, null)
-        formulirFragmentViewModel.setBonEmployeeData(null)
+        bonEmployeeViewModel.saveSelectedCard(null, null, null)
+        bonEmployeeViewModel.setBonEmployeeData(null)
     }
 
     companion object {

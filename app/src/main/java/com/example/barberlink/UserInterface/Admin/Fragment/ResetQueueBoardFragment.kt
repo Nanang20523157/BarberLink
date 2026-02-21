@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListQueueResetAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
 import com.example.barberlink.databinding.FragmentResetQueueBoardBinding
@@ -40,6 +41,7 @@ private const val ARG_PARAM2 = "param2"
 class ResetQueueBoardFragment : DialogFragment() {
     private var _binding: FragmentResetQueueBoardBinding? = null
     private val resetQueueViewModel: ManageOutletViewModel by activityViewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var context: Context
     //private var capsterList: ArrayList<Employee>? = null
     private lateinit var currentQueue: Map<String, String>
@@ -61,6 +63,7 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        resetQueueViewModel
 //        arguments?.let {
 //            capsterList = it.getParcelableArrayList(ARG_PARAM1)
 //            outlet = it.getParcelable(ARG_PARAM2)
@@ -95,7 +98,6 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
         queueAdapter = ItemListQueueResetAdapter(3)
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
@@ -197,7 +199,9 @@ class ResetQueueBoardFragment : DialogFragment() {
             }
         }
 
-        binding.btnYes.setOnClickListener{
+        binding.btnYes.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             checkNetworkConnection {
                 setFragmentResult("action_result_user", bundleOf(
                     "switch_non_active" to true,
@@ -210,6 +214,8 @@ class ResetQueueBoardFragment : DialogFragment() {
         }
 
         binding.btnNo.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
+            // hmmmmm
             setFragmentResult("action_result_user", bundleOf(
                 "switch_non_active" to false,
                 "dismiss_dialog" to true
@@ -274,8 +280,7 @@ class ResetQueueBoardFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        resetQueueViewModel.setOutletSelected(null)
-        resetQueueViewModel.clearAllDataCapster()
+        resetQueueViewModel.clearFragmentData()
     }
 
     companion object {
