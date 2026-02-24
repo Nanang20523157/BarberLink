@@ -145,7 +145,7 @@ class SharedReserveViewModel : ViewModel() {
     }
 
     fun setCapsterSelected(capster: UserEmployeeData?) {
-        Log.d("ScanAll", "A1")
+        Log.d("ScanAll", "A1 || capster: ${capster?.uid}")
         viewModelScope.launch {
             _capsterSelected.value = capster
         }
@@ -288,7 +288,7 @@ class SharedReserveViewModel : ViewModel() {
     }
 
     fun triggerFilteringDataCustomer(displayAllData: Boolean) {
-        Log.d("ScanAll", "H2")
+        Log.d("ScanAll", "H2 == ${letsFilteringDataCustomer.value}")
         viewModelScope.launch {
             _letsFilteringDataCustomer.value = displayAllData
         }

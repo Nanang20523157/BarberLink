@@ -2,8 +2,10 @@ package com.example.barberlink.Factory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.barberlink.UserInterface.Admin.ViewModel.ApproveBonViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
+import com.example.barberlink.UserInterface.Capster.ViewModel.AddedBonViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.CapitalInputViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.EditOrderViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.FormInputBonViewModel
@@ -47,6 +49,12 @@ class DatabaseViewModelFactory(
         }
         if (modelClass.isAssignableFrom(AddCustomerViewModel::class.java)) {
             return AddCustomerViewModel(db) as T
+        }
+        if (modelClass.isAssignableFrom(AddedBonViewModel::class.java)) {
+            return AddedBonViewModel(db) as T
+        }
+        if (modelClass.isAssignableFrom(ApproveBonViewModel::class.java)) {
+            return ApproveBonViewModel(db) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

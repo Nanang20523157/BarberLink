@@ -24,6 +24,7 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
+import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
 import com.example.barberlink.databinding.FragmentResetQueueBoardBinding
 import kotlinx.coroutines.delay
@@ -164,6 +165,14 @@ class ResetQueueBoardFragment : DialogFragment() {
         resetQueueViewModel.capsterList.observe(viewLifecycleOwner) { capsterList ->
             // Menggunakan coroutine untuk menunda eksekusi submitList
             capsterList?.let { originalCapsterList ->
+                val layoutParams = binding.rvListQueue.layoutParams
+                layoutParams.height = if (originalCapsterList.size > 3) {
+                    resources.getDimensionPixelSize(R.dimen.recycler_height_large_reset_board) // 315dp dalam pixels
+                } else {
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                }
+                binding.rvListQueue.layoutParams = layoutParams
+
                 lifecycleScope.launch {
                     // Hitung mundur 800 ms
                     if (isFirstLoad) delay(500)
@@ -255,8 +264,8 @@ class ResetQueueBoardFragment : DialogFragment() {
             params.bottomMargin = dpToPx(30)
             Log.d("FormulirBon", "updateMargins: PORTRAIT")
         } else {
-            params.topMargin = dpToPx(100)
-            params.bottomMargin = dpToPx(30)
+            params.topMargin = dpToPx(115)
+            params.bottomMargin = dpToPx(50)
             Log.d("FormulirBon", "updateMargins: LANDSCAPE")
         }
 

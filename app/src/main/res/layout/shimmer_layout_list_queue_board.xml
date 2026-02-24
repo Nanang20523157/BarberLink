@@ -151,7 +151,7 @@
 
                     <TextView
                         android:id="@+id/tvQueueNumber"
-                        android:layout_width="40dp"
+                        android:layout_width="41dp"
                         android:layout_height="40dp"
                         android:gravity="center"
                         android:paddingTop="7dp"

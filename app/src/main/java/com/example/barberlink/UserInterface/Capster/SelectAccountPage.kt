@@ -16,12 +16,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListPickUserAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.PinInputFragment
@@ -134,7 +134,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                 onBackPressedDispatcher.onBackPressed()
             }
             employeeAdapter = ItemListPickUserAdapter(this@SelectAccountPage)
-            rvEmployeeList.layoutManager = VegaLayoutManager()
+            rvEmployeeList.layoutManager = LinearLayoutManager(this@SelectAccountPage)
             rvEmployeeList.adapter = employeeAdapter
             if (savedInstanceState == null || isShimmerVisible) {
                 employeeAdapter.setShimmer(true)

@@ -68,6 +68,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private var isPasswordValid: Boolean = false
     private var textErrorForEmail: String = "undefined"
     private var textErrorForPassword: String = "undefined"
+    private var ignorePasswordWatcher: Boolean = false
     private var isRecreated: Boolean = false
     private var originPageFrom: String? = null
     private var blockAllUserClickAction: Boolean = false
@@ -245,6 +246,8 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                 if (textErrorForEmail == "undefined" && textErrorForPassword == "undefined") binding.signInEmail.requestFocus()
             }
         }
+
+        setupEndIconListener()
         setupEditTextListeners()
 
         onBackPressedDispatcher.addCallback(this) {
@@ -328,6 +331,30 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
+    private fun setupEndIconListener() {
+        binding.signInPasswordLayout.setEndIconOnClickListener {
+
+            ignorePasswordWatcher = true
+
+            val editText = binding.signInPassword
+            val selection = editText.selectionStart
+
+            // Toggle manual
+            if (editText.transformationMethod == null) {
+                editText.transformationMethod =
+                    android.text.method.PasswordTransformationMethod.getInstance()
+            } else {
+                editText.transformationMethod = null
+            }
+
+            editText.setSelection(selection)
+
+            editText.post {
+                ignorePasswordWatcher = false
+            }
+        }
+    }
+
     private fun setupEditTextListeners() {
         with (binding) {
             textWatcher1 = object : TextWatcher {
@@ -352,6 +379,8 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
                 override fun afterTextChanged(s: Editable?) {
+                    if (ignorePasswordWatcher) return
+
                     if (s != null) {
                         Logger.d("UserInputCheck", "PasswordInputCheck inputManualCheckTwo >> ${inputManualCheckTwo == null}")
                         inputManualCheckTwo?.invoke() ?: run {
@@ -616,7 +645,6 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         super.onDestroy()
         binding.signInEmail.removeTextChangedListener(textWatcher1)
         binding.signInPassword.removeTextChangedListener(textWatcher2)
-
     }
 
     companion object {

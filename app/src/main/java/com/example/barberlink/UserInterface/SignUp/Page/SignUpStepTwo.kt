@@ -51,6 +51,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.core.net.toUri
 
 class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivitySignUpStepTwoBinding
@@ -187,6 +188,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                     }
                     userAdminData.imageCompanyProfile.let { imageUrl ->
                         if (imageUrl.isNotEmpty()) {
+                            Logger.d("ivProfile", "image intent 1")
                             binding.ivProfile.visibility = View.VISIBLE
                             binding.ivEmptyProfile.visibility = View.GONE
                             if (!isDestroyed && !isFinishing) {
@@ -216,6 +218,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                     }
                     userAdminData.imageCompanyProfile.let { imageUrl ->
                         if (imageUrl.isNotEmpty()) {
+                            Logger.d("ivProfile", "image intent 2")
                             binding.ivProfile.visibility = View.VISIBLE
                             binding.ivEmptyProfile.visibility = View.GONE
                             if (!isDestroyed && !isFinishing) {
@@ -240,7 +243,9 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         supportFragmentManager.setFragmentResultListener("image_picker_request", this) { _, bundle ->
             val result = bundle.getString("image_uri")
             result?.let {
-                val imageUri = Uri.parse(it)
+                Logger.d("ivProfile", "image result")
+                Glide.with(this).clear(binding.ivProfile)
+                val imageUri = it.toUri()
                 binding.ivProfile.setImageURI(imageUri)
                 binding.ivProfile.visibility = View.VISIBLE
                 binding.ivEmptyProfile.visibility = View.GONE

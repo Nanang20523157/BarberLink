@@ -4,17 +4,13 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
-import androidx.core.view.isGone
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
@@ -33,22 +29,20 @@ import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Admin.Fragment.ResetQueueBoardFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
-import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.Concurrency.withStateLock
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityManageOutletPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
-class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked, ItemListOutletAdapter.OnQueueResetListener,
+class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked, ItemListOutletAdapter.OnQueueResetListener, ItemListOutletAdapter.UpdateExpendedState,
     ItemListOutletAdapter.DisplayThisToastMessage, ItemListOutletAdapter.UpdateOutletStatus, ItemListOutletAdapter.UpdateOutletAccessCode {
     private lateinit var binding: ActivityManageOutletPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
@@ -59,6 +53,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     private lateinit var outletAdapter: ItemListOutletAdapter
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: DialogFragment
+    private lateinit var vegaLayoutManager: VegaLayoutManager
     // ARGS
     // private lateinit var outletsList: ArrayList<Outlet>
     // private lateinit var employeeList: ArrayList<Employee>
@@ -185,7 +180,20 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         }
 
         manageOutletViewModel.outletList.observe(this) { outletList ->
+            val itemUID = outletList.map { it.uid }
+
+            val expandedMap = outletList.associate { outlet ->
+                outlet.uid to !outlet.isCollapseCard
+            }
+
+            vegaLayoutManager.setExpandedState(
+                itemUID,
+                expandedMap,
+                true
+            )
+
             outletAdapter.submitList(outletList)
+            Logger.d("OutletList", "notifyDataSetChanged()")
             outletAdapter.notifyDataSetChanged()
             binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
         }
@@ -200,6 +208,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
 
             if (indexOutlet != -1) {
+                val outlet = manageOutletViewModel.outletSelected.value
+                if (outlet != null && outlet.isDisplayResetCard) outlet.isDisplayResetCard = false
+                isDisplayQueueBoard = false
                 if (isSwitchInActive) {
                     Log.d("SwitchAnomali", "Update 86 True")
                     outletAdapter.triggerUpdateStatus(indexOutlet)
@@ -268,9 +279,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     private fun init(savedInstanceState: Bundle?) {
-        val myLayoutManager = VegaLayoutManager()
-        outletAdapter = ItemListOutletAdapter(myLayoutManager, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
-        binding.rvOutletList.layoutManager = myLayoutManager
+        vegaLayoutManager = VegaLayoutManager()
+        outletAdapter = ItemListOutletAdapter(this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
+        binding.rvOutletList.layoutManager = vegaLayoutManager
         binding.rvOutletList.adapter = outletAdapter
 
         if (savedInstanceState == null || isShimmerVisible) {
@@ -278,11 +289,14 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             isShimmerVisible = true
         }
         manageOutletViewModel.setDefaultCode(getString(R.string.default_empty_code_access))
-        val outletsList = manageOutletViewModel.outletList.value ?: mutableListOf()
-        outletsList.forEach {
-            Log.d("TestCLickMore", "outletName ${it.outletName} || isCollapseCard: ${it.isCollapseCard}")
-        }
-        outletAdapter.submitList(outletsList)
+//        val outletList = manageOutletViewModel.outletList.value ?: mutableListOf()
+//        outletList.forEach {
+//            Log.d("TestCLickMore", "outletName ${it.outletName} || isCollapseCard: ${it.isCollapseCard}")
+//        }
+//        val itemUID = outletList.map { it.uid }
+//        vegaLayoutManager.setItemUID(itemUID)
+//        vegaLayoutManager.setExpandedState(outletList)
+//        outletAdapter.submitList(outletList)
 
         // Ubah tinggi layout root
 //        val layoutParams = binding.root.layoutParams
@@ -291,7 +305,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 //        else
 //            ViewGroup.LayoutParams.WRAP_CONTENT
 //        binding.root.layoutParams = layoutParams
-        binding.tvEmptyOutlet.visibility = if (outletsList.isEmpty()) View.VISIBLE else View.GONE
+//        binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
 
         if (savedInstanceState == null || isShimmerVisible) {
             lifecycleScope.launch {
@@ -456,6 +470,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                                                     manageOutletViewModel.setCapsterList(capsterList)
                                                 }
                                             }
+                                            Logger.d("OutletList", "Outlet List Updated")
                                             manageOutletViewModel.updateOutletList(newOutletsList.toMutableList())
                                         }
                                     }
@@ -480,6 +495,14 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                 onBackPressedDispatcher.onBackPressed()
             }
         }
+    }
+
+    override fun updateExpandedState(
+        uid: String,
+        isExpanded: Boolean,
+        newHeight: Int
+    ) {
+        vegaLayoutManager.updateExpandedState(uid, isExpanded, newHeight)
     }
 
     override fun updateOutletStatus(
@@ -526,6 +549,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             }
 
             isDisplayQueueBoard = true
+            outlet.isDisplayResetCard = true
             manageOutletViewModel.setOutletSelected(outlet)
             manageOutletViewModel.setCapsterList(capsterList)
 
@@ -610,8 +634,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
             if (isDisplayQueueBoard) {
                 Log.d("UpdateOutletStatus", "Update 215 False")
-                outletAdapter.restoreSwitchStatus(indexOutlet)
+                val outlet = manageOutletViewModel.outletSelected.value
+                if (outlet != null && outlet.isDisplayResetCard) outlet.isDisplayResetCard = false
                 isDisplayQueueBoard = false
+                outletAdapter.restoreSwitchStatus(indexOutlet)
             }
             shouldClearBackStack = true
 

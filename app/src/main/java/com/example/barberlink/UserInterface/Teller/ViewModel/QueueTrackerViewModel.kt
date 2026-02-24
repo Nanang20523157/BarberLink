@@ -10,11 +10,18 @@ import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Logger
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
+class QueueTrackerViewModel(
+    private val db: FirebaseFirestore,
+    state: SavedStateHandle
+) : InputFragmentViewModel(state) {
 
     val listenerOutletListMutex =  ReentrantCoroutineMutex()
     val listenerCapsterListMutex = ReentrantCoroutineMutex()
@@ -47,6 +54,14 @@ class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 
     private val _pendingCalculation = MutableLiveData<PendingCalculation>(PendingCalculation.None)
     val pendingCalculation: LiveData<PendingCalculation> = _pendingCalculation
+
+    sealed class TriggerToast {
+        data object LocalToast: TriggerToast()
+        data class CommonToast(val message: String): TriggerToast()
+    }
+
+    private val _toastDetection = MutableLiveData<TriggerToast?>()
+    val toastDetection: LiveData<TriggerToast?> = _toastDetection
 
     // LiveData for reservations and capsters
     private val _reservationDataList = MutableLiveData<List<ReservationData>>(emptyList())
@@ -164,6 +179,72 @@ class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 //        _capsterNames.postValue(capsterNames)
 //    }
 
+    fun updateActiveDevices(dataTellerRef: String) {
+        viewModelScope.launch {
+            Logger.d("CheckShimmer", "updateActiveDevices start")
+//            if (withTransaction) {
+//                // Mode TRANSACTION: hanya online, tidak offline-aware
+//                db.runTransaction { transaction ->
+//                    val currentActiveDevices = outletSelected.activeDevices
+//                    outletSelected.activeDevices = currentActiveDevices + change
+//                    transaction.update(outletDocRef, "active_devices", outletSelected.activeDevices)
+//                }.await()
+//
+//                Logger.d("CheckShimmer", "✅ Firestore transaction success")
+//            }
+
+            try {
+                val outletDocRef = db.document(dataTellerRef)
+
+                val task = withContext(Dispatchers.IO) {
+                    outletDocRef
+                        .update("active_devices", FieldValue.increment(1.toLong()))
+                        .awaitWriteWithOfflineFallback(tag = "UpdateActiveDevices")
+                }
+
+                if (task.isSuccessful) {
+                    Logger.d("CheckShimmer", "✅ Firestore updateActiveDevices success")
+                    // toastViewModel.showToast("Layanan QueueTracker ${outletData.outletName}", false)
+                } else {
+                    Logger.d("CheckShimmer", "❌ Firestore updateActiveDevices failed")
+                    _toastDetection.value = TriggerToast.CommonToast("Terjadi kesalahan saat memperbarui status aktif dari device!.")
+                }
+            } catch (e: Exception) {
+                Logger.d("CheckShimmer", "❌ Firestore updateActiveDevices failed with exception: ${e.message}")
+                _toastDetection.value = TriggerToast.CommonToast("Terjadi kesalahan saat memperbarui status aktif dari device!.")
+            }
+        }
+    }
+
+    suspend fun updateOutletCurrentQueue(outletSelected: Outlet) {
+        try {
+            val startTime = System.currentTimeMillis()
+
+            val outletRef = db.document(outletSelected.outletReference)
+            Logger.d("CheckShimmer", "🚀 Mulai update current_queue untuk outletRef: $outletRef")
+
+            val task = withContext(Dispatchers.IO) {
+                outletRef.update(
+                    mapOf(
+                        "current_queue" to outletSelected.currentQueue,
+                        "timestamp_modify" to outletSelected.timestampModify
+                    )
+                ).awaitWriteWithOfflineFallback(tag = "UpdateOutletQueue")
+            }
+
+            val duration = System.currentTimeMillis() - startTime
+            if (task.isSuccessful) {
+                Logger.d("CheckShimmer", "✅ Update current_queue sukses (${duration} ms)")
+            } else {
+                Logger.e("CheckShimmer", "❌ Update current_queue gagal (${duration} ms)")
+                throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+            }
+        } catch (e: Exception) {
+            Logger.e("CheckShimmer", "❌ Exception update_current_queue: ${e.message}")
+            throw e
+        }
+    }
+
     fun triggerFilteringDataCapster(withShimmer: Boolean?) {
         viewModelScope.launch {
             _letsFilteringDataCapster.postValue(withShimmer)
@@ -250,5 +331,10 @@ class QueueTrackerViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
         }
     }
 
+    fun clearToastDetection() {
+        viewModelScope.launch {
+            _toastDetection.postValue(null)
+        }
+    }
 
 }

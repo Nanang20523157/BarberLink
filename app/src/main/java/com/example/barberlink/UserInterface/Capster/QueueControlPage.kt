@@ -5185,6 +5185,13 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
     override fun onPause() {
         Log.d("CheckLifecycle", "==================== ON PAUSE QUEUECONTROL =====================")
         super.onPause()
+
+        if (isChangingConfigurations) {
+            val picker = supportFragmentManager
+                .findFragmentByTag("DATE_PICKER") as? DialogFragment
+
+            picker?.dismissAllowingStateLoss()
+        }
         if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
             clearBackStack()
         }

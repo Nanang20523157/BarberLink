@@ -17,12 +17,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListDestinationAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
@@ -121,7 +121,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 onBackPressedDispatcher.onBackPressed()
             }
             outletAdapter = ItemListDestinationAdapter(this@SelectOutletDestination)
-            rvOutletList.layoutManager = VegaLayoutManager()
+            rvOutletList.layoutManager = LinearLayoutManager(this@SelectOutletDestination)
             rvOutletList.adapter = outletAdapter
             if (savedInstanceState == null || isShimmerVisible) {
                 outletAdapter.setShimmer(true)

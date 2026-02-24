@@ -202,54 +202,42 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    fun resetReservationVariables() {
-        viewModelScope.launch {
-            _numberOfCompletedQueue.value = 0
-            _numberOfWaitingQueue.value = 0
-            _numberOfCanceledQueue.value = 0
-            _numberOfProcessQueue.value = 0
-            _numberOfSkippedQueue.value = 0
-            _amountReserveRevenue.value = 0
-        }
+    suspend fun resetReservationVariables() {
+        _numberOfCompletedQueue.updateOnMain(0)
+        _numberOfWaitingQueue.updateOnMain(0)
+        _numberOfCanceledQueue.updateOnMain(0)
+        _numberOfProcessQueue.updateOnMain(0)
+        _numberOfSkippedQueue.updateOnMain(0)
+        _amountReserveRevenue.updateOnMain(0)
     }
 
-    fun resetAppointmentVariables() {
-        viewModelScope.launch {
-            _amountAppointmentRevenue.value = 0
-        }
+    suspend fun resetAppointmentVariables() {
+        _amountAppointmentRevenue.updateOnMain(0)
     }
 
-    fun resetSalesVariables() {
-        viewModelScope.launch {
-            _amountSalesRevenue.value = 0
-        }
+    suspend fun resetSalesVariables() {
+        _amountSalesRevenue.updateOnMain(0)
     }
 
-    fun resetManualReportVariables() {
-        viewModelScope.launch {
-            _amountManualServiceRevenue.value = 0
-            _amountManualProductRevenue.value = 0
-            _amountManualOtherRevenue.value = 0
-        }
+    suspend fun resetManualReportVariables() {
+        _amountManualServiceRevenue.updateOnMain(0)
+        _amountManualProductRevenue.updateOnMain(0)
+        _amountManualOtherRevenue.updateOnMain(0)
     }
 
-    fun resetBonAccumulation() {
-        viewModelScope.launch {
-            _userAccumulationBon.value = 0
-        }
+    suspend fun resetBonAccumulation() {
+        _userAccumulationBon.updateOnMain(0)
     }
 
-    suspend fun iterateReservationData(result: QuerySnapshot?): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateReservationData(result: QuerySnapshot?): Boolean {
+        if (result == null) return true
 
-        try {
-            result.documents.map { document ->
-                async {
-                    document.toObject(ReservationData::class.java)?.apply {
-                        dataRef = document.reference.path
-                    }?.let { processReservationDataAsync(it) }
-                }
-            }.awaitAll()
+        return try {
+            result.documents.forEach { document ->
+                document.toObject(ReservationData::class.java)?.apply {
+                    dataRef = document.reference.path
+                }?.let { processReservationDataAsync(it) }
+            }
 
             true
         } catch (e: Exception) {
@@ -257,17 +245,15 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    suspend fun iterateAppointmentData(result: QuerySnapshot?): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateAppointmentData(result: QuerySnapshot?): Boolean {
+        if (result == null) return true
 
-        try {
-            result.documents.map { document ->
-                async {
-                    document.toObject(AppointmentData::class.java)?.apply {
-                        dataRef = document.reference.path
-                    }?.let { processAppointmentDataAsync(it) }
-                }
-            }.awaitAll()
+        return try {
+            result.documents.forEach { document ->
+                document.toObject(AppointmentData::class.java)?.apply {
+                    dataRef = document.reference.path
+                }?.let { processAppointmentDataAsync(it) }
+            }
 
             true
         } catch (e: Exception) {
@@ -275,17 +261,15 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    suspend fun iterateSalesData(result: QuerySnapshot?): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateSalesData(result: QuerySnapshot?): Boolean {
+        if (result == null) return true
 
-        try {
-            result.documents.map { document ->
-                async {
-                    document.toObject(ProductSales::class.java)?.apply {
-                        dataRef = document.reference.path
-                    }?.let { processSalesDataAsync(it) }
-                }
-            }.awaitAll()
+        return try {
+            result.documents.forEach { document ->
+                document.toObject(ProductSales::class.java)?.apply {
+                    dataRef = document.reference.path
+                }?.let { processSalesDataAsync(it) }
+            }
 
             true
         } catch (e: Exception) {
@@ -293,17 +277,15 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    suspend fun iterateManualReportData(result: QuerySnapshot?): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateManualReportData(result: QuerySnapshot?): Boolean {
+        if (result == null) return true
 
-        try {
-            result.documents.map { document ->
-                async {
-                    document.toObject(ManualIncomeData::class.java)?.apply {
-                        dataRef = document.reference.path
-                    }?.let { processManualReportDataAsync(it) }
-                }
-            }.awaitAll()
+        return try {
+            result.documents.forEach { document ->
+                document.toObject(ManualIncomeData::class.java)?.apply {
+                    dataRef = document.reference.path
+                }?.let { processManualReportDataAsync(it) }
+            }
 
             true
         } catch (e: Exception) {
@@ -311,21 +293,19 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    suspend fun iterateOutletData(result: QuerySnapshot?): Boolean = coroutineScope {
+    suspend fun iterateOutletData(result: QuerySnapshot?): Boolean {
         if (result == null) {
             _setupDropdownFilter.updateOnMain(null)
             _setupDropdownFilterWithNullState.updateOnMain(null)
-            return@coroutineScope true
+            return true
         }
 
-        try {
-            result.documents.map { document ->
-                async {
-                    document.toObject(Outlet::class.java)?.apply {
-                        outletReference = document.reference.path
-                    }?.let { addOutletData(it) }
-                }
-            }.awaitAll()
+        return try {
+            result.documents.forEach { document ->
+                document.toObject(Outlet::class.java)?.apply {
+                    outletReference = document.reference.path
+                }?.let { addOutletData(it) }
+            }
 
             _setupDropdownFilter.updateOnMain(null)
             _setupDropdownFilterWithNullState.updateOnMain(null)
@@ -337,17 +317,15 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    suspend fun iterateProductData(result: QuerySnapshot?): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateProductData(result: QuerySnapshot?): Boolean {
+        if (result == null) return true
 
-        try {
-            result.documents.map { document ->
-                async {
-                    document.toObject(Product::class.java)?.apply {
-                        dataRef = document.reference.path
-                    }?.let { addProductData(it) }
-                }
-            }.awaitAll()
+        return try {
+            result.documents.forEach { document ->
+                document.toObject(Product::class.java)?.apply {
+                    dataRef = document.reference.path
+                }?.let { addProductData(it) }
+            }
 
             true
         } catch (e: Exception) {
@@ -355,10 +333,10 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         }
     }
 
-    suspend fun accumulateBonData(result: QuerySnapshot?): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun accumulateBonData(result: QuerySnapshot?): Boolean {
+        if (result == null) return true
 
-        try {
+        return try {
             val totalBonAmount = result.documents.sumOf { doc ->
                 doc.toObject(BonEmployeeData::class.java)?.bonDetails?.remainingBon ?: 0
             }
@@ -372,32 +350,24 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     }
 
     // Metode untuk OutletList
-    private fun addOutletData(outlet: Outlet) {
-        viewModelScope.launch {
-            val list = _outletList.value?.toMutableList() ?: mutableListOf()
-            list.add(outlet)
-            _outletList.value = list
-        }
+    private suspend fun addOutletData(outlet: Outlet) {
+        val list = _outletList.value?.toMutableList() ?: mutableListOf()
+        list.add(outlet)
+        _outletList.updateOnMain(list)
     }
 
-    fun clearOutletsList() {
-        viewModelScope.launch {
-            _outletList.value = mutableListOf()
-        }
+    suspend fun clearOutletsList() {
+        _outletList.updateOnMain(mutableListOf())
     }
 
-    private fun addProductData(product: Product) {
-        viewModelScope.launch {
-            val list = _productList.value?.toMutableList() ?: mutableListOf()
-            list.add(product)
-            _productList.value = list
-        }
+    private suspend fun addProductData(product: Product) {
+        val list = _productList.value?.toMutableList() ?: mutableListOf()
+        list.add(product)
+        _productList.updateOnMain(list)
     }
 
-    fun clearProductList() {
-        viewModelScope.launch {
-            _productList.value = mutableListOf()
-        }
+    suspend fun clearProductList() {
+        _productList.updateOnMain(mutableListOf())
     }
 
      fun setUserAccumulationBon(bon: Int) {
@@ -409,13 +379,11 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     suspend fun processDocumentsConcurrently(
         documents: List<DocumentSnapshot>,
         processFunction: suspend (document: DocumentSnapshot) -> Unit
-    ) = coroutineScope {
+    ) {
         try {
-            documents.map { document ->
-                async {
-                    processFunction(document)
-                }
-            }.awaitAll()
+            documents.forEach { document ->
+                processFunction(document)
+            }
         } catch (e: Exception) {}
     }
 
@@ -497,64 +465,48 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     }
 
     // Metode untuk ReservationList
-    private fun addReservationData(reservationData: ReservationData) {
-        viewModelScope.launch {
-            val list = _reservationDataList.value ?: mutableListOf()
-            list.add(reservationData)
-            _reservationDataList.value = list
-        }
+    private suspend fun addReservationData(reservationData: ReservationData) {
+        val list = _reservationDataList.value ?: mutableListOf()
+        list.add(reservationData)
+        _reservationDataList.updateOnMain(list)
     }
 
-    fun clearReservationList() {
-        viewModelScope.launch {
-            _reservationDataList.value = mutableListOf()
-        }
+    suspend fun clearReservationList() {
+        _reservationDataList.updateOnMain(mutableListOf())
     }
 
-    private fun addAppointmentData(appointment: AppointmentData) {
-        viewModelScope.launch {
-            val list = _appointmentList.value ?: mutableListOf()
-            list.add(appointment)
-            _appointmentList.value = list
-        }
+    private suspend fun addAppointmentData(appointment: AppointmentData) {
+        val list = _appointmentList.value ?: mutableListOf()
+        list.add(appointment)
+        _appointmentList.updateOnMain(list)
     }
 
-    fun clearAppointmentList() {
-        viewModelScope.launch {
-            _appointmentList.value = mutableListOf()
-        }
+    suspend fun clearAppointmentList() {
+        _appointmentList.updateOnMain(mutableListOf())
     }
 
     // Metode untuk ProductSalesList
-    private fun addProductSales(productSales: ProductSales) {
-        viewModelScope.launch {
-            val list = _productSalesList.value ?: mutableListOf()
-            list.add(productSales)
-            _productSalesList.value = list
-        }
+    private suspend fun addProductSales(productSales: ProductSales) {
+        val list = _productSalesList.value ?: mutableListOf()
+        list.add(productSales)
+        _productSalesList.updateOnMain(list)
     }
 
-    fun clearProductSalesList() {
-        viewModelScope.launch {
-            _productSalesList.value = mutableListOf()
-            _salesProductMarketCounter.value = emptyMap()
-        }
+    suspend fun clearProductSalesList() {
+        _productSalesList.updateOnMain(mutableListOf())
+        _salesProductMarketCounter.updateOnMain(emptyMap())
     }
 
     // Metode untuk ManualReportList
-    private fun addManualReportList(incomeReport: ManualIncomeData) {
-        viewModelScope.launch {
-            val list = _manualReportList.value ?: mutableListOf()
-            list.add(incomeReport)
-            _manualReportList.value = list
-        }
+    private suspend fun addManualReportList(incomeReport: ManualIncomeData) {
+        val list = _manualReportList.value ?: mutableListOf()
+        list.add(incomeReport)
+        _manualReportList.updateOnMain(list)
     }
 
-    fun clearManualReportList() {
-        viewModelScope.launch {
-            _manualReportList.value = mutableListOf()
-            _salesProductManualCounter.value = emptyMap()
-        }
+    suspend fun clearManualReportList() {
+        _manualReportList.updateOnMain(mutableListOf())
+        _salesProductManualCounter.updateOnMain(emptyMap())
     }
 
 }

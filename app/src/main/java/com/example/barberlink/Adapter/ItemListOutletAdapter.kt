@@ -19,7 +19,6 @@ import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
-import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.Utils.CodeGeneratorUtils
@@ -38,10 +37,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class ItemListOutletAdapter(
-    private val vegaManager: VegaLayoutManager,
     private val itemClicked: OnItemClicked,
     private val listener: OnQueueResetListener,
     private val callbackToast: DisplayThisToastMessage,
+    private val updateExpanded: UpdateExpendedState,
     private val updateStatus: UpdateOutletStatus,
     private val updateCode: UpdateOutletAccessCode,
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
@@ -75,6 +74,10 @@ class ItemListOutletAdapter(
 
     interface UpdateOutletAccessCode {
         fun updateOutletAccessCode(outlet: Outlet, newCode: String, oldCode: String, index: Int)
+    }
+
+    interface UpdateExpendedState {
+        fun updateExpandedState(uid: String, isExpanded: Boolean, newHeight: Int)
     }
 
     fun stopAllShimmerEffects() {
@@ -203,7 +206,10 @@ class ItemListOutletAdapter(
                 clCodeAccess.visibility = if (outlet.isCollapseCard) View.GONE else View.VISIBLE
 
                 setButtonAccessCode(outlet.outletAccessCode, outlet.lastUpdated, binding)
-                setStatusOutlet(outlet.openStatus, binding)
+                Logger.d("OutletList", "outlet.openStatus: ${outlet.openStatus}")
+                if (outlet.isDisplayResetCard) {
+                    setStatusOutlet(false, binding)
+                } else setStatusOutlet(outlet.openStatus, binding)
 
                 if (outlet.imgOutlet.isNotEmpty()) {
                     // Use Glide to load the image
@@ -294,13 +300,13 @@ class ItemListOutletAdapter(
 
                 btnEdit.setOnClickListener {
                     if (!debounce.run {
-                        it.isSafeClick(
-                            isLoading = blockAllUserClickAction,
-                            onLoadingBlocked = {
-                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
-                            }
-                        )
-                    }) return@setOnClickListener
+                            it.isSafeClick(
+                                isLoading = blockAllUserClickAction,
+                                onLoadingBlocked = {
+                                    callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                                }
+                            )
+                        }) return@setOnClickListener
                     // hmmmmm
                     // Edit outlet
                     callbackToast.displayThisToast("Edit feature is under development...", true)
@@ -308,13 +314,13 @@ class ItemListOutletAdapter(
 
                 btnView.setOnClickListener {
                     if (!debounce.run {
-                        it.isSafeClick(
-                            isLoading = blockAllUserClickAction,
-                            onLoadingBlocked = {
-                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
-                            }
-                        )
-                    }) return@setOnClickListener
+                            it.isSafeClick(
+                                isLoading = blockAllUserClickAction,
+                                onLoadingBlocked = {
+                                    callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                                }
+                            )
+                        }) return@setOnClickListener
                     // hmmmmm
                     // Delete outlet
                     callbackToast.displayThisToast("View detail feature is under development...", true)
@@ -323,13 +329,13 @@ class ItemListOutletAdapter(
                 if (!outlet.isCollapseCard) {
                     btnMore.startAnimation(
                         RotateAnimation(
-                        0f, 180f,
-                        Animation.RELATIVE_TO_SELF, 0.5f,
-                        Animation.RELATIVE_TO_SELF, 0.5f
-                    ).apply {
-                        duration = 0
-                        fillAfter = true
-                    })
+                            0f, 180f,
+                            Animation.RELATIVE_TO_SELF, 0.5f,
+                            Animation.RELATIVE_TO_SELF, 0.5f
+                        ).apply {
+                            duration = 0
+                            fillAfter = true
+                        })
                 }
 
                 btnMore.setOnClickListener {
@@ -365,7 +371,7 @@ class ItemListOutletAdapter(
                     val newHeight = getRootHeight(binding)
                     Log.d("TestCLickMore", "OriginalHeight ${binding.root.height} || New Height: $newHeight")
 
-                    vegaManager.setItemExpanded(adapterPosition, !isCollapse, newHeight) // <-- Panggil fungsi ini
+                    updateExpanded.updateExpandedState(outlet.uid, !isCollapse, newHeight) // <-- Panggil fungsi ini
                 }
 
                 btnGenerateCode.setOnClickListener {
@@ -375,13 +381,13 @@ class ItemListOutletAdapter(
                         return@setOnClickListener
                     }
                     if (!debounce.run {
-                        it.isSafeClick(
-                            isLoading = blockAllUserClickAction,
-                            onLoadingBlocked = {
-                                callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
-                            }
-                        )
-                    }) return@setOnClickListener
+                            it.isSafeClick(
+                                isLoading = blockAllUserClickAction,
+                                onLoadingBlocked = {
+                                    callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
+                                }
+                            )
+                        }) return@setOnClickListener
                     // hmmmmm
                     // Generate or revoke code access
                     val code = tvAksesCode.text.toString().trim()
@@ -506,4 +512,3 @@ class ItemListOutletAdapter(
         }
     }
 }
-

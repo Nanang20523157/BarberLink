@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.barberlink.Helper.CalendarDateModel
 import com.example.barberlink.R
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ItemDateCalendarBinding
 
 class ItemDateCalendarAdapter(
@@ -67,16 +68,18 @@ class ItemDateCalendarAdapter(
         submitList(calendarList)
         notifyDataSetChanged()
 
-        if (scrolling) letScrollToCurrentDate()
+        Logger.d("DashboardScroll", "scrolling $scrolling")
+        if (scrolling) letScrollToCurrentDate(calendarList)
     }
 
-    fun letScrollToCurrentDate() {
+    fun letScrollToCurrentDate(calendarList: List<CalendarDateModel>) {
         // Pastikan RecyclerView sudah terpasang sebelum scroll
         recyclerView.post {
             if (todayDate.isNotEmpty() && !hasScrolledToTodayDate) {
-                Log.d("Scroll", "Scrolling to $todayDate")
+                Log.d("DashboardScroll", "DashboardScroll to $todayDate")
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
-                val position = currentList.indexOfFirst { it.calendarYear == todayDate }
+                val position = calendarList.indexOfFirst { it.calendarYear == todayDate }
+                Log.d("DashboardScroll", "position to $position")
                 if (position != RecyclerView.NO_POSITION) {
                     // Menggunakan smoothScrollToPosition
                     recyclerView.smoothScrollToPosition(position)

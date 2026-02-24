@@ -36,13 +36,20 @@ class SaveStateViewModelFactory(
                 QueueControlViewModel(firestore, handle) as T
             }
 
+            modelClass.isAssignableFrom(QueueTrackerViewModel::class.java) -> {
+                val firestore = db
+                    ?: throw IllegalArgumentException(
+                        "Firestore required for QueueControlViewModel"
+                    )
+                QueueTrackerViewModel(firestore,handle) as T
+            }
+
             // 🔹 ViewModel TANPA Firestore
             modelClass.isAssignableFrom(HomePageViewModel::class.java) -> HomePageViewModel(handle) as T
             modelClass.isAssignableFrom(BerandaAdminViewModel::class.java) -> BerandaAdminViewModel(handle) as T
             modelClass.isAssignableFrom(InputFragmentViewModel::class.java) -> InputFragmentViewModel(handle) as T
             modelClass.isAssignableFrom(BonEmployeeViewModel::class.java) -> BonEmployeeViewModel(handle) as T
             modelClass.isAssignableFrom(DashboardViewModel::class.java) -> DashboardViewModel(handle) as T
-            modelClass.isAssignableFrom(QueueTrackerViewModel::class.java) -> QueueTrackerViewModel(handle) as T
             modelClass.isAssignableFrom(SwitchCapsterViewModel::class.java) -> SwitchCapsterViewModel(handle) as T
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

@@ -269,93 +269,77 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
     }
 
     // Metode untuk variabel tambahan
-    fun resetReservationVariables() {
-        viewModelScope.launch {
-            _numberOfCompletedQueue.value = 0
-            _numberOfWaitingQueue.value = 0
-            _numberOfCanceledQueue.value = 0
-            _numberOfProcessQueue.value = 0
-            _numberOfSkippedQueue.value = 0
+    suspend fun resetReservationVariables() {
+        _numberOfCompletedQueue.updateOnMain(0)
+        _numberOfWaitingQueue.updateOnMain(0)
+        _numberOfCanceledQueue.updateOnMain(0)
+        _numberOfProcessQueue.updateOnMain(0)
+        _numberOfSkippedQueue.updateOnMain(0)
 
-            _amountReserveRevenue.value = 0
-            _shareProfitReserve.value = 0
-            _amountOfReserveCashPayment.value = 0
-            _amountOfReserveCashlessPayment.value = 0
-        }
+        _amountReserveRevenue.updateOnMain(0)
+        _shareProfitReserve.updateOnMain(0)
+        _amountOfReserveCashPayment.updateOnMain(0)
+        _amountOfReserveCashlessPayment.updateOnMain(0)
     }
 
-    fun resetAppointmentVariables() {
-        viewModelScope.launch {
-            _amountAppointmentRevenue.value = 0
-            _shareProfitAppointment.value = 0
-            _amountOfAppointmentCashPayment.value = 0
-            _amountOfAppointmentCashlessPayment.value = 0
-        }
+    suspend fun resetAppointmentVariables() {
+        _amountAppointmentRevenue.updateOnMain(0)
+        _shareProfitAppointment.updateOnMain(0)
+        _amountOfAppointmentCashPayment.updateOnMain(0)
+        _amountOfAppointmentCashlessPayment.updateOnMain(0)
     }
 
-    fun resetSalesVariables() {
-        viewModelScope.launch {
-            _numberOfCompletedOrders.value = 0
-            _numberOfOrdersReturn.value = 0
-            _numberOfOrdersPacked.value = 0
-            _numberOfOrdersShipped.value = 0
-            _numberOfOrdersCanceled.value = 0
-            _numberOfIncomingOrders.value = 0
+    suspend fun resetSalesVariables() {
+        _numberOfCompletedOrders.updateOnMain(0)
+        _numberOfOrdersReturn.updateOnMain(0)
+        _numberOfOrdersPacked.updateOnMain(0)
+        _numberOfOrdersShipped.updateOnMain(0)
+        _numberOfOrdersCanceled.updateOnMain(0)
+        _numberOfIncomingOrders.updateOnMain(0)
 
-            _amountSalesRevenue.value = 0
-            _shareProfitSales.value = 0
-            _amountOfSalesCashPayment.value = 0
-            _amountOfSalesCashlessPayment.value = 0
+        _amountSalesRevenue.updateOnMain(0)
+        _shareProfitSales.updateOnMain(0)
+        _amountOfSalesCashPayment.updateOnMain(0)
+        _amountOfSalesCashlessPayment.updateOnMain(0)
 
-            _salesProductMarketCounter.value = emptyMap()
-        }
+        _salesProductMarketCounter.updateOnMain(emptyMap())
     }
 
-    fun resetManualReportVariables() {
-        viewModelScope.launch {
-            _amountManualServiceRevenue.value = 0
-            _amountManualProductRevenue.value = 0
-            _amountManualOtherRevenue.value = 0
-            _shareProfitManualReport.value = 0
-            _amountOfManualCashPayment.value = 0
-            _amountOfManualCashlessPayment.value = 0
+    suspend fun resetManualReportVariables() {
+        _amountManualServiceRevenue.updateOnMain(0)
+        _amountManualProductRevenue.updateOnMain(0)
+        _amountManualOtherRevenue.updateOnMain(0)
+        _shareProfitManualReport.updateOnMain(0)
+        _amountOfManualCashPayment.updateOnMain(0)
+        _amountOfManualCashlessPayment.updateOnMain(0)
 
-            _salesProductManualCounter.value = emptyMap()
-        }
+        _salesProductManualCounter.updateOnMain(emptyMap())
     }
 
-    fun resetCapitalVariables() {
-        viewModelScope.launch {
-            _amountOfCapital.value = 0
-        }
+    suspend fun resetCapitalVariables() {
+        _amountOfCapital.updateOnMain(0)
     }
 
-    fun resetExpenditureVariables() {
-        viewModelScope.launch {
-            _amountOfExpenditure.value = 0
-        }
+    suspend fun resetExpenditureVariables() {
+        _amountOfExpenditure.updateOnMain(0)
     }
 
-    suspend fun iterateReservationData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateReservationData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean {
+        if (result == null && addList) return true
 
-        try {
+        return try {
             val outletUids = outletList.value?.map { it.uid } ?: emptyList()
 
             if (addList) {
-                result.documents.map { document ->
-                    async {
-                        document.toObject(ReservationData::class.java)?.apply {
-                            dataRef = document.reference.path
-                        }?.let { processReservationDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
-                    }
-                }.awaitAll()
+                result?.documents?.forEach { document ->
+                    document.toObject(ReservationData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processReservationDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
+                }
             } else {
-                _reservationDataList.value?.toList()?.map { reservation ->
-                    async {
-                        processReservationDataAsync(isDaily, reservation, normalizedOutletName, selectedDates, false, outletUids)
-                    }
-                }?.awaitAll()
+                _reservationDataList.value?.toList()?.forEach { reservation ->
+                    processReservationDataAsync(isDaily, reservation, normalizedOutletName, selectedDates, false, outletUids)
+                }
             }
 
             true
@@ -364,26 +348,22 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
         }
     }
 
-    suspend fun iterateAppointmentData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateAppointmentData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean {
+        if (result == null && addList) return true
 
-        try {
+        return try {
             val outletUids = outletList.value?.map { it.uid } ?: emptyList()
 
             if (addList) {
-                result.documents.map { document ->
-                    async {
-                        document.toObject(AppointmentData::class.java)?.apply {
-                            dataRef = document.reference.path
-                        }?.let { processAppointmentDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
-                    }
-                }.awaitAll()
+                result?.documents?.forEach { document ->
+                    document.toObject(AppointmentData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processAppointmentDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
+                }
             } else {
-                _appointmentList.value?.toList()?.map { appointment ->
-                    async {
-                        processAppointmentDataAsync(isDaily, appointment, normalizedOutletName, selectedDates, false, outletUids)
-                    }
-                }?.awaitAll()
+                _appointmentList.value?.toList()?.forEach { appointment ->
+                    processAppointmentDataAsync(isDaily, appointment, normalizedOutletName, selectedDates, false, outletUids)
+                }
             }
 
             true
@@ -392,26 +372,22 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
         }
     }
 
-    suspend fun iterateSalesData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateSalesData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean {
+        if (result == null && addList) return true
 
-        try {
+        return try {
             val outletUids = outletList.value?.map { it.uid } ?: emptyList()
 
             if (addList) {
-                result.documents.map { document ->
-                    async {
-                        document.toObject(ProductSales::class.java)?.apply {
-                            dataRef = document.reference.path
-                        }?.let { processSalesDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
-                    }
-                }.awaitAll()
+                result?.documents?.forEach { document ->
+                    document.toObject(ProductSales::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processSalesDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
+                }
             } else {
-                _productSalesList.value?.toList()?.map { sale ->
-                    async {
-                        processSalesDataAsync(isDaily, sale, normalizedOutletName, selectedDates, false, outletUids)
-                    }
-                }?.awaitAll()
+                _productSalesList.value?.toList()?.forEach { sale ->
+                    processSalesDataAsync(isDaily, sale, normalizedOutletName, selectedDates, false, outletUids)
+                }
             }
 
             true
@@ -420,26 +396,22 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
         }
     }
 
-    suspend fun iterateManualReportData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateManualReportData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean {
+        if (result == null && addList) return true
 
-        try {
+        return try {
             val outletUids = outletList.value?.map { it.uid } ?: emptyList()
 
             if (addList) {
-                result.documents.map { document ->
-                    async {
-                        document.toObject(ManualIncomeData::class.java)?.apply {
-                            dataRef = document.reference.path
-                        }?.let { processManualReportDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
-                    }
-                }.awaitAll()
+                result?.documents?.forEach { document ->
+                    document.toObject(ManualIncomeData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processManualReportDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
+                }
             } else {
-                _manualReportList.value?.toList()?.map { manualReport ->
-                    async {
-                        processManualReportDataAsync(isDaily, manualReport, normalizedOutletName, selectedDates, false, outletUids)
-                    }
-                }?.awaitAll()
+                _manualReportList.value?.toList()?.forEach { manualReport ->
+                    processManualReportDataAsync(isDaily, manualReport, normalizedOutletName, selectedDates, false, outletUids)
+                }
             }
 
             true
@@ -448,26 +420,22 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
         }
     }
 
-    suspend fun iterateDailyCapitalData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateDailyCapitalData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean {
+        if (result == null && addList) return true
 
-        try {
+        return try {
             val outletUids = outletList.value?.map { it.uid } ?: emptyList()
 
             if (addList) {
-                result.documents.map { document ->
-                    async {
-                        document.toObject(DailyCapital::class.java)?.let {
-                            processDailyCapitalDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids)
-                        }
+                result?.documents?.forEach { document ->
+                    document.toObject(DailyCapital::class.java)?.let {
+                        processDailyCapitalDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids)
                     }
-                }.awaitAll()
+                }
             } else {
-                _dailyCapitalList.value?.toList()?.map { dailyCapital ->
-                    async {
-                        processDailyCapitalDataAsync(isDaily, dailyCapital, normalizedOutletName, selectedDates, false, outletUids)
-                    }
-                }?.awaitAll()
+                _dailyCapitalList.value?.toList()?.forEach { dailyCapital ->
+                    processDailyCapitalDataAsync(isDaily, dailyCapital, normalizedOutletName, selectedDates, false, outletUids)
+                }
             }
 
             true
@@ -476,26 +444,22 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
         }
     }
 
-    suspend fun iterateExpenditureData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean = coroutineScope {
-        if (result == null) return@coroutineScope true
+    suspend fun iterateExpenditureData(isDaily: Boolean, result: QuerySnapshot?, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean): Boolean {
+        if (result == null && addList) return true
 
-        try {
+        return try {
             val outletUids = outletList.value?.map { it.uid } ?: emptyList()
 
             if (addList) {
-                result.documents.map { document ->
-                    async {
-                        document.toObject(ExpenditureData::class.java)?.apply {
-                            dataRef = document.reference.path
-                        }?.let { processExpenditureDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
-                    }
-                }.awaitAll()
+                result?.documents?.forEach { document ->
+                    document.toObject(ExpenditureData::class.java)?.apply {
+                        dataRef = document.reference.path
+                    }?.let { processExpenditureDataAsync(isDaily, it, normalizedOutletName, selectedDates, true, outletUids) }
+                }
             } else {
-                _expenditureDataList.value?.toList()?.map { expenditureData ->
-                    async {
-                        processExpenditureDataAsync(isDaily, expenditureData, normalizedOutletName, selectedDates, false, outletUids)
-                    }
-                }?.awaitAll()
+                _expenditureDataList.value?.toList()?.forEach { expenditureData ->
+                    processExpenditureDataAsync(isDaily, expenditureData, normalizedOutletName, selectedDates, false, outletUids)
+                }
             }
 
             true
@@ -509,13 +473,11 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
         normalizedOutletName: String,
         selectedDates: List<Date>,
         processFunction: suspend (document: DocumentSnapshot, normalizedOutletName: String, selectedDates: List<Date>, addList: Boolean) -> Unit
-    ) = coroutineScope {
+    ) {
         try {
-            documents.map { document ->
-                async {
-                    processFunction(document, normalizedOutletName, selectedDates, true)
-                }
-            }.awaitAll()
+            documents.forEach { document ->
+                processFunction(document, normalizedOutletName, selectedDates, true)
+            }
         } catch (e: Exception) {}
     }
 
@@ -657,6 +619,7 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
                                 _amountManualServiceRevenue.updateOnMain((_amountManualServiceRevenue.value ?: 0) + manualReport.paymentDetail.finalPrice)
                             }
                             else -> {
+                                // Contoh Pendapatan dari Parkir :v
                                 _amountManualOtherRevenue.updateOnMain((_amountManualOtherRevenue.value ?: 0) + manualReport.paymentDetail.finalPrice)
                             }
                         }
@@ -713,93 +676,69 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
     }
 
     // Metode untuk ReservationList
-    private fun addReservationData(reservationData: ReservationData) {
-        viewModelScope.launch {
-            val list = _reservationDataList.value ?: mutableListOf()
-            list.add(reservationData)
-            _reservationDataList.value = list
-        }
+    private suspend fun addReservationData(reservationData: ReservationData) {
+        val list = _reservationDataList.value ?: mutableListOf()
+        list.add(reservationData)
+        _reservationDataList.updateOnMain(list)
     }
 
-    fun clearReservationList() {
-        viewModelScope.launch {
-            _reservationDataList.value = mutableListOf()
-        }
+    suspend fun clearReservationList() {
+        _reservationDataList.updateOnMain(mutableListOf())
     }
 
     // Metode untuk AppointmentList
-    private fun addAppointmentData(appointment: AppointmentData) {
-        viewModelScope.launch {
-            val list = _appointmentList.value ?: mutableListOf()
-            list.add(appointment)
-            _appointmentList.value = list
-        }
+    private suspend fun addAppointmentData(appointment: AppointmentData) {
+        val list = _appointmentList.value ?: mutableListOf()
+        list.add(appointment)
+        _appointmentList.updateOnMain(list)
     }
 
-    fun clearAppointmentList() {
-        viewModelScope.launch {
-            _appointmentList.value = mutableListOf()
-        }
+    suspend fun clearAppointmentList() {
+        _appointmentList.updateOnMain(mutableListOf())
     }
 
     // Metode untuk ProductSalesList
-    private fun addProductSales(productSales: ProductSales) {
-        viewModelScope.launch {
-            val list = _productSalesList.value ?: mutableListOf()
-            list.add(productSales)
-            _productSalesList.value = list
-        }
+    private suspend fun addProductSales(productSales: ProductSales) {
+        val list = _productSalesList.value ?: mutableListOf()
+        list.add(productSales)
+        _productSalesList.updateOnMain(list)
     }
 
-    fun clearProductSalesList() {
-        viewModelScope.launch {
-            _productSalesList.value = mutableListOf()
-        }
+    suspend fun clearProductSalesList() {
+        _productSalesList.updateOnMain(mutableListOf())
     }
 
     // Metode untuk ManualReportList
-    private fun addManualReportList(manualReport: ManualIncomeData) {
-        viewModelScope.launch {
-            val list = _manualReportList.value ?: mutableListOf()
-            list.add(manualReport)
-            _manualReportList.value = list
-        }
+    private suspend fun addManualReportList(manualReport: ManualIncomeData) {
+        val list = _manualReportList.value ?: mutableListOf()
+        list.add(manualReport)
+        _manualReportList.updateOnMain(list)
     }
 
-    fun clearManualReportList() {
-        viewModelScope.launch {
-            _manualReportList.value = mutableListOf()
-        }
+    suspend fun clearManualReportList() {
+        _manualReportList.updateOnMain(mutableListOf())
     }
 
     // Metode untuk DailyCapitalList
-    private fun addDailyCapital(dailyCapital: DailyCapital) {
-        viewModelScope.launch {
-            val list = _dailyCapitalList.value ?: mutableListOf()
-            list.add(dailyCapital)
-            _dailyCapitalList.value = list
-        }
+    private suspend fun addDailyCapital(dailyCapital: DailyCapital) {
+        val list = _dailyCapitalList.value ?: mutableListOf()
+        list.add(dailyCapital)
+        _dailyCapitalList.updateOnMain(list)
     }
 
-    fun clearDailyCapitalList() {
-        viewModelScope.launch {
-            _dailyCapitalList.value = mutableListOf()
-        }
+    suspend fun clearDailyCapitalList() {
+        _dailyCapitalList.updateOnMain(mutableListOf())
     }
 
     // Metode untuk ExpenditureList
-    private fun addExpenditure(expenditureData: ExpenditureData) {
-        viewModelScope.launch {
-            val list = _expenditureDataList.value ?: mutableListOf()
-            list.add(expenditureData)
-            _expenditureDataList.value = list
-        }
+    private suspend fun addExpenditure(expenditureData: ExpenditureData) {
+        val list = _expenditureDataList.value ?: mutableListOf()
+        list.add(expenditureData)
+        _expenditureDataList.updateOnMain(list)
     }
 
-    fun clearExpenditureList() {
-        viewModelScope.launch {
-            _expenditureDataList.value = mutableListOf()
-        }
+    suspend fun clearExpenditureList() {
+        _expenditureDataList.updateOnMain(mutableListOf())
     }
 
 }

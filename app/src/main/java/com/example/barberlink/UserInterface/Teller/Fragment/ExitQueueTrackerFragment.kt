@@ -81,6 +81,8 @@ class ExitQueueTrackerFragment : DialogFragment() {
                 }
                 is ExitTrackerViewModel.ResultState.Success -> {
                     // Navigasi ke halaman sebelumnya
+                    sessionTeller = false
+                    dataTellerRef = ""
                     sessionManager.clearSessionTeller()
                     (requireActivity() as? BackRequestHost)?.requestBack()
                     exitTrackerViewModel.setUpdateStateResult(null)
@@ -106,6 +108,7 @@ class ExitQueueTrackerFragment : DialogFragment() {
             }) return@setOnClickListener
             // hmmmmm
             if (sessionTeller && dataTellerRef.isNotEmpty()) {
+                toastViewModel.showToast("Memproses Permintaan...", true)
                 exitTrackerViewModel.updateActiveDevices(dataTellerRef)
             }
         }

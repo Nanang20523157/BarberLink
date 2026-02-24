@@ -5,7 +5,6 @@ import android.util.ArrayMap;
 import android.util.Log;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
-import android.util.SparseIntArray;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -13,15 +12,20 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.barberlink.Helper.StartSnapHelper;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 public class VegaLayoutManager extends RecyclerView.LayoutManager {
 
     private int scroll = 0;
     private SparseArray<Rect> locationRects = new SparseArray<>();
     private SparseBooleanArray attachedItems = new SparseBooleanArray();
-    private SparseBooleanArray expandedItems = new SparseBooleanArray();
-    private SparseIntArray itemHeights = new SparseIntArray();
-    private ArrayMap<Integer, Integer> viewTypeHeightMap = new ArrayMap<>();
+    private ArrayMap<String, Boolean> expandedStateItems = new ArrayMap<>();
+    private List<String> itemUID = new ArrayList<>();
 
+    private int expandedHeight = -1;
+    private int collapseHeight = -1;
     private boolean needSnap = false;
     private int lastDy = 0;
     private int maxScroll = -1;
@@ -38,16 +42,33 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         return new RecyclerView.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
-    public void setItemExpanded(int position, boolean isExpanded, int newHeight) {
-        Log.d("TestCLickMore", "position: " + position + " isExpanded: " + isExpanded + " newHeight: " + newHeight);
-        expandedItems.put(position, isExpanded);
+    public void updateExpandedState(String uid, boolean isExpanded, int newHeight) {
+        Log.d("TestCLickMore", "position: " + uid + " isExpanded: " + isExpanded + " newHeight: " + newHeight);
+        Log.d("VegaManage", "123");
+        expandedStateItems.put(uid, isExpanded);
         // Simpan tinggi baru
-        itemHeights.put(position, newHeight);
+//        if (isExpanded && expandedHeight == -1) {
+//            expandedHeight = newHeight;
+//        }
         // height = newHeight;
 
         // Perbarui tata letak lokasi item
         // buildLocationRects();
         requestLayout();
+    }
+
+    public void setExpandedState(
+        List<String> itemUID,
+        Map<String, Boolean> expandedState,
+        boolean requestLayoutNow
+    ) {
+        this.itemUID = new ArrayList<>(itemUID);
+        this.expandedStateItems = new ArrayMap<>();
+        this.expandedStateItems.putAll(expandedState);
+
+        if (requestLayoutNow) {
+//            requestLayout();
+        }
     }
 
     @Override
@@ -74,30 +95,41 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         locationRects.clear();
         attachedItems.clear();
 
+        Log.d("VegaManage", "456");
         int tempPosition = getPaddingTop();
-        int itemCount = getItemCount();
+        int itemCount = itemUID.size();
+        Log.d("VegaManage", "count: " + itemCount + " size: " + itemUID.size());
         for (int i = 0; i < itemCount; i++) {
             // 1. 先计算出itemWidth和itemHeight
-            int viewType = adapter.getItemViewType(i);
             int itemHeight;
-            if (viewTypeHeightMap.containsKey(viewType)) {
-                itemHeight = viewTypeHeightMap.get(viewType);
-                Log.d("ViewHeight", "itemHeight A: "+ itemHeight);
-            } else {
-                View itemView = recycler.getViewForPosition(i);
-                addView(itemView);
-                measureChildWithMargins(itemView, View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-                itemHeight = getDecoratedMeasuredHeight(itemView);
-                viewTypeHeightMap.put(viewType, itemHeight);
-                Log.d("ViewHeight", "itemHeight B: "+ itemHeight);
-            }
 
             // Tambahkan margin ekstra jika item di-expand
-            if (itemHeights.get(i, 0) != 0) {
-                itemHeight = itemHeights.get(i);
-                Log.d("ViewHeight", "itemHeight C: "+ itemHeight);
+            Log.d("VegaManage", "numberItem: " + i + " expand: "+ expandedStateItems.get(itemUID.get(i)) + " expandedHeight: "+ expandedHeight);
+            if (Boolean.TRUE.equals(expandedStateItems.get(itemUID.get(i)))) {
+                if (expandedHeight != -1) {
+                    itemHeight = expandedHeight;
+                    Log.d("VegaManage", "itemHeight A: "+ itemHeight);
+                } else {
+                    View itemView = recycler.getViewForPosition(i);
+                    addView(itemView);
+                    measureChildWithMargins(itemView, View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                    itemHeight = getDecoratedMeasuredHeight(itemView);
+                    expandedHeight = itemHeight;
+                    Log.d("VegaManage", "itemHeight B: "+ itemHeight);
+                }
+            } else {
+                if (collapseHeight != -1) {
+                    itemHeight = collapseHeight;
+                    Log.d("VegaManage", "itemHeight A: "+ itemHeight);
+                } else {
+                    View itemView = recycler.getViewForPosition(i);
+                    addView(itemView);
+                    measureChildWithMargins(itemView, View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+                    itemHeight = getDecoratedMeasuredHeight(itemView);
+                    collapseHeight = itemHeight;
+                    Log.d("VegaManage", "itemHeight D: "+ itemHeight);
+                }
             }
-            Log.d("TestCLickMore", "numberItem: " + i + " itemHeight: " + itemHeight);
 
             // 2. 组装Rect并保存
             Rect rect = new Rect();
@@ -142,7 +174,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
             return;
         }
 
-        int itemCount = getItemCount();
+        int itemCount = itemUID.size();
         int screenFilledHeight = 0;
         for (int i = itemCount - 1; i >= 0; i--) {
             Rect rect = locationRects.get(i);
@@ -159,7 +191,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
      * 初始化的时候，layout子View
      */
     private void layoutItemsOnCreate(RecyclerView.Recycler recycler) {
-        int itemCount = getItemCount();
+        int itemCount = itemUID.size();
         Rect displayRect = new Rect(0, scroll, getWidth(), getHeight() + scroll);
         for (int i = 0; i < itemCount; i++) {
             Rect thisRect = locationRects.get(i);
@@ -185,7 +217,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
     private void layoutItemsOnScroll() {
         int childCount = getChildCount();
         // 1. 已经在屏幕上显示的child
-        int itemCount = getItemCount();
+        int itemCount = itemUID.size();
         Rect displayRect = new Rect(0, scroll, getWidth(), getHeight() + scroll);
         int firstVisiblePosition = -1;
         int lastVisiblePosition = -1;
@@ -291,7 +323,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
 
     @Override
     public int scrollVerticallyBy(int dy, RecyclerView.Recycler recycler, RecyclerView.State state) {
-        if (getItemCount() == 0 || dy == 0) {
+        if (itemUID.size() == 0 || dy == 0) {
             return 0;
         }
         int travel = dy;
@@ -330,7 +362,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         needSnap = false;
 
         Rect displayRect = new Rect(0, scroll, getWidth(), getHeight() + scroll);
-        int itemCount = getItemCount();
+        int itemCount = itemUID.size();
         for (int i = 0; i < itemCount; i++) {
             Rect itemRect = locationRects.get(i);
             if (displayRect.intersect(itemRect)) {

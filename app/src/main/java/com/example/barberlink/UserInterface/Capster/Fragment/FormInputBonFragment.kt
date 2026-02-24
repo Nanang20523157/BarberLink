@@ -90,6 +90,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     private var previousCursorPosition: Int = 0
     private var isFirstLoad: Boolean = true
     private var isOrientationChanged: Boolean = false
+    private var skippedUpdateText: Boolean = false
     private var textErrorForReturnType: String = "undefined"
     private var textErrorForBonAmount: String = "undefined"
     private var textErrorForUserReason: String = "undefined"
@@ -151,6 +152,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
+            skippedUpdateText = savedInstanceState.getBoolean("skipped_update_text", false)
             textErrorForBonAmount = savedInstanceState.getString("text_error_for_bon_amount", "undefined") ?: "undefined"
             textErrorForReturnType = savedInstanceState.getString("text_error_for_return_type", "undefined") ?: "undefined"
             textErrorForUserReason = savedInstanceState.getString("text_error_for_user_reason", "undefined") ?: "undefined"
@@ -283,9 +285,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 Log.d("CheckPion", "Z >> isOrientationChanged = $isOrientationChanged")
                 if (!isOrientationChanged) {
                     val previousNominalBon = binding.etBonAmount.text.toString().ifEmpty { "0" }
-                    setInitialInputForm()
                     returnTypeSelected = bonEmployeeData.returnType
                     userReasonNotes = bonEmployeeData.reasonNoted
+                    setInitialInputForm()
                     if (isFirstLoad) init(view)
                     else { if (!formInputBonViewModel.getIsSaveProcess()) toastViewModel.showToast("Mendeteksi perubahan pada data Bon pegawai.", false) }
                     if (bonEmployeeData.reasonNoted.isNotEmpty()) binding.etUserReason.setText(bonEmployeeData.reasonNoted)
@@ -375,6 +377,11 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setInitialInputForm() {
+        if (returnTypeSelected == "From Salary") {
+            binding.acTypeOfReturn.setText(getString(R.string.pay_from_salary_text), false)
+        } else if (returnTypeSelected == "From Installment") {
+            binding.acTypeOfReturn.setText(getString(R.string.pay_from_installment_text), false)
+        }
         //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
         binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
         binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
@@ -420,6 +427,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
         outState.putInt("previous_cursor_position", previousCursorPosition)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("is_orientation_changed", true)
+        outState.putBoolean("skipped_update_text", skippedUpdateText)
         outState.putString("text_error_for_bon_amount", textErrorForBonAmount)
         outState.putString("text_error_for_return_type", textErrorForReturnType)
         outState.putString("text_error_for_user_reason", textErrorForUserReason)
@@ -629,9 +637,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                         // xxxxx y
                         if (blockAllUserClickAction) {
                             if (returnTypeSelected == "From Salary") {
-                                binding.acTypeOfReturn.setText("Bayar dari gaji bulanan pegawai", false)
+                                binding.acTypeOfReturn.setText(getString(R.string.pay_from_salary_text), false)
                             } else if (returnTypeSelected == "From Installment") {
-                                binding.acTypeOfReturn.setText("Bayar melalui sistem angsuran", false)
+                                binding.acTypeOfReturn.setText(getString(R.string.pay_from_installment_text), false)
                             }
                             toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             return@setOnItemClickListener
@@ -934,6 +942,10 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
                         Logger.d("UserInputCheck", "AmountInputCheck inputManualCheckTri >> ${inputManualCheckTri == null}")
                         inputManualCheckTri?.invoke() ?: run {
+                            if (bonAmountString == "100.000" || bonAmountString == "150.000" || bonAmountString == "200.000") {
+                                skippedUpdateText = true
+                                setupBonInputValue(bonAmountString.replace(".", "").toIntOrNull() ?: 0)
+                            }
                             isBonAmountValid = validateBonAmountInput(true)
 //                            isBonAmountValid = validateBonAmountInput(false)
                         }
@@ -1058,14 +1070,18 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun updateValueDisplay(value: Int) {
-        //val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-        if (value >= 0) {
-            val formattedValue = format.format(value)
-            binding.etBonAmount.setText(formattedValue)
+        if (!skippedUpdateText) {
+            //val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+            if (value >= 0) {
+                val formattedValue = format.format(value)
+                binding.etBonAmount.setText(formattedValue)
+            } else {
+                binding.etBonAmount.setText("-")
+            }
+            binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
         } else {
-            binding.etBonAmount.setText("-")
+            skippedUpdateText = false
         }
-        binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
     }
 
     override fun onResume() {

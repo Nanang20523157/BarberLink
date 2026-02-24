@@ -366,6 +366,7 @@ data class Outlet(
     @get:PropertyName("hidden_outlet") @set:PropertyName("hidden_outlet") var hiddenOutlet: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var isCollapseCard: Boolean = true,
+    @get:Exclude @set:Exclude var isDisplayResetCard: Boolean = false,
     @get:Exclude @set:Exclude var outletReference: String = "",
     //    @get:PropertyName("status_active") @set:PropertyName("status_active") var statusActive: Boolean = false,
 //    var dailyCapitalIsEmpty: Boolean = true,
@@ -401,6 +402,7 @@ data class Outlet(
             hiddenOutlet = this.hiddenOutlet,
             uid = this.uid,
             isCollapseCard = this.isCollapseCard,
+            isDisplayResetCard = this.isDisplayResetCard,
             outletReference = this.outletReference
         )
     }

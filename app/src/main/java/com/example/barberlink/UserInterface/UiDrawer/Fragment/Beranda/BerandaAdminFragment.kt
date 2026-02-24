@@ -1263,5 +1263,4 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         const val ORIGIN_INTENT_KEY = "origin_intent_key"
     }
 
-
 }

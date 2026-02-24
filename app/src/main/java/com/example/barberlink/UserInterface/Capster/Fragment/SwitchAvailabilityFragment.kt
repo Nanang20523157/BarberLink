@@ -49,7 +49,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
     private var _binding: FragmentSwitchAvailabilityBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val homePageViewModel: HomePageViewModel by activityViewModels()
-    private val switchAvailabilityFragment: SwitchAvailabilityViewModel by viewModels {
+    private val switchAvailabilityViewModel: SwitchAvailabilityViewModel by viewModels {
         DatabaseViewModelFactory(db)
     }
     private val toastViewModel: ToastViewModel by viewModels()
@@ -82,6 +82,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         homePageViewModel
+        switchAvailabilityViewModel
         toastViewModel
 //        arguments?.let {
 //            employeeData = it.getParcelable(ARG_PARAM1) ?: Employee()
@@ -107,7 +108,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
             }
         }
 
-        switchAvailabilityFragment.updateStateResult.observe(this) { result ->
+        switchAvailabilityViewModel.updateStateResult.observe(this) { result ->
             when (result) {
                 is SwitchAvailabilityViewModel.ResultState.Loading -> {
                     blockAllUserClickAction = true
@@ -115,11 +116,11 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
                 is SwitchAvailabilityViewModel.ResultState.Success -> {
                     // Navigasi ke halaman sebelumnya
                     toastViewModel.showToast(result.message, true)
-                    switchAvailabilityFragment.setUpdateStateResult(null)
+                    switchAvailabilityViewModel.setUpdateStateResult(null)
                 }
                 is SwitchAvailabilityViewModel.ResultState.Failure -> {
                     revertAvailabilitySwitch(result.isAvailable, result.message, true)
-                    switchAvailabilityFragment.setUpdateStateResult(null)
+                    switchAvailabilityViewModel.setUpdateStateResult(null)
                 }
                 else -> {
                     blockAllUserClickAction = false
@@ -162,7 +163,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
                 homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
                     if (isChecked != userEmployeeData.availabilityStatus) {
                         setAvailabilityStatus(isChecked)
-                        switchAvailabilityFragment.updateAvailabilityStatus(isChecked, userEmployeeData)
+                        switchAvailabilityViewModel.updateAvailabilityStatus(isChecked, userEmployeeData)
                     }
                 } ?: run {
                     Logger.d("AvailableCapster", "❌ Failed Process: userEmployeeData is null")

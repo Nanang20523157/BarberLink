@@ -47,9 +47,7 @@ object CopyUtils {
             )
             lastMessage = message
             viewIdentity = uidView
-            handler.postDelayed({
-                currentToast?.show()
-            }, 150)
+            currentToast?.show()
 
             handler.postDelayed({
                 if (viewIdentity == uidView && lastMessage == message) {

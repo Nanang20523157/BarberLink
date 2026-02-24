@@ -229,7 +229,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
                 } else onBackPressedDispatcher.onBackPressed()
             }
             R.id.ivBack -> {
-//                onBackPressedDispatcher.onBackPressed()
+                onBackPressedDispatcher.onBackPressed()
             }
         }
     }
@@ -257,27 +257,43 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
     }
 
     private fun validateAndFormatInput(input: String): Boolean {
-        // ????
-        // Periksa apakah input hanya berisi angka dan dimulai dengan '0'
-        val isValid = if (!input.matches(Regex("^0\\d*$"))) {
-            setTextViewToErrorState(R.string.invalid_text_number_phone)
-            Log.d("SignUpOne", "Invalid input: $input")
-            false
-        } else {
-            setTextViewToValidState()
-            Log.d("SignUpOne", "Valid input: $input")
-            true
-        }
 
-        if (input.length < 11 || !isValid) {
+        val trimmedInput = input.trim()
+
+        // 1️⃣ Tidak boleh kosong
+        if (trimmedInput.isEmpty()) {
+            setTextViewToErrorState(R.string.phone_number_cannot_be_empty) // tambahkan di strings.xml
             setBtnNextToDisableState()
-        } else {
-            setBtnNextToEnableState()
-
-            // Format nomor telepon
-            stepOneViewModel.setFormattedPhoneNumber(PhoneUtils.formatPhoneNumberCodeCountry(input, "+62"))
+            Log.d("SignUpOne", "Phone number empty")
+            return false
         }
-        return isValid
+
+        // 2️⃣ Harus angka dan diawali 0
+        if (!trimmedInput.matches(Regex("^0\\d*$"))) {
+            setTextViewToErrorState(R.string.invalid_text_number_phone)
+            setBtnNextToDisableState()
+            Log.d("SignUpOne", "Invalid format: $trimmedInput")
+            return false
+        }
+
+        // 3️⃣ Minimal 11 digit
+        if (trimmedInput.length < 11) {
+            setTextViewToErrorState(R.string.phone_number_less_than_11) // tambahkan di strings.xml
+            setBtnNextToDisableState()
+            Log.d("SignUpOne", "Phone number less than 11 digits")
+            return false
+        }
+
+        // 4️⃣ Valid
+        setTextViewToValidState()
+        setBtnNextToEnableState()
+
+        stepOneViewModel.setFormattedPhoneNumber(
+            PhoneUtils.formatPhoneNumberCodeCountry(trimmedInput, "+62")
+        )
+
+        Log.d("SignUpOne", "Valid input: $trimmedInput")
+        return true
     }
 
     private fun setTextViewToErrorState(resId: Int) {

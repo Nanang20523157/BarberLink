@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -1917,6 +1918,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     override fun onPause() {
         Log.d("ScanAll", "TT1")
         super.onPause()
+
+        if (isChangingConfigurations) {
+            val picker = supportFragmentManager
+                .findFragmentByTag("DATE_PICKER") as? DialogFragment
+
+            picker?.dismissAllowingStateLoss()
+        }
         if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
             clearBackStack()
         }

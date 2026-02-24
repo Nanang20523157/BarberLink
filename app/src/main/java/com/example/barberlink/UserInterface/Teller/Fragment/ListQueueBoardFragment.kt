@@ -1,6 +1,7 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
@@ -14,6 +15,8 @@ import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListQueueBoardAdapter
@@ -41,6 +44,7 @@ class ListQueueBoardFragment : DialogFragment() {
     private val queueBoardViewModel: QueueTrackerViewModel by activityViewModels()
     //private var capsterList: ArrayList<Employee>? = null
     private lateinit var currentQueue: Map<String, String>
+    private var lifecycleListener: DefaultLifecycleObserver? = null
     //private var outlet: Outlet? = null
     private var isSameDate: Boolean = true
     private var isFirstLoad: Boolean = true
@@ -102,6 +106,21 @@ class ListQueueBoardFragment : DialogFragment() {
             }
         }
 
+        // Panggil fungsi pertama kali
+        updateMargins()
+
+        // Deteksi perubahan orientasi layar
+        val listener = object : DefaultLifecycleObserver {
+            override fun onResume(owner: LifecycleOwner) {
+                updateMargins()
+            }
+        }
+
+        viewLifecycleOwner.lifecycle.addObserver(listener)
+
+        // Simpan listener agar bisa dihapus nanti jika perlu
+        this.lifecycleListener = listener
+
         val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
             override fun onSingleTapUp(e: MotionEvent): Boolean {
                 if (isTouchOnForm(e)) {
@@ -135,7 +154,7 @@ class ListQueueBoardFragment : DialogFragment() {
             capsterList?.let { originalCapsterList ->
                 val layoutParams = binding.rvListQueue.layoutParams
                 layoutParams.height = if (originalCapsterList.size > 3) {
-                    resources.getDimensionPixelSize(R.dimen.recycler_height_large) // 315dp dalam pixels
+                    resources.getDimensionPixelSize(R.dimen.recycler_height_large_queue_board) // 315dp dalam pixels
                 } else {
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 }
@@ -186,9 +205,34 @@ class ListQueueBoardFragment : DialogFragment() {
         return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
+    private fun updateMargins() {
+        val params = binding.cdQueueBoard.layoutParams as ViewGroup.MarginLayoutParams
+        val orientation = resources.configuration.orientation
+
+        if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+            params.topMargin = dpToPx(50)
+            params.bottomMargin = dpToPx(50)
+            Log.d("FormulirBon", "updateMargins: PORTRAIT")
+        } else {
+            params.topMargin = dpToPx(150)
+            params.bottomMargin = dpToPx(0)
+            Log.d("FormulirBon", "updateMargins: LANDSCAPE")
+        }
+
+        binding.cdQueueBoard.layoutParams = params
+    }
+
+    // Konversi dari dp ke pixel
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         queueAdapter.stopAllShimmerEffects()
+        lifecycleListener?.let {
+            viewLifecycleOwner.lifecycle.removeObserver(it)
+        }
         _binding = null
     }
 

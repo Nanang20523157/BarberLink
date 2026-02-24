@@ -474,8 +474,6 @@ class SwitchCapsterFragment : DialogFragment() {
                         Logger.d("SetDropdown", "First Load Set Text All, But Not Used in This Case")
                         binding.acCapsterName.setText(getString(R.string.all_text), false)
                     }
-
-                    binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
                 } else {
                     Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
                     if (isCompleteSearch || textDropdownSelected.isEmpty()) {
@@ -489,6 +487,8 @@ class SwitchCapsterFragment : DialogFragment() {
                         binding.acCapsterName.showDropDown()
                     }
                 }
+
+                binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
 
                 Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
                 if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }

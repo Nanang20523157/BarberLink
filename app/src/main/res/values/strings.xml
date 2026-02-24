@@ -254,7 +254,7 @@
     <string name="empty_text_barbershop_name">Nama barbershop Anda tidak boleh kosong!</string>
     <string name="empty_text_email_address">Alamat email Anda tidak boleh kosong!</string>
     <string name="invalid_text_email_address">Alamat email yang Anda masukkan tidak valid.</string>
-    <string name="invalid_text_number_phone">Nomor Telepon harus berupa angka dan diawali dengan 0 (nol).</string>
+    <string name="invalid_text_number_phone">Nomor telepon harus berupa angka dan diawali dengan 0 (nol)</string>
     <string name="phone_number_already_exists_text">Silahkan SignIn, nomor Anda telah terdaftar sebelumnya!</string>
     <string name="browse_and_select_your_image_to_upload_file">browse and select your image to upload file</string>
     <string name="gallery_text">Gallery</string>
@@ -371,6 +371,7 @@
     <string name="phone_number_cannot_be_empty">Nomor telepon tidak boleh kosong</string>
     <string name="phone_number_is_too_long">Nomor telepon terlalu panjang</string>
     <string name="phone_number_is_too_short">Nomor telepon terlalu pendek</string>
+    <string name="phone_number_less_than_11">Nomor telepon harus lebih dari 11 digit</string>
     <string name="fullname_cannot_be_empty">Nama lengkap tidak boleh kosong</string>
     <string name="phone_number_is_registered">Nomor telepon yang anda masukkan sudah terdaftar</string>
     <string name="Is_this_you">Apakah ini Anda?</string>
@@ -610,4 +611,6 @@
     <string name="btn_invalid_report">Invalid</string>
     <string name="label_product_purchasing_price">Harga Beli Produk</string>
     <string name="list_next_queue_text"><![CDATA[Selanjutnya >>>>>>>>>>]]></string>
+    <string name="pay_from_salary_text">Bayar dari gaji bulanan pegawai</string>
+    <string name="pay_from_installment_text">Bayar melalui sistem angsuran</string>
 </resources>

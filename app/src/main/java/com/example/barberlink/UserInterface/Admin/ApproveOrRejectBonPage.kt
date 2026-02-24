@@ -173,6 +173,7 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         }
 
         bonEmployeeViewModel
+        approveBonViewModel
         toastViewModel
         fragmentManager = supportFragmentManager
         val adminRef = sessionManager.getDataAdminRef()
@@ -683,8 +684,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                         Log.d("BindingFocus", "empty")
                         binding.acCapsterName.setText(getString(R.string.all_text), false)
                     }
-
-                    binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
                 } else {
                     Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
                     if (isCompleteSearch || textDropdownSelected.isEmpty()) {
@@ -698,6 +697,8 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
                         binding.acCapsterName.showDropDown()
                     }
                 }
+
+                binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
 
                 Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
                 if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }

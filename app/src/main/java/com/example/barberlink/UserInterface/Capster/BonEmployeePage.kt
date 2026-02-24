@@ -165,6 +165,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         }
 
         bonEmployeeViewModel
+        addedBonViewModel
         toastViewModel
         fragmentManager = supportFragmentManager
         dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""

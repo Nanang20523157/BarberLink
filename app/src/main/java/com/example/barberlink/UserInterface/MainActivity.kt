@@ -461,4 +461,12 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         const val ADMIN_BUNDLE_KEY = "admin_bundle_key"
     }
 
+    // Catatan:
+    // 1) Minimalisir switch dispacter main dengan updateToMain halaman DashboardAdmin dan HomePageCapster
+    // 2) Harusnya gak perlu runBlocking jika hanya mengembalikan type data primitif seperti Boolean, Integer, ataupun String
+    // 3) Error Saat Open Barberbooking >> Orientasi Change >> Back >> QueueTracker >> Re Open BarberBooking >> Infinite Shimmer
+    // 4) Counter di Barber Booking dan Review Tidak Sinkron
+    // 5) Belum check add admin dan add customer
+    // 6) Belum check manage antrian
+
 }

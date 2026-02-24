@@ -127,6 +127,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private lateinit var timeStampFilter: Timestamp
     private var textErrorForCapitalAmount: String = "undefined"
     private var skippedProcess: Boolean = false
+    private var skippedUpdateText: Boolean = false
 
     private lateinit var capitalListener: ListenerRegistration
     private lateinit var dataOutletListener: ListenerRegistration
@@ -178,6 +179,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             previousText = savedInstanceState.getString("previous_text", "") ?: ""
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
             uidDailyCapital = savedInstanceState.getString("uid_daily_capital", "") ?: ""
+            skippedUpdateText = savedInstanceState.getBoolean("skipped_update_text", false)
             timeStampFilter = Timestamp(Date(savedInstanceState.getLong("timestamp_filter")))
             textErrorForCapitalAmount = savedInstanceState.getString("text_error_for_capital_amount", "undefined") ?: "undefined"
 
@@ -373,6 +375,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         outState.putString("previous_text", previousText)
         outState.putInt("previous_cursor_position", previousCursorPosition)
         outState.putString("uid_daily_capital", uidDailyCapital)
+        outState.putBoolean("skipped_update_text", skippedUpdateText)
         outState.putLong("timestamp_filter", timeStampFilter.toDate().time)
         outState.putString("text_error_for_capital_amount", textErrorForCapitalAmount)
     }
@@ -1088,6 +1091,10 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                         Logger.d("UserInputCheck", "CapitalInputCheck inputManualCheckOne >> ${inputManualCheckOne == null}")
                         inputManualCheckOne?.invoke() ?: run {
 //                            isCapitalAmountValid = validateCapitalInput(false)
+                            if (dailyCapitalString == "100.000" || dailyCapitalString == "150.000" || dailyCapitalString == "200.000") {
+                                skippedUpdateText = true
+                                setupCapitalInputValue(dailyCapitalString.replace(".", "").toIntOrNull() ?: 0)
+                            }
                             isCapitalAmountValid = validateCapitalInput(true)
                             val dailyCapitalData = parentFragmentViewModel.dailyCapital.value
                             Logger.d("CheckShimmer", "dailyCapitalString: ${(dailyCapitalString.toIntOrNull() ?: 0)} || outletCapital: ${dailyCapitalData?.outletCapital}")
@@ -1207,13 +1214,17 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun updateValueDisplay(value: Int) {
-        if (value >= 0) {
-            val formattedValue = format.format(value)
-            binding.etDailyCapital.setText(formattedValue)
+        if (!skippedUpdateText) {
+            if (value >= 0) {
+                val formattedValue = format.format(value)
+                binding.etDailyCapital.setText(formattedValue)
+            } else {
+                binding.etDailyCapital.setText("-")
+            }
+            binding.etDailyCapital.text?.let { binding.etDailyCapital.setSelection(it.length) }
         } else {
-            binding.etDailyCapital.setText("-")
+            skippedUpdateText = false
         }
-        binding.etDailyCapital.text?.let { binding.etDailyCapital.setSelection(it.length) }
     }
 
     private fun setBtnNextToDisableState() {
@@ -1231,6 +1242,16 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             btnSave.backgroundTintList = ContextCompat.getColorStateList(context, R.color.black)
             btnSave.setTypeface(null, Typeface.BOLD)
             btnSave.setTextColor(resources.getColor(R.color.green_lime_wf))
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        if (requireActivity().isChangingConfigurations) {
+            (parentFragmentManager
+                .findFragmentByTag("DATE_PICKER") as? DialogFragment)
+                ?.dismissAllowingStateLoss()
         }
     }
 
@@ -1280,6 +1301,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
         datePicker.addOnPositiveButtonClickListener { selection ->
             val date = Date(selection)
+            Logger.d("DateCapital", date.toString())
 
             if (!isSameDay(date, timeStampFilter.toDate())) {
                 setDateFilterValue(Timestamp(date))

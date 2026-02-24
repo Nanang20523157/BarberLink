@@ -435,7 +435,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
     }
 
     private suspend fun resetVariabel() {
-        homePageViewModel.resetBonAccumulation()
         homePageViewModel.reservationListMutex.withStateLock {
             homePageViewModel.clearReservationList()
             homePageViewModel.resetReservationVariables()
@@ -458,6 +457,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         homePageViewModel.productListMutex.withStateLock {
             homePageViewModel.clearProductList()
         }
+        homePageViewModel.resetBonAccumulation()
     }
 
     private fun setupListeners(skippedProcess: Boolean = false) {
@@ -724,7 +724,6 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             }
         }
     }
-
 
     private fun listenToReservationsData() {
         homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
