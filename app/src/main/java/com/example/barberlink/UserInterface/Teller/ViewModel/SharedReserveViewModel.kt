@@ -14,6 +14,7 @@ import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.Event
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
+import com.example.barberlink.Utils.Logger
 import com.google.firebase.Timestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -103,14 +104,14 @@ class SharedReserveViewModel : ViewModel() {
     private val _isDataChanged = MediatorLiveData<Boolean>().apply {
         value = false
         addSource(_bundlingPackagesList) {
-            Log.d("TestDataChange", "isDataChanged 40: initial source by bundling")
+            Logger.d("DataSync", "isDataChanged 40: initial source by bundling")
             value = true
             val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
                     (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
             _itemSelectedCounting.value = currentCount
         }
         addSource(_servicesList) {
-            Log.d("TestDataChange", "isDataChanged 47: initial source by service")
+            Logger.d("DataSync", "isDataChanged 47: initial source by service")
             value = true
             val currentCount = (bundlingPackagesList.value?.sumOf { it.bundlingQuantity } ?: 0) +
                     (servicesList.value?.sumOf { it.serviceQuantity } ?: 0)
@@ -132,35 +133,36 @@ class SharedReserveViewModel : ViewModel() {
     val customerSelected: LiveData<UserCustomerData?> = _customerSelected
 
     fun setOutletSelected(outlet: Outlet) {
-        Log.d("ScanAll", "A2")
         viewModelScope.launch {
+            Logger.d("DataSync", "outlet selected: ${outlet.outletName}")
             _outletSelected.value = outlet
         }
     }
 
     fun setOutletList(outletList: List<Outlet>) {
         viewModelScope.launch {
+            Logger.d("DataSync", "setOutletList: ${outletList.size}")
             _outletList.value = outletList
         }
     }
 
     fun setCapsterSelected(capster: UserEmployeeData?) {
-        Log.d("ScanAll", "A1 || capster: ${capster?.uid}")
         viewModelScope.launch {
+            Logger.d("DataSync", "A1 || capster: ${capster?.uid}")
             _capsterSelected.value = capster
         }
     }
 
     fun setCustomerSelected(customer: UserCustomerData?) {
-        Log.d("ScanAll", "A3")
         viewModelScope.launch {
+            Logger.d("DataSync", "A3 || customer: ${customer?.fullname}")
             _customerSelected.value = customer
         }
     }
 
     fun showSnackBarToAll(fullname: String, gender: String, message: String) {
-        Log.d("ScanAll", "B2")
         viewModelScope.launch {
+            Logger.d("DataSync", "AddNewCustomerSnackbar fullname: $fullname || gender: $gender || message: $message")
             _userFullname.value = Event(fullname)
             _userGender.value = Event(gender)
             _snackBarMessage.value = Event(message)
@@ -168,8 +170,8 @@ class SharedReserveViewModel : ViewModel() {
     }
 
     fun showSnackBarToSynchronization(message: String) {
-        Log.d("ScanAll", "C2")
         viewModelScope.launch {
+            Logger.d("DataSync", "showSnackBarToSynchronization")
             _snackBarMessage.value = Event(message)
         }
     }
@@ -184,11 +186,11 @@ class SharedReserveViewModel : ViewModel() {
                 val alreadyExists = currentList.any { it.uid == customer.uid }
                 if (!alreadyExists) {
                     currentList.add(customer)
-                    Log.d("CacheChecking", "addCustomerData --> customerList size: ${currentList.size}")
+                    Logger.d("DataSync", "addCustomerData --> customerList size: ${currentList.size}")
                     Log.d("BtnSaveChecking", "Button Save Clicked 6")
                     _customerList.value = currentList.sortedByDescending { it.lastReserve }.toMutableList()
                 } else {
-                    Log.d("CacheChecking", "Customer dengan UID ${customer.uid} sudah ada, tidak ditambahkan ulang.")
+                    Logger.d("DataSync", "Customer dengan UID ${customer.uid} sudah ada, tidak ditambahkan ulang.")
                 }
             }
         }
@@ -202,17 +204,17 @@ class SharedReserveViewModel : ViewModel() {
         withContext(Dispatchers.Default) {
             val updatedCustomerList = _customerList.value?.toMutableList() ?: mutableListOf()
             val updatedFilteredList = _filteredCustomerList.value?.toMutableList() ?: mutableListOf()
-            Log.d("XYZChecking", "setCustomerList --> new size: ${newCustomerList.size} XXX isFromListener: $isFromListener")
+            Logger.d("DataSync", "setCustomerList --> new size: ${newCustomerList.size} XXX isFromListener: $isFromListener")
 
             if (!isFromListener) {
-                Log.d("XYZChecking", "updatedCustomerList.addAll(newCustomerList)")
+                Logger.d("DataSync", "updatedCustomerList.addAll(newCustomerList)")
                 updatedCustomerList.clear()
                 updatedCustomerList.addAll(newCustomerList)
             } else {
                 newCustomerList.forEach { newCustomerData ->
                     val existingCustomer = updatedCustomerList.find { it.uid == newCustomerData.uid }
                     if (existingCustomer != null) {
-                        Log.d("XYZChecking", "if (existingCustomer != null)")
+                        Logger.d("DataSync", "if (existingCustomer != null) ${newCustomerData.phone}")
                         existingCustomer.apply {
                             userReminder = newCustomerData.userReminder
                             email = newCustomerData.email
@@ -232,11 +234,10 @@ class SharedReserveViewModel : ViewModel() {
                             userRef = newCustomerData.userRef
                         }
                     } else {
-                        Log.d("XYZChecking", "<<<!!!>>> if (existingCustomer == null)")
                         updatedCustomerList.add(newCustomerData)
 
                         if (newCustomerData.phone.lowercase(Locale.getDefault()).contains(lowerCaseQuery)) {
-                            Log.d("XYZChecking", "data baru dengan query yang cocok ditemukan: ${newCustomerData.phone}")
+                            Logger.d("DataSync", "<<<!!!>>> if (existingCustomer == null) data baru dengan query yang cocok ditemukan: ${newCustomerData.phone}")
                             // Tambahkan ke filtered list hanya jika belum ada uid yang sama
                             val isAlreadyInFilteredList = updatedFilteredList.any { it.uid == newCustomerData.uid }
                             if (!isAlreadyInFilteredList) {
@@ -247,7 +248,7 @@ class SharedReserveViewModel : ViewModel() {
                                 updatedFilteredList.add(insertIndex, newCustomerData)
                             }
                         } else {
-                            Log.d("XYZChecking", "<<<___>>> data baru dengan query yang cocok tidak ditemukan: ${newCustomerData.phone}")
+                            Logger.d("DataSync", "<<<___>>> data baru dengan query yang cocok tidak ditemukan: ${newCustomerData.phone}")
                         }
                     }
                 }
@@ -256,7 +257,6 @@ class SharedReserveViewModel : ViewModel() {
                     newCustomerList.any { it.uid == updated.uid }
                 }
                 if (customerToRemove.isNotEmpty()) {
-                    Log.d("XYZChecking", "customerToRemove size: ${customerToRemove.size}")
                     updatedCustomerList.removeAll(customerToRemove)
                     updatedFilteredList.removeAll(customerToRemove)
                 }
@@ -269,6 +269,7 @@ class SharedReserveViewModel : ViewModel() {
                 selectedItems?.let { _customerSelected.updateOnMain(selectedItems) }
                 _filteredCustomerList.updateOnMain(updatedFilteredList.take(10))
                 // _letsFilteringDataCustomer.updateOnMain(false)
+                Logger.d("DataSync", "_displayFilteredCustomerResult.updateOnMain(true)")
                 _displayFilteredCustomerResult.updateOnMain(true)
             }
         }
@@ -281,43 +282,45 @@ class SharedReserveViewModel : ViewModel() {
             val index = updatedList.indexOfFirst { it.uid == customer.uid }
             if (index != -1) {
                 updatedList[index] = customer
-                Log.d("CacheChecking", "updateCustomerData --> customerList size: ${updatedList.size}")
+                Logger.d("DataSync", "fun updateCustomerData --> customerList size: ${updatedList.size}")
                 _customerList.value = updatedList.sortedByDescending { it.lastReserve }.toMutableList()
             }
         }
     }
 
     fun triggerFilteringDataCustomer(displayAllData: Boolean) {
-        Log.d("ScanAll", "H2 == ${letsFilteringDataCustomer.value}")
+        Logger.d("DataSync", "fun triggerFilteringDataCustomer")
         viewModelScope.launch {
+            Logger.d("DataSync", "H2 == ${letsFilteringDataCustomer.value}")
             _letsFilteringDataCustomer.value = displayAllData
         }
     }
 
     fun setFilteredCustomerList(filteredResult: List<UserCustomerData>) {
         Log.d("ScanAll", "I2")
-        Log.d("CacheChecking", "setFilteredCustomerList --> filteredCustomerList size: ${filteredResult.size}")
         viewModelScope.launch {
+            Logger.d("DataSync", "setFilteredCustomerList --> filteredCustomerList size: ${filteredResult.size}")
             _filteredCustomerList.value = filteredResult
         }
     }
 
     fun updateDataCustomerOnly() {
-        Log.d("ScanAll", "J2")
         viewModelScope.launch {
+            Logger.d("DataSync", "fun updateDataCustomerOnly()")
             _displayFilteredCustomerResult.value = true
         }
     }
 
     fun displayAllDataToUI(value: Boolean) {
-        Log.d("ScanAll", "L2")
         viewModelScope.launch {
+            Logger.d("DataSync", "fun displayAllDataToUI()")
             _displayAllDataToUI.value = value
         }
     }
 
     fun addItemSelectedCounting(name: String, category: String, includeMutex: Boolean) {
         viewModelScope.launch {
+            Logger.d("DataSync", "fun addItemSelectedCounting()")
             addItemCounting(name, category, includeMutex)
         }
     }
@@ -334,11 +337,11 @@ class SharedReserveViewModel : ViewModel() {
                 currentList.add(0, name to category)
             }
 
+            Logger.d("DataSync", "addItemSelectedCounting 52: $currentCount || $category")
             // Memperbarui LiveData di main thread
             // _itemSelectedCounting.value = newCount
             _itemNameSelected.updateOnMain(currentList)
             _itemSelectedCounting.updateOnMain(currentCount)
-            Log.d("TestAct", "addItemSelectedCounting 52: $currentCount || $category")
         }
         if (includeMutex) thisAction()
         else viewModelScope.launch(Dispatchers.Default) {
@@ -367,8 +370,8 @@ class SharedReserveViewModel : ViewModel() {
                 //    currentCount--
                 //    _itemSelectedCounting.value = currentCount
                 // }
+                Logger.d("DataSync", "removeItemSelectedByName 70: $currentCount || $name || $removeName")
                 _itemSelectedCounting.updateOnMain(currentCount)
-                Log.d("TestAct", "removeItemSelectedByName 70: $currentCount || $name || $removeName")
             }
         }
     }
@@ -386,7 +389,7 @@ class SharedReserveViewModel : ViewModel() {
                         if (defaultItem) addItemCounting(serviceName, "service", true)
                     }
                 }
-                Log.d("CacheChecking", "resetAllItem --> serviceList size: ${_servicesList.value?.size.toString() ?: "null"}")
+                Log.d("CacheChecking", "resetAllItem --> serviceList size: ${_servicesList.value?.size.toString()}")
                 // _servicesList.updateIfNeeded(_servicesList.value ?: emptyList())
 
                 _bundlingPackagesList.value?.forEach { bundling ->
@@ -395,11 +398,11 @@ class SharedReserveViewModel : ViewModel() {
                         if (defaultItem) addItemCounting(packageName, "package", true)
                     }
                 }
-                Log.d("CacheChecking", "resetAllItem --> bundlingList size: ${_bundlingPackagesList.value?.size.toString() ?: "null"}")
+                Log.d("CacheChecking", "resetAllItem --> bundlingList size: ${_bundlingPackagesList.value?.size.toString()}")
                 // _bundlingPackagesList.updateIfNeeded(_bundlingPackagesList.value ?: emptyList())
                 _servicesList.updateOnMain(_servicesList.value ?: emptyList())
                 _bundlingPackagesList.updateOnMain(_bundlingPackagesList.value ?: emptyList())
-                Log.d("LifeAct", "observer 95: resetAllItem")
+                Logger.d("DataSync", "observer 95: resetAllItem")
                 _isDataChanged.updateOnMain(true)
                 Log.d("TestDataChange", "isDataChanged 120: resetAllItem")
             }
@@ -426,9 +429,9 @@ class SharedReserveViewModel : ViewModel() {
                 }
 
                 // _servicesList.updateIfNeeded(_servicesList.value ?: emptyList())
-                Log.d("CacheChecking", "resetAllServices --> serviceList size: ${_servicesList.value?.size.toString() ?: "null"}")
+                Log.d("CacheChecking", "resetAllServices --> serviceList size: ${_servicesList.value?.size.toString()}")
                 _servicesList.updateOnMain(_servicesList.value ?: emptyList())
-                Log.d("LifeAct", "observer 114: resetAllServices")
+                Logger.d("DataSync", "observer 114: resetAllServices")
                 _isDataChanged.updateOnMain(true)
                 Log.d("TestDataChange", "isDataChanged 142: resetAllServices")
             }
@@ -444,24 +447,27 @@ class SharedReserveViewModel : ViewModel() {
         withContext(Dispatchers.Default) {
             stateMutex.withStateLock {
                 val updatedBundlingList = _bundlingPackagesList.value?.toMutableList() ?: mutableListOf()
-                Log.d("CacheChecking", "setUpAndSortedBundling --> oldBundlinglist size: ${updatedBundlingList.size}")
-                Log.d("CacheChecking", "setUpAndSortedBundling --> currentBundlinglist size: ${currentBundlingList.size}")
+                Logger.d("DataSync", "setUpAndSortedBundling --> oldBundlinglist size: ${updatedBundlingList.size}")
+                Logger.d("DataSync", "setUpAndSortedBundling --> currentBundlinglist size: ${currentBundlingList.size}")
 
                 if (updatedBundlingList.isEmpty()) {
                     // Jika oldBundlingList null, gunakan currentBundlingList
                     currentBundlingList.forEach { bundling ->
                         applyFieldBundling(bundling, capsterSelected, isFromListener)
                     }
+                    Logger.d("DataSync", "fun setUpAndSortedBundling >> updatedBundlingList.isEmpty()")
                     updatedBundlingList.addAll(currentBundlingList) // Tambahkan semua item dari currentBundlingList
                 } else {
                     currentBundlingList.forEach { currentBundling ->
                         // Cek apakah bundling dengan UID yang sama sudah ada
                         val existingBundling = updatedBundlingList.find { it.uid == currentBundling.uid }
                         if (existingBundling == null) {
+                            Logger.d("DataSync", "if (existingBundling == null) data baru ditemukan: ${currentBundling.packageName}")
                             // Jika tidak ada, tambahkan bundling baru
                             applyFieldBundling(currentBundling, capsterSelected, isFromListener)
                             updatedBundlingList.add(currentBundling)
                         } else {
+                            Logger.d("DataSync", "if (existingBundling != null) data sudah ada: ${currentBundling.packageName}")
                             // Jika ada, perbarui properti dari existing item
                             existingBundling.apply {
                                 accumulatedPrice = currentBundling.accumulatedPrice
@@ -483,7 +489,7 @@ class SharedReserveViewModel : ViewModel() {
                                 listItemDetails = _servicesList.value?.filter { service ->
                                     listItems.contains(service.uid)
                                 } ?: emptyList()
-                                Log.d("CacheChecking", "setUpAndSortedBundling --> listservice contain 1: ${listItemDetails?.size} || ${packageName}")
+                                Logger.d("DataSync", "setUpAndSortedBundling --> listservice contain 1: ${listItemDetails?.size} || $packageName")
 
                                 priceToDisplay = calculatePriceToDisplay(
                                     packagePrice,
@@ -527,7 +533,7 @@ class SharedReserveViewModel : ViewModel() {
                 listItemDetails = _servicesList.value?.filter { service ->
                     listItems.contains(service.uid)
                 } ?: emptyList()
-                Log.d("CacheChecking", "setUpAndSortedBundling --> listservice contain 3: ${listItemDetails?.size} || ${bundling.packageName}")
+                Logger.d("DataSync", "setUpAndSortedBundling --> listservice contain 3: ${listItemDetails?.size} || ${bundling.packageName}")
             }
 
             priceToDisplay = calculatePriceToDisplay(
@@ -545,7 +551,7 @@ class SharedReserveViewModel : ViewModel() {
         withContext(Dispatchers.Default) {
             stateMutex.withStateLock {
                 val listBundling = _bundlingPackagesList.value ?: emptyList()
-                Log.d("CacheChecking", "setServiceBundlingList --> listbundling size: ${listBundling.size}")
+                Logger.d("DataSync", "setServiceBundlingList --> listbundling size: ${listBundling.size}")
                 if (listBundling.isNotEmpty()) {
                     listBundling.onEach { bundling ->
                         val serviceBundlingList = _servicesList.value?.filter { service ->
@@ -553,7 +559,7 @@ class SharedReserveViewModel : ViewModel() {
                         } ?: emptyList() // Jika null, gunakan list kosong
 
                         bundling.listItemDetails = serviceBundlingList
-                        Log.d("CacheChecking", "setServiceBundlingList --> listservice contain 1: ${serviceBundlingList.size} || ${bundling.packageName}")
+                        Logger.d("DataSync", "setServiceBundlingList --> listservice contain 2: ${serviceBundlingList.size} || ${bundling.packageName}")
                     }
 
                     // _bundlingPackagesList.updateIfNeeded(listBundling)
@@ -574,10 +580,11 @@ class SharedReserveViewModel : ViewModel() {
         withContext(Dispatchers.Default) {
             stateMutex.withStateLock {
                 val updatedServicesList = _servicesList.value?.toMutableList() ?: mutableListOf()
-                Log.d("CacheChecking", "setUpAndSortedServices --> oldServiceList size: ${updatedServicesList.size}")
-                Log.d("CacheChecking", "setUpAndSortedServices --> currentServicesList size: ${currentServicesList.size}")
+                Logger.d("DataSync", "setUpAndSortedServices --> oldServiceList size: ${updatedServicesList.size}")
+                Logger.d("DataSync", "setUpAndSortedServices --> currentServicesList size: ${currentServicesList.size}")
 
                 if (updatedServicesList.isEmpty()) {
+                    Logger.d("DataSync", "if (updatedServicesList.isEmpty())")
                     // Jika oldServiceList null, gunakan currentServicesList
                     currentServicesList.forEach { service ->
                         applyFieldService(service, capsterSelected)
@@ -588,10 +595,12 @@ class SharedReserveViewModel : ViewModel() {
                         // Cek apakah service dengan UID yang sama sudah ada
                         val existingService = updatedServicesList.find { it.uid == currentService.uid }
                         if (existingService == null) {
+                            Logger.d("DataSync", "if (existingService == null) data baru ditemukan: ${currentService.serviceName}")
                             // Jika tidak ada, tambahkan service baru
                             applyFieldService(currentService, capsterSelected)
                             updatedServicesList.add(currentService)
                         } else {
+                            Logger.d("DataSync", "if (existingService != null) data sudah ada: ${currentService.serviceName}")
                             existingService.apply {
                                 // Perbarui semua properti dari matching item tanpa mengganti referensi
                                 applyToGeneral = currentService.applyToGeneral
@@ -681,9 +690,9 @@ class SharedReserveViewModel : ViewModel() {
                 val currentList = _indexBundlingChanged.value ?: mutableListOf()
                 Log.d("TestDataChange", "isDataChanged 292: click btn bundling >> ${currentList.contains(index)}")
                 if (!currentList.contains(index)) { // Periksa apakah nilai sudah ada
+                    Logger.d("DataSync", "add index bundling 290: $index")
                     currentList.add(index)
                     _indexBundlingChanged.value = currentList
-                    Log.d("TestDataChange", "add index bundling 290: $index")
                 }
                 _isDataChanged.value = true
             }
@@ -691,9 +700,9 @@ class SharedReserveViewModel : ViewModel() {
     }
 
     fun resetIndexBundlingChanged() {
-        Log.d("ScanAll", "V2")
         viewModelScope.launch {
             stateMutex.withStateLock {
+                Logger.d("DataSync", "resetIndexBundlingChanged()")
                 _indexBundlingChanged.value = mutableListOf()
             }
         }
@@ -715,9 +724,9 @@ class SharedReserveViewModel : ViewModel() {
                 val currentList = _indexServiceChanged.value ?: mutableListOf()
                 Log.d("TestDataChange", "isDataChanged 315: click btn service >> ${currentList.contains(index)}")
                 if (!currentList.contains(index)) { // Periksa apakah nilai sudah ada
+                    Logger.d("DataSync", "add index service 314: $index")
                     currentList.add(index)
                     _indexServiceChanged.value = currentList
-                    Log.d("TestDataChange", "add index service 314: $index")
                 }
                 _isDataChanged.value = true
             }
@@ -725,9 +734,9 @@ class SharedReserveViewModel : ViewModel() {
     }
 
     fun resetIndexServiceChanged() {
-        Log.d("ScanAll", "X2")
         viewModelScope.launch {
             stateMutex.withStateLock {
+                Logger.d("DataSync", "resetIndexServiceChanged()")
                 _indexServiceChanged.value = mutableListOf()
             }
         }
@@ -740,7 +749,7 @@ class SharedReserveViewModel : ViewModel() {
         applyToGeneral: Boolean,
         capsterUid: String
     ): Int {
-        Log.d("ScanAll", "T2 || capsterUid: $capsterUid")
+        Logger.d("DataSync", "T2 || capsterUid: $capsterUid")
         if (resultsShareFormat == "fee" && capsterUid != "----------------") {
             val shareAmount = if (applyToGeneral) {
                 (resultsShareAmount?.get("all") as? Number)?.toInt() ?: 0
@@ -753,8 +762,8 @@ class SharedReserveViewModel : ViewModel() {
     }
 
     fun clearState() {
-        Log.d("ScanAll", "K2")
         viewModelScope.launch {
+            Logger.d("DataSync", "clearState")
             _letsFilteringDataCustomer.value = null
 //        _displayFilteredCustomerResult.value = true
             _displayAllDataToUI.value = null
@@ -763,9 +772,9 @@ class SharedReserveViewModel : ViewModel() {
 
     fun clearAllData() {
         Log.d("ScanAll", "Z2")
-        Log.d("CacheChecking", "clearAllData")
         viewModelScope.launch {
             stateMutex.withStateLock {
+                Logger.d("DataSync", "clearAllData")
                 _isDataChanged.removeSource(_bundlingPackagesList)
                 _isDataChanged.removeSource(_servicesList)
 

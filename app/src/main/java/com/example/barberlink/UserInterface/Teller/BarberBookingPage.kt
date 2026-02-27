@@ -169,12 +169,12 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         // Inisialisasi ViewModel menggunakan custom ViewModelFactory
         bookingPageViewModel
         toastViewModel
-        Log.d("ScanAll", "A1")
+        Logger.d("DataSync", "bookingPageViewModel")
         fragmentManager = supportFragmentManager
         binding.swipeRefreshLayout.isEnabled = false
 
         if (savedInstanceState != null) {
-            Log.d("ScanAll", "B1")
+            Logger.d("DataSync", "savedInstanceState != null")
             // Restore the saved instance state
 //            capsterSelected = savedInstanceState.getParcelable("capster_selected") ?: UserEmployeeData()
             timeSelected = Timestamp(Date(savedInstanceState.getLong("time_selected")))
@@ -193,7 +193,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         val outletSelected: Outlet
         val capsterSelected: UserEmployeeData
         if (savedInstanceState == null) {
-            Log.d("ScanAll", "C1")
+            Logger.d("DataSync", "savedInstanceState == null")
             // Receive the intent data
             @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -210,7 +210,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             val timeSelectedNanos = intent.getIntExtra(QueueTrackerPage.TIME_NANOS_KEY, 0)
             setDateFilterValue(Timestamp(timeSelectedSeconds, timeSelectedNanos))
         } else {
-            Log.d("ScanAll", "D1")
+            Logger.d("DataSync", "D1")
             setDateFilterValue(timeSelected)
             outletSelected = bookingPageViewModel.outletSelected.value ?: Outlet()
             capsterSelected = bookingPageViewModel.capsterSelected.value ?: UserEmployeeData()
@@ -227,7 +227,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         init(savedInstanceState, capsterSelected)
         if (savedInstanceState == null || (isShimmerAllVisible && isShimmerCustomerVisible && isFirstLoad)) getAllData()
         else {
-            Log.d("ScanAll", "K1")
+            Logger.d("DataSync", "Orientasi Change")
             Log.d("ScrollCustomer", "Enter BBP else")
             displayAllData()
 
@@ -235,14 +235,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
 
         supportFragmentManager.setFragmentResultListener("action_dismiss_dialog", this) { _, bundle ->
-            Log.d("ScanAll", "L1")
+            Logger.d("DataSync", "action_dismiss_dialog")
             val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
             if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
         }
 
         // code 1
         supportFragmentManager.setFragmentResultListener("customer_result_data", this) { _, bundle ->
-            Log.d("ScanAll", "M1")
+            Logger.d("DataSync", "customer_result_data")
             val customerData = bundle.getParcelable<UserCustomerData>("customer_data")
             val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
             if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
@@ -253,7 +253,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 //                    customerList.add(data)
 //                    customerList = customerList.sortedByDescending { it.lastReserve }.toMutableList()
 //                }
-                Log.d("BtnSaveChecking", "Button Save Clicked 5")
+                Logger.d("DataSync", "Button Save Clicked 5")
                 bookingPageViewModel.addCustomerData(data)
                 val userNumber = PhoneUtils.formatPhoneNumberWithZero(data.phone)
                 binding.searchId.setQuery(userNumber, true)
@@ -261,16 +261,15 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
 
         bookingPageViewModel.letsFilteringDataCustomer.observe(this) { displayAllData ->
-            Log.d("ScanAll", "N1")
+            Logger.d("DataSync", "letsFilteringDataCustomer.observe if (displayAllData != null): $displayAllData")
             if (displayAllData != null) {
-                Log.d("CheckFilteringCustomer", "111")
                 Log.d("ScrollCustomer", "Filtering")
                 filterCustomer(keyword, displayAllData, letScrollCustomerRecycleView)
             }
         }
 
         bookingPageViewModel.displayAllDataToUI.observe(this) { displayAllData ->
-            Log.d("ScanAll", "O1")
+            Logger.d("DataSync", "displayAllDataToUI.observe if (displayAllData != null): $displayAllData")
             if (displayAllData != null) {
                 Log.d("ScrollCustomer", "Button Save Clicked 10")
                 if (displayAllData) displayAllData()
@@ -279,14 +278,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
 
         bookingPageViewModel.isDataChanged.observe(this) { condition ->
-            Log.d("ScanAll", "P1")
+            Logger.d("DataSync", "isDataChanged.observe if (condition): $condition")
             Log.d("TestAct", "observer: $condition")
             if (condition) {
                 val itemCount = bookingPageViewModel.itemSelectedCounting.value ?: 0
                 val itemList = bookingPageViewModel.itemNameSelected.value ?: mutableListOf()
 
                 setDataToBottomPopUp(itemCount)
-                Log.d("TestAct", "observer: $itemCount")
+                Logger.d("DataSync", "setDataToBottomPopUp: $itemCount")
                 displayBottomPopUp(itemCount)
 
                 val formattedString = itemList.joinToString(
@@ -305,24 +304,24 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         }
 
         bookingPageViewModel.indexBundlingChanged.observe(this) { indexes ->
-            Log.d("ScanAll", "Q1")
+            Logger.d("DataSync", "indexBundlingChanged.observe if (indexes.isNotEmpty()): ${indexes.size}")
             if (indexes.isNotEmpty()) {
                 indexes.forEach {
                     bundlingAdapter.notifyItemChanged(it)
                     val data = bookingPageViewModel.bundlingPackagesList.value?.get(it)
-                    Log.d("TestDataChange", "indexBundlingChanged: DATA ${data?.packageName} [ ${data?.bundlingQuantity} ]")
+                    Logger.d("DataSync", "indexBundlingChanged: DATA ${data?.packageName} [ ${data?.bundlingQuantity} ]")
                 }
                 bookingPageViewModel.resetIndexBundlingChanged()
             }
         }
 
         bookingPageViewModel.indexServiceChanged.observe(this) { indexes ->
-            Log.d("ScanAll", "R1")
+            Logger.d("DataSync", "indexServiceChanged.observe if (indexes.isNotEmpty()): ${indexes.size}")
             if (indexes.isNotEmpty()) {
                 indexes.forEach {
                     serviceAdapter.notifyItemChanged(it)
                     val data = bookingPageViewModel.servicesList.value?.get(it)
-                    Log.d("TestDataChange", "indexServiceChanged: ${data?.serviceName} [ ${data?.serviceQuantity} ]")
+                    Logger.d("DataSync", "indexServiceChanged: ${data?.serviceName} [ ${data?.serviceQuantity} ]")
                 }
                 bookingPageViewModel.resetIndexServiceChanged()
             }
@@ -365,7 +364,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     keyword = PhoneUtils.formatPhoneNumberCodeCountry(cleanedText, "+62")  // Menghapus angka 0 di depan)
                     Log.d("CheckFilteringCustomer", "222")
                     Log.d("ScrollCustomer", "FILTERING FROM QUERY SEARCH")
-                    Log.d("ScanAll", "S1")
+                    Logger.d("DataSync", "FILTERING FROM QUERY SEARCH")
                     letScrollCustomerRecycleView = true
                     filterCustomer(keyword, displayAllData = false, filteringAllData =  true)
 
@@ -432,7 +431,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     private fun init(savedInstanceState: Bundle?, capsterSelected: UserEmployeeData) {
         with (binding) {
-            Log.d("ScanAll", "J1")
+            Logger.d("DataSync", "init")
             serviceAdapter = ItemListServiceBookingAdapter(this@BarberBookingPage, false)
             serviceAdapter.setCapsterRef(capsterSelected.userRef)
             rvListServices.layoutManager = GridLayoutManager(this@BarberBookingPage, 2, GridLayoutManager.VERTICAL, false)
@@ -445,11 +444,11 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
             bundlingAdapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
                 override fun onChanged() {
-                    Log.d("RecyclerBind", "Adapter data changed")
+                    Logger.d("DataSync", "Adapter data changed")
                 }
 
                 override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
-                    Log.d("RecyclerBind", "Item inserted from $positionStart, count: $itemCount")
+                    Logger.d("DataSync", "Item inserted from $positionStart, count: $itemCount")
                 }
             })
 
@@ -466,7 +465,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             else displayBottomPopUp(bookingPageViewModel.itemSelectedCounting.value ?: 0)
 
             val isRandomCapster = capsterSelected.uid == "----------------"
-            Log.d("CapsterSelected", "CapsterSelected: $capsterSelected")
+            Logger.d("DataSync", "CapsterSelected: $capsterSelected")
             realLayout.tvCapsterName.visibility = if (isRandomCapster) View.GONE else View.VISIBLE
             realLayout.tvUsername.visibility = if (isRandomCapster) View.GONE else View.VISIBLE
             realLayout.llRating.visibility = if (isRandomCapster) View.GONE else View.VISIBLE
@@ -525,13 +524,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     private fun filterCustomer(query: String, displayAllData: Boolean, filteringAllData: Boolean = true) {
-        Log.d("ScanAll", "U1")
+        Logger.d("DataSync", "fun filterCustomer")
         lifecycleScope.launch(Dispatchers.Default) {
             bookingPageViewModel.customerMutex.withStateLock {
                 val customerList = bookingPageViewModel.customerList.value ?: emptyList()
                 customerList.forEach { it.dataSelected = false }
                 val lowerCaseQuery = query.lowercase(Locale.getDefault())
-                Log.d("EnterBBP", "Filter Query: $lowerCaseQuery")
+                Logger.d("DataSync", "Filter Query: $lowerCaseQuery")
                 var customerData: UserCustomerData?
 
                 val baseList = if (lowerCaseQuery.isEmpty()) {
@@ -580,10 +579,10 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     bookingPageViewModel.setCustomerSelected(customerData)
                 }
 
-                Log.d("CheckFilteringCustomer", "===")
-                Log.d("CacheChecking", "SET CUSTOMER LIST AFTER FILTERING")
+                Logger.d("DataSync", "===")
+                Logger.d("DataSync", "SET CUSTOMER LIST AFTER FILTERING")
                 bookingPageViewModel.setCustomerList(lowerCaseQuery, customerList, false)
-                Log.d("CacheChecking", "SET FILTERED CUSTOMER LIST AFTER FILTERING")
+                Logger.d("DataSync", "SET FILTERED CUSTOMER LIST AFTER FILTERING")
                 bookingPageViewModel.setFilteredCustomerList(filteredResult)
                 Log.d("ScrollCustomer", "Button Save Clicked 9")
                 bookingPageViewModel.displayAllDataToUI(displayAllData)
@@ -649,7 +648,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                                             userRef = newCustomerData.userRef
                                                         }
 
-                                                        Log.d("CacheChecking", "UPDATE SPECIFIC CUSTOMER DATA FROM LISTENER")
+                                                        Logger.d("DataSync", "UPDATE SPECIFIC CUSTOMER DATA FROM LISTENER")
                                                         bookingPageViewModel.updateCustomerData(dataToUpdate)
                                                         bookingPageViewModel.setCustomerSelected(dataToUpdate)
                                                     }
@@ -680,7 +679,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private fun displayAllData() {
         lifecycleScope.launch {
             val capsterSelected = bookingPageViewModel.capsterSelected.value ?: UserEmployeeData()
-            Log.d("ScanAll", "X1")
+            Logger.d("DataSync", "fun displayAllData()")
             Log.d("ScrollCustomer", "Enter displayAllData && Set Observer")
 //        serviceAdapter.submitList(bookingPageViewModel.servicesList.value ?: mutableListOf())
 //        bundlingAdapter.submitList(bookingPageViewModel.bundlingPackagesList.value ?: mutableListOf())
@@ -692,7 +691,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             if (!setUpObserverIsDone) {
                 bookingPageViewModel.bundlingPackagesList.observe(this@BarberBookingPage) {
                     Log.d("ScrollCustomer", "Enter bundlingPackagesList.observe")
-                    Log.d("ScanAll", "Y1")
+                    Logger.d("DataSync", "bundlingPackagesList.observe ${it.size}")
                     bundlingAdapter.submitList(it)
                     bundlingAdapter.notifyDataSetChanged()
 
@@ -703,13 +702,13 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
                 bookingPageViewModel.servicesList.observe(this@BarberBookingPage) {
                     Log.d("ScrollCustomer", "Enter servicesList.observe")
-                    Log.d("ScanAll", "Z1")
+                    Logger.d("DataSync", "servicesList.observe ${it.size}")
                     serviceAdapter.submitList(it)
                     serviceAdapter.notifyDataSetChanged()
                 }
 
                 bookingPageViewModel.isSetItemBundling.observe(this@BarberBookingPage) { isSet ->
-                    Log.d("ScanAll", "AA1")
+                    Logger.d("DataSync", "isSetItemBundling.observe if (isSet == true): $isSet")
                     if (isSet == true) {
                         Log.d("ScrollCustomer", "RE SETUP LIST ITEM DETAILS")
                         // Jalankan setServiceBundlingList hanya ketika nilai _isSetItemBundling adalah true
@@ -718,7 +717,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 }
 
                 bookingPageViewModel.displayFilteredCustomerResult.observe(this@BarberBookingPage) { withShimmer ->
-                    Log.d("ScanAll", "BB1")
+                    Logger.d("DataSync", "displayFilteredCustomerResult.observe if (withShimmer != null): $withShimmer")
                     Log.d("ScrollCustomer", "withShimmer: $withShimmer")
                     if (withShimmer != null) {
                         val filteredResult = bookingPageViewModel.filteredCustomerList.value ?: emptyList()
@@ -727,7 +726,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         }
                         Log.d("ScrollCustomer", "=================")
                         customerAdapter.submitList(filteredResult) {
-                            Log.d("ScrollCustomer", "letScrollCustomerRecycleView $letScrollCustomerRecycleView")
+                            Logger.d("DataSync", "letScrollCustomerRecycleView $letScrollCustomerRecycleView")
                             if (setUpObserverIsDone) {
                                 customerAdapter.notifyDataSetChanged()
                                 if (letScrollCustomerRecycleView) binding.rvListCustomer.scrollToPosition(0)
@@ -945,7 +944,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     }
 
     private fun showShimmer(show: Boolean) {
-        Log.d("ScanAll", "KK1")
+        Logger.d("DataSync", "fun showShimmer $show")
         isShimmerCustomerVisible = show
         isShimmerAllVisible = show
         serviceAdapter.setShimmer(show)
@@ -1104,7 +1103,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                                 }
 
                                                 letScrollCustomerRecycleView = false
-                                                Log.d("CacheChecking", "SET CUSTOMER LIST FROM SNAPSHOT LISTENER")
+                                                Logger.d("DataSync", "SET CUSTOMER LIST FROM SNAPSHOT LISTENER")
                                                 bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, true)
                                             }
                                         }
@@ -1371,7 +1370,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                             val services = docs.toObjects(Service::class.java)
                                                 .filter { service -> outletData.listServices.contains(service.uid) } // Ganti it.u dengan service.uid
 
-                                            Log.d("CacheChecking", "SET SERVICE LIST FROM LISTENER")
+                                            Logger.d("DataSync", "SET SERVICE LIST FROM LISTENER")
                                             Log.d("CheckListenerLog", "BBP SERVICE LIST SIZE: ${services.size} FROM LISTENER")
 //                                    Toast.makeText(this@BarberBookingPage, "BBP ??H2 - old: ${oldServiceList.size} || new: ${services.size} service", Toast.LENGTH_SHORT).show()
                                             bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData(), true)
@@ -1407,7 +1406,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
             if (customerList.isNullOrEmpty()) {
                 bookingPageViewModel.customerMutex.withStateLock {
-                    Log.d("CacheChecking", "SET EMPTY CUSTOMER LIST FROM UPDATE")
+                    Logger.d("DataSync", "SET EMPTY CUSTOMER LIST FROM UPDATE")
 //                    Toast.makeText(this@BarberBookingPage, "BBP ??B1 - empty customer", Toast.LENGTH_SHORT).show()
                     letScrollCustomerRecycleView = false
                     bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), emptyList(), true)
@@ -1479,7 +1478,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     showError = true
                 ) { fetchBundling ->
                     Log.d("ScanAll", "NN1")
-                    Log.d("CacheChecking", "SET BUNDLING LIST FROM UPDATE")
+                    Logger.d("DataSync", "SET BUNDLING LIST FROM UPDATE")
 //                    lifecycleScope.launch(Dispatchers.Main) {
 //                        Toast.makeText(this@BarberBookingPage, "BBP ??T2 - old: ${oldBundlingList.size} || new: ${fetchBundling.size} bundle", Toast.LENGTH_SHORT).show()
 //                    }
@@ -1511,7 +1510,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     showError = true
                 ) { services ->
                     Log.d("ScanAll", "PP1")
-                    Log.d("CacheChecking", "SET SERVICE LIST FROM UPDATE")
+                    Logger.d("DataSync", "SET SERVICE LIST FROM UPDATE")
 //                    lifecycleScope.launch(Dispatchers.Main) {
 //                        Toast.makeText(this@BarberBookingPage, "BBP ??S1 - old: ${oldServiceList.size} || new: ${services.size} service", Toast.LENGTH_SHORT).show()
 //                    }
@@ -1535,7 +1534,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         showError: Boolean,
         updateViewModel: ( suspend (List<T>) -> Unit)? = null // Fungsi opsional untuk mengupdate ViewModel
     ) {
-        Logger.d("DBFirestore", "Fetching data from collection: $collectionPath with filters: $filterIds")
+        Logger.d("DataSync", "Fetching data from collection: $collectionPath with filters: $filterIds")
         try {
             val snapshot = withContext(Dispatchers.IO) {
                 db.collection(collectionPath)
@@ -1600,7 +1599,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         val customerFilterIds = outletSelected.listCustomers?.map { it.uidCustomer }
                         val outletFilterIds = emptyList<String>()
                         Log.d("CustomerInOutlet", "CustomerInOutlet: $customerFilterIds")
-                        Logger.d("DBFirestore", "getAllData")
+                        Logger.d("DataSync", "getAllData")
 
                         coroutineScope {
                             awaitAll(
@@ -1612,7 +1611,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                         filterIds = serviceFilterIds,
                                         showError = true
                                     ) { services ->
-                                        Log.d("CacheChecking", "SET SERVICE LIST FROM SUCCESS GET ALL DATA")
+                                        Logger.d("DataSync", "SET SERVICE LIST FROM SUCCESS GET ALL DATA")
                                         Log.d("ScanAll", "E1")
                                         bookingPageViewModel.setUpAndSortedServices(services.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData(), false)
                                     }
@@ -1625,7 +1624,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                         filterIds = bundlingFilterIds,
                                         showError = true
                                     ) { bundling ->
-                                        Log.d("CacheChecking", "SET BUNDLING LIST FROM SUCCESS GET ALL DATA")
+                                        Logger.d("DataSync", "SET BUNDLING LIST FROM SUCCESS GET ALL DATA")
                                         Log.d("ScanAll", "F1")
                                         bookingPageViewModel.setUpAndSortedBundling(bundling.toMutableList(), bookingPageViewModel.capsterSelected.value ?: UserEmployeeData(), false)
                                     }
@@ -1650,7 +1649,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                                 val completeList = mutableListOf(customerGuestAccount).apply {
                                                     addAll(sortedCustomerList)
                                                 }
-                                                Log.d("CacheChecking", "SET CUSTOMER LIST FROM SUCCESS GET ALL DATA")
+                                                Logger.d("DataSync", "SET CUSTOMER LIST FROM SUCCESS GET ALL DATA")
                                                 Log.d("ScanAll", "G1")
                                                 bookingPageViewModel.setCustomerList(keyword.lowercase(Locale.getDefault()), completeList, false)
                                             }
@@ -1675,20 +1674,21 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                         // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
 
                         // filterCustomer("", false)
-                        Log.d("CacheChecking", "FILTERING FROM SUCCESS GET ALL DATA")
+                        Logger.d("DataSync", "FILTERING FROM SUCCESS GET ALL DATA")
                         // displayAllData()
                         Log.d("ScanAll", "H1")
                         bookingPageViewModel.setServiceBundlingList()
                         bookingPageViewModel.triggerFilteringDataCustomer(true)
                     } catch (e: Exception) {
                         // filterCustomer("", false)
-                        Log.d("CacheChecking", "FILTERING FROM FAILED GET ALL DATA")
+                        Logger.d("DataSync", "FILTERING FROM FAILED GET ALL DATA")
                         // displayAllData()
                         Log.d("ScanAll", "I1")
                         bookingPageViewModel.triggerFilteringDataCustomer(true)
                         toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
                     }
                 } ?: run {
+                    Logger.d("DataSync", "FILTERING FROM NULL OUTLET SELECTED")
                     bookingPageViewModel.triggerFilteringDataCustomer(true)
                     toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
                 }
@@ -1724,7 +1724,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     if (!debounce.run { v.isSafeClick() }) return
                     // hmmmmm
                     // Sebelum menggunakan customerData
-                    Log.d("ViewModel", bookingPageViewModel.itemSelectedCounting.value.toString())
+                    Logger.d("DataSync", bookingPageViewModel.itemSelectedCounting.value.toString())
                     Log.d("ViewModel", bookingPageViewModel.toString())
                     if (bookingPageViewModel.customerSelected.value != null) {
                         navigatePage(this@BarberBookingPage, ReviewOrderPage::class.java, btnContinue)
@@ -1981,6 +1981,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     override fun onItemClickListener(customer: UserCustomerData , list: List<UserCustomerData>) {
         // hmmmmm???--
+        Logger.d("DataSync", "SET CUSTOMER SELECTED FROM CLICK")
+        Logger.d("DataSync", "customerName ${customer.fullname}")
         bookingPageViewModel.setCustomerSelected(customer)
 
         // customerList.clear()
@@ -1992,7 +1994,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     override fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean) {
         // Logika pengelolaan item yang dipilih
-        Log.d("TestDataChange", "bundling: ${bundlingPackage.packageName} - quantity ${bundlingPackage.bundlingQuantity} - index: $index - addCount: $addCount")
+        Logger.d("DataSync", "bundling: ${bundlingPackage.packageName} - quantity ${bundlingPackage.bundlingQuantity} - index: $index - addCount: $addCount")
         if (!addCount) {
             bookingPageViewModel.removeItemSelectedByName(
                 bundlingPackage.packageName,
@@ -2008,7 +2010,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     override fun onItemClickListener(service: Service, index: Int, addCount: Boolean) {
         // Logika pengelolaan item yang dipilih
-        Log.d("TestDataChange", "service: ${service.serviceName} - quantity ${service.serviceQuantity} - index: $index - addCount: $addCount")
+        Logger.d("DataSync", "service: ${service.serviceName} - quantity ${service.serviceQuantity} - index: $index - addCount: $addCount")
         if (!addCount) {
             bookingPageViewModel.removeItemSelectedByName(
                 service.serviceName,

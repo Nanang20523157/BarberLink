@@ -52,6 +52,7 @@ import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewMode
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.Utils.PhoneUtils
 import com.example.barberlink.databinding.ActivityReviewOrderPageBinding
@@ -171,10 +172,12 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         sharedReserveViewModel
         reviewOrderViewModel
         toastViewModel
+        Logger.d("DataSync", "reviewOrderViewModel")
         binding.swipeRefreshLayout.isEnabled = false
 
         calendar = Calendar.getInstance()
         if (savedInstanceState != null) {
+            Logger.d("DataSync", "savedInstanceState != null")
             // Restore properti dari Bundle
             //outletSelected = savedInstanceState.getParcelable("outlet_selected") ?: Outlet()
             //capsterSelected = savedInstanceState.getParcelable("capster_selected") ?: UserEmployeeData()
@@ -219,6 +222,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 //                customerData = intent.getParcelableExtra(BarberBookingPage.CUSTOMER_DATA_KEY) ?: UserCustomerData()
 //            }
 //
+            Logger.d("DataSync", "savedInstanceState == null")
             sharedReserveViewModel.outletSelected.value?.let { reviewOrderViewModel.setOutletSelected(it) }
             sharedReserveViewModel.capsterSelected.value?.let { reviewOrderViewModel.setCapsterSelected(it) }
             sharedReserveViewModel.customerSelected.value?.let { reviewOrderViewModel.setCustomerData(it) }
@@ -278,9 +282,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             }
         }
 
-        Log.d("ViewModel", sharedReserveViewModel.itemSelectedCounting.value.toString())
-
         supportFragmentManager.setFragmentResultListener("user_payment_method", this) { _, bundle ->
+            Logger.d("DataSync", "user_payment_method")
             val result = bundle.getString("payment_method")
             result?.let { paymentMethod ->
                 paymentMethod.let {
@@ -292,13 +295,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     } else {
                         "CASHLESS"
                     }
+                    Logger.d("DataSync", "PaymentMethod: $textData")
                     binding.tvPaymentMethod.text = textData
                 }
             }
         }
 
         sharedReserveViewModel.itemSelectedCounting.observe(this) {
-            Log.d("OBServerRev", "current itemCount: ${it}")
+            Logger.d("DataSync", "itemSelectedCounting.observe itemCount: ${it}")
             // After modifying the quantities, recalculate the payment details
             val filteredServices = sharedReserveViewModel.servicesList.value?.filter { it1 -> it1.serviceQuantity > 0 } ?: emptyList()
             val filteredBundlingPackages = sharedReserveViewModel.bundlingPackagesList.value?.filter { it2 -> it2.bundlingQuantity > 0 } ?: emptyList()
@@ -308,12 +312,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
 
         sharedReserveViewModel.outletSelected.observe(this) { outlet ->
+            Logger.d("DataSync", "outletSelected.observe isFirstLoad: ${reviewOrderViewModel.getIsFirstLoad()}")
             if (!reviewOrderViewModel.getIsFirstLoad()) {
                 outlet?.let { reviewOrderViewModel.setOutletSelected(outlet) }
             }
         }
 
         sharedReserveViewModel.capsterSelected.observe(this) { capster ->
+            Logger.d("DataSync", "capsterSelected.observe isFirstLoad: ${reviewOrderViewModel.getIsFirstLoad()}")
             if (!reviewOrderViewModel.getIsFirstLoad()) {
                 capster?.let {
                     // Mengambil data capster dan mengupdate UI
@@ -324,6 +330,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
 
         sharedReserveViewModel.customerSelected.observe(this) { customer ->
+            Logger.d("DataSync", "customerSelected.observe isFirstLoad: ${reviewOrderViewModel.getIsFirstLoad()}")
             if (!reviewOrderViewModel.getIsFirstLoad()) {
                 customer?.let {
                     // Mengambil data customer dan mengupdate UI
@@ -335,14 +342,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         }
 
         sharedReserveViewModel.servicesList.observe(this) { services ->
-            Log.d("ReviewOrderPage", "Services list updated: ${services.size} items")
+            Logger.d("DataSync", "servicesList.observe updated: ${services.size} items")
             // Update the service adapter with the new list
             serviceAdapter.submitList(services.filter { it.serviceQuantity > 0 })
             serviceAdapter.notifyDataSetChanged()
         }
 
         sharedReserveViewModel.bundlingPackagesList.observe(this) { bundlingPackages ->
-            Log.d("ReviewOrderPage", "Bundling packages list updated: ${bundlingPackages.size} items")
+            Logger.d("DataSync", "bundlingPackagesList.observe updated: ${bundlingPackages.size} items")
             // Update the bundling adapter with the new list
             bundlingAdapter.submitList(bundlingPackages.filter { it.bundlingQuantity > 0 })
             bundlingAdapter.notifyDataSetChanged()
@@ -454,7 +461,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private fun showShimmer(show: Boolean) {
         with (binding) {
             // isShimmerVisible = show
-            Log.d("ObjectReferences", "showShimmer: $show from ReviewOrderPage")
+            Logger.d("DataSync", "showShimmer: $show from ReviewOrderPage")
             serviceAdapter.setShimmer(show)
             bundlingAdapter.setShimmer(show)
 
@@ -576,7 +583,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             filteredBundlingPackages.forEachIndexed { index, item ->
                 Log.d("ObjectReferences", "Index: $index, Object reference: ${System.identityHashCode(item)}")
             }
-            Log.d("ObjectReferences", "========== End of object references ==========")
+            Logger.d("DataSync", "========== End of object references ==========")
             serviceAdapter.submitList(filteredServices)
             bundlingAdapter.submitList(filteredBundlingPackages)
             Log.d("CheckHiddenObject", "filteredBundlingPackages.size = ${filteredBundlingPackages.size}")
@@ -588,7 +595,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
             binding.tvNumberOfClaimKode.text = getString(R.string.claim_amount_promo, promoCode.size)
 
             calculateValues(filteredServices, filteredBundlingPackages, reviewOrderViewModel.getCapsterSelected(), reviewOrderViewModel.getCustomerData())
-            Log.d("LastScroll", "lastScrollPositition: $lastScrollPositition")
+            Logger.d("DataSync", "lastScrollPositition: $lastScrollPositition")
             serviceAdapter.setlastScrollPosition(lastScrollPositition)
             setupRecyclerViewWithIndicators(filteredServices.size)
         }
@@ -596,6 +603,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     private fun displayCustomerData(customerData: UserCustomerData) {
         with (binding) {
+            Logger.d("DataSync", "fun displayCustomerData")
             if (customerData.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
@@ -627,6 +635,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private fun displayCapsterData(capsterData: UserEmployeeData) {
         val reviewCount = 2134
         with (binding) {
+            Logger.d("DataSync", "fun displayCapsterData")
             if (capsterData.photoProfile.isNotEmpty()) {
                 if (!isDestroyed && !isFinishing) {
                     // Lakukan transaksi fragment
@@ -699,6 +708,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     private fun displayPaymentDetail() {
         with (binding) {
+            Logger.d("DataSync", "fun displayPaymentDetail")
             realLayoutPayment.tvNumberOfItem.text = getString(R.string.short_number_of_total_items_template, totalQuantity.toString())
             realLayoutPayment.tvSubTotalPrice.text = NumberUtils.numberToCurrency(subTotalPrice.toDouble())
             realLayoutPayment.tvCoinUse.text = if (coinsUse != 0.0) {
@@ -763,6 +773,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     ): Double {
         var totalShareProfit = 0.0
 
+        Logger.d("DataSync", "calculateTotalShareProfit || capsterUid: $capsterUid")
         if (capsterUid != "----------------") {
             // Hitung untuk setiap service
             for (service in serviceList) {
@@ -935,7 +946,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
         calendar.add(Calendar.DAY_OF_MONTH, 1)
         startOfNextDay = Timestamp(calendar.time)
-        todayDate = GetDateUtils.formatTimestampToDate(timestamp) // Assuming format is "YY MMMM YYYY"
+        todayDate = formatTimestampToDate(timestamp) // Assuming format is "YY MMMM YYYY"
 
         val dateParts = todayDate.split(" ") // Split the date string into parts
 
@@ -1193,6 +1204,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     override fun onItemClickListener(bundlingPackage: BundlingPackage, index: Int, addCount: Boolean, currentList: List<BundlingPackage>?) {
         // Logika pengelolaan item yang dipilih
+        Logger.d("DataSync", "bundling: ${bundlingPackage.packageName} - quantity ${bundlingPackage.bundlingQuantity} - index: $index - addCount: $addCount")
         if (!addCount) {
             sharedReserveViewModel.removeItemSelectedByName(bundlingPackage.packageName, bundlingPackage.bundlingQuantity == 0)
         } else if (bundlingPackage.bundlingQuantity >= 1) {
@@ -1207,6 +1219,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
 
     override fun onItemClickListener(service: Service, index: Int, addCount: Boolean, currentList: List<Service>?) {
         // Logika pengelolaan item yang dipilih
+        Logger.d("DataSync", "service: ${service.serviceName} - quantity ${service.serviceQuantity} - index: $index - addCount: $addCount")
         if (!addCount) {
             sharedReserveViewModel.removeItemSelectedByName(service.serviceName, service.serviceQuantity == 0)
             if (service.serviceQuantity == 0) {
