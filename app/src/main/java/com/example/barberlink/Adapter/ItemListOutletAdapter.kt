@@ -238,13 +238,15 @@ class ItemListOutletAdapter(
                         callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
                         return@setOnCheckedChangeListener
                     }
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) {
+                        switch2.isChecked = !isChecked
+                        switch2.jumpDrawablesToCurrentState()
+                        return@setOnCheckedChangeListener
+                    }
                     // hmmmmm switch
                     // Jika sedang dalam proses restore, abaikan listener
                     if (isRestoring) return@setOnCheckedChangeListener
-//                    outlet.openStatus = isChecked
-//                    recyclerView?.post {
-//                        notifyItemChanged(adapterPosition)
-//                    }
 
                     // Jika kondisi di atas tidak terpenuhi, lanjutkan ke fungsi berikutnya
                     setStatusOutlet(isChecked, binding)
@@ -271,7 +273,7 @@ class ItemListOutletAdapter(
                             Log.d("SwitchAnomali", "FilteredEmployeeSize: ${filteredEmployeeList.size} || hasAvailableEmployee: $hasAvailableEmployee")
 
                             if (hasAvailableEmployee && isSameDay) {
-                                listener.onQueueResetRequested(outlet, adapterPosition)
+                                listener.onQueueResetRequested(outlet, pos)
                                 skip = true // Hentikan eksekusi lebih lanjut
                             }
 
@@ -282,7 +284,7 @@ class ItemListOutletAdapter(
                     // save data
                     if (!skip) {
                         Log.d("SwitchAnomali", "!Skip $isChecked")
-                        updateStatus.updateOutletStatus(outlet, isChecked, adapterPosition)
+                        updateStatus.updateOutletStatus(outlet, isChecked, pos)
                     }
                 }
 
@@ -390,11 +392,14 @@ class ItemListOutletAdapter(
                         }) return@setOnClickListener
                     // hmmmmm
                     // Generate or revoke code access
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     val code = tvAksesCode.text.toString().trim()
                     val result = CodeGeneratorUtils.generateRandomCode()
                     setButtonAccessCode(result, Timestamp.now(), binding)
                     // saveData
-                    updateCode.updateOutletAccessCode(outlet, result, code, adapterPosition)
+                    updateCode.updateOutletAccessCode(outlet, result, code, pos)
                 }
 
             }

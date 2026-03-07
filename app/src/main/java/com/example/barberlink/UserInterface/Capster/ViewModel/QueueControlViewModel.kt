@@ -211,6 +211,9 @@ class QueueControlViewModel(
     private val _currentReservationData = MutableLiveData<ReservationData?>().apply { value = null }
     val currentReservationData: LiveData<ReservationData?> = _currentReservationData
 
+    private val _userCustomerData = MutableLiveData<UserCustomerData?>().apply { value = null }
+    val userCustomerData: LiveData<UserCustomerData?> = _userCustomerData
+
     sealed class ResultState {
         data class Triggered(val data: ReservationData, val previousStatus: String, val showSnackbar: Boolean): ResultState()
         data class Success(val data: ReservationData, val previousStatus: String, val showSnackbar: Boolean, val task: FirestoreResult<Unit>): ResultState()
@@ -253,6 +256,12 @@ class QueueControlViewModel(
     fun getDontUpdateState(): Boolean {
         return runBlocking {
             dontUpdateCurrentQueue
+        }
+    }
+
+    fun setUserCustomerData(userData: UserCustomerData?) {
+        viewModelScope.launch {
+            _userCustomerData.value = userData
         }
     }
 
@@ -975,7 +984,7 @@ class QueueControlViewModel(
         Log.d("ObjectReferences", "neptunes 4")
     }
 
-    fun setupAfterGetAllData(status: Boolean) {
+    fun setupAfterGetAllData(status: Boolean?) {
         viewModelScope.launch {
             _setupAfterGetAllData.value = status
         }
@@ -1156,10 +1165,13 @@ class QueueControlViewModel(
         }
     }
 
-    fun clearState() {
+    fun clearState(isOrientasiChange: Boolean) {
         viewModelScope.launch {
-            _isLoadingScreen.value = false
-            _isShowSnackBar.value = false
+            if (!isOrientasiChange) {
+                Logger.d("QueueControlLoading", "clearState onDestroy")
+                _isLoadingScreen.value = false
+            }
+            if (!isOrientasiChange) _isShowSnackBar.value = false
             //_setupDropdownFilter.value = null
             //_setupDropdownFilterWithNullState.value = null
             _dataServiceOriginState.value = null

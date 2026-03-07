@@ -269,7 +269,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
         if (savedInstanceState != null) displayDataOrientationChange()
 
-        bonEmployeeViewModel.snackBarMessage.observe(this) { showSnackBar(it) }
+        bonEmployeeViewModel.snackBarMessage.observe(this) { if (!isChangingConfigurations) showSnackBar(it) }
 
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
@@ -471,7 +471,6 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
 
         recyclerView.post {
-
             val itemCount = listBonAdapter.itemCount
             val positionToScroll = if (listBonAdapter.getIsShimmer()) {
                 minOf(listBonAdapter.getLastScrollPosition(), listBonAdapter.getShimmerItemCount() - 1)

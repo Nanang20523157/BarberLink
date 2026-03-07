@@ -122,13 +122,13 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             isPasswordValid = savedInstanceState.getBoolean("is_password_valid", false)
             textErrorForEmail = savedInstanceState.getString("text_error_for_email", "undefined") ?: "undefined"
             textErrorForPassword = savedInstanceState.getString("text_error_for_password", "undefined") ?: "undefined"
-            originPageFrom = savedInstanceState.getString("origin_page_key", "") ?: ""
+            originPageFrom = savedInstanceState.getString("origin_page_from", "") ?: ""
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             loginType = loginPageViewModel.getLoginType()
         } else {
-            // BISA DARI SELECTUSERROLEPAGE ATAU SIGNUPSTEPONE
-            originPageFrom = intent.getStringExtra("origin_page_key").toString()
+            // BISA DARI SELECTUSERROLEPAGE ATAU SIGNUPSTEPONE ATAU SIGNUPSUCCESS
             loginType = intent.getStringExtra("login_type_key") ?: ""
+            originPageFrom = intent.getStringExtra("origin_page_key").toString()
             // SignUpSuccess
             @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -327,7 +327,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_password_valid", isPasswordValid)
         outState.putString("text_error_for_email", textErrorForEmail)
         outState.putString("text_error_for_password", textErrorForPassword)
-        outState.putString("origin_page_key", originPageFrom)
+        outState.putString("origin_page_from", originPageFrom)
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
@@ -505,7 +505,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 //            currentView = view
             if (!isNavigating) {
                 isNavigating = true
-                val intent = Intent(context, destination)
+                val intentToDestination = Intent(context, destination)
 
                 userUID?.let {
                     val intentToLandingPage = Intent(context, LandingPage::class.java).apply {
@@ -519,17 +519,18 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     }
                     startActivity(intentToSelectUserRoles)
 
-                    if (loginPageViewModel.getLoginType() == "Login as Admin") intent.putExtra(ADMIN_DATA_KEY, loginPageViewModel.getAdminData())
-                    else intent.putExtra(EMPLOYEE_DATA_KEY, loginPageViewModel.getEmployeeData())
-                    startActivity(intent)
+                    if (loginPageViewModel.getLoginType() == "Login as Admin") intentToDestination.putExtra(ADMIN_DATA_KEY, loginPageViewModel.getAdminData())
+                    else intentToDestination.putExtra(EMPLOYEE_DATA_KEY, loginPageViewModel.getEmployeeData())
+                    startActivity(intentToDestination)
                     overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
                     finish()
                 } ?: run {
+                    // kode dibawah ini sepertinya udah gak di pakai karena sudah di ganti dengan onBackPress
                     if (destination == SignUpStepOne::class.java) {
-                        intent.putExtra(ORIGIN_PAGE_KEY, "LoginAdminPage")
-                        intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                        intentToDestination.putExtra(ORIGIN_PAGE_KEY, "LoginAdminPage")
+                        intentToDestination.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     }
-                    startActivity(intent)
+                    startActivity(intentToDestination)
                     overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
                 }
             } else return@setDynamicWindowAllCorner

@@ -14,11 +14,11 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.barberlink.DataClass.ReservationData
-import com.example.barberlink.Factory.ShareDataViewModelFactory
-import com.example.barberlink.Helper.Injection
+import com.example.barberlink.Factory.BookingViewModelFactory
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.BookingSessionManager
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
 import com.example.barberlink.Utils.NumberUtils
@@ -27,7 +27,9 @@ import com.example.barberlink.databinding.ActivityCompleteOrderPageBinding
 class CompleteOrderPage : AppCompatActivity() {
     private lateinit var binding: ActivityCompleteOrderPageBinding
     private val completePageViewModel: SharedReserveViewModel by viewModels {
-        Injection.provideViewModelFactory()
+        BookingViewModelFactory(
+            BookingSessionManager.getRepository()
+        )
     }
     private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var userReservationDataData: ReservationData
@@ -167,7 +169,7 @@ class CompleteOrderPage : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        completePageViewModel.clearAllData()
+        BookingSessionManager.clearSession()
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

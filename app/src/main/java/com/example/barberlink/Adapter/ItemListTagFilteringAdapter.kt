@@ -69,7 +69,10 @@ class ItemListTagFilteringAdapter(
                 root.setOnClickListener {
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
                     // hmmmmm
-                    setActiveTag.setActiveTagFilterCategory(adapterPosition)
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    setActiveTag.setActiveTagFilterCategory(pos)
                     itemClicked.onItemClickListener(item)
                 }
             }

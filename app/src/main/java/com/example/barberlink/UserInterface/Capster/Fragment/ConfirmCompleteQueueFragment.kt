@@ -253,7 +253,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             parentFragmentManager.popBackStack()
         }
 
-        confirmQueueViewModel.snackBarInputMessage.observe(this) { showSnackBar(it)  }
+        confirmQueueViewModel.snackBarInputMessage.observe(this) { if (!requireActivity().isChangingConfigurations) showSnackBar(it)  }
 
         Log.d("CheckPion", "isOrientationChanged = AA")
     }

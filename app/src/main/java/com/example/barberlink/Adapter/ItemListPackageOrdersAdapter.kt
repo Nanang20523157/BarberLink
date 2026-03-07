@@ -150,31 +150,40 @@ class ItemListPackageOrdersAdapter(
                 btnDefault.visibility = if (packageBundling.defaultItem) View.VISIBLE else View.GONE
 
                 btnSelectOrder.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     packageBundling.bundlingQuantity = 1
-                    notifyItemChanged(adapterPosition)
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true, null)
+                    notifyItemChanged(pos)
+                    itemClicked.onItemClickListener(packageBundling, pos, addCount = true, null)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     packageBundling.bundlingQuantity++
-                    notifyItemChanged(adapterPosition)
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true, null)
+                    notifyItemChanged(pos)
+                    itemClicked.onItemClickListener(packageBundling, pos, addCount = true, null)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
                 minusButton.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     val myData = currentList.toMutableList()
                     if (packageBundling.bundlingQuantity == 1) {
                         packageBundling.bundlingQuantity = 0
-                        myData.removeAt(adapterPosition)
+                        myData.removeAt(pos)
                         submitList(myData)
-                        notifyItemRangeChanged(adapterPosition, myData.size)
+                        notifyItemRangeChanged(pos, myData.size)
                     } else if (packageBundling.bundlingQuantity > 1) {
                         packageBundling.bundlingQuantity--
-                        notifyItemChanged(adapterPosition)
+                        notifyItemChanged(pos)
                     }
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = false, myData)
+                    itemClicked.onItemClickListener(packageBundling, pos, addCount = false, myData)
                 }
 
                 if (disableCounting) {

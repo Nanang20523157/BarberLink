@@ -93,10 +93,10 @@ class ItemListExpandQueueAdapter(
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val reservation = getItem(position)
-            (holder as ItemViewHolder).bind(reservation, position)
+            (holder as ItemViewHolder).bind(reservation)
         } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
             // Call bind for ShimmerViewHolder
-            (holder as ShimmerViewHolder).bind(ReservationData(), position) // Pass a dummy Reservation if needed
+            (holder as ShimmerViewHolder).bind(ReservationData()) // Pass a dummy Reservation if needed
         }
     }
 
@@ -140,7 +140,8 @@ class ItemListExpandQueueAdapter(
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListQueueCustomersBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(reservationData: ReservationData, position: Int) {
+
+        fun bind(reservationData: ReservationData) {
             shimmerViewList.add(binding.shimmerTvQueueNumber)
             shimmerViewList2.add(binding.shimmerLlGender)
             shimmerViewList3.add(binding.shimmerTvCustomerName)
@@ -162,7 +163,7 @@ class ItemListExpandQueueAdapter(
             }
 
             // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
-            val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
+            val formattedNumber = convertToFormattedString(bindingAdapterPosition + 1) // +1 agar posisi dimulai dari 1
             binding.tvQueueNumberPrefix.text = formattedNumber
         }
     }
@@ -170,7 +171,7 @@ class ItemListExpandQueueAdapter(
     inner class ItemViewHolder(private val binding: ItemListQueueCustomersAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(reservationData: ReservationData, position: Int) {
+        fun bind(reservationData: ReservationData) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
             if (shimmerViewList2.isNotEmpty()) shimmerViewList2.clear()
             if (shimmerViewList3.isNotEmpty()) shimmerViewList3.clear()
@@ -183,7 +184,7 @@ class ItemListExpandQueueAdapter(
                 tvCurrentQueueNumber.isSelected = true
                 tvCustomerName.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
-                val formattedNumber = convertToFormattedString(position + 1) // +1 agar posisi dimulai dari 1
+                val formattedNumber = convertToFormattedString(bindingAdapterPosition + 1) // +1 agar posisi dimulai dari 1
                 tvQueueNumberPrefix.text = formattedNumber
                 tvCurrentQueueNumber.text = reservationData.queueNumber
                 tvCustomerName.text = reservationData.dataCreator?.userFullname
@@ -234,7 +235,10 @@ class ItemListExpandQueueAdapter(
                 root.setOnClickListener {
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
                     // hmmmmm???
-                    itemClicked.onItemClickListener(adapterPosition)
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    itemClicked.onItemClickListener(pos)
                 }
             }
         }

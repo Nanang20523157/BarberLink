@@ -372,7 +372,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             cd200000.setOnClickListener(this@FormInputBonFragment)
         }
 
-        bonEmployeeViewModel.snackBarInputMessage.observe(this) { showSnackBar(it)  }
+        bonEmployeeViewModel.snackBarInputMessage.observe(this) { if (!requireActivity().isChangingConfigurations) showSnackBar(it)  }
 
     }
 

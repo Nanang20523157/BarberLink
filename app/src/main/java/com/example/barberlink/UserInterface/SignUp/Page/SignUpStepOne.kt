@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
+import android.os.PersistableBundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -98,6 +99,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
                 ?: "undefined"
             isBtnEnableState = savedInstanceState.getBoolean("is_btn_enable_state", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            originPageFrom = savedInstanceState.getString("origin_page_from") ?: ""
         } else {
             // BISA DARI LOGINPAGE ATAU LANDINGPAGE
             originPageFrom = intent.getStringExtra("origin_page_key").toString()
@@ -163,8 +165,8 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         super.onNewIntent(intent)
         intent?.let {
             // Tangani extra baru kalau perlu
-            originPageFrom = intent.getStringExtra("origin_page_from").toString()
-            // ...
+            originPageFrom = intent.getStringExtra("origin_page_key").toString()
+            // kode ini sepertinya sudah tidak dipakai lagi awalnya untuk menangkan iuntent dari LoginAdminPage ?: run {...} dengan flag Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
         }
     }
 
@@ -197,6 +199,7 @@ class SignUpStepOne : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_btn_enable_state", isBtnEnableState)
         outState.putBoolean("is_handling_back", isHandlingBack)
         outState.putString("user_number_input", binding.etPhoneNumber.text.toString())
+        outState.putString("origin_page_from", originPageFrom)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

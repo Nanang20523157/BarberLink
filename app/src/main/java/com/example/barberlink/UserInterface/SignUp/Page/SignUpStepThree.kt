@@ -455,6 +455,9 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             password.length < 8 -> {
                 textErrorForPassword = getString(R.string.password_is_too_short)
                 binding.wrapperPassword.error = textErrorForPassword
+                if (confirmPassword.isNotEmpty()) {
+                    isConfirmPasswordValid = validateConfirmPasswordInput()
+                }
                 false
             }
             else -> {

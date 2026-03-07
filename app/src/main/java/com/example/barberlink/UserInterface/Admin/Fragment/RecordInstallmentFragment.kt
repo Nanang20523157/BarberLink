@@ -277,7 +277,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
         binding.btnSave.setOnClickListener(this@RecordInstallmentFragment)
 
-        approveRejectViewModel.snackBarInputMessage.observe(this) { showSnackBar(it) }
+        approveRejectViewModel.snackBarInputMessage.observe(this) { if (!requireActivity().isChangingConfigurations) showSnackBar(it) }
     }
 
     private fun setInitialInputForm() {

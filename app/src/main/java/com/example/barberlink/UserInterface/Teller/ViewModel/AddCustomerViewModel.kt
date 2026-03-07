@@ -336,7 +336,9 @@ class AddCustomerViewModel(
                 isSaveData = false
             }
         } catch (e: Exception) {
-            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat sinkronisasi data pelanggan!"))
+            _addCustomerResult.postValue(ResultState.RetryProcess("CustomerRelatedData", customerRef))
+            isSaveData = false
+            //_addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat sinkronisasi data pelanggan!"))
             // isSaveData = false lewat setter viewModel yang di panggil di fragment
         }
     }
@@ -608,7 +610,9 @@ class AddCustomerViewModel(
                 isSaveData = false
             }
         } catch (e: Exception) {
-            _addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat sinkronisasi data pelanggan!"))
+            _addCustomerResult.postValue(ResultState.RetryProcess("AdminEmployeeRole", ""))
+            isSaveData = false
+            //_addCustomerResult.postValue(ResultState.Failure("Terjadi kesalahan saat sinkronisasi data pelanggan!"))
             // isSaveData = false lewat setter viewModel yang di panggil di fragment
         }
     }

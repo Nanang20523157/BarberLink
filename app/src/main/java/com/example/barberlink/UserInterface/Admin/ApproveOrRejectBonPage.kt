@@ -571,7 +571,6 @@ class ApproveOrRejectBonPage : AppCompatActivity(), View.OnClickListener, ItemLi
         val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
 
         recyclerView.post {
-
             val itemCount = listApprovalAdapter.itemCount
             val positionToScroll = if (listApprovalAdapter.getIsShimmer()) {
                 minOf(listApprovalAdapter.getLastScrollPosition(), listApprovalAdapter.getShimmerItemCount() - 1)

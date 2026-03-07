@@ -288,7 +288,10 @@ class ItemListApprovalBonAdapter(
                         )
                     }) return@setOnClickListener
                     // hmmmmm
-                    updateStatus.updateBonStatus(bonData, "approved", true, adapterPosition)
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    updateStatus.updateBonStatus(bonData, "approved", true, pos)
                 }
 
                 btnReject.setOnClickListener {
@@ -307,7 +310,10 @@ class ItemListApprovalBonAdapter(
                         )
                     }) return@setOnClickListener
                     // hmmmmm
-                    updateStatus.updateBonStatus(bonData, "rejected", false, adapterPosition)
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    updateStatus.updateBonStatus(bonData, "rejected", false, pos)
                 }
 
                 btnRecordInstallment.setOnClickListener {
@@ -367,6 +373,12 @@ class ItemListApprovalBonAdapter(
                                     callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
                                     return@setOnCheckedChangeListener
                                 }
+                                val pos = bindingAdapterPosition
+                                if (pos == RecyclerView.NO_POSITION) {
+                                    switch2.isChecked = !isChecked
+                                    switch2.jumpDrawablesToCurrentState()
+                                    return@setOnCheckedChangeListener
+                                }
                                 // hmmmmm switch
                                 copyData = bonData.deepCopy(
                                     copyCreatorDetail = false,
@@ -391,7 +403,7 @@ class ItemListApprovalBonAdapter(
                                     }
                                 }
 
-                                copyData?.let { updateReturn.updateReturnStatus(it, bonData, isChecked, bonData.returnStatus, adapterPosition) }
+                                copyData?.let { updateReturn.updateReturnStatus(it, bonData, isChecked, bonData.returnStatus, pos) }
                             }
                         }
                         "rejected" -> {

@@ -318,7 +318,7 @@ class AddNewCustomerFragment : DialogFragment() {
                         else -> { null }
                     }
                     //Toast.makeText(context, "Terjadi kesalahan, silahkan coba lagi nanti!!!", Toast.LENGTH_SHORT).show()
-                    shareReserveViewModel.showSnackBarToSynchronization("Terjadi kesalahan saat sinkronisasi data pelanggan!")
+                    shareReserveViewModel.showSnackBarToSynchronization("Proses Syncrhonization Data Gagal!!!")
 //                    addCustomerViewModel.setAddCustomerResult(null) >>> diganti di listener
                 }
                 else -> {
@@ -390,7 +390,7 @@ class AddNewCustomerFragment : DialogFragment() {
             }
         }
 
-        shareReserveViewModel.snackBarMessage.observe(this) { showSnackBar(it)  }
+        shareReserveViewModel.snackBarMessage.observe(this) { if (!requireActivity().isChangingConfigurations) showSnackBar(it)  }
         // ????
         Log.d("InitialCheckBox", "CheckBox: $checkBoxIsCheck")
         //Log.d("InitialCheckBox", "ButtonStatus: $buttonStatus")
@@ -574,7 +574,8 @@ class AddNewCustomerFragment : DialogFragment() {
                     "Kembalikan nilai gander dari pengguna" -> {
                         isShowSnackbarReplacement = false
                         setUserCustomerGender(userGender)
-                        resetInputForm(false)
+                        resetInputForm(true)
+                        addCustomerViewModel.setAddCustomerResult(null)
                     }
                 }
             }
@@ -598,13 +599,15 @@ class AddNewCustomerFragment : DialogFragment() {
         return object : Snackbar.Callback() {
             override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
                 super.onDismissed(transientBottomBar, event)
-                if (event != DISMISS_EVENT_ACTION && event != DISMISS_EVENT_MANUAL) {
-                    Log.d("Testing1", "Snackbar dismissed")
-                    if (message == "Proses Syncrhonization Data Gagal!!!") addCustomerViewModel.setAddCustomerResult(null)
-                }
+                // action user && mabual code
                 if (message == "Kembalikan inputan pengguna ke nilai awal") {
                     Log.d("InputName", "T1")
                     shareReserveViewModel.showSnackBarToAll("", "", "")
+                }
+                if (event != DISMISS_EVENT_ACTION && event != DISMISS_EVENT_MANUAL) {
+                    Log.d("Testing1", "Snackbar dismissed")
+                    // if (message == "Proses Syncrhonization Data Gagal!!!")
+                    addCustomerViewModel.setAddCustomerResult(null)
                 }
             }
 
@@ -1070,12 +1073,6 @@ class AddNewCustomerFragment : DialogFragment() {
     private fun resetInputForm(replacingInput: Boolean) {
         Log.d("TriggerUU", "X-PX")
         binding.progressBar.visibility = View.GONE
-        addCustomerViewModel.setButtonStatus("Add")
-        updateMargins()
-        binding.accountCard.visibility = View.GONE
-        binding.lineCard.visibility = View.GONE
-        binding.btnSave.text = getString(R.string.btn_add)
-        addCustomerViewModel.resetObtainedData(binding.genderDropdown.text.toString().trim())
         currentSnackbar?.dismiss()
 
         if (replacingInput && isShowSnackbarReplacement) {
@@ -1091,7 +1088,8 @@ class AddNewCustomerFragment : DialogFragment() {
                 shareReserveViewModel.showSnackBarToAll(
                     userReplacedName,
                     userReplacedGender,
-                    "Kembalikan inputan pengguna ke nilai awal")
+                    "Kembalikan inputan pengguna ke nilai awal"
+                )
             } else {
                 Log.d("InputName", "userReplacedName: $userReplacedName || textInputName: $textInputName || userReplacedGender: $userReplacedGender || textInputGender: $textInputGender")
                 shareReserveViewModel.showSnackBarToAll("", "", "")
@@ -1101,8 +1099,22 @@ class AddNewCustomerFragment : DialogFragment() {
             shareReserveViewModel.showSnackBarToAll("", "", "")
         }
 
+        val resetView = {
+            // kalok pingin AddNewCustomerFragment tidak mngupdate data
+            // apapun karena ia tidak seharusnya menjadi form update keluarkan kode2 dibawah ini
+            // atau tambahin else xixixi
+            addCustomerViewModel.setButtonStatus("Add")
+            updateMargins()
+            binding.accountCard.visibility = View.GONE
+            binding.lineCard.visibility = View.GONE
+            binding.btnSave.text = getString(R.string.btn_add)
+            addCustomerViewModel.resetObtainedData(binding.genderDropdown.text.toString().trim())
+            setMarginForCheckBox(-10)
+        }
         binding.checkBoxData.isChecked = false
-        setMarginForCheckBox(-10)
+        // if diaktifin kalok ngijinin update lewat form input AddNewCustomerFragment
+        if (!replacingInput) resetView()
+        else resetView()
         // setValidInput(binding.wrapperPhone, binding.etPhone)
         addCustomerViewModel.setIsSaveData(false)
     }
@@ -1159,6 +1171,8 @@ class AddNewCustomerFragment : DialogFragment() {
             } else {
                 Log.d("InputName", "T3")
                 shareReserveViewModel.showSnackBarToAll("", "", "")
+                // reset disini karena tidak menampilkan snackbar
+                addCustomerViewModel.setAddCustomerResult(null)
             }
         }
     }

@@ -37,11 +37,11 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserEmployeeData
-import com.example.barberlink.Factory.ShareDataViewModelFactory
-import com.example.barberlink.Helper.Injection
+import com.example.barberlink.Factory.BookingViewModelFactory
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.BookingSessionManager
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.SwitchAvailabilityFragment
@@ -80,7 +80,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private lateinit var binding: ActivityBarberBookingPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val bookingPageViewModel: SharedReserveViewModel by viewModels {
-        Injection.provideViewModelFactory()
+        BookingViewModelFactory(
+            BookingSessionManager.getRepository()
+        )
     }
     private val toastViewModel: ToastViewModel by viewModels()
     private val debounce by lazy { ScopedUniversalDebounce() }
@@ -1965,7 +1967,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         if (isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        bookingPageViewModel.clearAllData()
+        BookingSessionManager.clearSession()
 //        Toast.makeText(this, "BBP ??D22 order", Toast.LENGTH_SHORT).show()
     }
 

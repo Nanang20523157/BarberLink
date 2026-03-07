@@ -408,6 +408,8 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                             .sorted() // Urutkan nilai
                             .map { it.toString().padStart(2, '0') } // Format nilai sebagai string
                         animateLoopingCurrentQueue(sortedQueue)
+                    } else {
+                        binding.realLayout.tvCurrentQueue.alpha = 1f
                     }
                 } else {
                     displayCapsterList(true, shimmerList)

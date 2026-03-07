@@ -134,6 +134,7 @@ class ItemListPackageBookingAdapter(
 
         fun bind(packageBundling: BundlingPackage) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             Log.d("ScanAll", "G3")
             with (binding) {
                 tvPackageTitle.isSelected = true
@@ -150,24 +151,33 @@ class ItemListPackageBookingAdapter(
                 btnDefault.visibility = if (packageBundling.defaultItem) View.VISIBLE else View.GONE
 
                 btnSelectOrder.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     packageBundling.bundlingQuantity = 1
-                    notifyItemChanged(adapterPosition)
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true)
+                    notifyItemChanged(pos)
+                    itemClicked.onItemClickListener(packageBundling, pos, addCount = true)
                 }
 
                 // Ketika tombol plus ditekan, tambahkan quantity
                 plusButton.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     packageBundling.bundlingQuantity++
-                    notifyItemChanged(adapterPosition)
-                    itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = true)
+                    notifyItemChanged(pos)
+                    itemClicked.onItemClickListener(packageBundling, pos, addCount = true)
                 }
 
                 // Ketika tombol minus ditekan, kurangi quantity, pastikan tidak menjadi negatif
                 minusButton.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     if (packageBundling.bundlingQuantity > 0) {
                         packageBundling.bundlingQuantity--
-                        notifyItemChanged(adapterPosition)
-                        itemClicked.onItemClickListener(packageBundling, adapterPosition, addCount = false)
+                        notifyItemChanged(pos)
+                        itemClicked.onItemClickListener(packageBundling, pos, addCount = false)
                     }
                 }
 

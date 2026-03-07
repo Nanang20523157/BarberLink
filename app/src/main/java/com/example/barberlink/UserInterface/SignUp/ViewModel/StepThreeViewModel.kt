@@ -13,6 +13,7 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
 import com.example.barberlink.Network.NetworkMonitor
+import com.example.barberlink.Utils.Logger
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.EmailAuthProvider
@@ -152,7 +153,7 @@ class StepThreeViewModel(
                 return@launch
             }
 
-            _registerResult.postValue(ResultState.ShowToast("Menginisiasi akun barbershop...", false))
+            _registerResult.value = ResultState.ShowToast("Menginisiasi akun barbershop...", false)
 
             try {
                 auth.createUserWithEmailAndPassword(email, password)
@@ -168,11 +169,11 @@ class StepThreeViewModel(
                                 _registerResult.postValue(ResultState.Failure("Gagal menginisiasi akun barbershop!", "RETRIEVE_UID"))
                             }
                         } else {
-                            _registerResult.postValue(ResultState.ShowToast( "Gagal menginisiasi akun barbershop!", true))
+                            _registerResult.value = ResultState.ShowToast( "Gagal menginisiasi akun barbershop!", true)
                         }
                     }
             } catch (e: Exception) {
-                _registerResult.postValue(ResultState.ShowToast("Gagal menginisiasi akun barbershop!", true))
+                _registerResult.value = ResultState.ShowToast("Gagal menginisiasi akun barbershop!", true)
             }
             // Cek apakah koneksi internet benar-benar dapat mengakses server
 //        InternetCheck { internet ->
@@ -199,7 +200,7 @@ class StepThreeViewModel(
                 return@launch
             }
 
-            _registerResult.postValue(ResultState.ShowToast("Menyiapkan data yang dibutuhkan...", false))
+            _registerResult.value = ResultState.ShowToast("Menyiapkan data yang dibutuhkan...", false)
 
             try {
                 if ((userAdminCopy.email == userAdminData.email) && (userAdminCopy.password == userAdminData.password)) {
@@ -272,8 +273,9 @@ class StepThreeViewModel(
                 return@launch
             }
 
+            _registerResult.value = ResultState.ShowToast("Membuat akun barbershop!", false)
+
             imageUri?.let {
-                _registerResult.postValue(ResultState.ShowToast("Membuat akun barbershop!", false))
 //            Toast.makeText(this, "Uploading Image...", Toast.LENGTH_SHORT).show()
                 // Upload image to Firebase Storage
                 try {
@@ -462,6 +464,7 @@ class StepThreeViewModel(
                 .awaitWriteWithOfflineFallback(tag = "UpdateCustomerPhotoProfile")
         }
 
+        Logger.d("SignUP", "isSuccess updateCustomerPhotoProfile: ${task.isSuccessful}")
         return !task.isSuccessful
     }
 
@@ -475,6 +478,7 @@ class StepThreeViewModel(
                 .awaitWriteWithOfflineFallback(tag = "UpdateEmployeePhotoProfile")
         }
 
+        Logger.d("SignUP", "isSuccess updateEmployeePhotoProfile: ${task.isSuccessful}")
         return !task.isSuccessful
     }
 
@@ -497,6 +501,7 @@ class StepThreeViewModel(
                 .awaitWriteWithOfflineFallback(tag = "UpdateUserRoles")
         }
 
+        Logger.d("SignUP", "isSuccess updateOrAddUserRoles: ${task.isSuccessful}")
         return !task.isSuccessful
     }
 
@@ -533,7 +538,7 @@ class StepThreeViewModel(
                 // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
                 // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
                 // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
-                val allSuccess = results.all { it }
+                val allSuccess = results.all { !it }
 
                 if (allSuccess) {
                     val user = auth.currentUser

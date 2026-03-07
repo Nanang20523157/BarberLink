@@ -155,13 +155,14 @@ class ItemListCollapseQueueAdapter(
 
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutListNumberQueueBinding) :
         RecyclerView.ViewHolder(binding.root) {
+
         fun bind(reservationData: ReservationData) {
             shimmerViewList.add(binding.shimmerTvQueueNumber)
             if (!binding.shimmerTvQueueNumber.isShimmerStarted) {
                 binding.shimmerTvQueueNumber.startShimmer()
             }
             // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
-            val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
+            val formattedNumber = convertToFormattedString(bindingAdapterPosition + 1)
             binding.tvQueueNumberPrefix.text = binding.root.context.getString(R.string.template_number_prefix, formattedNumber)
             Log.d("CheckPrefix", "bind: ${binding.tvQueueNumberPrefix.text}")
         }
@@ -176,7 +177,7 @@ class ItemListCollapseQueueAdapter(
             with (binding) {
                 binding.tvCurrentQueueNumber.isSelected = true
                 // Menggunakan fungsi convertToFormattedString untuk menampilkan nomor antrian
-                val formattedNumber = convertToFormattedString(adapterPosition + 1) // +1 agar posisi dimulai dari 1
+                val formattedNumber = convertToFormattedString(bindingAdapterPosition + 1) // +1 agar posisi dimulai dari 1
                 binding.tvQueueNumberPrefix.text = root.context.getString(R.string.template_number_prefix, formattedNumber)
                 binding.tvCurrentQueueNumber.text = reservationData.queueNumber
 //                tvQueueNumber.text = reservation.queueNumber.toString()
@@ -212,7 +213,10 @@ class ItemListCollapseQueueAdapter(
                         )
                     }) return@setOnClickListener
                     // hmmmmm???
-                    itemClicked.onItemClickListener(adapterPosition)
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    itemClicked.onItemClickListener(pos)
 //                    if (!blockAllUserClickAction) {
 //                    } else callbackToast.displayThisToast("Tolong tunggu sampai proses selesai!!!", true)
                 }

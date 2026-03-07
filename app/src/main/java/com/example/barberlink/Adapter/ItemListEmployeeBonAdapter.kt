@@ -326,7 +326,10 @@ class ItemListEmployeeBonAdapter(
                         )
                     }) return@setOnClickListener
                     // hmmmmm
-                    val isLastItem = adapterPosition == currentList.lastIndex
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
+                    val isLastItem = pos == currentList.lastIndex
                     deleteBon.deleteBonItem(bonData, isLastItem)
                 }
 

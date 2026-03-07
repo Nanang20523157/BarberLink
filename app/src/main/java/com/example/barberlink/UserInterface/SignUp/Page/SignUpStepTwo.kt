@@ -71,7 +71,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
     private var isShowDialogAccountExist = false
     private var textErrorForEmail: String = "undefined"
     private var textErrorForBarberName: String = "undefined"
-    private var uid: String = ""
+    private var existingUID: String = ""
     private var existingEmail: String = ""
     private var isProcessError = false
     private var retryStep = ""
@@ -126,7 +126,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 ?: "undefined"
             textErrorForEmail = savedInstanceState.getString("text_error_for_email", "undefined") ?: "undefined"
             isBtnEnableState = savedInstanceState.getBoolean("is_btn_enable_state")
-            uid = savedInstanceState.getString("uid") ?: ""
+            existingUID = savedInstanceState.getString("existing_uid") ?: ""
             existingEmail = savedInstanceState.getString("existing_email") ?: ""
             isProcessError = savedInstanceState.getBoolean("is_process_error")
             retryStep = savedInstanceState.getString("retry_step") ?: ""
@@ -180,7 +180,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 intent.getParcelableExtra(SignUpStepOne.ADMIN_KEY, UserAdminData::class.java)?.let {
                     stepTwoViewModel.setUserAdminData(it)
                     val userAdminData = it
-                    uid = it.uid
+                    existingUID = it.uid
                     userAdminData.email.let { email ->
                         this.existingEmail = email
                         binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
@@ -210,7 +210,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                 intent.getParcelableExtra<UserAdminData>(SignUpStepOne.ADMIN_KEY)?.let {
                     stepTwoViewModel.setUserAdminData(it)
                     val userAdminData = it
-                    uid = it.uid
+                    existingUID = it.uid
                     userAdminData.email.let { email ->
                         this.existingEmail = email
                         binding.etBarbershopEmail.text = Editable.Factory.getInstance().newEditable(email)
@@ -239,7 +239,13 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
             }
         }
 
-        if (isShowDialogAccountExist) showConfirmationWindow()
+        if (isShowDialogAccountExist) {
+            if (!isFinishing && !isDestroyed) {
+                binding.root.post {
+                    showConfirmationWindow()
+                }
+            }
+        }
         supportFragmentManager.setFragmentResultListener("image_picker_request", this) { _, bundle ->
             val result = bundle.getString("image_uri")
             result?.let {
@@ -289,11 +295,17 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                     stepTwoViewModel.setRegisterResult(null)
                 }
                 is StepTwoViewModel.ResultState.ShowToast -> {
-                    if (result.message.isNotEmpty()) Toast.makeText(this@SignUpStepTwo, result.message, Toast.LENGTH_SHORT).show()
+                    Logger.d("SignUPToast", "???")
+                    if (result.message.isNotEmpty()) {
+                        Logger.d("SignUPToast", "showToast: ${result.message}")
+                        Toast.makeText(this@SignUpStepTwo, result.message, Toast.LENGTH_SHORT).show()
+                    }
                     if (result.hideLoading) {
+                        Logger.d("SignUPToast", "111")
                         binding.progressBar.visibility = View.GONE
                         stepTwoViewModel.setRegisterResult(null)
                     } else {
+                        Logger.d("SignUPToast", "222")
                         stepTwoViewModel.setRegisterResult(StepTwoViewModel.ResultState.Loading)
                     }
                 }
@@ -374,7 +386,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
         outState.putBoolean("is_show_dialog_account_exist", isShowDialogAccountExist)
         outState.putString("text_error_for_barber_name", textErrorForBarberName)
         outState.putString("text_error_for_email", textErrorForEmail)
-        outState.putString("uid", uid)
+        outState.putString("existing_uid", existingUID)
         outState.putString("existing_email", existingEmail)
         outState.putBoolean("is_process_error", isProcessError)
         outState.putString("retry_step", retryStep)
@@ -420,6 +432,7 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
                                     Log.d("UAD", "$userAdminData")
 //                            userAdminData.ownerName = "Owner $barbershopName"
 
+                                    Logger.d("SignUP", "UID: ${userAdminData.uid}")
                                     if (userAdminData.uid.isNotEmpty()) showConfirmationWindow() else {
                                         stepTwoViewModel.checkEmailExists(userAdminData.email) { emailExists ->
                                             if (emailExists) {
@@ -738,7 +751,8 @@ class SignUpStepTwo : AppCompatActivity(), View.OnClickListener {
 
                 stepTwoViewModel.setUserAdminData(
                     stepTwoViewModel.getUserAdminData().apply {
-                        this.uid = if (email == existingEmail) uid else ""
+                        Logger.d("SignUP", "email: $email || existingEmail: $existingEmail || uid: ${this.uid} || existingUID: $existingUID")
+                        this.uid = if (email == existingEmail) existingUID else ""
                         this.email = binding.etBarbershopEmail.text.toString().trim()
                     }
                 )

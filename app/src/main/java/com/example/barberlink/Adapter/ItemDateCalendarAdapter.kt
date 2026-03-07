@@ -32,21 +32,24 @@ class ItemDateCalendarAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val item = getItem(position)
-        (holder as CalendarViewHolder).bind(item, position)
+        (holder as CalendarViewHolder).bind(item)
     }
 
     inner class CalendarViewHolder(private val binding: ItemDateCalendarBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(item: CalendarDateModel, position: Int) {
+        fun bind(item: CalendarDateModel) {
             with (binding) {
                 tvCalendarDay.text = item.calendarDay
                 tvCalendarDate.text = item.calendarDate
 
                 root.setOnClickListener {
+                    val pos = bindingAdapterPosition
+                    if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+
                     item.isSelected = !item.isSelected
-                    notifyItemChanged(position)
-                    itemClicked.onItemClick(item, position)
+                    notifyItemChanged(pos)
+                    itemClicked.onItemClick(item, pos)
                 }
 
                 if (item.isSelected) {

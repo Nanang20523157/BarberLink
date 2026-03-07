@@ -468,5 +468,18 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
     // 4) Counter di Barber Booking dan Review Tidak Sinkron
     // 5) Belum check add admin dan add customer
     // 6) Belum check manage antrian
+    // 7) Snackbar QueueControl saat orientasi change menghilang (umumnya seperti itusih kayaknya udah tampil langsung ke dissmiss karena onDestroy)
+    // 8) Saat loading di QueueControl dan kemudian orientasi change perubahan data tidak terupdate saat halaman selesai ter re create
 
+//    sealed class QueueItem {
+//        object Shimmer : QueueItem()
+//        data class Data(val reservation: ReservationData) : QueueItem()
+//    }
+
+//    override fun getItemViewType(position: Int): Int {
+//        return when (getItem(position)) {
+//            is QueueItem.Shimmer -> VIEW_TYPE_SHIMMER
+//            is QueueItem.Data -> VIEW_TYPE_ITEM
+//        }
+//    }
 }

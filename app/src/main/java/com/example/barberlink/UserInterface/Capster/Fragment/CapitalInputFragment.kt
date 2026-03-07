@@ -339,7 +339,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             cd200000.setOnClickListener(this@CapitalInputFragment)
         }
 
-        parentFragmentViewModel.snackBarInputMessage.observe(this) { showSnackBar(it)  }
+        parentFragmentViewModel.snackBarInputMessage.observe(this) { if (!requireActivity().isChangingConfigurations) showSnackBar(it)  }
     }
 
     // User Action

@@ -14,6 +14,7 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
 import com.example.barberlink.Network.NetworkMonitor
+import com.example.barberlink.Utils.Logger
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
@@ -126,6 +127,9 @@ class StepTwoViewModel(
             // CHECK APAKAH NAMA BARBERSHOP SUDAH TERDAFTAR
             try {
                 val formattedName = name.replace("\\s".toRegex(), "").lowercase()
+                Logger.d("CheckBarbershopName",
+                    "formattedName: $formattedName"
+                )
                 val snapshot = withContext(Dispatchers.IO) {
                     db.collection("barbershops")
                         .whereEqualTo("barbershop_identifier", formattedName)
@@ -135,13 +139,19 @@ class StepTwoViewModel(
 
                 var message = ""
                 if (!snapshot.isSuccessful) message = if (snapshot.displayMessage) snapshot.errorMessage.toString() else "Gagal memeriksa nama barbershop!"
-                _registerResult.postValue(ResultState.ShowToast(message, true))
+                _registerResult.value = ResultState.ShowToast(message, true)
+                Logger.d("CheckBarbershopName",
+                    "barbershopName: ${snapshot.data?.documents?.firstOrNull()?.toObject(UserAdminData::class.java)?.barbershopName ?: "null"}"
+                )
+                Logger.d("CheckBarbershopName",
+                    "size: ${snapshot.data?.documents?.size ?: "null"}"
+                )
                 if (snapshot.isSuccessful) {
-                    val document = snapshot.data as? List<*> ?: emptyList<String>()
+                    val document = snapshot.data?.documents as? List<*> ?: emptyList<String>()
                     callback(document.isNotEmpty())
                 }
             } catch (e: Exception) {
-                _registerResult.postValue(ResultState.ShowToast("Gagal memeriksa nama barbershop!", true))
+                _registerResult.value = ResultState.ShowToast("Gagal memeriksa nama barbershop!", true)
             }
         }
     }
@@ -164,14 +174,15 @@ class StepTwoViewModel(
                     .addOnCompleteListener { task ->
                         var message = ""
                         if (!task.isSuccessful) message = "Gagal memeriksa email barbershop!"
-                        _registerResult.postValue(ResultState.ShowToast(message, true))
+
+                        _registerResult.value = ResultState.ShowToast(message, true)
                         if (task.isSuccessful) {
                             val signInMethods = task.result?.signInMethods ?: emptyList<String>()
                             callback(signInMethods.isNotEmpty())
                         }
                     }
             } catch (e: Exception) {
-                _registerResult.postValue(ResultState.ShowToast("Gagal memeriksa email barbershop!", true))
+                _registerResult.value = ResultState.ShowToast("Gagal memeriksa email barbershop!", true)
             }
         }
     }
@@ -222,8 +233,9 @@ class StepTwoViewModel(
                     return@launch
                 }
 
+                _registerResult.value = ResultState.ShowToast("Membuat akun barbershop!", false)
+
                 imageUri?.let {
-                    _registerResult.postValue(ResultState.ShowToast("Membuat akun barbershop!", false))
 //                Toast.makeText(this, "Uplouding Image...", Toast.LENGTH_SHORT).show()
                     // Upload image to Firebase Storage
                     try {
@@ -490,7 +502,7 @@ class StepTwoViewModel(
                 // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
                 // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
                 // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
-                val allSuccess = results.all { it }
+                val allSuccess = results.all { !it }
 
                 if (allSuccess) {
                     // PENGECHECKAN MANUAL KARENA GAK OFFLINEAWARE

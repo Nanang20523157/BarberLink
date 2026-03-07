@@ -145,12 +145,17 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
                 }
                 startActivity(intentToSelectUserRoles)
 
-                // Navigasikan ke MainActivity tanpa menghapus SelectUserRolePage dari stack
-                val intentToMainActivity = Intent(this, destination).apply {
+                // Navigasikan ke MainActivity/LoginActivity tanpa menghapus SelectUserRolePage dari stack
+                val intentToDestination = Intent(this, destination).apply {
                     putExtra(ADMIN_DATA_KEY, userAdminData)
-                    putExtra(ORIGIN_FROM_SUCCESS_PAGE, true)
+                    if (destination == LoginAdminPage::class.java) {
+                        putExtra(LOGIN_TYPE_KEY, "Login as Admin")
+                        // Kalok SignUpSuccess kirim flag sebagai SelectUserRolePage
+                        putExtra(ORIGIN_PAGE_KEY, "SelectUserRolePage")
+                    }
+//                    putExtra(ORIGIN_FROM_SUCCESS_PAGE, true)
                 }
-                startActivity(intentToMainActivity)
+                startActivity(intentToDestination)
                 overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
 
                 finish() // Hapus aktivitas SignUpSuccess
@@ -176,6 +181,8 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
 
     companion object {
         const val ADMIN_DATA_KEY = "admin_key_step_three"
+        const val LOGIN_TYPE_KEY = "login_type_key"
+        const val ORIGIN_PAGE_KEY = "origin_page_key"
         const val ORIGIN_FROM_SUCCESS_PAGE = "origin_from_succes_page"
     }
 

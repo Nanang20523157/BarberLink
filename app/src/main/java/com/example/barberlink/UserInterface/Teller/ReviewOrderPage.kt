@@ -38,11 +38,12 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
 import com.example.barberlink.DataClass.UserData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Factory.BookingViewModelFactory
 import com.example.barberlink.Factory.DatabaseViewModelFactory
-import com.example.barberlink.Helper.Injection
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Manager.BookingSessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
@@ -69,7 +70,9 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
     private lateinit var binding: ActivityReviewOrderPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sharedReserveViewModel: SharedReserveViewModel by viewModels {
-        Injection.provideViewModelFactory()
+        BookingViewModelFactory(
+            BookingSessionManager.getRepository()
+        )
     }
     private val reviewOrderViewModel: ReviewOrderViewModel by viewModels {
         DatabaseViewModelFactory(db)
@@ -351,9 +354,11 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         sharedReserveViewModel.bundlingPackagesList.observe(this) { bundlingPackages ->
             Logger.d("DataSync", "bundlingPackagesList.observe updated: ${bundlingPackages.size} items")
             // Update the bundling adapter with the new list
-            bundlingAdapter.submitList(bundlingPackages.filter { it.bundlingQuantity > 0 })
+            val bundlingPackagesFiltered = bundlingPackages.filter { it.bundlingQuantity > 0 }
+            bundlingAdapter.submitList(bundlingPackagesFiltered)
             bundlingAdapter.notifyDataSetChanged()
-            binding.rlBundlings.visibility = if (bundlingPackages.isEmpty()) View.GONE else View.VISIBLE
+            Log.d("CheckHiddenObject", "bundlingPackages.size = ${bundlingPackagesFiltered.size}")
+            binding.rlBundlings.visibility = if (bundlingPackagesFiltered.isEmpty()) View.GONE else View.VISIBLE
         }
 
         // Set up the switch listener
