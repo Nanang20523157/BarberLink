@@ -7,6 +7,6 @@ import com.example.barberlink.R
 class ItemPackageFullCardAdapter : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.item_package_full_card_adapter)
+        setContentView(R.layout.item_package_select_adapter)
     }
 }

@@ -12,7 +12,6 @@ import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.Factory.BookingViewModelFactory
 import com.example.barberlink.Helper.ScopedUniversalDebounce
@@ -147,7 +146,7 @@ class CompleteOrderPage : AppCompatActivity() {
                     putExtra(CAPSTER_NAME_KEY, data)
                 }
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+                overridePendingTransition(R.anim.slide_maximize_in_left, R.anim.slide_minimize_out_right)
 //            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right)
                 finish()
             } else {

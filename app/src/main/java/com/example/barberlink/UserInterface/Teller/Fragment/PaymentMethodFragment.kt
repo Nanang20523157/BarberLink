@@ -79,6 +79,7 @@ class PaymentMethodFragment : BottomSheetDialogFragment() {
         }
 
         binding.ivBack.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
             dismiss() // Close the dialog when ivBack is clicked
         }
 

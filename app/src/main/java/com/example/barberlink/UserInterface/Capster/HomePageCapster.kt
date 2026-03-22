@@ -12,7 +12,6 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -20,7 +19,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.marginBottom
 import androidx.core.view.marginEnd
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
@@ -58,7 +56,6 @@ import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityHomePageCapsterBinding
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
@@ -71,8 +68,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.concurrent.atomic.AtomicBoolean
@@ -1427,7 +1422,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 }
 
                 startActivity(intent)
-                if (destination == QueueControlPage::class.java || destination == BonEmployeePage::class.java) overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                if (destination == QueueControlPage::class.java || destination == BonEmployeePage::class.java) overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
         }
     }
@@ -1492,7 +1487,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

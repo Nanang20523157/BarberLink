@@ -89,7 +89,7 @@
                     android:layout_width="22dp"
                     android:layout_height="22dp"
                     android:layout_marginEnd="1dp"
-                    android:layout_marginStart="-3dp"
+                    android:layout_marginStart="-2.85dp"
                     android:src="@drawable/ic_barbershop_promo_fill"
                     android:contentDescription="@string/star_image_desc"
                     android:visibility="gone"
@@ -102,11 +102,11 @@
                     android:layout_height="wrap_content"
                     tools:text="Rp 15.000"
                     android:textStyle="bold"
-                    android:textSize="14sp"
+                    android:textSize="14.5sp"
                     android:textAlignment="textStart"
-                    android:layout_marginTop="-1dp"
                     android:singleLine="true"
                     android:ellipsize="marquee"
+                    android:layout_marginTop="-0.8dp"
                     android:marqueeRepeatLimit="marquee_forever"
                     android:textColor="@android:color/black"/>
 
@@ -133,15 +133,17 @@
                 android:id="@+id/tvCOD"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="Bisa COD"
+                tools:text="BISA COD"
                 android:textStyle="bold"
-                android:textSize="12sp"
+                android:textSize="13.3sp"
                 android:visibility="gone"
                 android:textAlignment="textStart"
                 android:singleLine="true"
                 android:ellipsize="marquee"
+                android:layout_marginTop="1.8dp"
+                android:layout_marginStart="-0.76dp"
                 android:marqueeRepeatLimit="marquee_forever"
-                android:textColor="#FFA200"
+                android:textColor="@color/green_lime_wf"
                 app:layout_constraintStart_toStartOf="@id/tvProductName"
                 app:layout_constraintTop_toBottomOf="@id/llPrice"/>
 
@@ -150,7 +152,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="5.5dp"
                 android:layout_marginStart="-1.5dp"
                 app:layout_constraintStart_toStartOf="@id/tvProductName"
                 app:layout_constraintTop_toBottomOf="@id/tvCOD">
@@ -158,8 +160,8 @@
                 <!-- Star Icons -->
                 <ImageView
                     android:id="@+id/ivStar"
-                    android:layout_width="12dp"
-                    android:layout_height="12dp"
+                    android:layout_width="13dp"
+                    android:layout_height="13dp"
                     android:layout_marginEnd="2dp"
                     android:src="@drawable/full_star"
                     android:contentDescription="@string/star_image_desc"/>
@@ -169,14 +171,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/five_star_rating"
-                    android:textSize="11sp"
+                    android:textSize="12.5sp"
                     android:layout_marginTop="-1.8dp"
                     android:layout_marginStart="1dp"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
 
                 <View
-                    android:layout_width="3.5dp"
-                    android:layout_height="3.5dp"
+                    android:layout_width="5dp"
+                    android:layout_height="5dp"
                     android:background="@drawable/background_dot_decoration"
                     android:layout_gravity="center_vertical"
                     android:layout_marginHorizontal="4dp"/>
@@ -188,8 +190,7 @@
                     android:ellipsize="end"
                     tools:text="500+ terjual"
                     android:layout_marginTop="-1.8dp"
-                    android:layout_marginStart="-1.5dp"
-                    android:textSize="11sp"
+                    android:textSize="12.5sp"
                     app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
                     app:layout_constraintTop_toBottomOf="@id/llRating" />
 
@@ -201,8 +202,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:visibility="gone"
-                android:layout_marginTop="4dp"
-                android:layout_marginStart="-1.5dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginStart="-0.8dp"
                 android:layout_marginBottom="15dp"
                 app:layout_constraintStart_toStartOf="@id/llRating"
                 app:layout_constraintTop_toBottomOf="@id/llRating">
@@ -210,8 +211,8 @@
                 <!-- Star Icons -->
                 <ImageView
                     android:id="@+id/ivMarker"
-                    android:layout_width="13dp"
-                    android:layout_height="13dp"
+                    android:layout_width="14.5dp"
+                    android:layout_height="14.5dp"
                     android:layout_marginEnd="2dp"
                     android:src="@drawable/marker"
                     android:contentDescription="@string/star_image_desc"/>
@@ -221,9 +222,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     tools:text="Jakarta Barat"
-                    android:textSize="11sp"
+                    android:textSize="12.3sp"
                     android:layout_marginTop="-2dp"
-                    android:layout_marginStart="-1dp"
+                    android:layout_marginStart="-0.7dp"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
 
             </LinearLayout>
@@ -329,7 +330,7 @@
                     android:id="@+id/btnSelectOrder"
                     android:layout_width="match_parent"
                     android:layout_height="33dp"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     android:gravity="center"
                     android:paddingTop="6dp"
                     android:text="@string/btn_select"
@@ -345,16 +346,16 @@
                     android:id="@+id/btnEmptyStock"
                     android:layout_width="match_parent"
                     android:layout_height="33dp"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:gravity="center"
                     android:paddingTop="5.5dp"
-                    android:text="Stok Habis"
+                    android:text="@string/stock_sold_out_text"
                     android:textColor="@color/magenta"
                     android:textSize="10sp"
                     android:textStyle="bold"
                     app:cornerRadius="6dp"
-                    android:backgroundTint="@android:color/transparent"
-                    app:strokeColor="@color/charcoal_grey_background"
+                    android:backgroundTint="@color/black_font_color"
+                    app:strokeColor="@color/black_font_color"
                     app:strokeWidth="1.5dp" />
 
             </FrameLayout>

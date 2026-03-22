@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.Drawable
+import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
 import android.os.Build
@@ -85,7 +86,7 @@ object StatusBarDisplayHandler {
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     getStatusBarHeight(activity)
                 )
-                background = createCurvedBackground(statusBarColor, radius)
+                background = createCurvedBackground2(statusBarColor, radius)
                 tag = "curvedView" // Tag untuk identifikasi
             }
 
@@ -93,7 +94,7 @@ object StatusBarDisplayHandler {
         } else {
             // Jika addStatusBar = false dan curvedView ada, ubah background-nya
             existingCurvedView?.let {
-                it.background = createCurvedBackground(statusBarColor, 0f)
+                it.background = createCurvedBackground2(statusBarColor, 0f)
             }
         }
     }
@@ -110,6 +111,25 @@ object StatusBarDisplayHandler {
             paint.style = Paint.Style.FILL
         }
         return shapeDrawable
+    }
+
+    fun createCurvedBackground2(color: Int, cornerRadius: Float): Drawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(color)
+            // Jika radius 0, tidak perlu array panjang
+            if (cornerRadius > 0f) {
+                // top-left, top-right, bottom-right, bottom-left (masing-masing x dan y)
+                cornerRadii = floatArrayOf(
+                    cornerRadius, cornerRadius, // Top Left
+                    cornerRadius, cornerRadius, // Top Right
+                    0f, 0f,                     // Bottom Right
+                    0f, 0f                      // Bottom Left
+                )
+            } else {
+                this.cornerRadius = 0f
+            }
+        }
     }
 
     // Fungsi untuk mendapatkan tinggi status bar

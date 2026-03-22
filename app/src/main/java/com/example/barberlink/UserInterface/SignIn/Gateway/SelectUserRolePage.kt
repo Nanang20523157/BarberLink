@@ -110,6 +110,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
+                    if (!debounce.run { v.isSafeClick() }) return
                     // Navigate to Admin Login Page
                     onBackPressedDispatcher.onBackPressed()
                 }
@@ -173,7 +174,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
                 }
 
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                 Log.d("WinWinWin", "SelectUserRolePage: navigation")
                 // if (destination == LoginAdminPage::class.java) overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
@@ -205,7 +206,7 @@ class SelectUserRolePage : AppCompatActivity(), View.OnClickListener {
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

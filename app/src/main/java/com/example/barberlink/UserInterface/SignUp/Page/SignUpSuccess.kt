@@ -156,7 +156,7 @@ class SignUpSuccess : AppCompatActivity(), View.OnClickListener {
 //                    putExtra(ORIGIN_FROM_SUCCESS_PAGE, true)
                 }
                 startActivity(intentToDestination)
-                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
 
                 finish() // Hapus aktivitas SignUpSuccess
             } else {

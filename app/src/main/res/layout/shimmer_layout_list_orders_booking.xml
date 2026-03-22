@@ -248,7 +248,9 @@
                             android:text="@string/btn_cancel"
                             android:textColor="@color/magenta"
                             android:textSize="9sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:strokeColor="@color/grey_300"
+                            app:strokeWidth="1.5dp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSelectOrder"

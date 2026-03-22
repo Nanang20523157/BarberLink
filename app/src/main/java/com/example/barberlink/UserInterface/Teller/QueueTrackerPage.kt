@@ -17,7 +17,6 @@ import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -47,7 +46,6 @@ import com.example.barberlink.UserInterface.Teller.Fragment.ExitQueueTrackerFrag
 import com.example.barberlink.UserInterface.Teller.Fragment.ListQueueBoardFragment
 import com.example.barberlink.UserInterface.Teller.Fragment.RandomCapsterFragment
 import com.example.barberlink.UserInterface.Teller.ViewModel.QueueTrackerViewModel
-import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.Utils.GetDateUtils
@@ -55,23 +53,17 @@ import com.example.barberlink.Utils.GetDateUtils.toUtcMidnightMillis
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ActivityQueueTrackerPageBinding
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.datepicker.CalendarConstraints
 import com.google.android.material.datepicker.DateValidatorPointForward
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -79,9 +71,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.util.Date
@@ -1770,6 +1759,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
+                    if (!debounce.run { v.isSafeClick() }) return
                     onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.ivExits -> {
@@ -1827,7 +1817,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
                     putExtra(TIME_NANOS_KEY, timeSelected.nanoseconds)
                 }
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
         }
     }
@@ -1974,7 +1964,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

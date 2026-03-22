@@ -21,8 +21,6 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isGone
-import androidx.core.view.isVisible
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserRolesData
@@ -40,7 +38,6 @@ import com.example.barberlink.databinding.ActivitySignUpStepThreeBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
@@ -337,8 +334,15 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 //                } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
             }
             R.id.ivBack -> {
-                if (!blockAllUserClickAction) onBackPressedDispatcher.onBackPressed()
-                else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                if (!debounce.run {
+                    v.isSafeClick(
+                        isLoading = blockAllUserClickAction,
+                        onLoadingBlocked = {
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                        }
+                    )
+                }) return
+                onBackPressedDispatcher.onBackPressed()
             }
         }
     }
@@ -385,7 +389,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
 //                }
                 intent.putExtra(ADMIN_KEY, stepThreeViewModel.getUserAdminData())
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
         }
     }
@@ -559,7 +563,7 @@ class SignUpStepThree : AppCompatActivity(), View.OnClickListener {
             ) {
                 finish()
                 overridePendingTransition(
-                    R.anim.slide_miximize_in_left,
+                    R.anim.slide_maximize_in_left,
                     R.anim.slide_minimize_out_right
                 )
                 // ⛔ TIDAK dilepas → activity selesai

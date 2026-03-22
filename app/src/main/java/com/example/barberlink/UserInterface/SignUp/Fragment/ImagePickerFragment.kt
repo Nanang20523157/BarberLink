@@ -52,6 +52,7 @@ class ImagePickerFragment : DialogFragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.ivBack.setOnClickListener {
+            if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
             dismiss() // Close the dialog when ivBack is clicked
         }
 

@@ -113,7 +113,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="3dp"
         android:layout_below="@id/rvFilterByCategory"
-        tools:listitem="@layout/item_package_full_card_adapter"
+        tools:listitem="@layout/item_package_select_adapter"
         android:orientation="vertical"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
         android:nestedScrollingEnabled="true"/>

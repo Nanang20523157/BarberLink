@@ -2,8 +2,10 @@ package com.example.barberlink.Factory
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.barberlink.Repository.OutletRepository
 import com.example.barberlink.UserInterface.Admin.ViewModel.ApproveBonViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.AddOutletViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.AddedBonViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.CapitalInputViewModel
@@ -15,9 +17,11 @@ import com.example.barberlink.UserInterface.Teller.ViewModel.AddCustomerViewMode
 import com.example.barberlink.UserInterface.Teller.ViewModel.ExitTrackerViewModel
 import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 
 class DatabaseViewModelFactory(
     private val db: FirebaseFirestore,
+    private val storage: FirebaseStorage? = null
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ReviewOrderViewModel::class.java)) {
@@ -55,6 +59,11 @@ class DatabaseViewModelFactory(
         }
         if (modelClass.isAssignableFrom(ApproveBonViewModel::class.java)) {
             return ApproveBonViewModel(db) as T
+        }
+        if (modelClass.isAssignableFrom(AddOutletViewModel::class.java)) {
+            if (storage == null) throw IllegalArgumentException("Storage cannot be null")
+
+            return AddOutletViewModel(OutletRepository(db), storage) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

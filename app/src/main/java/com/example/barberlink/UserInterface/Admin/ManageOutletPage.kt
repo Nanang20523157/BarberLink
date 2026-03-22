@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.activity.addCallback
@@ -21,6 +22,7 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Manager.VegaLayoutManager
@@ -43,7 +45,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
 class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked, ItemListOutletAdapter.OnQueueResetListener, ItemListOutletAdapter.UpdateExpendedState,
-    ItemListOutletAdapter.DisplayThisToastMessage, ItemListOutletAdapter.UpdateOutletStatus, ItemListOutletAdapter.UpdateOutletAccessCode {
+    ItemListOutletAdapter.DisplayThisToastMessage, ItemListOutletAdapter.UpdateOutletStatus, ItemListOutletAdapter.UpdateOutletAccessCode, ItemListOutletAdapter.OnNavigationPage {
     private lateinit var binding: ActivityManageOutletPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val manageOutletViewModel: ManageOutletViewModel by viewModels {
@@ -64,6 +66,8 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     private var isDisplayQueueBoard: Boolean = false
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
+    private var isNavigating = false
+    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private lateinit var outletListener: ListenerRegistration
     private lateinit var employeeListener: ListenerRegistration
@@ -86,7 +90,22 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        WindowInsetsHandler.applyWindowInsets(binding.root)
+        WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
+            val layoutParams1 = binding.lineMarginLeft.layoutParams
+            Log.d("WindowInsets", "topMargin: $top || rightMargin: $right || leftMargin: $left")
+            if (layoutParams1 is ViewGroup.MarginLayoutParams) {
+                layoutParams1.topMargin = -top
+                binding.lineMarginLeft.layoutParams = layoutParams1
+            }
+            val layoutParams2 = binding.lineMarginRight.layoutParams
+            if (layoutParams2 is ViewGroup.MarginLayoutParams) {
+                layoutParams2.topMargin = -top
+                binding.lineMarginRight.layoutParams = layoutParams2
+            }
+
+            binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
+            binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
+        }
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
@@ -146,6 +165,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
                 // Pastikan untuk menjalankan bagian ini di main thread jika perlu
                 val userAdminData = args.userAdminData
+                manageOutletViewModel.setUserAdminData(userAdminData)
                 barbershopId = userAdminData.uid
                 Log.d("SwitchAnomali", "ABC")
             }
@@ -153,6 +173,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
         init(savedInstanceState)
         binding.ivBack.setOnClickListener(this)
+        binding.btnCreateNewOutlet.setOnClickListener(this)
 
         manageOutletViewModel.updateStateResult.observe(this) { result ->
             when (result) {
@@ -195,6 +216,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             outletAdapter.submitList(outletList)
             Logger.d("OutletList", "notifyDataSetChanged()")
             outletAdapter.notifyDataSetChanged()
+            binding.tvOutletCountTitle.text = getString(R.string.daftar_outlet_title_template, outletList.size)
             binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
         }
 
@@ -280,9 +302,91 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
     private fun init(savedInstanceState: Bundle?) {
         vegaLayoutManager = VegaLayoutManager()
-        outletAdapter = ItemListOutletAdapter(this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
+        outletAdapter = ItemListOutletAdapter(this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
         binding.rvOutletList.layoutManager = vegaLayoutManager
         binding.rvOutletList.adapter = outletAdapter
+
+        // ── Swipe to delete ──────────────────────────────────────────────────
+        val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
+            0, // no drag directions
+            androidx.recyclerview.widget.ItemTouchHelper.LEFT
+        ) {
+            override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
+                                vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
+                                target: androidx.recyclerview.widget.RecyclerView.ViewHolder) = false
+
+            override fun getSwipeThreshold(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder) = 0.4f
+
+            override fun isItemViewSwipeEnabled(): Boolean = !outletAdapter.isShimmerMode()
+
+            override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
+                Log.d("SwipeDelete", "onSwiped triggered at position: ${viewHolder.bindingAdapterPosition}")
+                val pos = viewHolder.bindingAdapterPosition
+                if (pos == androidx.recyclerview.widget.RecyclerView.NO_ID.toInt()) return
+                val outlet = outletAdapter.currentList.getOrNull(pos) ?: run {
+                    Log.e("SwipeDelete", "Outlet not found at position $pos")
+                    outletAdapter.notifyItemChanged(pos)
+                    return
+                }
+
+                // Snap back after a tiny delay so the user sees the swipe completion
+                // The recyclerView parameter is available in onChildDraw, but not directly in onSwiped.
+                // We can get it from the viewHolder's itemView parent.
+                (viewHolder.itemView.parent as? androidx.recyclerview.widget.RecyclerView)?.post {
+                    outletAdapter.notifyItemChanged(pos)
+                }
+
+                android.app.AlertDialog.Builder(this@ManageOutletPage)
+                    .setTitle("Hapus Outlet")
+                    .setMessage("Apakah Anda yakin ingin menghapus outlet \"${outlet.outletName}\"? Tindakan ini tidak dapat dibatalkan.")
+                    .setPositiveButton("Hapus") { _, _ ->
+                        manageOutletViewModel.deleteOutlet(outlet)
+                    }
+                    .setNegativeButton("Batal", null)
+                    .show()
+            }
+
+            override fun onChildDraw(
+                c: android.graphics.Canvas,
+                recyclerView: androidx.recyclerview.widget.RecyclerView,
+                viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder,
+                dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
+            ) {
+                val itemView = viewHolder.itemView
+                val paint = android.graphics.Paint()
+
+                if (dX < 0) { // swiping left
+                    // Red background
+                    paint.color = android.graphics.Color.parseColor("#FF3B30")
+                    c.drawRect(
+                        itemView.right + dX, itemView.top.toFloat(),
+                        itemView.right.toFloat(), itemView.bottom.toFloat(), paint
+                    )
+                    // Trash icon
+                    val icon = androidx.core.content.ContextCompat.getDrawable(
+                        this@ManageOutletPage, R.drawable.ic_swipe_to_delete
+                    )
+                    icon?.let {
+                        val iconSize = 28.dp
+                        val margin = 20.dp
+                        val iconTop = itemView.top + (itemView.height - iconSize) / 2
+                        it.setBounds(
+                            itemView.right - margin - iconSize,
+                            iconTop,
+                            itemView.right - margin,
+                            iconTop + iconSize
+                        )
+                        it.setTint(android.graphics.Color.WHITE)
+                        it.draw(c)
+                    }
+                }
+                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+            }
+
+            private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
+        }
+        androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvOutletList)
+        // ─────────────────────────────────────────────────────────────────────
 
         if (savedInstanceState == null || isShimmerVisible) {
             outletAdapter.setShimmer(true)
@@ -492,7 +596,12 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.ivBack -> {
+                if (!debounce.run { v.isSafeClick() }) return
                 onBackPressedDispatcher.onBackPressed()
+            }
+            R.id.btnCreateNewOutlet -> {
+                if (!debounce.run { v.isSafeClick() }) return
+                navigatePage(2, Outlet())
             }
         }
     }
@@ -561,6 +670,11 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    override fun onNavigationRequest(mode: Int, outlet: Outlet) {
+        navigatePage(mode, outlet)
+    }
+
     override fun displayThisToast(message: String, isImportant: Boolean) {
         // hmmmmm???--
         toastViewModel.showToast(message, isImportant)
@@ -598,12 +712,36 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    private fun navigatePage(mode: Int, outlet: Outlet) {
+        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+//            view.isClickable = false
+//            currentView = view
+            if (!isNavigating) {
+                isNavigating = true
+                val intent = Intent(this, AddOutletFormActivity::class.java).apply {
+                    putExtra("CURRENT_MODE", mode) // ADD Mode
+                    putExtra("OUTLET_DATA_KEY", outlet)
+                    putExtra("ADMIN_DATA_KEY", manageOutletViewModel.userAdminData.value)
+                }
+
+                startActivity(intent)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
+            } else return@setDynamicWindowAllCorner
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
 //        BarberLinkApp.sessionManager.setActivePage("Admin")
         Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
         super.onResume()
         // Set sudut dinamis sesuai perangkat
-//        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        if (isNavigating) {
+            Log.d("NavigationCorner", "Navigating 2")
+            WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
+        }
+        // Reset the navigation flag and view's clickable state
+        isNavigating = false
         if (!isRecreated) {
             if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
@@ -662,7 +800,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

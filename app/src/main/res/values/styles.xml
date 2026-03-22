@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="FormLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">@font/poppins_regular</item>
+        <item name="android:textColor">@color/dark_grey_font_color</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="FormInputText" parent="Widget.AppCompat.EditText">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/rounded_edittext_background</item>
+        <item name="android:fontFamily">@font/poppins_regular</item>
+        <item name="android:inputType">text</item>
+        <item name="android:textColor">@color/black_font_color</item>
+        <item name="android:textColorHint">#A0A0A0</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="FormInputTextDisabled" parent="FormInputText">
+        <item name="android:background">@drawable/rounded_edittext_background_disabled</item>
+        <item name="android:enabled">false</item>
+        <item name="android:focusable">false</item>
+        <item name="android:focusableInTouchMode">false</item>
+        <item name="android:textColor">#707070</item>
+    </style>
 
     <style name="PopupAnimation" parent="@android:style/Animation.Dialog">
         <item name="android:windowEnterAnimation">@android:anim/fade_in</item>

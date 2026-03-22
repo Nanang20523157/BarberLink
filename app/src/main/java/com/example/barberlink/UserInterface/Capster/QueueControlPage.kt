@@ -34,7 +34,6 @@ import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -42,7 +41,6 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.core.view.get
-import androidx.core.view.isGone
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
@@ -55,11 +53,9 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
 import com.example.barberlink.Accessibility.WhatsappAccessibilityService
 import com.example.barberlink.Adapter.ItemListCollapseQueueAdapter
-import com.example.barberlink.Adapter.ItemListExpandQueueAdapter
 import com.example.barberlink.Adapter.ItemListPackageOrdersAdapter
 import com.example.barberlink.Adapter.ItemListServiceOrdersAdapter
 import com.example.barberlink.DataClass.BundlingPackage
-import com.example.barberlink.DataClass.NotificationReminder
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
@@ -77,7 +73,6 @@ import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.Services.SenderMessageService
 import com.example.barberlink.ToastViewModel
-import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.Capster.Fragment.ConfirmCompleteQueueFragment
 import com.example.barberlink.UserInterface.Capster.Fragment.ConfirmFeeCapsterFragment
@@ -106,12 +101,9 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.SetOptions
 import com.judemanutd.autostarter.AutoStartPermissionHelper
 import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
 import de.hdodenhof.circleimageview.CircleImageView
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -120,20 +112,14 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.emptyList
 import kotlin.coroutines.resume
-import kotlin.text.toDouble
-import kotlin.times
 
 class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceOrdersAdapter.OnItemClicked, ItemListPackageOrdersAdapter.OnItemClicked, ItemListCollapseQueueAdapter.OnItemClicked,
     EditOrderFragment.EditOrderListener, ItemListCollapseQueueAdapter.DisplayThisToastMessage {
@@ -4382,10 +4368,16 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
-                    if (!blockAllUserClickAction) {
-                        dismissSnackbarSafely()
-                        onBackPressedDispatcher.onBackPressed()
-                    } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                    if (!debounce.run {
+                        v.isSafeClick(
+                            isLoading = blockAllUserClickAction,
+                            onLoadingBlocked = {
+                                toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                            }
+                        )
+                    }) return
+                    dismissSnackbarSafely()
+                    onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.cvDateLabel -> {
                     if (!debounce.run {
@@ -5064,12 +5056,12 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
     private fun showConfirmFragmentDialog() {
         StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
         shouldClearBackStack = false
-        if (supportFragmentManager.findFragmentByTag("ConfirmQueueFragment") != null) {
+        if (supportFragmentManager.findFragmentByTag("ConfirmCompleteQueueFragment") != null) {
             // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
             return
         }
 
-        Log.d("LastCheck", "Display ConfirmQueueFragment")
+        Log.d("LastCheck", "Display ConfirmCompleteQueueFragment")
         dialogFragment = ConfirmCompleteQueueFragment.newInstance()
         // The device is smaller, so show the fragment fullscreen.
         val transaction = fragmentManager.beginTransaction()
@@ -5086,8 +5078,8 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
         if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
             // Lakukan transaksi fragment
             transaction
-                .add(android.R.id.content, dialogFragment, "ConfirmQueueFragment")
-                .addToBackStack("ConfirmQueueFragment")
+                .add(android.R.id.content, dialogFragment, "ConfirmCompleteQueueFragment")
+                .addToBackStack("ConfirmCompleteQueueFragment")
                 .commit()
         }
     }
@@ -5345,7 +5337,7 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
 
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ❗ lock TIDAK dilepas → activity akan selesai

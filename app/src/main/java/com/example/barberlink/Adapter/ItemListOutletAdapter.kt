@@ -1,16 +1,15 @@
 package com.example.barberlink.Adapter
 
+import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.RotateAnimation
+import androidx.annotation.RequiresApi
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
-import androidx.core.view.isVisible
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -30,11 +29,6 @@ import com.example.barberlink.databinding.ItemListManageOutletAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageOutletCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.Timestamp
-import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitWriteWithOfflineFallback
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class ItemListOutletAdapter(
     private val itemClicked: OnItemClicked,
@@ -43,6 +37,7 @@ class ItemListOutletAdapter(
     private val updateExpanded: UpdateExpendedState,
     private val updateStatus: UpdateOutletStatus,
     private val updateCode: UpdateOutletAccessCode,
+    private val navigatePage: OnNavigationPage
 ) : ListAdapter<Outlet, RecyclerView.ViewHolder>(OutletDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val debounce by lazy { ScopedUniversalDebounce() }
@@ -62,6 +57,10 @@ class ItemListOutletAdapter(
 
     interface OnItemClicked {
         fun onItemClickListener(outlet: Outlet)
+    }
+
+    interface OnNavigationPage {
+        fun onNavigationRequest(mode: Int, outlet: Outlet)
     }
 
     interface DisplayThisToastMessage {
@@ -88,6 +87,8 @@ class ItemListOutletAdapter(
             shimmerViewList.clear() // Bersihkan referensi untuk mencegah memory leak
         }
     }
+
+    fun isShimmerMode(): Boolean = isShimmer
 
     fun updateNetworkStatus(status: Boolean) {
         isOnline = status
@@ -121,6 +122,7 @@ class ItemListOutletAdapter(
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         if (getItemViewType(position) == VIEW_TYPE_ITEM) {
             val outlet = getItem(position)
@@ -182,6 +184,7 @@ class ItemListOutletAdapter(
     inner class ItemViewHolder(val binding: ItemListManageOutletAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        @RequiresApi(Build.VERSION_CODES.TIRAMISU)
         fun bind(outlet: Outlet) {
             val reviewCount = 2134
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
@@ -309,9 +312,8 @@ class ItemListOutletAdapter(
                                 }
                             )
                         }) return@setOnClickListener
-                    // hmmmmm
-                    // Edit outlet
-                    callbackToast.displayThisToast("Edit feature is under development...", true)
+
+                    navigatePage.onNavigationRequest(1, outlet)
                 }
 
                 btnView.setOnClickListener {
@@ -323,9 +325,8 @@ class ItemListOutletAdapter(
                                 }
                             )
                         }) return@setOnClickListener
-                    // hmmmmm
-                    // Delete outlet
-                    callbackToast.displayThisToast("View detail feature is under development...", true)
+
+                    navigatePage.onNavigationRequest(0, outlet)
                 }
 
                 if (!outlet.isCollapseCard) {

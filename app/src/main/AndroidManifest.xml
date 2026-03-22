@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Tambahkan elemen <queries> di sini -->
     <!-- Izin untuk layanan foreground (Android 9+) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Izin untuk mengakses lokasi pengguna (Maps Picker) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <queries>
 
@@ -40,6 +43,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BarberLink"
         tools:targetApi="31">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBs1uDzGfWKgO8HhWTPWlbJx4FNtilenDM" />
         <activity
             android:name=".UserInterface.Admin.AddExpenseNotesPage"
             android:exported="false"
@@ -96,6 +103,14 @@
             android:theme="@style/Theme.BarberLink.DarkWindow" />
         <activity
             android:name=".UserInterface.Admin.ManageOutletPage"
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow" />
+        <activity
+            android:name=".UserInterface.Admin.AddOutletFormActivity"
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow" />
+        <activity
+            android:name=".UserInterface.Admin.MapsPickerOutletActivity"
             android:exported="false"
             android:theme="@style/Theme.BarberLink.DarkWindow" />
         <activity

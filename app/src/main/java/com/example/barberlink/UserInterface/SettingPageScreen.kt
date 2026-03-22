@@ -93,6 +93,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
     override fun onClick(v: View?) {
         when (v?.id) {
             R.id.ivBack -> {
+                if (!debounce.run { v.isSafeClick() }) return
                 onBackPressedDispatcher.onBackPressed()
             }
             R.id.btnLogout -> {
@@ -123,7 +124,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 startActivity(intentNavigate)
-                overridePendingTransition(R.anim.slide_miximize_in_left, R.anim.slide_minimize_out_right)
+                overridePendingTransition(R.anim.slide_maximize_in_left, R.anim.slide_minimize_out_right)
 //            overridePendingTransition(R.anim.slide_in_left, R.anim.slide_out_right) // Mengatur animasi transisi
                 finish()
             } else return@setDynamicWindowAllCorner
@@ -155,7 +156,7 @@ class SettingPageScreen : BaseActivity(), View.OnClickListener {
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

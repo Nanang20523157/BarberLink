@@ -229,6 +229,14 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
         }
 
         binding.ivBack.setOnClickListener {
+            if (!debounce.run {
+                it.isSafeClick(
+                    isLoading = blockAllUserClickAction,
+                    onLoadingBlocked = {
+                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                    }
+                )
+            }) return@setOnClickListener
             dismiss() // Close the dialog when ivBack is clicked
         }
 

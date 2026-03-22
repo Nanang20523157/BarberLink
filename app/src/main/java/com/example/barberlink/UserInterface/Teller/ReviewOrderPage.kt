@@ -20,7 +20,6 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.view.get
 import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -51,7 +50,6 @@ import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.PaymentMethodFragment
 import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
-import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
@@ -262,7 +260,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                         val intent = Intent(this@ReviewOrderPage, CompleteOrderPage::class.java)
                         intent.putExtra(RESERVATION_DATA, reviewOrderViewModel.getUserReservationData())
                         startActivity(intent)
-                        overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                        overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                     }
                     reviewOrderViewModel.setReservationResult(null)
                 }
@@ -983,6 +981,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
+                    if (!debounce.run {
+                            v.isSafeClick(
+                                isLoading = blockAllUserClickAction,
+                                onLoadingBlocked = {
+                                    toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                                }
+                            )
+                        }) return
                     onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.btnKodePromo -> {
@@ -1181,7 +1187,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

@@ -13,7 +13,6 @@ import android.view.ViewTreeObserver
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -23,7 +22,6 @@ import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -44,7 +42,6 @@ import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.BookingSessionManager
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
-import com.example.barberlink.UserInterface.Capster.Fragment.SwitchAvailabilityFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.AddNewCustomerFragment
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
@@ -63,14 +60,12 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.yourapp.utils.awaitGetWithOfflineFallback
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.Locale
@@ -1703,6 +1698,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         binding.apply {
             when (v?.id) {
                 R.id.ivBack -> {
+                    if (!debounce.run { v.isSafeClick() }) return
                     onBackPressedDispatcher.onBackPressed()
                 }
                 R.id.cvDateLabel -> {
@@ -1770,7 +1766,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     // putParcelableArrayListExtra(BUNDLING_DATA_KEY, ArrayList(bundlingPackagesList))
                 }
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
         }
     }
@@ -1910,7 +1906,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

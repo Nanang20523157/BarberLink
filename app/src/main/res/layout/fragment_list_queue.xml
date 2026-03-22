@@ -65,8 +65,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="22dp"
             android:nestedScrollingEnabled="false"
-            tools:listitem="@layout/item_list_queue_customers_adapter"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_list_queue_customers_adapter" />
 
         <View
             android:layout_width="match_parent"

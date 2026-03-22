@@ -213,10 +213,10 @@
                                     android:layout_height="102.5dp"
                                     android:visibility="visible"
                                     tools:itemCount="4"
-                                    android:paddingHorizontal="30dp"
                                     tools:listitem="@layout/item_list_service_provide_adapter"
-                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="30dp"
                                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                    android:orientation="horizontal"
                                     android:clipChildren="false"
                                     android:clipToPadding="false"/>
 
@@ -311,10 +311,10 @@
                                     android:layout_height="168dp"
                                     android:visibility="visible"
                                     tools:itemCount="4"
-                                    android:paddingHorizontal="30dp"
                                     tools:listitem="@layout/item_list_package_bundling_adapter"
-                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="30dp"
                                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                    android:orientation="horizontal"
                                     android:clipChildren="false"
                                     android:clipToPadding="false" />
 
@@ -411,10 +411,10 @@
                                     android:layout_height="182dp"
                                     android:visibility="visible"
                                     tools:itemCount="4"
-                                    android:paddingHorizontal="30dp"
                                     tools:listitem="@layout/item_list_employee_adapter"
-                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="30dp"
                                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                    android:orientation="horizontal"
                                     android:clipChildren="false"
                                     android:clipToPadding="false" />
 
@@ -511,12 +511,12 @@
                                     android:layout_height="207dp"
                                     android:visibility="visible"
                                     tools:itemCount="4"
-                                    android:orientation="horizontal"
-                                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                    tools:listitem="@layout/item_list_product_adapter"
                                     android:paddingHorizontal="30dp"
+                                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                                    android:orientation="horizontal"
                                     android:clipChildren="false"
-                                    android:clipToPadding="false"
-                                    tools:listitem="@layout/item_list_product_adapter" />
+                                    android:clipToPadding="false" />
 
                                 <LinearLayout
                                     android:id="@+id/tvEmptyProduk"

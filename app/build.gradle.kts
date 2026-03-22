@@ -105,6 +105,8 @@ dependencies {
     implementation("com.github.demogorgorn:MonthAndYearPicker:1.0.11")
 
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.android.gms:play-services-location:21.2.0")
 
     implementation("com.github.judemanutd:autostarter:1.1.0")
 
@@ -117,7 +119,5 @@ dependencies {
 
     // Add this line to include the Lifecycle library
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-
-    implementation("androidx.core:core-ktx:1.12.0")
 
 }

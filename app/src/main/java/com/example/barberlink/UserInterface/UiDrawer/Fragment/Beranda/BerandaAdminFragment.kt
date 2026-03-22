@@ -37,6 +37,7 @@ import com.denzcoskun.imageslider.interfaces.ItemClickListener
 import com.denzcoskun.imageslider.models.SlideModel
 import com.example.barberlink.Adapter.ItemListEmployeeAdapter
 import com.example.barberlink.Adapter.ItemListPackageBundlingAdapter
+import com.example.barberlink.UserInterface.Admin.Fragment.BundlingServiceListBottomSheet
 import com.example.barberlink.Adapter.ItemListProductAdapter
 import com.example.barberlink.Adapter.ItemListServiceProvideAdapter
 import com.example.barberlink.Contract.CapitalDialogHost
@@ -90,7 +91,8 @@ import java.util.concurrent.atomic.AtomicInteger
  * Use the [BerandaAdminFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
-class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBundlingAdapter.DisplayThisToastMessage {
+class BerandaAdminFragment : Fragment(), View.OnClickListener,
+    ItemListPackageBundlingAdapter.OnShowDetailClickListener {
     private var _binding: FragmentBerandaAdminBinding? = null
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(requireContext()) }
@@ -476,7 +478,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                                             val userAdminData = docs.toObject(UserAdminData::class.java)?.apply {
                                                 userRef = docs.reference.path
                                             }
-                                            userAdminData?.let {
+                                            userAdminData?.let { data ->
+                                                userId = data.uid
                                                 berandaAdminViewModel.setUserAdminData(userAdminData)
                                             }
                                         }
@@ -1229,11 +1232,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
         _binding = null
     }
 
-    override fun displayThisToast(message: String, isImportant: Boolean) {
-        // hmmmmm???--
-        toastViewModel.showToast(message, true)
-    }
-
     private fun setAndDisplayBanner() {
         val imageList = arrayListOf(
             SlideModel(R.drawable.banner_1, ScaleTypes.FIT),
@@ -1254,6 +1252,15 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener, ItemListPackageBu
                 // Handle double click
             }
         })
+    }
+
+    override fun onShowDetailClick(bundling: BundlingPackage) {
+        val tag = "BundlingServiceListBottomSheet"
+        // Ternyata Jika ButtomSheet Tidak Perlu Set  StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        if (childFragmentManager.findFragmentByTag(tag) != null) return
+
+        val bottomSheet = BundlingServiceListBottomSheet.newInstance(bundling.listItemDetails ?: emptyList())
+        bottomSheet.show(childFragmentManager, tag)
     }
 
     companion object{

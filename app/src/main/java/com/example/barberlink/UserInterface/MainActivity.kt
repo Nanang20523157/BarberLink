@@ -15,7 +15,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
@@ -38,8 +37,6 @@ import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
 import com.example.barberlink.databinding.ActivityMainBinding
 import com.google.android.material.navigation.NavigationView
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.getValue
 
 class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
@@ -98,9 +95,7 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
             }
         })
 
-        if (savedInstanceState != null) {
-            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-        }
+        if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
 
         // Ambil data dari Intent
         @Suppress("DEPRECATION")
@@ -274,7 +269,7 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
                 isNavigating = true
                 val intent = Intent(context, destination)
                 startActivity(intent)
-                overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             } else return@setDynamicWindowAllCorner
         }
     }
@@ -430,7 +425,7 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

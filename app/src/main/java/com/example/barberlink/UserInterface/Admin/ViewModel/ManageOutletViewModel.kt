@@ -59,6 +59,9 @@ class ManageOutletViewModel(
     private val _outletList = MutableLiveData<MutableList<Outlet>>().apply { emptyList<Outlet>() }
     val outletList: LiveData<MutableList<Outlet>> = _outletList
 
+    private val _userAdminData = MutableLiveData<com.example.barberlink.DataClass.UserAdminData>()
+    val userAdminData: LiveData<com.example.barberlink.DataClass.UserAdminData> = _userAdminData
+
     private val _outletSelected = MutableLiveData<Outlet?>()
     val outletSelected: LiveData<Outlet?> = _outletSelected
 
@@ -89,6 +92,12 @@ class ManageOutletViewModel(
     fun setOutletList(outletList: MutableList<Outlet>) {
         viewModelScope.launch {
             _outletList.value = outletList
+        }
+    }
+
+    fun setUserAdminData(data: com.example.barberlink.DataClass.UserAdminData) {
+        viewModelScope.launch {
+            _userAdminData.value = data
         }
     }
 
@@ -207,6 +216,33 @@ class ManageOutletViewModel(
                     // Revoke code
                     _updateStateResult.value = ResultState.Failure("Access Code", "Gagal memperbarui kode akses!", index, oldCode)
                 }
+            }
+        }
+    }
+
+    fun deleteOutlet(outlet: Outlet) {
+        viewModelScope.launch {
+            try {
+                _updateStateResult.value = ResultState.Loading
+
+                val outletRef = db.document(outlet.rootRef)
+                    .collection("outlets")
+                    .document(outlet.uid)
+
+                val task = withContext(Dispatchers.IO) {
+                    outletRef.delete().awaitWriteWithOfflineFallback(tag = "DeleteOutlet")
+                }
+
+                if (task.isSuccessful) {
+                    if (task.displayMessage) _updateStateResult.value = ResultState.Success("Delete", task.errorMessage.toString())
+                    else _updateStateResult.value = ResultState.Success("Delete", "Outlet \"${outlet.outletName}\" berhasil dihapus.")
+                } else {
+                    if (task.displayMessage) _updateStateResult.value = ResultState.Failure("Delete", task.errorMessage.toString(), -1)
+                    else _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus outlet!", -1)
+                }
+            } catch (e: Exception) {
+                Logger.e("DeleteOutlet", "❌ Error: ${e.message}")
+                _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus outlet!", -1)
             }
         }
     }

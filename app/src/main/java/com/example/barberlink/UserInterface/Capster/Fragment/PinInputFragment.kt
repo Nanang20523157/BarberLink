@@ -14,11 +14,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.os.bundleOf
-import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -283,7 +281,7 @@ class PinInputFragment : DialogFragment() {
             dismiss() // Menutup DialogFragment
             parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
             context.startActivity(intent)
-            (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+            (context as? Activity)?.overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             // Tutup aktivitas saat ini
             (context as? Activity)?.finish()
         }

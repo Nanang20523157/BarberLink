@@ -19,6 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.DatabaseViewModelFactory
+import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
@@ -53,6 +54,7 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
         DatabaseViewModelFactory(db)
     }
     private val toastViewModel: ToastViewModel by viewModels()
+    private val debounce by lazy { ScopedUniversalDebounce() }
     private var blockAllUserClickAction: Boolean = false
     private var isOnline = false
     // This property is only valid between onCreateView and
@@ -174,6 +176,14 @@ class SwitchAvailabilityFragment : BottomSheetDialogFragment() {
         }
 
         binding.ivBack.setOnClickListener {
+            if (!debounce.run {
+                it.isSafeClick(
+                    isLoading = blockAllUserClickAction,
+                    onLoadingBlocked = {
+                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                    }
+                )
+            }) return@setOnClickListener
             dismiss() // Close the dialog when ivBack is clicked
         }
 

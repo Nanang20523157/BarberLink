@@ -19,7 +19,7 @@ import com.example.barberlink.databinding.ShimmerLayoutPackageBundlingBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListPackageBundlingAdapter(
-    private val callbackToast: DisplayThisToastMessage,
+    private val onShowDetailClickListener: OnShowDetailClickListener
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val debounce by lazy { ScopedUniversalDebounce() }
@@ -29,8 +29,8 @@ class ItemListPackageBundlingAdapter(
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
 
-    interface DisplayThisToastMessage {
-        fun displayThisToast(message: String, isImportant: Boolean)
+    interface OnShowDetailClickListener {
+        fun onShowDetailClick(bundling: BundlingPackage)
     }
 
     fun stopAllShimmerEffects() {
@@ -135,12 +135,9 @@ class ItemListPackageBundlingAdapter(
                 tvRating.text = packageBundling.packageRating.toString()
                 tvHargaPaket.text = NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
 
-                btnDeletePackage.setOnClickListener {
+                btnShowServiceDetail.setOnClickListener {
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
-                    // hmmmmm
-                    callbackToast.displayThisToast(
-                        "Delete feature is under development...", true
-                    )
+                    onShowDetailClickListener.onShowDetailClick(packageBundling)
                 }
 
                 val serviceCount = packageBundling.listItemDetails?.size ?: 0

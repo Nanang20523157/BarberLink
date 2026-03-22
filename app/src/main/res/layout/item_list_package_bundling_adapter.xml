@@ -203,17 +203,19 @@
         </LinearLayout>
 
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnDeletePackage"
+            android:id="@+id/btnShowServiceDetail"
             android:layout_width="80dp"
             android:layout_height="33dp"
             android:layout_marginStart="15dp"
             android:layout_marginEnd="-5dp"
             android:backgroundTint="@color/black_font_color"
             android:gravity="center"
-            android:text="@string/btn_delete_package"
+            android:text="Daftar"
             android:textColor="@color/magenta"
             android:textSize="9sp"
             android:textStyle="bold"
+            app:strokeColor="@color/black_font_color"
+            app:strokeWidth="1.5dp"
             app:layout_constraintBottom_toBottomOf="@+id/linearLayout"
             app:layout_constraintEnd_toEndOf="@id/tvHargaPaket"
             app:layout_constraintTop_toTopOf="@id/linearLayout" />

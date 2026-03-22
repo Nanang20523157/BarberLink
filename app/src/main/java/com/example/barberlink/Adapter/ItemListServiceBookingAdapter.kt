@@ -154,8 +154,8 @@ class ItemListServiceBookingAdapter(
                     val pos = bindingAdapterPosition
                     if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
 
-                     service.serviceQuantity = 1
-                     notifyItemChanged(pos)
+                    service.serviceQuantity = 1
+                    notifyItemChanged(pos)
 //                    val updatedService = service.copy(serviceQuantity = 1)
 //                    val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
 //                    submitList(updatedList)
@@ -167,8 +167,8 @@ class ItemListServiceBookingAdapter(
                     val pos = bindingAdapterPosition
                     if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
 
-                     service.serviceQuantity++
-                     notifyItemChanged(pos)
+                    service.serviceQuantity++
+                    notifyItemChanged(pos)
 //                    val updatedService = service.copy(serviceQuantity = service.serviceQuantity + 1)
 //                    val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
 //                    submitList(updatedList)
@@ -181,8 +181,8 @@ class ItemListServiceBookingAdapter(
                     if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
 
                     if (service.serviceQuantity > 0) {
-                         service.serviceQuantity--
-                         notifyItemChanged(pos)
+                        service.serviceQuantity--
+                        notifyItemChanged(pos)
 //                        val updatedService = service.copy(serviceQuantity = service.serviceQuantity - 1)
 //                        val updatedList = currentList.map { if (it.uid == updatedService.uid) updatedService else it }
 //                        submitList(updatedList)

@@ -12,13 +12,11 @@ import android.view.ViewGroup
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.ArrayAdapter
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
@@ -41,7 +39,6 @@ import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
-import com.example.barberlink.UserInterface.Admin.ViewModel.ApproveBonViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.FormInputBonFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.AddedBonViewModel
 import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
@@ -51,17 +48,12 @@ import com.example.barberlink.Utils.DateComparisonUtils.isSameMonth
 import com.example.barberlink.Utils.GetDateUtils
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityBonEmployeePageBinding
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.QuerySnapshot
 import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -148,7 +140,22 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        WindowInsetsHandler.applyWindowInsets(binding.root)
+        WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
+            val layoutParams1 = binding.lineMarginLeft.layoutParams
+            Log.d("WindowInsets", "topMargin: $top || rightMargin: $right || leftMargin: $left")
+            if (layoutParams1 is ViewGroup.MarginLayoutParams) {
+                layoutParams1.topMargin = -top
+                binding.lineMarginLeft.layoutParams = layoutParams1
+            }
+            val layoutParams2 = binding.lineMarginRight.layoutParams
+            if (layoutParams2 is ViewGroup.MarginLayoutParams) {
+                layoutParams2.topMargin = -top
+                binding.lineMarginRight.layoutParams = layoutParams2
+            }
+
+            binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
+            binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
+        }
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
         if (!isRecreated) {
@@ -1112,6 +1119,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                     .show()
             }
             R.id.ivBack -> {
+                if (!debounce.run { v.isSafeClick() }) return
                 onBackPressedDispatcher.onBackPressed()
             }
             R.id.btnCreateNewBon -> {
@@ -1235,7 +1243,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

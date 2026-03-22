@@ -151,7 +151,9 @@
                     android:text="@string/btn_cancel"
                     android:textColor="@color/magenta"
                     android:textSize="9sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    app:strokeColor="@color/black_font_color"
+                    app:strokeWidth="1.5dp"/>
 
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/btnCardCounter"

@@ -6,6 +6,8 @@ import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.PropertyName
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.RawValue
+import kotlinx.parcelize.Parceler
+import kotlinx.parcelize.TypeParceler
 
 interface UserData {
     var uid: String
@@ -243,7 +245,7 @@ data class UserEmployeeData(
     @get:PropertyName("fullname") @set:PropertyName("fullname") var fullname: String = "",
     @get:PropertyName("gender") @set:PropertyName("gender") var gender: String = "",
     @get:PropertyName("uid_list_placement") @set:PropertyName("uid_list_placement") var uidListPlacement: List<String> = emptyList(),
-    @get:PropertyName("password") @set:PropertyName("password") override var password: String = "",
+    @get:PropertyName("password") @set:PropertyName("password") override var password: String = "12345678",
     @get:PropertyName("phone") @set:PropertyName("phone") override var phone: String = "",
     @get:PropertyName("photo_profile") @set:PropertyName("photo_profile") var photoProfile: String = "",
     @get:PropertyName("pin") @set:PropertyName("pin") var pin: String = "",
@@ -339,8 +341,21 @@ data class LeavePermission(
         get() = 0
 }
 
+// Custom Parceler for Firestore Timestamp
+object TimestampParceler : Parceler<Timestamp> {
+    override fun create(parcel: android.os.Parcel): Timestamp {
+        return Timestamp(parcel.readLong(), parcel.readInt())
+    }
+
+    override fun Timestamp.write(parcel: android.os.Parcel, flags: Int) {
+        parcel.writeLong(seconds)
+        parcel.writeInt(nanoseconds)
+    }
+}
+
 // Outlet data class
 @Parcelize
+@TypeParceler<Timestamp, TimestampParceler>
 data class Outlet(
     @get:PropertyName("active_devices") @set:PropertyName("active_devices") var activeDevices: Int = 0,
     @get:PropertyName("current_queue") @set:PropertyName("current_queue") var currentQueue: @RawValue Map<String, String>? = emptyMap(),
@@ -410,6 +425,7 @@ data class Outlet(
 }
 
 @Parcelize
+@TypeParceler<Timestamp, TimestampParceler>
 data class Customer(
     @get:PropertyName("last_reserve") @set:PropertyName("last_reserve") var lastReserve: Timestamp = Timestamp.now(),
     @get:PropertyName("uid_customer") @set:PropertyName("uid_customer") var uidCustomer: String = ""
@@ -422,6 +438,7 @@ data class Customer(
 
 // Product data class
 @Parcelize
+@TypeParceler<Timestamp, TimestampParceler>
 data class Product(
     @get:PropertyName("apply_to_general") @set:PropertyName("apply_to_general") var applyToGeneral: Boolean = true,
     @get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",

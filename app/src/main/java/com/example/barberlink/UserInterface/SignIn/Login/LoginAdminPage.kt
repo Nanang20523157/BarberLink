@@ -14,16 +14,13 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserAdminData
-import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.AuthDBViewModelFactory
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
@@ -32,7 +29,6 @@ import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
-import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.example.barberlink.UserInterface.Capster.HomePageCapster
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.MainActivity
@@ -40,19 +36,13 @@ import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignIn.ViewModel.LoginPageViewModel
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
 import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
-import com.example.barberlink.UserInterface.SignUp.ViewModel.StepThreeViewModel
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityLoginAdminPageBinding
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.math.log
 
 class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLoginAdminPageBinding
@@ -522,7 +512,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     if (loginPageViewModel.getLoginType() == "Login as Admin") intentToDestination.putExtra(ADMIN_DATA_KEY, loginPageViewModel.getAdminData())
                     else intentToDestination.putExtra(EMPLOYEE_DATA_KEY, loginPageViewModel.getEmployeeData())
                     startActivity(intentToDestination)
-                    overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                    overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                     finish()
                 } ?: run {
                     // kode dibawah ini sepertinya udah gak di pakai karena sudah di ganti dengan onBackPress
@@ -531,7 +521,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                         intentToDestination.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     }
                     startActivity(intentToDestination)
-                    overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                    overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                 }
             } else return@setDynamicWindowAllCorner
         }
@@ -628,7 +618,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
         ) {
             finish()
             overridePendingTransition(
-                R.anim.slide_miximize_in_left,
+                R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
             // ⛔ TIDAK dilepas → activity selesai

@@ -21,7 +21,6 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -29,8 +28,6 @@ import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.ReservationData
-import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
@@ -40,32 +37,15 @@ import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.SelectAccountPage
 import com.example.barberlink.UserInterface.SignIn.Login.SelectOutletDestination
 import com.example.barberlink.UserInterface.SignIn.ViewModel.SelectOutletViewModel
-import com.example.barberlink.UserInterface.Teller.CompleteOrderPage
 import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
-import com.example.barberlink.UserInterface.Teller.ReviewOrderPage.Companion.RESERVATION_DATA
-import com.example.barberlink.UserInterface.Teller.ViewModel.ReviewOrderViewModel
 import com.example.barberlink.Utils.Concurrency.withStateLock
-import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.FragmentFormAccessCodeBinding
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.android.gms.tasks.Tasks
-import com.google.firebase.Timestamp
-import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -427,7 +407,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     dismiss() // Menutup DialogFragment
                     parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
                     context.startActivity(intent)
-                    (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                    (context as? Activity)?.overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                     // Tutup aktivitas saat ini
                     (context as? Activity)?.finish()
                 } else {
@@ -440,7 +420,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     dismiss() // Menutup DialogFragment
                     parentFragmentManager.popBackStack() // Menghapus fragment dari back stack jika ada
                     context.startActivity(intent)
-                    (context as? Activity)?.overridePendingTransition(R.anim.slide_miximize_in_right, R.anim.slide_minimize_out_left)
+                    (context as? Activity)?.overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                 }
             } else return@setDynamicWindowAllCorner
         }
