@@ -42,6 +42,7 @@ object NetworkMonitor {
     private var lastMessage: String? = null
     private var currentToast: Toast? = null
     private var countDown: Int = 2
+    private var isMonitoringEnabled = false
     private val _isOnline = MutableStateFlow(false)
     val isOnline: StateFlow<Boolean> get() = _isOnline
 
@@ -82,7 +83,7 @@ object NetworkMonitor {
                     rechecking = false
                     Logger.d("ConnectionUserCheck", "error message 1: ${errorMessage.value}")
                     _errorMessage.value = ""
-                    checkInternetConnection()
+                    if (isMonitoringEnabled) checkInternetConnection()
                 }
             }
 
@@ -139,7 +140,7 @@ object NetworkMonitor {
 
         checkConnectionJob = scope.launch {
             countDown = 2
-            while (isActive) {
+            while (isActive && isMonitoringEnabled) {
                 delay(400) // Cek setiap 10 detik
 
                 val reachable = try {
@@ -273,6 +274,7 @@ object NetworkMonitor {
     }
 
     private fun internalShowToast(message: String, isFromScheduling: Boolean) {
+        if (!isMonitoringEnabled) return
         mainScope.launch {
             Logger.d("ConnectionUserCheck", "NetworkMessage >> $message")
             currentToast?.cancel()
@@ -295,6 +297,7 @@ object NetworkMonitor {
     }
 
     fun showToast(message: String, forceDisplay: Boolean = false) {
+        if (!isMonitoringEnabled) return
         mainScope.launch {
             if (forceDisplay && message != lastMessage) {
                 Logger.d("ConnectionUserCheck", "NetworkMessage >> $message")
@@ -322,12 +325,19 @@ object NetworkMonitor {
 
     // Fungsi untuk menghentikan monitor
     fun stopMonitoring() {
+        isMonitoringEnabled = false
         checkConnectionJob?.cancel()
         checkConnectionJob = null
+        modifyErrorMessage?.cancel()
+        modifyErrorMessage = null
+        schedulingToast?.cancel()
+        schedulingToast = null
+        cancelToast()
     }
 
     // Fungsi untuk memulai monitor lagi
     fun startMonitoring() {
+        isMonitoringEnabled = true
         recheckInternetConnection()
     }
 

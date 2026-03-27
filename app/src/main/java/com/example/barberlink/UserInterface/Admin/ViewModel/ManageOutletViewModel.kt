@@ -8,30 +8,36 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.ViewModel.ExitTrackerViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ItemListManageOutletAdapterBinding
-import com.google.api.Context
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.google.firebase.storage.FirebaseStorage
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class ManageOutletViewModel(
     private val db: FirebaseFirestore,
+    private val storage: FirebaseStorage
 ) : ViewModel() {
 
-    val outletsMutex = ReentrantCoroutineMutex()
-    val employeesMutex = ReentrantCoroutineMutex()
+    val outletListMutex = ReentrantCoroutineMutex()
+    val employeeListMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
     val listenerEmployeeDataMutex = ReentrantCoroutineMutex()
     val listenerOutletListMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     // =========================================================
     // === UTILITAS DASAR
@@ -56,7 +62,7 @@ class ManageOutletViewModel(
         data class Failure(val type: String, val message: String,  val index: Int, val oldCode: String = ""): ResultState()
     }
 
-    private val _outletList = MutableLiveData<MutableList<Outlet>>().apply { emptyList<Outlet>() }
+    private val _outletList = MutableLiveData<MutableList<Outlet>>().apply { value = mutableListOf() }
     val outletList: LiveData<MutableList<Outlet>> = _outletList
 
     private val _userAdminData = MutableLiveData<com.example.barberlink.DataClass.UserAdminData>()
@@ -65,8 +71,11 @@ class ManageOutletViewModel(
     private val _outletSelected = MutableLiveData<Outlet?>()
     val outletSelected: LiveData<Outlet?> = _outletSelected
 
-    private val _employeeList = MutableLiveData<MutableList<UserEmployeeData>>().apply { emptyList<UserEmployeeData>() }
-    val employeeList: LiveData<MutableList<UserEmployeeData>> = _employeeList
+    private val _employeeList = MutableLiveData<List<UserEmployeeData>>().apply { value = mutableListOf() }
+    val employeeList: LiveData<List<UserEmployeeData>> = _employeeList
+
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
 
     private val _extendedStateMap = MutableLiveData<MutableMap<String, Boolean>>(mutableMapOf())
     val extendedStateMap: LiveData<MutableMap<String, Boolean>> = _extendedStateMap
@@ -110,7 +119,7 @@ class ManageOutletViewModel(
             try {
                 _updateStateResult.value = ResultState.Loading
 
-                val outletRef = db.document(outlet.rootRef)
+                val docsRef = db.document(outlet.rootRef)
                     .collection("outlets")
                     .document(outlet.uid)
 
@@ -128,7 +137,7 @@ class ManageOutletViewModel(
                 Log.d("IsOpen", "outlet: ${outlet.openStatus} || isOpen: $isOpen || updatedCurrentQueue: $updatedCurrentQueue")
 
                 val task = withContext(Dispatchers.IO) {
-                    outletRef.update(
+                    docsRef.update(
                         mapOf(
                             "open_status" to isOpen,
                             "current_queue" to updatedCurrentQueue,
@@ -171,12 +180,12 @@ class ManageOutletViewModel(
             try {
                 _updateStateResult.value = ResultState.Loading
 
-                val outletRef = db.document(outlet.rootRef)
+                val docsRef = db.document(outlet.rootRef)
                     .collection("outlets")
                     .document(outlet.uid)
 
                 val task = withContext(Dispatchers.IO) {
-                    outletRef.update(
+                    docsRef.update(
                         mapOf(
                             "outlet_access_code" to newCode,
                             "last_updated" to Timestamp.now()
@@ -225,12 +234,24 @@ class ManageOutletViewModel(
             try {
                 _updateStateResult.value = ResultState.Loading
 
-                val outletRef = db.document(outlet.rootRef)
+                val docsRef = db.document(outlet.rootRef)
                     .collection("outlets")
                     .document(outlet.uid)
 
+                // 1. Delete image from Storage if it exists
+                if (outlet.imgOutlet.isNotEmpty()) {
+                    try {
+                        val imageRef = storage.getReferenceFromUrl(outlet.imgOutlet)
+                        imageRef.delete().await()
+                        Logger.d("DeleteOutlet", "Image deleted successfully: ${outlet.imgOutlet}")
+                    } catch (e: Exception) {
+                        Logger.e("DeleteOutlet", "Failed to delete image: ${e.message}")
+                        // We continue deleting the document even if image deletion fails
+                    }
+                }
+
                 val task = withContext(Dispatchers.IO) {
-                    outletRef.delete().awaitWriteWithOfflineFallback(tag = "DeleteOutlet")
+                    docsRef.delete().awaitWriteWithOfflineFallback(tag = "DeleteOutlet")
                 }
 
                 if (task.isSuccessful) {
@@ -307,11 +328,11 @@ class ManageOutletViewModel(
 
     fun clearAllDataOutlet() {
         viewModelScope.launch {
-            _outletList.value = mutableListOf()
+            _outletList.clearList()
         }
     }
 
-    fun setEmployeeList(employeeList: MutableList<UserEmployeeData>) {
+    fun setEmployeeList(employeeList: List<UserEmployeeData>) {
         viewModelScope.launch {
             _employeeList.value = employeeList
         }
@@ -320,6 +341,22 @@ class ManageOutletViewModel(
     fun clearAllDataEmployee() {
         viewModelScope.launch {
             _employeeList.value = mutableListOf()
+        }
+    }
+
+    fun setEmployeeRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val employees = _employeeList.value ?: emptyList()
+            _employeeRolesList.value = list
+
+            if (employees.isNotEmpty()) {
+                employeeListMutex.withStateLock {
+                    employees.forEach { employee ->
+                        employee.roleDetail = list.find { it.roleName == employee.role }
+                    }
+                    _employeeList.value = employees
+                }
+            }
         }
     }
 

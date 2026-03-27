@@ -5,12 +5,18 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class SwitchCapsterViewModel(state: SavedStateHandle) : InputFragmentViewModel(state) {
+
+    val capsterListMutex = ReentrantCoroutineMutex()
+
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>()
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
 
@@ -44,6 +50,21 @@ class SwitchCapsterViewModel(state: SavedStateHandle) : InputFragmentViewModel(s
             _capsterList.value = listCapster
             _setupDropdownFilter.value = setupDropdown
             _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+        }
+    }
+
+    fun setCapsterRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val capsters = _capsterList.value ?: emptyList()
+
+            if (capsters.isNotEmpty()) {
+                capsterListMutex.withStateLock {
+                    capsters.forEach { capster ->
+                        capster.roleDetail = list.find { it.roleName == capster.role }
+                    }
+                    _capsterList.value = capsters
+                }
+            }
         }
     }
 

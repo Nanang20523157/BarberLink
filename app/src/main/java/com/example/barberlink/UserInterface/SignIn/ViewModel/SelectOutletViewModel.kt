@@ -1,29 +1,27 @@
 package com.example.barberlink.UserInterface.SignIn.ViewModel
 
 import android.os.Build
-import android.view.View
-import android.widget.Toast
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Network.NetworkMonitor
-import com.example.barberlink.UserInterface.Capster.SelectAccountPage
-import com.example.barberlink.UserInterface.SignUp.ViewModel.StepTwoViewModel.ResultState
-import com.example.barberlink.UserInterface.Teller.QueueTrackerPage
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
 import com.example.barberlink.Utils.Logger
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -69,6 +67,9 @@ class SelectOutletViewModel(
 
     private val _employeeList = MutableLiveData<MutableList<UserEmployeeData>>().apply { emptyList<UserEmployeeData>() }
     val employeeList: LiveData<MutableList<UserEmployeeData>> = _employeeList
+
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
 
     private val _capsterList = MutableLiveData<MutableList<UserEmployeeData>>().apply { emptyList<UserEmployeeData>() }
     val capsterList: LiveData<MutableList<UserEmployeeData>> = _capsterList
@@ -160,15 +161,68 @@ class SelectOutletViewModel(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-     fun handleTellerLogin() {
+    fun handleTellerFlow() {
         viewModelScope.launch {
             outletSelected.value?.let { outletSelected ->
                 try {
-                    _gettingStateResult.value = ResultState.Loading
+                    _gettingStateResult.postValue(ResultState.Loading)
                     Logger.d("CheckShimmer", "handleTellerLogin start")
                     if (outletSelected.rootRef.isEmpty() || outletSelected.uid.isEmpty()) throw IllegalStateException("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
                     if (outletSelected.listEmployees.isEmpty()) throw IllegalStateException("Anda belum menambahkan daftar capster untuk outlet ini!")
+
+                    val snapshot = withContext(Dispatchers.IO) {
+                        db.collection("roles")
+                            .whereIn("barbershop_ref", listOf("All", outletSelected.rootRef))
+                            .awaitGetWithOfflineFallback(tag = "GetEmployeeRolesData")
+                    }
+
+                    if (snapshot.isSuccessful) {
+                        val documents = snapshot.data
+                        if (documents != null) {
+                            withContext(Dispatchers.Default) {
+                                val employeeRoles = documents.mapNotNull { document ->
+                                    document.toObject(EmployeeRolesData::class.java)
+                                }
+                                _employeeRolesList.postValue(employeeRoles)
+                                getCapstersData()
+                            }
+                        } else {
+                            Logger.d("FormAccess", "handleTellerFlow: snapshot data is null")
+                            if (snapshot.displayMessage) _gettingStateResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                            else _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                            setupIntialDataWhenError()
+                        }
+                    }  else {
+                        Logger.d("FormAccess", "handleTellerFlow: snapshot unsuccessful")
+                        if (snapshot.displayMessage) {
+                            if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
+                                NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
+                                _gettingStateResult.postValue(ResultState.Failure(""))
+                            } else _gettingStateResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                        } else _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                        setupIntialDataWhenError()
+                    }
+                } catch (e: Exception) {
+                    Logger.d("FormAccess", "handleTellerFlow: exception ${e.message}")
+                    _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                    setupIntialDataWhenError()
+                }
+            } ?: run {
+                Logger.d("FormAccess", "handleTellerFlow: outletSelected is null")
+                _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                setupIntialDataWhenError()
+            }
+        }
+    }
+
+    private fun getCapstersData() {
+        viewModelScope.launch {
+            outletSelected.value?.let { outletSelected ->
+                try {
+                    //_gettingStateResult.value = ResultState.Loading
+                    Logger.d("CheckShimmer", "handleTellerLogin start")
+                    //if (outletSelected.rootRef.isEmpty() || outletSelected.uid.isEmpty()) throw IllegalStateException("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                    //if (outletSelected.listEmployees.isEmpty()) throw IllegalStateException("Anda belum menambahkan daftar capster untuk outlet ini!")
 
                     coroutineScope {
                         val isSameDay = isSameDay(Timestamp.now().toDate(), outletSelected.timestampModify.toDate())
@@ -189,19 +243,21 @@ class SelectOutletViewModel(
                     // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
                     // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
                     // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
-                    _gettingStateResult.value = ResultState.Navigate("Login as Teller", false)
+                    _gettingStateResult.postValue(ResultState.Navigate("Login as Teller", false))
                 } catch (e: Exception) {
+                    Logger.d("FormAccess", "getSpecificOutletData: exception ${e.message}")
                     Logger.e("CheckShimmer", "❌ getSpecificOutletData gagal: ${e.message}")
                     val messageText = if (e.message.toString() == "Anda belum menambahkan daftar capster untuk outlet ini!") {
                         e.message.toString()
                     } else {
                         "Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"
                     }
-                    _gettingStateResult.value = ResultState.Failure(messageText)
+                    _gettingStateResult.postValue(ResultState.Failure(messageText))
                     setupIntialDataWhenError()
                 }
             } ?: run {
-                _gettingStateResult.value = ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                Logger.d("FormAccess", "getSpecificOutletData: outletSelected is null")
+                _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
                 setupIntialDataWhenError()
             }
         }
@@ -212,11 +268,10 @@ class SelectOutletViewModel(
         setCapsterList(mutableListOf())
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-     fun getEmployeesData() {
+    fun handleEmployeeFlow() {
         viewModelScope.launch {
             outletSelected.value?.let { outletSelected ->
-                _gettingStateResult.value = ResultState.Loading
+                _gettingStateResult.postValue(ResultState.Loading)
                 Logger.d("CheckShimmer", "getEmployeesData start")
 
                 try {
@@ -224,7 +279,61 @@ class SelectOutletViewModel(
                     if (outletSelected.listEmployees.isEmpty()) throw IllegalStateException("Anda belum menambahkan daftar capster untuk outlet ini!")
 
                     val snapshot = withContext(Dispatchers.IO) {
-                        db.collectionGroup("employees")
+                        db.collection("roles")
+                            .whereIn("barbershop_ref", listOf("All", outletSelected.rootRef))
+                            .awaitGetWithOfflineFallback(tag = "GetEmployeeRolesData")
+                    }
+
+                    if (snapshot.isSuccessful) {
+                        val documents = snapshot.data
+                        if (documents != null) {
+                            withContext(Dispatchers.Default) {
+                                val employeeRoles = documents.mapNotNull { document ->
+                                    document.toObject(EmployeeRolesData::class.java)
+                                }
+                                _employeeRolesList.postValue(employeeRoles)
+                                getEmployeesData()
+                            }
+                        } else {
+                            Logger.d("FormAccess", "handleEmployeeFlow: snapshot data is null")
+                            if (snapshot.displayMessage) _gettingStateResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                            else _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                            setEmployeeList(mutableListOf())
+                        }
+                    } else {
+                        Logger.d("FormAccess", "handleEmployeeFlow: snapshot unsuccessful")
+                        if (snapshot.displayMessage) {
+                            if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
+                                NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
+                                _gettingStateResult.postValue(ResultState.Failure(""))
+                            } else _gettingStateResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                        } else _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                        setEmployeeList(mutableListOf())
+                    }
+                } catch (e: Exception) {
+                    Logger.d("FormAccess", "handleEmployeeFlow: exception ${e.message}")
+                    _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                    setEmployeeList(mutableListOf())
+                }
+            } ?: run {
+                Logger.d("FormAccess", "handleEmployeeFlow: outletSelected is null")
+                _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
+                setEmployeeList(mutableListOf())
+            }
+        }
+    }
+
+    private fun getEmployeesData() {
+        viewModelScope.launch {
+            outletSelected.value?.let { outletSelected ->
+                //_gettingStateResult.value = ResultState.Loading
+                Logger.d("CheckShimmer", "getEmployeesData start")
+
+                try {
+                    //if (outletSelected.rootRef.isEmpty() || outletSelected.uid.isEmpty()) throw IllegalStateException("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                    //if (outletSelected.listEmployees.isEmpty()) throw IllegalStateException("Anda belum menambahkan daftar capster untuk outlet ini!")
+                    val snapshot = withContext(Dispatchers.IO) {
+                        db.collection("employees")
                             .whereEqualTo("root_ref", outletSelected.rootRef)
                             .awaitGetWithOfflineFallback(tag = "GetEmployeesData")
                     }
@@ -240,35 +349,43 @@ class SelectOutletViewModel(
                                         document.toObject(UserEmployeeData::class.java).apply {
                                             userRef = document.reference.path
                                             outletRef = outletData.outletReference
+                                            roleDetail = employeeRolesList.value?.find {
+                                                it.roleName == this.role
+                                            }
                                         }.takeIf { it.uid in employeeUidList }
                                     }
 
-                                    _gettingStateResult.value = ResultState.Navigate("Login as Employee", newEmployeesList.isEmpty())
+                                    setEmployeeList(newEmployeesList.toMutableList())
+                                    _gettingStateResult.postValue(ResultState.Navigate("Login as Employee", newEmployeesList.isEmpty()))
                                     Logger.d("CheckShimmer", "✅ getEmployeesData found ${newEmployeesList.size} data")
                                 } ?: run {
                                     throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
                                 }
                             }
                         } else {
-                            if (snapshot.displayMessage) _gettingStateResult.value = ResultState.Failure(snapshot.errorMessage.toString())
-                            else _gettingStateResult.value = ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                            Logger.d("FormAccess", "getEmployeesData: snapshot data is null")
+                            if (snapshot.displayMessage) _gettingStateResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                            else _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
                             setEmployeeList(mutableListOf())
                         }
                     } else {
                         if (snapshot.displayMessage) {
+                            Logger.d("FormAccess", "getEmployeesData: snapshot unsuccessful with message ${snapshot.errorMessage}")
                             if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
                                 NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
-                                _gettingStateResult.value = ResultState.Failure("")
-                            } else _gettingStateResult.value = ResultState.Failure(snapshot.errorMessage.toString())
-                        } else _gettingStateResult.value = ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                                _gettingStateResult.postValue(ResultState.Failure(""))
+                            } else _gettingStateResult.postValue(ResultState.Failure(snapshot.errorMessage.toString()))
+                        } else _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
                         setEmployeeList(mutableListOf())
                     }
                 } catch (e: Exception) {
-                    _gettingStateResult.value = ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                    Logger.d("FormAccess", "getEmployeesData: exception ${e.message}")
+                    _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
                     setEmployeeList(mutableListOf())
                 }
             } ?: run {
-                _gettingStateResult.value = ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                Logger.d("FormAccess", "getEmployeesData: outletSelected is null")
+                _gettingStateResult.postValue(ResultState.Failure("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"))
                 setEmployeeList(mutableListOf())
             }
         }
@@ -278,11 +395,11 @@ class SelectOutletViewModel(
         try {
             val startTime = System.currentTimeMillis()
 
-            val outletRef = db.document(outletSelected.outletReference)
-            Logger.d("CheckShimmer", "🚀 Mulai update current_queue untuk outletRef: $outletRef")
+            val docsRef = db.document(outletSelected.outletReference)
+            Logger.d("CheckShimmer", "🚀 Mulai update current_queue untuk outletRef: $docsRef")
 
             val task = withContext(Dispatchers.IO) {
-                outletRef.update(
+                docsRef.update(
                     mapOf(
                         "current_queue" to outletSelected.currentQueue,
                         "timestamp_modify" to outletSelected.timestampModify
@@ -307,10 +424,8 @@ class SelectOutletViewModel(
         Logger.d("CheckShimmer", "getCapsterDataTask start")
         try {
             val snapshot = withContext(Dispatchers.IO) {
-                db.document(outletSelected.rootRef)
-                    .collection("divisions")
-                    .document("capster")
-                    .collection("employees")
+                db.collection("employees")
+                    .whereEqualTo("root_ref", outletSelected.rootRef)
                     .awaitGetWithOfflineFallback(tag = "GetCapsterDataTask")
             }
 
@@ -322,20 +437,21 @@ class SelectOutletViewModel(
                             val employeeUidList = outletData.listEmployees
 
                             val (newCapsterList, _) = documents.mapNotNull { document ->
-                                document.toObject(UserEmployeeData::class.java)?.apply {
+                                document.toObject(UserEmployeeData::class.java).apply {
                                     userRef = document.reference.path
                                     outletRef = outletData.outletReference
-                                }?.takeIf { it.uid in employeeUidList && it.availabilityStatus } // Filter untuk availabilityStatus == true
+                                    roleDetail = employeeRolesList.value?.find {
+                                        it.roleName == this.role
+                                    }
+                                }.takeIf { it.uid in employeeUidList && it.attendanceStatus && (it.roleDetail?.permissions?.get("manage_queue") == true) } // Filter untuk attendanceStatus == true
                                     ?.let { employee ->
                                         employee to employee.fullname
                                     }
                             }.unzip()
 
-                            withContext(Dispatchers.Main) {
-                                if (newCapsterList.isEmpty()) {
-                                    _toastDetection.value = TriggerToast.CommonToast("Tidak ditemukan data capster yang sesuai!")
-                                    //Toast.makeText(context, "Tidak ditemukan data capster yang sesuai!", Toast.LENGTH_SHORT).show()
-                                }
+                            if (newCapsterList.isEmpty()) {
+                                _toastDetection.postValue(TriggerToast.CommonToast("Tidak ditemukan data capster yang sesuai!"))
+                                //Toast.makeText(context, "Tidak ditemukan data capster yang sesuai!", Toast.LENGTH_SHORT).show()
                             }
                             setCapsterList(newCapsterList.toMutableList())
                         } ?: run {
@@ -395,11 +511,9 @@ class SelectOutletViewModel(
                                 }
                             }
 
-                            withContext(Dispatchers.Main) {
-                                if (newReservationList.isEmpty()) {
-                                    _toastDetection.value = TriggerToast.CommonToast("Tidak ditemukan data reservasi yang sesuai")
-                                    //Toast.makeText(context, "Tidak ditemukan data reservasi yang sesuai", Toast.LENGTH_SHORT).show()
-                                }
+                            if (newReservationList.isEmpty()) {
+                                _toastDetection.postValue(TriggerToast.CommonToast("Tidak ditemukan data reservasi yang sesuai"))
+                                //Toast.makeText(context, "Tidak ditemukan data reservasi yang sesuai", Toast.LENGTH_SHORT).show()
                             }
                             setReservationList(newReservationList.toMutableList())
                         } ?: run {

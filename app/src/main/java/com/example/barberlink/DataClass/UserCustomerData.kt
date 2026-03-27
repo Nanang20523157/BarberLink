@@ -9,7 +9,6 @@ import kotlinx.parcelize.Parcelize
 @Parcelize
 data class UserCustomerData(
     // @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: MutableList<ListStackData>? = null,
-    @get:PropertyName("user_reminder") @set:PropertyName("user_reminder") var userReminder: MutableList<NotificationReminder>? = null,
     @get:PropertyName("email") @set:PropertyName("email") override var email: String = "",
     @get:PropertyName("fullname") @set:PropertyName("fullname") var fullname: String = "",
     @get:PropertyName("gender") @set:PropertyName("gender") var gender: String = "",
@@ -18,10 +17,11 @@ data class UserCustomerData(
     @get:PropertyName("phone") @set:PropertyName("phone") override var phone: String = "",
     @get:PropertyName("photo_profile") @set:PropertyName("photo_profile") var photoProfile: String = "",
     // @get:PropertyName("reservation_list") @set:PropertyName("reservation_list") var reservationList: MutableList<ListStackData>? = null,
-    @get:PropertyName("user_notification") @set:PropertyName("user_notification") var userNotification: MutableList<NotificationReminder>? = null,
     @get:PropertyName("uid") @set:PropertyName("uid") override var uid: String = "",
-    @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
     @get:PropertyName("user_coins") @set:PropertyName("user_coins") var userCoins: Int = 0,
+    @get:PropertyName("user_notification") @set:PropertyName("user_notification") var userNotification: MutableList<NotificationReminder>? = null,
+    @get:PropertyName("user_reminder") @set:PropertyName("user_reminder") var userReminder: MutableList<NotificationReminder>? = null,
+    @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
     @get:Exclude @set:Exclude var lastReserve: Timestamp? = null,
     @get:Exclude @set:Exclude var dataSelected: Boolean = false,
     @get:Exclude @set:Exclude var guestAccount: Boolean = false,
@@ -42,11 +42,6 @@ data class UserCustomerData(
 //            } else {
 //                this.appointmentList // Copy reference
 //            },
-            userReminder = if (copyReminder) {
-                this.userReminder?.map { it.deepCopy() }?.toMutableList()
-            } else {
-                this.userReminder // Copy reference
-            },
             email = this.email,
             fullname = this.fullname,
             gender = this.gender,
@@ -59,14 +54,19 @@ data class UserCustomerData(
 //            } else {
 //                this.reservationList // Copy reference
 //            },
+            uid = this.uid,
+            userCoins = this.userCoins,
             userNotification = if (copyNotification) {
                 this.userNotification?.map { it.deepCopy() }?.toMutableList()
             } else {
                 this.userNotification // Copy reference
             },
-            uid = this.uid,
+            userReminder = if (copyReminder) {
+                this.userReminder?.map { it.deepCopy() }?.toMutableList()
+            } else {
+                this.userReminder // Copy reference
+            },
             username = this.username,
-            userCoins = this.userCoins,
             lastReserve = this.lastReserve,
             dataSelected = this.dataSelected,
             guestAccount = this.guestAccount,

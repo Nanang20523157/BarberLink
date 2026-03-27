@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/shimmer_view_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="3dp"
+    android:layout_marginHorizontal="4dp"
+    app:shimmer_auto_start="true"
+    app:shimmer_base_alpha="0.7"
+    app:shimmer_direction="left_to_right"
+    app:shimmer_duration="500"
+    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+    app:shimmer_repeat_delay="500"
+    app:shimmer_shape="linear"
+    app:shimmer_tilt="0">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0.5dp"
+        android:layout_margin="8dp"
+        android:backgroundTint="@color/light_grey_horizons_background">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="17dp"
+            android:paddingTop="18dp"
+            android:paddingEnd="17dp"
+            android:paddingBottom="18dp">
+
+            <!-- Left Container: Number Badge + Text -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- Number Badge Placeholder -->
+                <View
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="@drawable/shimmer_circle_shape"
+                    android:layout_marginEnd="12dp" />
+
+                <!-- Outlet Name Placeholder -->
+                <View
+                    android:layout_width="160dp"
+                    android:layout_height="18dp"
+                    android:background="@drawable/shimmer_corner_empat_dp_300" />
+            </LinearLayout>
+
+            <!-- Right Button: Close Icon Placeholder -->
+            <View
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/shimmer_corner_empat_dp_300" />
+
+        </RelativeLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</com.facebook.shimmer.ShimmerFrameLayout>

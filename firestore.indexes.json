@@ -1,0 +1,22 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "queue_status", "mode": "ASCENDING" },
+        { "fieldPath": "timestamp_to_booking", "mode": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "root_ref", "mode": "ASCENDING" },
+        { "fieldPath": "capster_info.capster_ref", "mode": "ASCENDING" },
+        { "fieldPath": "timestamp_to_booking", "mode": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

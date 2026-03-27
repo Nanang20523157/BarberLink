@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Refined background for Income Card with inner feel -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Main Border / Stroke -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#D1D5DB" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+
+    <!-- Inner Background (slightly offset to simulate shadow-inner/depth if needed,
+         but here we use it to create the border effect) -->
+    <item
+        android:bottom="1dp"
+        android:left="1dp"
+        android:right="1dp"
+        android:top="1dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+</layer-list>

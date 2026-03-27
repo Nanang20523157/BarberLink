@@ -4,8 +4,8 @@ import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Utils.Logger
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.tasks.await
 
 class OutletRepository(private val db: FirebaseFirestore) {
@@ -40,4 +40,5 @@ class OutletRepository(private val db: FirebaseFirestore) {
     suspend fun deleteOutlet(barbershopId: String, outletId: String): FirestoreResult<Unit> {
         return getOutletCollection(barbershopId).document(outletId).delete().awaitWriteWithOfflineFallback(tag = "DeleteOutlet")
     }
+
 }

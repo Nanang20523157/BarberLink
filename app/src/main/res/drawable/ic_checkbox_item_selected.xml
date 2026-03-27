@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Background Lingkaran Solid (Teal) -->
+    <path
+        android:fillColor="#10BBBB"
+        android:pathData="M12,2 C6.47,2 2,6.47 2,12 C2,17.53 6.47,22 12,22 C17.53,22 22,17.53 22,12 C22,6.47 17.53,2 12,2 Z" />
+
+    <!-- Tanda Centang di Tengah (Putih) -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M7.5,12.5 L10.5,15.5 L16.5,8.5" />
+
+</vector>

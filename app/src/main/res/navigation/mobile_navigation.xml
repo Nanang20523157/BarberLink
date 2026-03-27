@@ -72,6 +72,9 @@
             android:name="employeeList"
             app:argType="com.example.barberlink.DataClass.UserEmployeeData[]" />
         <argument
+            android:name="employeeRoles"
+            app:argType="com.example.barberlink.DataClass.EmployeeRolesData[]" />
+        <argument
             android:name="userAdminData"
             app:argType="com.example.barberlink.DataClass.UserAdminData" />
     </activity>

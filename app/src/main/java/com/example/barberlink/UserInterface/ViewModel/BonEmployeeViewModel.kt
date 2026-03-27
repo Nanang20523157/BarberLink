@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.Adapter.ItemListTagFilteringAdapter
 import com.example.barberlink.DataClass.BonEmployeeData
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
 import com.example.barberlink.Helper.Event
@@ -20,11 +21,13 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
 
     val listBonMutex = ReentrantCoroutineMutex()
     val employeeListMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerEmployeeListMutex = ReentrantCoroutineMutex()
     val listenerEmployeeDataMutex = ReentrantCoroutineMutex()
     val listenerCurrentBonMutex = ReentrantCoroutineMutex()
     val listenerNextPrevMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     // =========================================================
     // === UTILITAS DASAR
@@ -45,6 +48,9 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
 
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
+
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
 
 //    private val _capsterNames = MutableLiveData<List<String>>(emptyList())
 //    val capsterNames: LiveData<List<String>> = _capsterNames
@@ -195,6 +201,21 @@ class BonEmployeeViewModel(state: SavedStateHandle) : InputFragmentViewModel(sta
             //_capsterNames.postValue(capsterNames)
             _setupDropdownFilter.postValue(setupDropdown)
             _setupDropdownFilterWithNullState.postValue(isSavedInstanceStateNull)
+        }
+    }
+
+    // ^^^^^^^ Bukan untuk capsterList (KasbonGatewayPage) ^^^^^^^
+    fun setEmployeeRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val employeeData = _userEmployeeData.value
+            _employeeRolesList.postValue(list)
+
+            if (employeeData != null) {
+                employeeData.let { data ->
+                    data.roleDetail = list.find { it.roleName == data.role }
+                }
+                _userEmployeeData.postValue(employeeData)
+            }
         }
     }
 

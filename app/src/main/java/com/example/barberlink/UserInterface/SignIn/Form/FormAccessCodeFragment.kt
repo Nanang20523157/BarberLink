@@ -185,14 +185,14 @@ class FormAccessCodeFragment : DialogFragment() {
             }) return@setOnClickListener
             // hmmmmm
             if (isInputValid) {
-                //Tolong check implementasi terbaru pada FormAccessCodfeFragment branch master
+                // Tolong check implementasi terbaru pada FormAccessCodfeFragment branch master
                 // setiap kali dia tidak menemukan daftar capster atau pegawai pengguna akan tetap dibawa ke halaman berikutnya
                 // masalahnya 1) kita harus mengcheck apakah halaman berikutnya tetap dapat tampil proper saat data gak tersedia
                 // 2) show Toast "Tidak ditemukan..." ditampilkan langsung ditutup karena halaman saat ini akan segera di distroy
                 // untuk keperluan navigasi (ui dan ux nya jadi jelek kalok seperti ini pakek Toast biasa saja gak perlu showToast)
                 checkNetworkConnection {
-                    if (formAccessViewModel.getLoginType() == "Login as Employee") formAccessViewModel.getEmployeesData()
-                    else if (formAccessViewModel.getLoginType() == "Login as Teller") formAccessViewModel.handleTellerLogin()
+                    if (formAccessViewModel.getLoginType() == "Login as Employee") formAccessViewModel.handleEmployeeFlow()
+                    else if (formAccessViewModel.getLoginType() == "Login as Teller") formAccessViewModel.handleTellerFlow()
                 }
             } else {
                 isInputValid = validateInput()
@@ -394,6 +394,7 @@ class FormAccessCodeFragment : DialogFragment() {
                     intent.apply {
                         putExtra(OUTLET_DATA_KEY, outletSelected)
                         putParcelableArrayListExtra(RESERVE_DATA_KEY, ArrayList(formAccessViewModel.reservationDataList.value ?: mutableListOf()))
+                        putParcelableArrayListExtra(ROLES_DATA_KEY, ArrayList(formAccessViewModel.employeeRolesList.value ?: emptyList()))
                         putParcelableArrayListExtra(CAPSTER_DATA_KEY, ArrayList(formAccessViewModel.capsterList.value ?: mutableListOf()))
                     }
                     outletSelected?.uid?.let {
@@ -413,6 +414,7 @@ class FormAccessCodeFragment : DialogFragment() {
                 } else {
                     intent.apply {
                         putExtra(OUTLET_DATA_KEY, outletSelected)
+                        putParcelableArrayListExtra(ROLES_DATA_KEY, ArrayList(formAccessViewModel.employeeRolesList.value ?: emptyList()))
                         putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(formAccessViewModel.employeeList.value ?: mutableListOf()))
                     }
                     // Tutup DialogFragment jika ada
@@ -513,6 +515,7 @@ class FormAccessCodeFragment : DialogFragment() {
         const val RESERVE_DATA_KEY = "reserve_data_key"
         const val OUTLET_DATA_KEY = "outlet_data_key"
         const val CAPSTER_DATA_KEY = "capster_data_key"
+        const val ROLES_DATA_KEY = "roles_data_key"
         const val EMPLOYEE_DATA_KEY = "employee_data_key"
         /**
          * Use this factory method to create a new instance of

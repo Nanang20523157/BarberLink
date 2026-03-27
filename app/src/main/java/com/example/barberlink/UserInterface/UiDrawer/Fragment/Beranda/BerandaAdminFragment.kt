@@ -1,12 +1,11 @@
 package com.example.barberlink.UserInterface.UiDrawer.Fragment.Beranda
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -15,7 +14,6 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
@@ -25,7 +23,6 @@ import androidx.core.view.marginLeft
 import androidx.core.view.marginRight
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -37,7 +34,6 @@ import com.denzcoskun.imageslider.interfaces.ItemClickListener
 import com.denzcoskun.imageslider.models.SlideModel
 import com.example.barberlink.Adapter.ItemListEmployeeAdapter
 import com.example.barberlink.Adapter.ItemListPackageBundlingAdapter
-import com.example.barberlink.UserInterface.Admin.Fragment.BundlingServiceListBottomSheet
 import com.example.barberlink.Adapter.ItemListProductAdapter
 import com.example.barberlink.Adapter.ItemListServiceProvideAdapter
 import com.example.barberlink.Contract.CapitalDialogHost
@@ -47,14 +43,16 @@ import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
-import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Contract.DrawerController
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.Fragment.DetailServiceListFragment
+import com.example.barberlink.UserInterface.Admin.ManageEmployeePage
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SettingPageScreen
@@ -63,28 +61,21 @@ import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.FragmentBerandaAdminBinding
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.TaskCompletionSource
-import com.google.android.gms.tasks.Tasks
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.QuerySnapshot
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import kotlinx.coroutines.Deferred
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import androidx.navigation.findNavController
 
 /**
  * A simple [Fragment] subclass.
@@ -106,7 +97,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
 //    private var currentView: View? = null
     private var isFirstLoad: Boolean = true
     private var isProcessingFABAnimation: Boolean = false
-    private var remainingListeners = AtomicInteger(6)
+    private var remainingListeners = AtomicInteger(7)
     private lateinit var serviceAdapter: ItemListServiceProvideAdapter
     private lateinit var employeeAdapter: ItemListEmployeeAdapter
     private lateinit var bundlingAdapter: ItemListPackageBundlingAdapter
@@ -116,6 +107,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var productListener: ListenerRegistration
     private lateinit var outletListener: ListenerRegistration
+    private lateinit var rolesListener: ListenerRegistration
     private lateinit var barbershopListener: ListenerRegistration
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
@@ -137,11 +129,18 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         super.onCreate(savedInstanceState)
         berandaAdminViewModel
         toastViewModel
-        arguments?.let {
-            val userAdminData = it.getParcelable(MainActivity.ADMIN_BUNDLE_KEY) ?: UserAdminData()
-            Log.d("CheckShimmer", "onCreate :: berandaAdminViewModel.setUserAdminData(userAdminData)")
-            if (savedInstanceState == null) berandaAdminViewModel.setUserAdminData(userAdminData)
-        }
+//        arguments?.let {
+//            val userAdminData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                it.getParcelable(MainActivity.ADMIN_BUNDLE_KEY, UserAdminData::class.java)
+//            } else {
+//                @Suppress("DEPRECATION")
+//                it.getParcelable(MainActivity.ADMIN_BUNDLE_KEY)
+//            } ?: UserAdminData()
+//            if (savedInstanceState == null) {
+//                berandaAdminViewModel.setUserAdminData(userAdminData)
+//            }
+//        }
+        Log.d("PlayCheck", "onCreate ::")
 
         context = requireContext()
     }
@@ -155,12 +154,13 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         return binding.root
     }
 
+    @SuppressLint("UseKtx")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         setAndDisplayBanner()
         adjustCardViewLayout()
         // Set sudut dinamis sesuai perangkat
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, requireContext(), true)
+        //WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, requireContext(), true)
         WindowInsetsHandler.applyWindowInsets(binding.root) { _, left, right, _ ->
             val layoutParams = binding.swipeRefreshLayout.layoutParams
             val layoutParams1 = binding.recyclerLayanan.layoutParams
@@ -252,15 +252,17 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             })
             binding.mainContent.startAnimation(fadeIn)
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> isRecreated: true") }
-        navController = Navigation.findNavController(requireView())
+        navController = requireView().findNavController()
 
         val adminRef = sessionManager.getDataAdminRef()
         userId = adminRef?.substringAfter("barbershops/") ?: ""
 
         if (savedInstanceState != null) {
             Log.d("CheckShimmer", "Animate First Load BAF >>> savedInstanceState == null")
+            isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
+            isProcessingFABAnimation = savedInstanceState.getBoolean("is_processing_fab_animation", false)
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> savedInstanceState != null") }
 
         init()
@@ -270,6 +272,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             fabInputCapital.setOnClickListener(this@BerandaAdminFragment)
             fabDashboardAdmin.setOnClickListener(this@BerandaAdminFragment)
             ivHamburger.setOnClickListener(this@BerandaAdminFragment)
+            seeAllLayanan.setOnClickListener(this@BerandaAdminFragment)
+            seeAllPegawai.setOnClickListener(this@BerandaAdminFragment)
+            seeAllProduk.setOnClickListener(this@BerandaAdminFragment)
+            seeAllPaketBundling.setOnClickListener(this@BerandaAdminFragment)
+            ivAddNewLayanan.setOnClickListener(this@BerandaAdminFragment)
+            ivAddNewPegawai.setOnClickListener(this@BerandaAdminFragment)
+            ivAddNewProduk.setOnClickListener(this@BerandaAdminFragment)
+            ivAddNewPaketBundling.setOnClickListener(this@BerandaAdminFragment)
 
             // Atur warna SwipeRefreshLayout agar sesuai dengan ProgressBar
             swipeRefreshLayout.setColorSchemeColors(
@@ -279,12 +289,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
 //            swipeRefreshLayout.setProgressViewOffset(false, 0, (64 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-                if (userId.isNotEmpty()) {
-                    refreshPageEffect()
-                    getAllData()
-                } else {
-                    binding.swipeRefreshLayout.isRefreshing = false
-                }
+                berandaAdminViewModel.userAdminData.value?.let { userAdminData ->
+                    if (userAdminData.uid.isNotEmpty()) {
+                        refreshPageEffect()
+                        getBarbershopData(true)
+                    } else {
+                        binding.swipeRefreshLayout.isRefreshing = false
+                    }
+                } ?: run { swipeRefreshLayout.isRefreshing = false }
             })
 
             val nestedScrollView = binding.mainContent
@@ -313,7 +325,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             if (!isFirstLoad) setupListeners(skippedProcess = true)
         }
 
-        berandaAdminViewModel.isSetItemBundling.observe(requireActivity()) { isSet ->
+        berandaAdminViewModel.isSetItemBundling.observe(viewLifecycleOwner) { isSet ->
             if (isSet == true) {
                 Log.d("CacheChecking", "RE SETUP LIST ITEM DETAILS")
                 // Jalankan setServiceBundlingList hanya ketika nilai _isSetItemBundling adalah true
@@ -322,8 +334,13 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         }
 
         berandaAdminViewModel.userAdminData.observe(viewLifecycleOwner) { userAdminData ->
+            Log.d("PlayCheck", "userAdminData Observer :: ${userAdminData?.uid} || ${userAdminData?.subscriptionStatus} <> isFirstLoad: $isFirstLoad")
             if (userAdminData.uid.isEmpty()) {
-                getBarbershopDataFromDatabase(savedInstanceState)
+                if (isFirstLoad) getBarbershopData()
+                Log.d("PlayCheck", "userAdminData.uid.isEmpty()")
+            } else {
+                if (savedInstanceState == null && isFirstLoad) getEmployeeRolesDataFromDatabase()
+                Log.d("PlayCheck", "userAdminData.uid.isNotEmpty()")
             }
         }
 
@@ -353,9 +370,11 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("is_recreated", true)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("skipped_process", skippedProcess)
+        outState.putBoolean("is_processing_fab_animation", isProcessingFABAnimation)
     }
 
     // Fungsi untuk mengatur ulang layout params berdasarkan orientasi
@@ -427,12 +446,13 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
     // Call these methods in your onCreate or wherever you initialize the listeners
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(6)
+        if (skippedProcess) remainingListeners.set(7)
         listenToBarbershopData()
         listenToOutletList()
         listenToServicesData()
         listenToProductsData()
         listenToBundlingPackagesData()
+        listenToEmployeesRoles()
         listenToEmployeesData()
 
         lifecycleScope.launch {
@@ -553,6 +573,58 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         }
     }
 
+    private fun listenToEmployeesRoles() {
+        userId.let {
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (it.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", "barbershops/$userId"))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        berandaAdminViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        berandaAdminViewModel.rolesListMutex.withStateLock {
+                                            val employeeRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            berandaAdminViewModel.setEmployeeRoles(employeeRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
+        }
+    }
+
     private fun <T> listenToData(
         collectionPath: String,
         dataClass: Class<T>,
@@ -569,13 +641,18 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             val groupRef = db.collectionGroup(collectionPath)
             if (queryField != null && queryValue != null) {
                 groupRef.whereEqualTo(queryField, queryValue) // Tambahkan query khusus
-            } else {
-                groupRef
-            }
+            } else groupRef
         } else {
-            db.collection("barbershops")
-                .document(userId)
-                .collection(collectionPath)
+            if (collectionPath == "employees") {
+                val groupRef = db.collection(collectionPath)
+                if (queryField != null && queryValue != null)
+                    groupRef.whereEqualTo(queryField, queryValue)
+                else groupRef
+            } else {
+                db.collection("barbershops")
+                    .document(userId)
+                    .collection(collectionPath)
+            }
         }
 
         return collectionRef.addSnapshotListener { documents, exception ->
@@ -601,13 +678,21 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                         if (!isFirstLoad && !skippedProcess) {
                             withContext(Dispatchers.Default) {
                                 val dataList = docs.mapNotNull { document ->
-                                    document.toObject(dataClass)
+                                    if (dataClass == UserEmployeeData::class.java) {
+                                        document.toObject(UserEmployeeData::class.java).apply {
+                                            userRef = document.reference.path
+                                            outletRef = ""
+                                            roleDetail = berandaAdminViewModel.employeeRolesList.value?.find {
+                                                it.roleName == this.role
+                                            }
+                                        }
+                                    } else document.toObject(dataClass)
                                 }
                                 // Use the corresponding mutex for each list
                                 val mutex = when (dataClass) {
                                     Service::class.java -> berandaAdminViewModel.servicesListMutex
                                     BundlingPackage::class.java -> berandaAdminViewModel.bundlingListMutex
-                                    UserEmployeeData::class.java -> berandaAdminViewModel.employeesListMutex
+                                    UserEmployeeData::class.java -> berandaAdminViewModel.employeeListMutex
                                     Product::class.java -> berandaAdminViewModel.productsListMutex
                                     else -> ReentrantCoroutineMutex()
                                 }
@@ -746,7 +831,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             employeeListener = listenToData(
                 collectionPath = "employees",
                 dataClass = UserEmployeeData::class.java,
-                isCollectionGroup = true,
+                isCollectionGroup = false,
                 queryField = "root_ref",
                 queryValue = "barbershops/${userId}", // Sesuaikan dengan field yang diperlukan,
                 decrementFlag = isEmployeeDecrement,
@@ -764,7 +849,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun getBarbershopDataFromDatabase(savedInstanceState: Bundle?) {
+    private fun getBarbershopData(isRefreshingPage: Boolean = false) {
         lifecycleScope.launch {
             userId.let { uid ->
                 if (uid.isEmpty()) {
@@ -791,8 +876,11 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                             Log.d("CheckShimmer", "✅ getBarbershopDataFromDatabase Success (Offline-Aware)")
                             userAdminData?.let {
                                 berandaAdminViewModel.setUserAdminData(it)
+                                if (isRefreshingPage) getEmployeeRolesDataFromDatabase()
+                            } ?: run {
+                                displayAllData()
+                                toastViewModel.showToast("Gagal memuat data barbershop!", false)
                             }
-                            if (savedInstanceState == null) getAllData()
                         } else {
                             displayAllData()
                             Logger.d("CheckShimmer", "❌ getBarbershopDataFromDatabase: Gagal memuat data barbershop!!!")
@@ -812,6 +900,58 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                     displayAllData()
                     Logger.d("CheckShimmer", "❌ getBarbershopDataFromDatabase: Gagal memuat data barbershop!!!")
                     toastViewModel.showToast("Gagal memuat data barbershop!", false)
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun getEmployeeRolesDataFromDatabase() {
+        lifecycleScope.launch {
+            berandaAdminViewModel.rolesListMutex.withStateLock {
+                userId.let { uid ->
+                    if (uid.isEmpty()) {
+                        displayAllData()
+                        toastViewModel.showToast("Gagal memuat data role karyawan!", false)
+                        return@let
+                    }
+
+                    try {
+                        val snapshot = withContext(Dispatchers.IO) {
+                            db.collection("roles")
+                                .whereIn("barbershop_ref", listOf("All", "barbershops/$uid"))
+                                .awaitGetWithOfflineFallback(tag = "GetEmployeeRolesData")
+                        }
+
+                        if (snapshot.isSuccessful) {
+                            val documents = snapshot.data
+                            if (documents != null) {
+                                val employeeRoles = documents.mapNotNull { document ->
+                                    document.toObject(EmployeeRolesData::class.java)
+                                }
+                                berandaAdminViewModel.setEmployeeRoles(employeeRoles)
+                                getAllData()
+                                Log.d("CheckShimmer", "✅ getEmployeeRolesDataFromDatabase Success (Offline-Aware)")
+                            } else {
+                                displayAllData()
+                                Logger.d("CheckShimmer", "❌ getEmployeeRolesDataFromDatabase: Gagal memuat data role karyawan!!!")
+                                if (snapshot.displayMessage) toastViewModel.showToast(snapshot.errorMessage.toString(), false)
+                                else toastViewModel.showToast("Gagal memuat data role karyawan!", false)
+                            }
+                        } else {
+                            displayAllData()
+                            Logger.d("CheckShimmer", "❌ getEmployeeRolesDataFromDatabase: Gagal memuat data role karyawan!!!")
+                            if (snapshot.displayMessage) {
+                                if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
+                                    NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
+                                } else toastViewModel.showToast(snapshot.errorMessage.toString(), false)
+                            } else toastViewModel.showToast("Gagal memuat data role karyawan!", false)
+                        }
+                    } catch (e: Exception) {
+                        displayAllData()
+                        Logger.d("CheckShimmer", "❌ getEmployeeRolesDataFromDatabase: Gagal memuat data role karyawan!!!")
+                        toastViewModel.showToast("Gagal memuat data role karyawan!", false)
+                    }
                 }
             }
         }
@@ -856,7 +996,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                             collectionPath = "employees",
                                             emptyMessage = "No employees found",
                                             dataClass = UserEmployeeData::class.java,
-                                            isCollectionGroup = true,
+                                            isCollectionGroup = false,
                                             queryField = "root_ref",
                                             queryValue = "barbershops/$uid"
                                         )
@@ -877,13 +1017,16 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                             displayAllData()
 
                             if (isFirstLoad) {
-                                if (!berandaAdminViewModel.getIsCapitalDialogShow() && berandaAdminViewModel.outletList.value?.isEmpty() == false) {
-                                    viewLifecycleOwner.lifecycleScope.launch {
-                                        delay(300)
-                                        if (!isAdded) return@launch
-                                        (requireActivity() as? CapitalDialogHost)?.requestShowCapitalDialog()
-                                    }
-                                } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", false)
+                                if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+                                    if (!berandaAdminViewModel.getIsCapitalDialogShow() && berandaAdminViewModel.outletList.value?.isEmpty() == false) {
+                                        viewLifecycleOwner.lifecycleScope.launch {
+                                            delay(300)
+                                            if (!isAdded) return@launch
+
+                                            (requireActivity() as? CapitalDialogHost)?.requestShowCapitalDialog()
+                                        }
+                                    } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", false)
+                                }
                             }
                         } else {
                             displayAllData()
@@ -916,9 +1059,16 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                     groupRef.whereEqualTo(queryField, queryValue)
                 else groupRef
             } else {
-                db.collection("barbershops")
-                    .document(userId)
-                    .collection(collectionPath)
+                if (collectionPath == "employees") {
+                    val groupRef = db.collection(collectionPath)
+                    if (queryField != null && queryValue != null)
+                        groupRef.whereEqualTo(queryField, queryValue)
+                    else groupRef
+                } else {
+                    db.collection("barbershops")
+                        .document(userId)
+                        .collection(collectionPath)
+                }
             }
 
             // 🔹 Jalankan get() dengan Offline Aware Handler
@@ -937,6 +1087,14 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                 Outlet::class.java -> (obj as Outlet).apply {
                                     outletReference = document.reference.path
                                 } as T
+
+                                UserEmployeeData::class.java -> (obj as UserEmployeeData).apply {
+                                    userRef = document.reference.path
+                                    outletRef = ""
+                                    roleDetail = berandaAdminViewModel.employeeRolesList.value?.find {
+                                        it.roleName == this.role
+                                    }
+                                } as T
                                 else -> obj as T
                             }
                         }
@@ -945,7 +1103,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                         val mutex = when (dataClass) {
                             Service::class.java -> berandaAdminViewModel.servicesListMutex
                             BundlingPackage::class.java -> berandaAdminViewModel.bundlingListMutex
-                            UserEmployeeData::class.java -> berandaAdminViewModel.employeesListMutex
+                            UserEmployeeData::class.java -> berandaAdminViewModel.employeeListMutex
                             Product::class.java -> berandaAdminViewModel.productsListMutex
                             Outlet::class.java -> berandaAdminViewModel.outletListMutex
                             else -> ReentrantCoroutineMutex()
@@ -1121,25 +1279,35 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 R.id.fabManageCodeAccess -> {
                     if (!debounce.run { v.isSafeClick() }) return
                     // hmmmmm
-                    if (!isShimmerVisible) {
-                        // navigatePage(context, ManageOutletPage::class.java, true, fabManageCodeAccess)
-                        WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
-                            val manageOutletDirections = BerandaAdminFragmentDirections.actionNavBerandaToManageOutletPage(
-                                (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.employeeList.value ?: emptyList()).toTypedArray(), berandaAdminViewModel.userAdminData.value ?: UserAdminData()
-                            )
-                            navController.navigate(manageOutletDirections)
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+                        if (!isShimmerVisible) {
+                            // navigatePage(context, ManageOutletPage::class.java, true, fabManageCodeAccess)
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val bundle = Bundle().apply {
+                                        putParcelableArray("employeeRoles", (berandaAdminViewModel.employeeRolesList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("employeeList", (berandaAdminViewModel.employeeList.value ?: emptyList()).toTypedArray())
+                                        putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                    }
+                                    navController.navigate(R.id.action_nav_beranda_to_manageOutletPage, bundle)
+                                }
+                            }
                         }
-                    }
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.fabInputCapital -> {
                     if (!debounce.run { v.isSafeClick() }) return
                     // hmmmmm
-                    if (!isShimmerVisible) {
-                        if (!berandaAdminViewModel.getIsCapitalDialogShow() && berandaAdminViewModel.outletList.value?.isEmpty() == false) {
-                            // Fragment
-                            (requireActivity() as? CapitalDialogHost)?.requestShowCapitalDialog()
-                        } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", true)
-                    }
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+                        if (!isShimmerVisible) {
+                            if (!berandaAdminViewModel.getIsCapitalDialogShow() && berandaAdminViewModel.outletList.value?.isEmpty() == false) {
+                                // Fragment
+                                (requireActivity() as? CapitalDialogHost)?.requestShowCapitalDialog()
+                            } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", true)
+                        }
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.fabDashboardAdmin -> {
                     if (!debounce.run { v.isSafeClick() }) return
@@ -1147,16 +1315,61 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                     if (!isShimmerVisible) {
                         // navigatePage(context, DashboardAdminPage::class.java, true, fabDashboardAdmin)
                         WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
-                            val dashboardAdminDirections = BerandaAdminFragmentDirections.actionNavBerandaToDashboardAdminPage(
-                                (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(), (berandaAdminViewModel.userAdminData.value ?: UserAdminData()), (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray()
-                            )
-                            navController.navigate(dashboardAdminDirections)
+                            if (!isNavigating) {
+                                isNavigating = true
+                                val bundle = Bundle().apply {
+                                    putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
+                                    putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                    putParcelableArray("productList", (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray())
+                                }
+                                navController.navigate(R.id.action_nav_beranda_to_dashboardAdminPage, bundle)
+                            }
                         }
                     }
                 }
                 R.id.ivHamburger -> {
                     val drawerController = context as? DrawerController
                     drawerController?.openDrawer()
+                }
+                R.id.seeAllLayanan -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.seeAllProduk -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.seeAllPegawai -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+                        //navigatePage(requireContext(), ManageEmployeePage::class.java, true, v)
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.seeAllPaketBundling -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.ivAddNewLayanan -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.ivAddNewProduk -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.ivAddNewPegawai -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+                        //navigatePage(requireContext(), ManageEmployeePage::class.java, true, v)
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
+                }
+                R.id.ivAddNewPaketBundling -> {
+                    if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+
+                    } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
             }
         }
@@ -1172,6 +1385,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 val intent = Intent(context, destination)
                 Log.d("NavigateDashboard", "Send data to $destination")
                 if (isSendData) {
+                    // qwerty
                     intent.putParcelableArrayListExtra(OUTLET_DATA_KEY, ArrayList(berandaAdminViewModel.outletList.value ?: emptyList()))
                     intent.putParcelableArrayListExtra(EMPLOYEE_DATA_KEY, ArrayList(berandaAdminViewModel.employeeList.value ?: emptyList()))
                     intent.putExtra(ADMIN_DATA_KEY, berandaAdminViewModel.userAdminData.value)
@@ -1198,7 +1412,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         isNavigating = false
 //        currentView?.isClickable = true
         if (!isRecreated) {
-            if ((!::outletListener.isInitialized || !::barbershopListener.isInitialized || !::serviceListener.isInitialized || !::employeeListener.isInitialized || !::bundlingListener.isInitialized || !::productListener.isInitialized) && !isFirstLoad) {
+            if ((!::outletListener.isInitialized || !::rolesListener.isInitialized || !::barbershopListener.isInitialized || !::serviceListener.isInitialized || !::employeeListener.isInitialized || !::bundlingListener.isInitialized || !::productListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(requireActivity(), SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -1228,6 +1442,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         if (::bundlingListener.isInitialized) bundlingListener.remove()
         if (::productListener.isInitialized) productListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
         if (::barbershopListener.isInitialized) barbershopListener.remove()
         _binding = null
     }
@@ -1259,7 +1474,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         // Ternyata Jika ButtomSheet Tidak Perlu Set  StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
         if (childFragmentManager.findFragmentByTag(tag) != null) return
 
-        val bottomSheet = BundlingServiceListBottomSheet.newInstance(bundling.listItemDetails ?: emptyList())
+        val bottomSheet = DetailServiceListFragment.newInstance(bundling.listItemDetails ?: emptyList())
         bottomSheet.show(childFragmentManager, tag)
     }
 

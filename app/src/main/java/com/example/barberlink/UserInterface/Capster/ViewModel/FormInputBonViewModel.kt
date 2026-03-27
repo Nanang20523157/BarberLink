@@ -18,7 +18,7 @@ import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentVie
 import com.example.barberlink.Utils.Logger
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking

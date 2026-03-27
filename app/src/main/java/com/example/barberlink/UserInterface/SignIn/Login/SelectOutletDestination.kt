@@ -30,7 +30,7 @@ import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.databinding.ActivitySelectOutletDestinationBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -98,7 +98,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         if (savedInstanceState != null) {
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             keyword = savedInstanceState.getString("keyword", "") ?: ""
-            loginType = savedInstanceState.getString("login_type", "") ?: ""
+            loginType = savedInstanceState.getString("login_type_key", "") ?: ""
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
@@ -223,7 +223,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putString("keyword", keyword)
-        outState.putString("login_type", loginType)
+        outState.putString("login_type_key", loginType)
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 

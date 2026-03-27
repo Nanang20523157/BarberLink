@@ -38,7 +38,6 @@ open class InputFragmentViewModel(state: SavedStateHandle) : ViewModel() {
     private val _dailyCapital = MutableLiveData<DailyCapital?>(null)
     val dailyCapital: LiveData<DailyCapital?> = _dailyCapital
 
-
     protected val _setupDropdownFilter = MutableLiveData<Boolean?>()
     val setupDropdownFilter: LiveData<Boolean?> = _setupDropdownFilter
 

@@ -70,7 +70,7 @@ class ItemListEmployeeSelectAdapter(
             with(binding) {
                 tvEmployeeName.text = employee.fullname
                 tvUsername.text = root.context.getString(R.string.username_template, employee.username)
-                tvRole.text = employee.role.ifEmpty { employee.positions }
+                tvRole.text = employee.role.ifEmpty { employee.role }
                 tvRating.text = employee.employeeRating.toString()
                 tvReviewsAmount.text = root.context.getString(
                     R.string.number_of_reviews_placeholder

@@ -5,15 +5,17 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -23,12 +25,14 @@ class QueueTrackerViewModel(
     state: SavedStateHandle
 ) : InputFragmentViewModel(state) {
 
-    val listenerOutletListMutex =  ReentrantCoroutineMutex()
-    val listenerCapsterListMutex = ReentrantCoroutineMutex()
-    val listenerReservationsMutex = ReentrantCoroutineMutex()
     val capsterListMutex = ReentrantCoroutineMutex()
     val reservationMutex = ReentrantCoroutineMutex()
     val animationMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
+    val listenerOutletListMutex =  ReentrantCoroutineMutex()
+    val listenerCapsterListMutex = ReentrantCoroutineMutex()
+    val listenerReservationsMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     // =========================================================
     // === UTILITAS DASAR
@@ -69,6 +73,9 @@ class QueueTrackerViewModel(
 
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
+
+    private val _capsterRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val capsterRolesList: LiveData<List<EmployeeRolesData>> = _capsterRolesList
 
 //    private val _capsterNames = MutableLiveData<List<String>>(emptyList())
 //    val capsterNames: LiveData<List<String>> = _capsterNames
@@ -159,6 +166,22 @@ class QueueTrackerViewModel(
         }
     }
 
+    fun setCapsterRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val capsters = _capsterList.value ?: emptyList()
+            _capsterRolesList.postValue(list)
+
+            if (capsters.isNotEmpty()) {
+                capsterListMutex.withStateLock {
+                    capsters.forEach { capster ->
+                        capster.roleDetail = list.find { it.roleName == capster.role }
+                    }
+                    _capsterList.postValue(capsters)
+                }
+            }
+        }
+    }
+
     override fun setupDropdownFilterWithNullState() {
         viewModelScope.launch {
             _setupDropdownFilter.postValue(false)
@@ -220,11 +243,11 @@ class QueueTrackerViewModel(
         try {
             val startTime = System.currentTimeMillis()
 
-            val outletRef = db.document(outletSelected.outletReference)
-            Logger.d("CheckShimmer", "🚀 Mulai update current_queue untuk outletRef: $outletRef")
+            val docsRef = db.document(outletSelected.outletReference)
+            Logger.d("CheckShimmer", "🚀 Mulai update current_queue untuk outletRef: $docsRef")
 
             val task = withContext(Dispatchers.IO) {
-                outletRef.update(
+                docsRef.update(
                     mapOf(
                         "current_queue" to outletSelected.currentQueue,
                         "timestamp_modify" to outletSelected.timestampModify

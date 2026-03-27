@@ -11,8 +11,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.R
-import com.example.barberlink.databinding.ItemListEmployeeAdapterBinding
-import com.example.barberlink.databinding.ShimmerLayoutEmployeeCardBinding
+import com.example.barberlink.databinding.ItemListEmployeeSmallAdapterBinding
+import com.example.barberlink.databinding.ShimmerLayoutEmployeeSmallCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(EmployeeDiffCallback()) {
@@ -42,10 +42,10 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
             recyclerView = parent as RecyclerView
         }
         return if (viewType == VIEW_TYPE_SHIMMER) {
-            val shimmerBinding = ShimmerLayoutEmployeeCardBinding.inflate(inflater, parent, false)
+            val shimmerBinding = ShimmerLayoutEmployeeSmallCardBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
         } else {
-            val binding = ItemListEmployeeAdapterBinding.inflate(inflater, parent, false)
+            val binding = ItemListEmployeeSmallAdapterBinding.inflate(inflater, parent, false)
             ItemViewHolder(binding)
         }
     }
@@ -106,7 +106,7 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
 
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutEmployeeCardBinding) :
+    inner class ShimmerViewHolder(private val binding: ShimmerLayoutEmployeeSmallCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(userEmployeeData: UserEmployeeData) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -116,7 +116,7 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListEmployeeAdapterBinding) :
+    inner class ItemViewHolder(private val binding: ItemListEmployeeSmallAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(userEmployeeData: UserEmployeeData) {
@@ -127,7 +127,7 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
                 tvRating.text = userEmployeeData.employeeRating.toString()
 
                 // Set status and modify margins based on availability
-                if (userEmployeeData.availabilityStatus) {
+                if (userEmployeeData.attendanceStatus) {
                     tvStatus.text = root.context.getString(R.string.enter_text)
                     tvStatus.setTextColor(ContextCompat.getColor(root.context, R.color.green_btn))
 

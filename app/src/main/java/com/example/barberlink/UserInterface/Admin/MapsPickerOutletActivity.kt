@@ -18,10 +18,13 @@ import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.addCallback
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Helper.PermissionHelper
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.R
@@ -62,14 +65,6 @@ class MapsPickerOutletActivity : BaseActivity(), OnMapReadyCallback, View.OnClic
 
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
-
-    private val locationPermissionRequest = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        if (granted) moveToCurrentLocation()
-    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -331,10 +326,7 @@ class MapsPickerOutletActivity : BaseActivity(), OnMapReadyCallback, View.OnClic
             R.id.btnBack -> handleCustomBack()
             R.id.btnRefreshLocation -> updateLocationUI(selectedLatLng)
             R.id.btnMyLocation -> {
-                if (hasLocationPermission()) moveToCurrentLocation()
-                else locationPermissionRequest.launch(
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-                )
+                moveToCurrentLocation()
             }
             R.id.btnConfirmLocation -> {
                 val resultIntent = Intent().apply {

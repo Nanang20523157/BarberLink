@@ -20,18 +20,19 @@ interface UserData {
 // Main UserAdminData class
 @Parcelize
 data class UserAdminData(
-    @get:PropertyName("uid") @set:PropertyName("uid") override var uid: String = "",
-    @get:PropertyName("barbershop_name") @set:PropertyName("barbershop_name") var barbershopName: String = "",
+    @get:PropertyName("account_verification") @set:PropertyName("account_verification") var accountVerification: Boolean = false,
     @get:PropertyName("barbershop_identifier") @set:PropertyName("barbershop_identifier") var barbershopIdentifier: String = "",
+    @get:PropertyName("barbershop_name") @set:PropertyName("barbershop_name") var barbershopName: String = "",
     @get:PropertyName("company_name") @set:PropertyName("company_name") var companyName: String = "",
-    @get:PropertyName("owner_name") @set:PropertyName("owner_name") var ownerName: String = "Owner Barbershop",
     @get:PropertyName("email") @set:PropertyName("email") override var email: String = "",
+    @get:PropertyName("image_company_profile") @set:PropertyName("image_company_profile") var imageCompanyProfile: String = "",
+    @get:PropertyName("operational_hour") @set:PropertyName("operational_hour") var operationalHours: @RawValue OperationalHour = OperationalHour(),
+    @get:PropertyName("owner_name") @set:PropertyName("owner_name") var ownerName: String = "Owner Barbershop",
     @get:PropertyName("password") @set:PropertyName("password") override var password: String = "",
     @get:PropertyName("phone") @set:PropertyName("phone") override var phone: String = "",
-    @get:PropertyName("image_company_profile") @set:PropertyName("image_company_profile") var imageCompanyProfile: String = "",
-    @get:PropertyName("subscription_status") @set:PropertyName("subscription_status") var subscriptionStatus: Boolean = true,
-    @get:PropertyName("operational_hour") @set:PropertyName("operational_hour") var operationalHours: @RawValue OperationalHour = OperationalHour(),
-    @get:PropertyName("account_verification") @set:PropertyName("account_verification") var accountVerification: Boolean = false,
+    @get:PropertyName("subscription_status") @set:PropertyName("subscription_status") var subscriptionStatus: Boolean = false,
+    @get:PropertyName("uid") @set:PropertyName("uid") override var uid: String = "",
+    @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
     @get:Exclude @set:Exclude override var userRef: String = "", // Hanya Digunakan pada saat Sign Up
 ) : Parcelable, UserData {
     // Mencegah field stability ikut terserialisasi ke Firestore
@@ -50,22 +51,23 @@ data class UserAdminData(
         copyMonday: Boolean
     ): UserAdminData {
         return UserAdminData(
-            uid = this.uid,
+            accountVerification = this.accountVerification,
             barbershopName = this.barbershopName,
             barbershopIdentifier = this.barbershopIdentifier,
             companyName = this.companyName,
-            ownerName = this.ownerName,
             email = this.email,
-            password = this.password,
-            phone = this.phone,
             imageCompanyProfile = this.imageCompanyProfile,
-            subscriptionStatus = this.subscriptionStatus,
             operationalHours = if (copyOperationalHour) {
                 this.operationalHours.deepCopy(copySunday, copySaturday, copyFriday, copyThursday, copyWednesday, copyTuesday, copyMonday)
             } else {
                 this.operationalHours
             },
-            accountVerification = this.accountVerification,
+            ownerName = this.ownerName,
+            password = this.password,
+            phone = this.phone,
+            subscriptionStatus = this.subscriptionStatus,
+            uid = this.uid,
+            username = this.username,
             userRef = this.userRef
         )
     }
@@ -234,33 +236,42 @@ data class Division(
 // Employee data class
 @Parcelize
 data class UserEmployeeData(
+    @get:PropertyName("account_verification") @set:PropertyName("account_verification") var accountVerification: Boolean = false,
     @get:PropertyName("accumulated_lateness") @set:PropertyName("accumulated_lateness") var accumulatedLateness: @RawValue Map<String, Int>? = emptyMap(),
     // @get:PropertyName("amount_of_bon") @set:PropertyName("amount_of_bon") var amountOfBon: Int = 0,
     // @get:PropertyName("appointment_list") @set:PropertyName("appointment_list") var appointmentList: MutableList<ListStackData>? = null,
-    @get:PropertyName("user_reminder") @set:PropertyName("user_reminder") var userReminder: MutableList<NotificationReminder>? = null,
-    @get:PropertyName("availability_status") @set:PropertyName("availability_status") var availabilityStatus: Boolean = true,
+    @get:PropertyName("attendance_status") @set:PropertyName("attendance_status") var attendanceStatus: Boolean = false,
+    @get:PropertyName("availability_status") @set:PropertyName("availability_status") var availabilityStatus: Boolean = false,
+    @get:PropertyName("black_list") @set:PropertyName("black_list") var blackList: Boolean = false,
     @get:PropertyName("customer_counting") @set:PropertyName("customer_counting") var customerCounting: Int = 0,
+    @get:PropertyName("debut_date") @set:PropertyName("debut_date") var debutDate: Timestamp? = null,
     @get:PropertyName("email") @set:PropertyName("email") override var email: String = "",
+    @get:PropertyName("employee_domicile") @set:PropertyName("employee_domicile") var employeeDomicile: String = "",
     @get:PropertyName("employee_rating") @set:PropertyName("employee_rating") var employeeRating: Double = 5.0,
     @get:PropertyName("fullname") @set:PropertyName("fullname") var fullname: String = "",
     @get:PropertyName("gender") @set:PropertyName("gender") var gender: String = "",
-    @get:PropertyName("uid_list_placement") @set:PropertyName("uid_list_placement") var uidListPlacement: List<String> = emptyList(),
+    @get:PropertyName("history_workplace") @set:PropertyName("history_workplace") var historyWorkplace: List<String> = emptyList(),
     @get:PropertyName("password") @set:PropertyName("password") override var password: String = "12345678",
     @get:PropertyName("phone") @set:PropertyName("phone") override var phone: String = "",
     @get:PropertyName("photo_profile") @set:PropertyName("photo_profile") var photoProfile: String = "",
     @get:PropertyName("pin") @set:PropertyName("pin") var pin: String = "",
     @get:PropertyName("point") @set:PropertyName("point") var point: Int = 0,
-    @get:PropertyName("positions") @set:PropertyName("positions") var positions: String = "",
+//    @get:PropertyName("positions") @set:PropertyName("positions") var positions: String = "",
     @get:PropertyName("role") @set:PropertyName("role") var role: String = "",
-    @get:PropertyName("role_detail") @set:PropertyName("role_detail") var roleDetail: String = "",
+//    @get:PropertyName("role_detail") @set:PropertyName("role_detail") var roleDetail: String = "",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("salary") @set:PropertyName("salary") var salary: Int = 0,
+    @get:PropertyName("super_admin") @set:PropertyName("super_admin") var superAdmin: Boolean = false,
+    @get:PropertyName("talent_availability") @set:PropertyName("talent_availability") var talentAvailability: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") override var uid: String = "----------------",
-    @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
+    @get:PropertyName("uid_list_placement") @set:PropertyName("uid_list_placement") var uidListPlacement: List<String> = emptyList(),
     @get:PropertyName("user_notification") @set:PropertyName("user_notification") var userNotification: MutableList<NotificationReminder>? = null,
+    @get:PropertyName("user_reminder") @set:PropertyName("user_reminder") var userReminder: MutableList<NotificationReminder>? = null,
+    @get:PropertyName("username") @set:PropertyName("username") var username: String = "",
     @get:Exclude @set:Exclude override var userRef: String = "",
-    @get:Exclude @set:Exclude var outletRef: String = "",
+    @get:Exclude @set:Exclude var outletRef: String = "", // sepertinya untuk saat ini dia belum digunakan malah lebih sering pakek outletSelected.outletReference
     @get:Exclude @set:Exclude var restOfQueue: Int = 0,
+    @get:Exclude @set:Exclude var roleDetail: EmployeeRolesData? = null,
     // @get:Exclude @set:Exclude var outletPlacement : List<Outlet>? = null,
 //    @get:PropertyName("service_commission") @set:PropertyName("service_commission") var serviceCommission: @RawValue Map<String, Int> = emptyMap(),
 //    @get:PropertyName("product_commission") @set:PropertyName("product_commission") var productCommission: @RawValue Map<String, Int> = emptyMap(),
@@ -276,6 +287,7 @@ data class UserEmployeeData(
     // Deep copy function for Employee
     fun deepCopy(copyReminder: Boolean, copyNotification: Boolean): UserEmployeeData {
         return UserEmployeeData(
+            accountVerification = this.accountVerification,
             accumulatedLateness = this.accumulatedLateness?.toMap(),
 //            amountOfBon = this.amountOfBon,
 //            appointmentList = if (copyAppointments) {
@@ -283,39 +295,45 @@ data class UserEmployeeData(
 //            } else {
 //                this.appointmentList // Copy reference
 //            },
-            userReminder = if (copyReminder) {
-                this.userReminder?.map { it.deepCopy() }?.toMutableList()
-            } else {
-                this.userReminder // Copy reference
-            },
+            attendanceStatus = this.attendanceStatus,
             availabilityStatus = this.availabilityStatus,
+            blackList = this.blackList,
             customerCounting = this.customerCounting,
+            debutDate = this.debutDate,
 //            customerCounting = this.customerCounting?.toMap(),
             email = this.email,
+            employeeDomicile = this.employeeDomicile,
             employeeRating = this.employeeRating,
             fullname = this.fullname,
             gender = this.gender,
-            uidListPlacement = this.uidListPlacement.toList(),
+            historyWorkplace = this.historyWorkplace.toList(),
             password = this.password,
             phone = this.phone,
             photoProfile = this.photoProfile,
             pin = this.pin,
             point = this.point,
-            positions = this.positions,
             role = this.role,
-            roleDetail = this.roleDetail,
             rootRef = this.rootRef,
             salary = this.salary,
+            superAdmin = this.superAdmin,
+            talentAvailability = this.talentAvailability,
             uid = this.uid,
-            username = this.username,
+            uidListPlacement = this.uidListPlacement.toList(),
             userNotification = if (copyNotification) {
                 this.userNotification?.map { it.deepCopy() }?.toMutableList()
             } else {
                 this.userNotification // Copy reference
             },
+            userReminder = if (copyReminder) {
+                this.userReminder?.map { it.deepCopy() }?.toMutableList()
+            } else {
+                this.userReminder // Copy reference
+            },
+            username = this.username,
             userRef = this.userRef,
             outletRef = this.outletRef,
-            restOfQueue = this.restOfQueue
+            restOfQueue = this.restOfQueue,
+            roleDetail = this.roleDetail,
         )
     }
 
@@ -359,26 +377,26 @@ object TimestampParceler : Parceler<Timestamp> {
 data class Outlet(
     @get:PropertyName("active_devices") @set:PropertyName("active_devices") var activeDevices: Int = 0,
     @get:PropertyName("current_queue") @set:PropertyName("current_queue") var currentQueue: @RawValue Map<String, String>? = emptyMap(),
+    @get:PropertyName("hidden_outlet") @set:PropertyName("hidden_outlet") var hiddenOutlet: Boolean = false,
     @get:PropertyName("img_outlet") @set:PropertyName("img_outlet") var imgOutlet: String = "",
     @get:PropertyName("last_updated") @set:PropertyName("last_updated") var lastUpdated: Timestamp = Timestamp.now(),
+    @get:PropertyName("latitude_point") @set:PropertyName("latitude_point") var latitudePoint: Double = 0.0,
     @get:PropertyName("list_best_deals") @set:PropertyName("list_best_deals") var listBestDeals: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_bundling") @set:PropertyName("list_bundling") var listBundling: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_customers") @set:PropertyName("list_customers") var listCustomers: MutableList<Customer>? = null,
     @get:PropertyName("list_employees") @set:PropertyName("list_employees") var listEmployees: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_products") @set:PropertyName("list_products") var listProducts: @RawValue List<String> = emptyList(),
     @get:PropertyName("list_services") @set:PropertyName("list_services") var listServices: @RawValue List<String> = emptyList(),
+    @get:PropertyName("longitude_point") @set:PropertyName("longitude_point") var longitudePoint: Double = 0.0,
     @get:PropertyName("open_status") @set:PropertyName("open_status") var openStatus: Boolean = false,
     @get:PropertyName("outlet_access_code") @set:PropertyName("outlet_access_code") var outletAccessCode: String = "",
     @get:PropertyName("outlet_name") @set:PropertyName("outlet_name") var outletName: String = "",
     @get:PropertyName("outlet_address") @set:PropertyName("outlet_address") var outletAddress: String = "",
-    @get:PropertyName("latitude_point") @set:PropertyName("latitude_point") var latitudePoint: Double = 0.0,
-    @get:PropertyName("longitude_point") @set:PropertyName("longitude_point") var longitudePoint: Double = 0.0,
     @get:PropertyName("outlet_phone_number") @set:PropertyName("outlet_phone_number") var outletPhoneNumber: String = "",
     @get:PropertyName("outlet_rating") @set:PropertyName("outlet_rating") var outletRating: Double = 5.0,
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("tagline_or_desc") @set:PropertyName("tagline_or_desc") var taglineOrDesc: String = "",
     @get:PropertyName("timestamp_modify") @set:PropertyName("timestamp_modify") var timestampModify: Timestamp = Timestamp.now(),
-    @get:PropertyName("hidden_outlet") @set:PropertyName("hidden_outlet") var hiddenOutlet: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
     @get:Exclude @set:Exclude var isCollapseCard: Boolean = true,
     @get:Exclude @set:Exclude var isDisplayResetCard: Boolean = false,
@@ -395,26 +413,26 @@ data class Outlet(
         return Outlet(
             activeDevices = this.activeDevices,
             currentQueue = this.currentQueue?.toMap(), // salin map
+            hiddenOutlet = this.hiddenOutlet,
             imgOutlet = this.imgOutlet,
             lastUpdated = this.lastUpdated, // Timestamp immutable (Firestore)
+            latitudePoint = this.latitudePoint,
             listBestDeals = this.listBestDeals.toList(),
             listBundling = this.listBundling.toList(),
             listCustomers = this.listCustomers?.map { it.copy() }?.toMutableList(),
             listEmployees = this.listEmployees.toList(),
             listProducts = this.listProducts.toList(),
             listServices = this.listServices.toList(),
+            longitudePoint = this.longitudePoint,
             openStatus = this.openStatus,
             outletAccessCode = this.outletAccessCode,
             outletName = this.outletName,
             outletAddress = this.outletAddress,
-            latitudePoint = this.latitudePoint,
-            longitudePoint = this.longitudePoint,
             outletPhoneNumber = this.outletPhoneNumber,
             outletRating = this.outletRating,
             rootRef = this.rootRef,
             taglineOrDesc = this.taglineOrDesc,
             timestampModify = this.timestampModify,
-            hiddenOutlet = this.hiddenOutlet,
             uid = this.uid,
             isCollapseCard = this.isCollapseCard,
             isDisplayResetCard = this.isDisplayResetCard,
@@ -441,69 +459,76 @@ data class Customer(
 @TypeParceler<Timestamp, TimestampParceler>
 data class Product(
     @get:PropertyName("apply_to_general") @set:PropertyName("apply_to_general") var applyToGeneral: Boolean = true,
-    @get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
+    @get:PropertyName("category_code") @set:PropertyName("category_code") var categoryCode: String = "",
     @get:PropertyName("img_product") @set:PropertyName("img_product") var imgProduct: String = "",
+    @get:PropertyName("product_barcode") @set:PropertyName("product_barcode") var productBarcode: String = "",
     @get:PropertyName("product_category") @set:PropertyName("product_category") var productCategory: String = "",
     @get:PropertyName("product_counting") @set:PropertyName("product_counting") var productCounting: Int = 0,
     @get:PropertyName("product_description") @set:PropertyName("product_description") var productDescription: String = "",
     @get:PropertyName("product_name") @set:PropertyName("product_name") var productName: String = "",
     @get:PropertyName("product_price") @set:PropertyName("product_price") var productPrice: Int = 0,
-    @get:PropertyName("product_rating") @set:PropertyName("product_rating") var productRating: Double = 4.5,
-    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = emptyMap(),
-    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
+    @get:PropertyName("product_rating") @set:PropertyName("product_rating") var productRating: Double = 5.0,
+    @get:PropertyName("product_size") @set:PropertyName("product_size") var productSize: String = "",
+    @get:PropertyName("product_type") @set:PropertyName("product_type") var productType: String = "",
+    @get:PropertyName("purchase_price") @set:PropertyName("purchase_price") var purchasePrice: Int = 0,
+    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = mutableMapOf("default" to 0),
+    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "fixed",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
-    @get:PropertyName("seller") @set:PropertyName("seller") var seller: @RawValue Seller = Seller(),
+    @get:PropertyName("stock_keeping_unit") @set:PropertyName("stock_keeping_unit") var stockKeepingUnit: String = "",
     @get:PropertyName("stock_quantity") @set:PropertyName("stock_quantity") var stockQuantity: Int = 0,
     @get:PropertyName("tag") @set:PropertyName("tag") var tag: @RawValue List<String> = emptyList(),
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
-    @get:Exclude @set:Exclude var purchasePrice: String = "",
+    @get:Exclude @set:Exclude var isHandmade: Boolean = false,
+    @get:Exclude @set:Exclude var dataRef: String = "",
     @get:Exclude @set:Exclude var numberOfSales: Int = 0,
-    @get:Exclude @set:Exclude var dataRef: String = ""
+    @get:Exclude @set:Exclude var seller: @RawValue Seller = Seller()
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
     @get:Exclude
     val stability: Int
         get() = 0
 
-    fun deepCopy(
-        copyDataSeller: Boolean
-    ): Product {
+    fun deepCopy(copyDataSeller: Boolean): Product {
         return Product(
             applyToGeneral = this.applyToGeneral,
-            categoryDetail = this.categoryDetail,
+            categoryCode = this.categoryCode,
             imgProduct = this.imgProduct,
+            productBarcode = this.productBarcode,
             productCategory = this.productCategory,
             productCounting = this.productCounting,
             productDescription = this.productDescription,
             productName = this.productName,
             productPrice = this.productPrice,
             productRating = this.productRating,
+            productSize = this.productSize,
+            productType = this.productType,
+            purchasePrice = this.purchasePrice,
             resultsShareAmount = this.resultsShareAmount?.toMap(),
             resultsShareFormat = this.resultsShareFormat,
             rootRef = this.rootRef,
-            seller = if (copyDataSeller) {
-                this.seller.deepCopy()
-            } else {
-                this.seller
-            },
+            stockKeepingUnit = this.stockKeepingUnit,
             stockQuantity = this.stockQuantity,
             tag = this.tag.toList(),
             uid = this.uid,
-            purchasePrice = this.purchasePrice,
+            isHandmade = this.isHandmade,
+            dataRef = this.dataRef,
             numberOfSales = this.numberOfSales,
-            dataRef = this.dataRef
+            seller = if (copyDataSeller) this.seller.deepCopy() else this.seller
         )
     }
+
 }
 
 @Parcelize
 data class Seller(
+    @get:PropertyName("latitude_point") @set:PropertyName("latitude_point") var latitudePoint: Double = 0.0,
+    @get:PropertyName("longitude_point") @set:PropertyName("longitude_point") var longitudePoint: Double = 0.0,
     @get:PropertyName("origin_location") @set:PropertyName("origin_location") var originLocation: String = "",
-    @get:PropertyName("location_point") @set:PropertyName("location_point") var locationPoint: LocationPoint? = null,
+    @get:PropertyName("saller_address") @set:PropertyName("saller_address") var sallerAddress: String = "",
     @get:PropertyName("seller_name") @set:PropertyName("seller_name") var sellerName: String = "",
     @get:PropertyName("seller_phone") @set:PropertyName("seller_phone") var sellerPhone: String = "",
     @get:PropertyName("seller_profile") @set:PropertyName("seller_profile") var sellerProfile: String = "",
-    @get:PropertyName("uid_seller") @set:PropertyName("uid_seller") var uidSeller: String = "",
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
     @get:Exclude
@@ -512,12 +537,14 @@ data class Seller(
 
     fun deepCopy(): Seller {
         return Seller(
+            latitudePoint = this.latitudePoint,
+            longitudePoint = this.longitudePoint,
             originLocation = this.originLocation,
-            locationPoint = this.locationPoint?.deepCopy(),
+            sallerAddress = this.sallerAddress,
             sellerName = this.sellerName,
             sellerPhone = this.sellerPhone,
             sellerProfile = this.sellerProfile,
-            uidSeller = this.uidSeller
+            uid = this.uid
         )
     }
 }
@@ -525,15 +552,28 @@ data class Seller(
 // Role data class
 @Parcelize
 data class Role(
+    @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
     @get:PropertyName("job_desc") @set:PropertyName("job_desc") var jobDesc: String = "",
     @get:PropertyName("permissions") @set:PropertyName("permissions") var permissions: @RawValue Map<String, Boolean>? = emptyMap(),
     @get:PropertyName("role_name") @set:PropertyName("role_name") var roleName: String = "",
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = ""
+    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
+    @get:Exclude @set:Exclude var alert: Boolean = true,
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
     @get:Exclude
     val stability: Int
         get() = 0
+
+    fun deepCopy(): Role {
+        return Role(
+            barbershopRef = this.barbershopRef,
+            jobDesc = this.jobDesc,
+            permissions = this.permissions?.toMap(),
+            roleName = this.roleName,
+            uid = this.uid,
+            alert = this.alert
+        )
+    }
 }
 
 
@@ -542,7 +582,7 @@ data class Role(
 data class Service(
     @get:PropertyName("apply_to_general") @set:PropertyName("apply_to_general") var applyToGeneral: Boolean = true,
     @get:PropertyName("auto_selected") @set:PropertyName("auto_selected") var autoSelected: Boolean = false,
-    @get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
+    //@get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
     @get:PropertyName("default_item") @set:PropertyName("default_item") var defaultItem: Boolean = false,
     @get:PropertyName("free_of_charge") @set:PropertyName("free_of_charge") var freeOfCharge: Boolean = false,
     @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = emptyMap(),
@@ -572,7 +612,7 @@ data class Service(
         return Service(
             applyToGeneral = this.applyToGeneral,
             autoSelected = this.autoSelected,
-            categoryDetail = this.categoryDetail,
+            //categoryDetail = this.categoryDetail,
             defaultItem = this.defaultItem,
             freeOfCharge = this.freeOfCharge,
             resultsShareAmount = this.resultsShareAmount?.toMap(),

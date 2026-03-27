@@ -323,11 +323,11 @@
 
                                 <include
                                     android:id="@+id/shimmerLayoutEmployee"
-                                    layout="@layout/shimmer_layout_pick_user" />
+                                    layout="@layout/shimmer_layout_employee_large_card" />
 
                                 <include
                                     android:id="@+id/realLayoutEmployee"
-                                    layout="@layout/item_list_pick_user_adapter" />
+                                    layout="@layout/item_list_employee_large_adapter" />
 
                             </FrameLayout>
 

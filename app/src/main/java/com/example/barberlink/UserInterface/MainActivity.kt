@@ -30,11 +30,11 @@ import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
-import com.example.barberlink.UserInterface.Admin.ApproveOrRejectBonPage
+import com.example.barberlink.UserInterface.Admin.KasbonGatewayPage
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
-import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpFinalSuccessStep
 import com.example.barberlink.databinding.ActivityMainBinding
 import com.google.android.material.navigation.NavigationView
 import kotlin.getValue
@@ -100,13 +100,13 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         // Ambil data dari Intent
         @Suppress("DEPRECATION")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+            intent.getParcelableExtra(SignUpFinalSuccessStep.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
                 userAdminData = it
             } ?: intent.getParcelableExtra(LoginAdminPage.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
                 userAdminData = it
             }
         } else {
-            intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_DATA_KEY)?.let {
+            intent.getParcelableExtra<UserAdminData>(SignUpFinalSuccessStep.ADMIN_DATA_KEY)?.let {
                 userAdminData = it
             } ?: intent.getParcelableExtra<UserAdminData>(LoginAdminPage.ADMIN_DATA_KEY)?.let {
                 userAdminData = it
@@ -116,11 +116,13 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
 //        originFromSuccesPage = intent.getBooleanExtra(SignUpSuccess.ORIGIN_FROM_SUCCESS_PAGE, false)
 
         navController = findNavController(R.id.nav_host_fragment_content_main)
-        val bundle = Bundle().apply {
-            putParcelable(ADMIN_BUNDLE_KEY, userAdminData)
-        }
-        navController.setGraph(R.navigation.mobile_navigation, bundle)
-        Log.d("CheckShimmer", "MainActivity >> userAdminData: $userAdminData")
+//        val bundle = Bundle().apply {
+//            putParcelable(ADMIN_BUNDLE_KEY, userAdminData)
+//        }
+        Log.d("PlayCheck", "main :: ${userAdminData.uid}")
+//        navController.setGraph(R.navigation.mobile_navigation, bundle)
+//        Log.d("CheckShimmer", "MainActivity >> userAdminData: $userAdminData")
+        if (berandaAdminViewModel.userAdminData.value == null) berandaAdminViewModel.setUserAdminData(userAdminData)
 
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
@@ -232,27 +234,33 @@ class MainActivity : BaseActivity(), DrawerController, CapitalDialogHost
         navView.setNavigationItemSelectedListener { menuItem ->
             if (!debounce.isSafeDrawerClick(menuItem.itemId)) return@setNavigationItemSelectedListener true
 
-            var toastNavigation = false
-            pendingNavigation = when (menuItem.itemId) {
-                R.id.nav_kasbon -> {
-                    toastNavigation = true
-                    {
-                        // hmmmmm
-                        navigatePage(this@MainActivity, ApproveOrRejectBonPage::class.java)
+            if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
+                var toastNavigation = false
+                pendingNavigation = when (menuItem.itemId) {
+                    R.id.nav_kasbon -> {
+                        toastNavigation = true
+                        {
+                            // hmmmmm
+                            navigatePage(this@MainActivity, KasbonGatewayPage::class.java)
+                        }
+                    }
+                    else -> {
+                        { toastViewModel.showToast("${menuItem.title} - This feature is under development", true) }
                     }
                 }
-                else -> {
-                    { toastViewModel.showToast("${menuItem.title} - This feature is under development", true) }
-                }
-            }
 
-            if (toastNavigation) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Memuat Halaman...",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+                if (toastNavigation) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Memuat Halaman...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else Toast.makeText(
+                this@MainActivity,
+                "Akun Anda tidak terdaftar dalam subscription.",
+                Toast.LENGTH_LONG
+            ).show()
             // Tutup drawer
             drawerLayout.closeDrawer(GravityCompat.START)
             true

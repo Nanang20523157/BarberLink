@@ -164,7 +164,8 @@
                         android:fontFamily="@font/arial_medium"
                         android:text="@string/don_t_have_any_account"
                         android:textColor="#000000"
-                        android:textSize="13sp" />
+                        android:textSize="13sp"
+                        android:visibility="gone"/>
 
                     <TextView
                         android:id="@+id/btnSignUp"
@@ -176,7 +177,8 @@
                         android:text="@string/underline_sign_up"
                         android:paddingVertical="10dp"
                         android:textColor="@color/green_lime_wf"
-                        android:textSize="13sp" />
+                        android:textSize="13sp"
+                        android:visibility="gone"/>
 
                 </LinearLayout>
 

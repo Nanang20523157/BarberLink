@@ -18,7 +18,7 @@ import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.UserInterface.Admin.ViewModel.RecordInstallmentViewModel
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -67,14 +67,22 @@ class CapitalInputViewModel(
         }
     }
 
+    fun getUserAdminData(): UserAdminData? {
+        return if (::userAdminData.isInitialized) userAdminData else null
+    }
+
     fun setUserPegawaiData(userData: UserEmployeeData) {
         viewModelScope.launch {
             userPegawaiData = userData
         }
     }
 
+    fun getUserPegawaiData(): UserEmployeeData? {
+        return if (::userPegawaiData.isInitialized) userPegawaiData else null
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
-    fun saveDailyCapital(capitalAmount: Int, outletSelected: Outlet?, uidDailyCapital: String, timeStampFilter: Timestamp) {
+    fun saveDailyCapital(capitalAmount: Int, outletSelected: Outlet?, uidDailyCapital: String, timeStampFilter: Timestamp, creator: DataCreator<UserData>?) {
         viewModelScope.launch {
             outletSelected?.let { outletSelected ->
                 if (outletSelected.rootRef.isEmpty()) {
@@ -89,13 +97,14 @@ class CapitalInputViewModel(
                 var dailyCapital = DailyCapital()
 
                 if (::userAdminData.isInitialized) {
-                    val dataCreator = DataCreator<UserData>(
-                        userFullname = userAdminData.ownerName,
-                        userPhone = userAdminData.phone,
-                        userPhoto = userAdminData.imageCompanyProfile,
-                        userRef = userAdminData.userRef,
-                        userRole = "Owner"
-                    )
+                    val dataCreator = creator
+                        ?: DataCreator(
+                            userFullname = userAdminData.ownerName,
+                            userPhone = userAdminData.phone,
+                            userPhoto = userAdminData.imageCompanyProfile,
+                            userRef = userAdminData.userRef,
+                            userRole = "Owner"
+                        )
                     val locationPoint = LocationPoint(
                         placeName = outletSelected.outletName,
                         locationAddress = outletSelected.outletAddress,
@@ -111,13 +120,14 @@ class CapitalInputViewModel(
                         dataCreator = dataCreator
                     )
                 } else if (::userPegawaiData.isInitialized) {
-                    val dataCreator = DataCreator<UserData>(
-                        userFullname = userPegawaiData.fullname,
-                        userPhone = userPegawaiData.phone,
-                        userPhoto = userPegawaiData.photoProfile,
-                        userRef = userPegawaiData.userRef,
-                        userRole = "Employee"
-                    )
+                    val dataCreator = creator
+                        ?: DataCreator(
+                            userFullname = userPegawaiData.fullname,
+                            userPhone = userPegawaiData.phone,
+                            userPhoto = userPegawaiData.photoProfile,
+                            userRef = userPegawaiData.userRef,
+                            userRole = "Employee"
+                        )
                     val locationPoint = LocationPoint(
                         placeName = outletSelected.outletName,
                         locationAddress = outletSelected.outletAddress,

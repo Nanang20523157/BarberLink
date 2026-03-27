@@ -531,7 +531,7 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                 this?.setImageDrawable(
                     ContextCompat.getDrawable(
                         applicationContext,
-                        R.drawable.item_indicator_inactive
+                        R.drawable.ic_indicator_inactive
                     )
                 )
                 this?.layoutParams = layoutParams
@@ -552,14 +552,14 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     imageView.setImageDrawable(
                         ContextCompat.getDrawable(
                             applicationContext,
-                            R.drawable.item_indicator_active
+                            R.drawable.ic_indicator_active
                         )
                     )
                 } else{
                     imageView.setImageDrawable(
                         ContextCompat.getDrawable(
                             applicationContext,
-                            R.drawable.item_indicator_inactive
+                            R.drawable.ic_indicator_inactive
                         )
                     )
                 }

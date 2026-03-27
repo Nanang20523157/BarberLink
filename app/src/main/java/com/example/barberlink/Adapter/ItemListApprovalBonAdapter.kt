@@ -6,8 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
@@ -17,21 +15,12 @@ import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Admin.ApproveOrRejectBonPage
 import com.example.barberlink.Utils.GetDateUtils.formatTimestampToDate
-import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.example.barberlink.databinding.ItemApproveOrRejectBonBinding
 import com.example.barberlink.databinding.ShimmerApproveOrRejectBonBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitWriteWithOfflineFallback
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 class ItemListApprovalBonAdapter(
     private val db: FirebaseFirestore,
@@ -189,7 +178,7 @@ class ItemListApprovalBonAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemApproveOrRejectBonBinding) :
+    inner class ItemViewHolder(val binding: ItemApproveOrRejectBonBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(bonData: BonEmployeeData) {
@@ -506,7 +495,7 @@ class ItemListApprovalBonAdapter(
     fun restoreSwitchState(isChecked : Boolean, oldStatus: String, index: Int) {
         Log.d("SwitchAnomali", "index: $index || isChecked: $isChecked")
         val bonData = getItem(index)
-        val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemListOutletAdapter.ItemViewHolder)?.binding
+        val binding = (recyclerView?.findViewHolderForAdapterPosition(index) as? ItemViewHolder)?.binding
         if (binding != null) {
             binding.switch2.isChecked = isChecked
             binding.switch2.jumpDrawablesToCurrentState() // Kembalikan status switch ke semula

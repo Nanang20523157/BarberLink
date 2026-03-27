@@ -236,7 +236,7 @@ class PinInputFragment : DialogFragment() {
 
                                     binding.progressBar.visibility = View.GONE
                                     sessionManager.setSessionCapster(true)
-                                    userEmployeeData.userRef.let { sessionManager.setDataCapsterRef(it) }
+                                    userEmployeeData.uid.let { sessionManager.setDataCapsterRef("employees/$it") }
                                     navigatePage(requireContext(), HomePageCapster::class.java)
                                 }
                             } else {

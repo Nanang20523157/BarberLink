@@ -3,12 +3,34 @@ package com.example.barberlink.Manager
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.example.barberlink.DataClass.EmployeeRolesData
+
 
 class SessionManager(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val editor: SharedPreferences.Editor = prefs.edit()
+
+    private val _isVersionAllowed = MutableStateFlow(prefs.getBoolean(KEY_VERSION_ALLOWED, false))
+    val isVersionAllowed: StateFlow<Boolean> = _isVersionAllowed.asStateFlow()
+
+    private val _rolesData = MutableStateFlow<List<EmployeeRolesData>>(emptyList())
+    val rolesData: StateFlow<List<EmployeeRolesData>> = _rolesData.asStateFlow()
+
+    fun setVersionAllowed(allowed: Boolean) {
+        _isVersionAllowed.value = allowed
+        editor.putBoolean(KEY_VERSION_ALLOWED, allowed).apply()
+    }
+
+    fun getIsVersionAllowed(): Boolean {
+        return _isVersionAllowed.value
+    }
 
     fun saveSession(
         sessionAdmin: Boolean = false,
@@ -154,6 +176,57 @@ class SessionManager(context: Context) {
 //        return prefs.getBoolean(KEY_NEEDS_REDIRECT, false)
 //    }
 //
+    fun getPermissionsDecided(): Boolean {
+        return prefs.getBoolean(KEY_PERMISSIONS_DECIDED, false)
+    }
+
+    fun setPermissionsDecided(decided: Boolean) {
+        editor.putBoolean(KEY_PERMISSIONS_DECIDED, decided).apply()
+    }
+
+    fun savePermissionList(permissions: Map<String, Any>?) {
+        val json = Gson().toJson(permissions)
+        editor.putString(KEY_PERMISSION_LIST, json).apply()
+    }
+
+    fun getPermissionMap(): Map<String, String> {
+        val json = prefs.getString(KEY_PERMISSION_LIST, null)
+        return if (json != null) {
+            val type = object : TypeToken<Map<String, String>>() {}.type
+            Gson().fromJson(json, type)
+        } else {
+            emptyMap()
+        }
+    }
+
+    fun saveRolesData(roles: List<EmployeeRolesData>) {
+        _rolesData.value = roles
+        // Optional: Persist to SharedPreferences if needed
+        val json = Gson().toJson(roles)
+        editor.putString(KEY_ROLES_DATA, json).apply()
+    }
+
+    fun getRolesData(): List<EmployeeRolesData> {
+        return _rolesData.value
+    }
+
+    fun loadRolesFromPrefs() {
+        val json = prefs.getString(KEY_ROLES_DATA, null)
+        if (json != null) {
+            val type = object : TypeToken<List<EmployeeRolesData>>() {}.type
+            val roles: List<EmployeeRolesData> = Gson().fromJson(json, type)
+            _rolesData.value = roles
+        }
+    }
+
+    fun getShowCleanupNotification(): Boolean {
+        return prefs.getBoolean(KEY_SHOW_CLEANUP_NOTIFICATION, true)
+    }
+
+    fun setShowCleanupNotification(show: Boolean) {
+        editor.putBoolean(KEY_SHOW_CLEANUP_NOTIFICATION, show).apply()
+    }
+
 //    fun setNeedsRedirectToSelectUserRole(redirect: Boolean) {
 //        val editor = prefs.edit()
 //        editor.putBoolean(KEY_NEEDS_REDIRECT, redirect)
@@ -172,7 +245,11 @@ class SessionManager(context: Context) {
 /////////////////////////////////////////////////////////////////
 //        private const val KEY_TARGET_ROLE = "active_role"
 //        private const val KEY_OUTLET_SELECTED_REF = "outlet_selected_ref"
-//        private const val KEY_NEEDS_REDIRECT = "needs_redirect_to_select_user_role"
+        private const val KEY_PERMISSIONS_DECIDED = "permissions_decided"
+        private const val KEY_VERSION_ALLOWED = "version_allowed"
+        private const val KEY_PERMISSION_LIST = "permission_list"
+        private const val KEY_ROLES_DATA = "roles_data"
+        private const val KEY_SHOW_CLEANUP_NOTIFICATION = "show_cleanup_notification"
 
         @Volatile
         private var instance: SessionManager? = null

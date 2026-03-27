@@ -2,26 +2,24 @@ package com.example.barberlink.UserInterface.SignIn.ViewModel
 
 import android.app.Activity
 import android.os.Build
-import android.view.View
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.EmployeeRolesData
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Network.NetworkMonitor
-import com.example.barberlink.R
-import com.example.barberlink.UserInterface.Capster.HomePageCapster
-import com.example.barberlink.UserInterface.Capster.ViewModel.FormInputBonViewModel
-import com.example.barberlink.UserInterface.MainActivity
-import com.example.barberlink.UserInterface.SignUp.ViewModel.StepThreeViewModel.ResultState
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -44,20 +42,23 @@ class LoginPageViewModel(
     private val _loginStateResult = MutableLiveData<ResultState?>()
     val loginStateResult: LiveData<ResultState?> = _loginStateResult
 
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
+
     private lateinit var userAdminData: UserAdminData
     private lateinit var userEmployeeData: UserEmployeeData
 
     private var loginType: String = ""
 
-    fun getLoginType(): String {
-        return runBlocking {
-            loginType
-        }
-    }
-
     fun setLoginType(type: String) {
         viewModelScope.launch {
             loginType = type
+        }
+    }
+
+    fun getLoginType(): String {
+        return runBlocking {
+            loginType
         }
     }
 
@@ -154,29 +155,23 @@ class LoginPageViewModel(
         viewModelScope.launch {
             try {
                 val snapshot = withContext(Dispatchers.IO) {
-                    db.collectionGroup("employees")
-                        .whereEqualTo("uid", userId)
+                    db.collection("employees")
+                        .document(userId)
                         .awaitGetWithOfflineFallback(tag = "FetchUserEmployeeData")
                 }
 
                 if (snapshot.isSuccessful) {
-                    val documents = snapshot.data
-                    if (documents != null && !documents.isEmpty) {
-                        val document = documents.firstOrNull()
+                    val document = snapshot.data
+                    if (document != null && document.exists()) {
+                        userEmployeeData = document.toObject(UserEmployeeData::class.java)?.apply {
+                            userRef = document.reference.path
+                            outletRef = ""
+                            roleDetail = setEmployeeRoleDefaultValue()
+                        } ?: UserEmployeeData()
 
-                        if (document != null) {
-                            userEmployeeData =
-                                document.toObject(UserEmployeeData::class.java).apply {
-                                    userRef = document.reference.path
-                                    outletRef = ""
-                                }
-
-                            if (userEmployeeData.uid != "----------------") {
-                                _loginStateResult.value = ResultState.Navigate(loginType)
-                            } else {
-                                auth.signOut()
-                                _loginStateResult.value = ResultState.Failure(false, loginType, "ERROR_USER_NOT_FOUND")
-                            }
+                        if (userEmployeeData.uid != "----------------") {
+                            if (userEmployeeData.rootRef.isEmpty()) _loginStateResult.value = ResultState.Navigate(loginType)
+                            else getEmployeeRolesDataFromDatabase()
                         } else {
                             auth.signOut()
                             _loginStateResult.value = ResultState.Failure(false, loginType, "ERROR_USER_NOT_FOUND")
@@ -193,6 +188,62 @@ class LoginPageViewModel(
                             _loginStateResult.value = ResultState.ShowToast("", true)
                         } else _loginStateResult.value = ResultState.ShowToast(snapshot.errorMessage.toString(), true)
                     } else _loginStateResult.value = ResultState.ShowToast("Gagal memuat data pengguna!", true)
+                }
+            } catch (e: Exception) {
+                auth.signOut()
+                _loginStateResult.value = ResultState.ShowToast("Gagal memuat data pengguna!", true)
+            }
+        }
+    }
+
+    private fun setEmployeeRoleDefaultValue(): EmployeeRolesData {
+        return EmployeeRolesData(
+            barbershopRef = "All",
+            jobDesc = "Default role with default permissions. Please contact your administrator to assign the correct role.",
+            permissions = mapOf(
+                "approval_bon" to false,
+                "beranda_admin" to false,
+                "dashboard_admin" to false,
+                "manage_queue" to true,
+                "manual_report" to true,
+            ),
+            roleName = "Employee",
+            uid = "----------------"
+        )
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun getEmployeeRolesDataFromDatabase() {
+        viewModelScope.launch {
+            try {
+                val snapshot = withContext(Dispatchers.IO) {
+                    db.collection("roles")
+                        .whereIn("barbershop_ref", listOf("All", userEmployeeData.rootRef))
+                        .awaitGetWithOfflineFallback(tag = "GetEmployeeRolesData")
+                }
+
+                if (snapshot.isSuccessful) {
+                    val documents = snapshot.data
+                    if (documents != null) {
+                        val employeeRoles = documents.mapNotNull { document ->
+                            document.toObject(EmployeeRolesData::class.java)
+                        }
+                        userEmployeeData.apply {
+                            roleDetail = employeeRoles.find {
+                                it.roleName == this.role
+                            }
+                        }
+
+                        _employeeRolesList.value = employeeRoles
+                        _loginStateResult.value = ResultState.Navigate(loginType)
+                        Log.d("CheckShimmer", "✅ getEmployeeRolesDataFromDatabase Success (Offline-Aware)")
+                    } else {
+                        auth.signOut()
+                        _loginStateResult.value = ResultState.ShowToast("Gagal memuat data pengguna!", true)
+                    }
+                } else {
+                    auth.signOut()
+                    _loginStateResult.value = ResultState.ShowToast("Gagal memuat data pengguna!", true)
                 }
             } catch (e: Exception) {
                 auth.signOut()

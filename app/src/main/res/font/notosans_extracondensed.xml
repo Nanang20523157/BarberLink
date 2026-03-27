@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto">
+    <font
+        app:font="@font/notosans_extracondensed_thin"
+        app:fontStyle="normal"
+        app:fontWeight="100" />
+    <font
+        app:font="@font/notosans_extracondensed_thinitalic"
+        app:fontStyle="italic"
+        app:fontWeight="100" />
+    <font
+        app:font="@font/notosans_extracondensed_extralight"
+        app:fontStyle="normal"
+        app:fontWeight="200" />
+    <font
+        app:font="@font/notosans_extracondensed_extralightitalic"
+        app:fontStyle="italic"
+        app:fontWeight="200" />
+    <font
+        app:font="@font/notosans_extracondensed_light"
+        app:fontStyle="normal"
+        app:fontWeight="300" />
+    <font
+        app:font="@font/notosans_extracondensed_lightitalic"
+        app:fontStyle="italic"
+        app:fontWeight="300" />
+    <font
+        app:font="@font/notosans_extracondensed_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400" />
+    <font
+        app:font="@font/notosans_extracondensed_italic"
+        app:fontStyle="italic"
+        app:fontWeight="400" />
+    <font
+        app:font="@font/notosans_extracondensed_medium"
+        app:fontStyle="normal"
+        app:fontWeight="500" />
+    <font
+        app:font="@font/notosans_extracondensed_mediumitalic"
+        app:fontStyle="italic"
+        app:fontWeight="500" />
+    <font
+        app:font="@font/notosans_extracondensed_semibold"
+        app:fontStyle="normal"
+        app:fontWeight="600" />
+    <font
+        app:font="@font/notosans_extracondensed_semibolditalic"
+        app:fontStyle="italic"
+        app:fontWeight="600" />
+    <font
+        app:font="@font/notosans_extracondensed_bold"
+        app:fontStyle="normal"
+        app:fontWeight="700" />
+    <font
+        app:font="@font/notosans_extracondensed_bolditalic"
+        app:fontStyle="italic"
+        app:fontWeight="700" />
+    <font
+        app:font="@font/notosans_extracondensed_extrabold"
+        app:fontStyle="normal"
+        app:fontWeight="800" />
+    <font
+        app:font="@font/notosans_extracondensed_extrabolditalic"
+        app:fontStyle="italic"
+        app:fontWeight="800" />
+    <font
+        app:font="@font/notosans_extracondensed_black"
+        app:fontStyle="normal"
+        app:fontWeight="900" />
+    <font
+        app:font="@font/notosans_extracondensed_blackitalic"
+        app:fontStyle="italic"
+        app:fontWeight="900" />
+</font-family>

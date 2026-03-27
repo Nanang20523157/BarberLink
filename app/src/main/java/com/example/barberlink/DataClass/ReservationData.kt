@@ -10,31 +10,32 @@ import kotlinx.parcelize.RawValue
 @Parcelize
 data class ReservationData(
 //    @get:PropertyName("applicant_capster_ref") @set:PropertyName("applicant_capster_ref") var applicantCapsterRef: String = "",
-    @get:PropertyName("share_profit_capster_ref") @set:PropertyName("share_profit_capster_ref") var shareProfitCapsterRef: String = "",
-    @get:PropertyName("field_to_filtering") @set:PropertyName("field_to_filtering") var fieldToFiltering: String = "",
 //    @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
-    @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("best_deals_ref") @set:PropertyName("best_deals_ref") var bestDealsRef: List<String> = listOf(),
     @get:PropertyName("capster_info") @set:PropertyName("capster_info") var capsterInfo: CapsterInfo? = null,
     @get:PropertyName("data_creator") @set:PropertyName("data_creator") var dataCreator: @RawValue DataCreator<UserData>? = null,
-    @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
+//    @get:PropertyName("dont_adjust_fee") @set:PropertyName("dont_adjust_fee") var dontAdjustFee: Boolean = false,
+    @get:PropertyName("field_to_filtering") @set:PropertyName("field_to_filtering") var fieldToFiltering: String = "",
+// @get:PropertyName("is_requeue") @set:PropertyName("is_requeue") var isRequeue: Boolean = false,
     @get:PropertyName("item_info") @set:PropertyName("item_info") var itemInfo: List<ItemInfo>? = null,
-    @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
+    @get:PropertyName("location_point") @set:PropertyName("location_point") var locationPoint: LocationPoint? = null,
+    @get:PropertyName("notes") @set:PropertyName("notes") var notes: String = "",
     // Category Type
     @get:PropertyName("order_category") @set:PropertyName("order_category") var orderCategory: String = "",
-//    @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
+    @get:PropertyName("order_type") @set:PropertyName("order_type") var orderType: String = "",
     @get:PropertyName("outlet_identifier") @set:PropertyName("outlet_identifier") var outletIdentifier: String = "",
-    @get:PropertyName("location_point") @set:PropertyName("location_point") var locationPoint: LocationPoint? = null,
+//    @get:PropertyName("outlet_location") @set:PropertyName("outlet_location") var outletLocation: String = "",
     @get:PropertyName("payment_detail") @set:PropertyName("payment_detail") var paymentDetail: PaymentDetail = PaymentDetail(),
     @get:PropertyName("queue_number") @set:PropertyName("queue_number") var queueNumber: String = "",
     // Transaction Status
     @get:PropertyName("queue_status") @set:PropertyName("queue_status") var queueStatus: String = "",
+    @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
+    @get:PropertyName("share_profit_capster_ref") @set:PropertyName("share_profit_capster_ref") var shareProfitCapsterRef: String = "",
     @get:PropertyName("timestamp_completed") @set:PropertyName("timestamp_completed") var timestampCompleted: Timestamp? = null,
     @get:PropertyName("timestamp_created") @set:PropertyName("timestamp_created") var timestampCreated: Timestamp = Timestamp.now(),
     @get:PropertyName("timestamp_to_booking") @set:PropertyName("timestamp_to_booking") var timestampToBooking: Timestamp = Timestamp.now(),
-    // @get:PropertyName("is_requeue") @set:PropertyName("is_requeue") var isRequeue: Boolean = false,
-//    @get:PropertyName("dont_adjust_fee") @set:PropertyName("dont_adjust_fee") var dontAdjustFee: Boolean = false,
     @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
+    @get:PropertyName("is_expired_reservation") @set:PropertyName("is_expired_reservation") var isExpiredReservation: Boolean = false,
     @get:Exclude @set:Exclude var dataRef: String = "",
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
@@ -51,9 +52,6 @@ data class ReservationData(
     ): ReservationData {
         return ReservationData(
 //            applicantCapsterRef = this.applicantCapsterRef,
-            shareProfitCapsterRef = this.shareProfitCapsterRef,
-            fieldToFiltering = this.fieldToFiltering,
-            rootRef = this.rootRef,
             bestDealsRef = this.bestDealsRef.toList(), // Copy list to ensure it's a new instance
             capsterInfo = if (copyCapsterDetail) {
                 if (this.capsterInfo != null) {
@@ -69,20 +67,24 @@ data class ReservationData(
             } else {
                 this.dataCreator
             }, // Deep copy BuyerInfo
-            notes = this.notes,
+            fieldToFiltering = this.fieldToFiltering,
+            // isRequeue = this.isRequeue,
             itemInfo = this.itemInfo?.map { it.deepCopy() }, // Copy list of OrderInfo objects
-            orderType = this.orderType,
-            orderCategory = this.orderCategory,
-            outletIdentifier = this.outletIdentifier,
             locationPoint = this.locationPoint?.deepCopy(),
+            notes = this.notes,
+            orderCategory = this.orderCategory,
+            orderType = this.orderType,
+            outletIdentifier = this.outletIdentifier,
             paymentDetail = this.paymentDetail.deepCopy(), // Copy PaymentDetail object
             queueNumber = this.queueNumber,
             queueStatus = this.queueStatus,
+            rootRef = this.rootRef,
+            shareProfitCapsterRef = this.shareProfitCapsterRef,
             timestampCompleted = this.timestampCompleted,
             timestampCreated = this.timestampCreated,
             timestampToBooking = this.timestampToBooking,
-            // isRequeue = this.isRequeue,
             uid = this.uid,
+            isExpiredReservation = this.isExpiredReservation,
             dataRef = this.dataRef
         )
     }
@@ -162,6 +164,8 @@ data class ItemInfo(
 @Parcelize
 data class PaymentDetail(
     @get:PropertyName("coins_used") @set:PropertyName("coins_used") var coinsUsed: Int = 0,
+    @get:PropertyName("delivery_cost") @set:PropertyName("delivery_cost") var deliveryCost: Int = 0,
+    @get:PropertyName("discount_amount") @set:PropertyName("discount_amount") var discountAmount: Int = 0,
     @get:PropertyName("final_price") @set:PropertyName("final_price") var finalPrice: Int = 0,
     @get:PropertyName("number_of_items") @set:PropertyName("number_of_items") var numberOfItems: Int = 0,
     @get:PropertyName("payment_method") @set:PropertyName("payment_method") var paymentMethod: String = "",
@@ -170,8 +174,6 @@ data class PaymentDetail(
     @get:PropertyName("subtotal_items") @set:PropertyName("subtotal_items") var subtotalItems: Int = 0,
     @get:PropertyName("system_costs") @set:PropertyName("system_costs") var systemCosts: Int = 0,
     @get:PropertyName("tax_amount") @set:PropertyName("tax_amount") var taxAmount: Int = 0,
-    @get:PropertyName("delivery_cost") @set:PropertyName("delivery_cost") var deliveryCost: Int = 0,
-    @get:PropertyName("discount_amount") @set:PropertyName("discount_amount") var discountAmount: Int = 0,
 //    @get:PropertyName("specialization_cost") @set:PropertyName("specialization_cost") var specializationCost: Int = 0,
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
@@ -183,6 +185,8 @@ data class PaymentDetail(
     fun deepCopy(): PaymentDetail {
         return PaymentDetail(
             coinsUsed = this.coinsUsed,
+            deliveryCost = this.deliveryCost,
+            discountAmount = this.discountAmount,
             finalPrice = this.finalPrice,
             numberOfItems = this.numberOfItems,
             paymentMethod = this.paymentMethod,
@@ -191,8 +195,6 @@ data class PaymentDetail(
             subtotalItems = this.subtotalItems,
             systemCosts = this.systemCosts,
             taxAmount = this.taxAmount,
-            deliveryCost = this.deliveryCost,
-            discountAmount = this.discountAmount,
         )
     }
 }

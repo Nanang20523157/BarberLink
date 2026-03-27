@@ -12,6 +12,7 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.view.animation.DecelerateInterpolator
+import android.widget.Toast
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
@@ -20,6 +21,7 @@ import androidx.core.view.marginBottom
 import androidx.core.view.marginEnd
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.bumptech.glide.Glide
@@ -37,6 +39,8 @@ import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Contract.NavigationCallback
+import com.example.barberlink.DataClass.EmployeeRolesData
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.Network.NetworkMonitor
@@ -44,11 +48,12 @@ import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.Capster.Fragment.CapitalInputFragment
-import com.example.barberlink.UserInterface.Capster.Fragment.SwitchAvailabilityFragment
+import com.example.barberlink.UserInterface.Capster.Fragment.SwitchAttendanceFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.HomePageViewModel
 import com.example.barberlink.UserInterface.SettingPageScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpFinalSuccessStep
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.CopyUtils
@@ -62,7 +67,7 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.QuerySnapshot
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -88,7 +93,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
 //    private var outletCapsterRef: String = ""
     private var isNavigating = false
     private var isProcessingFABAnimation: Boolean = false
-    private var remainingListeners = AtomicInteger(8)
+    private var remainingListeners = AtomicInteger(9)
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: CapitalInputFragment
     private lateinit var calendar: Calendar
@@ -120,6 +125,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
     private lateinit var outletListener: ListenerRegistration
     private lateinit var userBonListener: ListenerRegistration
     private lateinit var productListener: ListenerRegistration
+    private lateinit var rolesListener: ListenerRegistration
     // private lateinit var locationListener: ListenerRegistration
     private val daysMonth = GetDateUtils.getDaysInCurrentMonth()
     private var currentMonth: String = ""
@@ -244,12 +250,14 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             swipeRefreshLayout.setProgressViewOffset(false, (-47 * resources.displayMetrics.density).toInt(), (18 * resources.displayMetrics.density).toInt())
 //            swipeRefreshLayout.setProgressViewOffset(false, 0, (64 * resources.displayMetrics.density).toInt())
             swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-                if (homePageViewModel.userEmployeeData.value?.uid?.isNotEmpty() == true) {
-                    showShimmer(true)
-                    getAllData()
-                } else {
-                    swipeRefreshLayout.isRefreshing = false
-                }
+                homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
+                    if (userEmployeeData.uid != "----------------") {
+                        showShimmer(true)
+                        getCapsterData(true)
+                    } else {
+                        swipeRefreshLayout.isRefreshing = false
+                    }
+                } ?: run { swipeRefreshLayout.isRefreshing = false }
             })
 
             val nestedScrollView = binding.mainContent
@@ -277,8 +285,11 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         }
 
         homePageViewModel.userEmployeeData.observe(this) { userEmployeeData ->
-            if (userEmployeeData != null && userEmployeeData.uid.isNotEmpty()) {
-                if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) { getAllData() }
+            if (userEmployeeData != null) {
+                if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) {
+                    if (userEmployeeData.rootRef.isNotEmpty() && isFirstLoad) getEmployeeRolesDataFromDatabase(userEmployeeData)
+                    else if (isFirstLoad) getAllData()
+                }
             }
         }
 
@@ -289,15 +300,19 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         homePageViewModel.displayCounterProduct.observe(this) { display ->
             Log.d("CheckShimmer", "displayCounterProduct: $display || size: ${homePageViewModel.productList.value?.size} || isShimmer: $isShimmerVisible || isFirstLoad: $isFirstLoad")
             if (display == true) {
-                productAdapter.submitList(homePageViewModel.productList.value)
+                val productList = homePageViewModel.productList.value ?: emptyList()
+                productAdapter.submitList(productList)
 
                 if (!isRecreated) showShimmer(false)
                 else showShimmer(isShimmerVisible)
                 if (!isShimmerVisible) productAdapter.notifyDataSetChanged()
+                binding.dashedLine.visibility = if (productList.isEmpty()) View.GONE else View.VISIBLE
+                binding.llProductSales.visibility = if (productList.isEmpty()) View.GONE else View.VISIBLE
                 if (isFirstLoad) setupListeners()
 
                 binding.swipeRefreshLayout.isRefreshing = false
             }
+            homePageViewModel.setDisplayEmployeeData(false)
         }
 
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
@@ -310,11 +325,23 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 Log.d("CheckShimmer", "Intent Data")
                 @Suppress("DEPRECATION")
                 val userEmployeeData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(LoginAdminPage.EMPLOYEE_DATA_KEY, UserEmployeeData::class.java) ?: UserEmployeeData()
+                    intent.getParcelableExtra(SignUpFinalSuccessStep.EMPLOYEE_DATA_KEY, UserEmployeeData::class.java)
+                        ?: intent.getParcelableExtra(LoginAdminPage.EMPLOYEE_DATA_KEY, UserEmployeeData::class.java)
+                        ?: UserEmployeeData()
                 } else {
-                    intent.getParcelableExtra(LoginAdminPage.EMPLOYEE_DATA_KEY) ?: UserEmployeeData()
+                    intent.getParcelableExtra<UserEmployeeData>(SignUpFinalSuccessStep.EMPLOYEE_DATA_KEY)
+                        ?: intent.getParcelableExtra<UserEmployeeData>(LoginAdminPage.EMPLOYEE_DATA_KEY)
+                        ?: UserEmployeeData()
                 }
                 homePageViewModel.setUserEmployeeData(userEmployeeData, false)
+
+                // JIKA AKUN BARU MEMANG GAK ADA DATA ROLES YANG BISA DITERIMA KARENA ROOTREF NYA KOSONG
+                val employeeRoles = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(LoginAdminPage.ROLES_DATA_KEY, EmployeeRolesData::class.java) ?: emptyList()
+                } else {
+                    intent.getParcelableArrayListExtra<EmployeeRolesData>(LoginAdminPage.ROLES_DATA_KEY) ?: emptyList()
+                }
+                homePageViewModel.setEmployeeRoles(employeeRoles)
             }
         } else {
             Log.d("CheckShimmer", "OrientationChanged HPC")
@@ -356,6 +383,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
 
+        outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("skipped_process", skippedProcess)
         outState.putBoolean("is_uid_hidden_text", isUidHiddenText)
@@ -457,7 +485,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(8)
+        if (skippedProcess) remainingListeners.set(9)
 //        listenSpecificOutletData()
         listenToUserCapsterData()
         listenToOutletList()
@@ -467,6 +495,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         listenToSalesData()
         listenUserAccumulationBon()
         listenToProductsData()
+        listenToEmployeesRoles()
 
         // Tambahkan logika sinkronisasi di sini
         lifecycleScope.launch {
@@ -480,12 +509,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
     }
 
     private fun listenToUserCapsterData() {
-        dataCapsterRef.let {
+        dataCapsterRef.let { data ->
             if (::employeeListener.isInitialized) {
                 employeeListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (data.isEmpty()) {
                 employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -511,6 +540,9 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                                             val userEmployeeData = docs.toObject(UserEmployeeData::class.java)?.apply {
                                                 userRef = docs.reference.path
                                                 outletRef = ""
+                                                roleDetail = homePageViewModel.employeeRolesList.value?.find {
+                                                    it.roleName == this.role
+                                                } ?: setEmployeeRoleDefaultValue()
                                             }
                                             userEmployeeData?.let {
                                                 homePageViewModel.setUserEmployeeData(userEmployeeData, true)
@@ -544,8 +576,8 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             }
             var decrementGlobalListener = false
 
-            outletListener = db.document(userEmployeeData.rootRef)
-                .collection("outlets")
+            outletListener = db.collectionGroup("outlets")
+                .whereEqualTo("root_ref", userEmployeeData.rootRef)
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
                         homePageViewModel.listenerOutletListMutex.withStateLock {
@@ -599,8 +631,8 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             }
             var decrementGlobalListener = false
 
-            productListener = db.document(userEmployeeData.rootRef)
-                .collection("products")
+            productListener = db.collectionGroup("products")
+                .whereEqualTo("root_ref", userEmployeeData.rootRef)
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
                         homePageViewModel.listenerProductListMutex.withStateLock {
@@ -646,31 +678,98 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         }
     }
 
+    private fun listenToEmployeesRoles() {
+        homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", userEmployeeData.rootRef))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        homePageViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        homePageViewModel.rolesListMutex.withStateLock {
+                                            val employeeRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            homePageViewModel.setEmployeeRoles(employeeRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
+        } ?: run {
+            rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        }
+    }
+
     private fun <T> listenToData(
         collectionPath: String,
         dataClass: Class<T>,
         dateField: String,
+        isCollectionGroup: Boolean = false,
         userEmployeeData: UserEmployeeData,
         decrementFlag: AtomicBoolean,
         onSuccess: suspend (QuerySnapshot, ReentrantCoroutineMutex) -> Unit
     ): ListenerRegistration {
-        val query = if (collectionPath.contains("/")) {
-            // Koleksi biasa dengan filter AND
-            db.collection(collectionPath)
+        val capsterFilter = if (collectionPath == "reservations") {
+            Filter.and(
+                Filter.equalTo("root_ref", userEmployeeData.rootRef),
+                Filter.or(
+                    Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
+                    Filter.equalTo("capster_info.capster_ref", "")
+                )
+            )
+        } else {
+            Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef)
+        }
+
+        val query = if (isCollectionGroup) {
+            // Koleksi grup dengan filter AND
+            db.collectionGroup(collectionPath)
                 .where(
                     Filter.and(
-                        Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
+                        capsterFilter,
                         Filter.greaterThanOrEqualTo(dateField, startOfMonth),
                         Filter.lessThan(dateField, startOfNextMonth)
                     )
                 )
         } else {
-            // Koleksi grup dengan filter AND
-            db.collectionGroup(collectionPath)
+            // Koleksi biasa dengan filter AND
+            db.collection(collectionPath)
                 .where(
                     Filter.and(
-                        Filter.equalTo("root_ref", userEmployeeData.rootRef),
-                        Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
+                        capsterFilter,
                         Filter.greaterThanOrEqualTo(dateField, startOfMonth),
                         Filter.lessThan(dateField, startOfNextMonth)
                     )
@@ -726,7 +825,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 reservationListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty() || userEmployeeData.rootRef.isEmpty()) {
                 reservationListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -734,9 +833,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             val isReservationDecremented = AtomicBoolean(false)
 
             reservationListener = listenToData(
-                collectionPath = "${userEmployeeData.rootRef}/reservations",
+                collectionPath = "reservations",
                 dataClass = ReservationData::class.java,
                 dateField = "timestamp_to_booking",
+                isCollectionGroup = true,
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isReservationDecremented
             ) { result, mutex ->
@@ -767,7 +867,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 appointmentListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty()) {
                 appointmentListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -775,9 +875,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             val isAppointmentDecremented = AtomicBoolean(false)
 
             appointmentListener = listenToData(
-                collectionPath = "${userEmployeeData.rootRef}/appointment",
+                collectionPath = "appointment",
                 dataClass = AppointmentData::class.java,
                 dateField = "timestamp_to_booking",
+                isCollectionGroup = true,
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isAppointmentDecremented
             ) { result, mutex ->
@@ -808,7 +909,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 salesListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty()) {
                 salesListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -816,9 +917,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             val isSalesDecremented = AtomicBoolean(false)
 
             salesListener = listenToData(
-                collectionPath = "${userEmployeeData.rootRef}/sales",
+                collectionPath = "sales",
                 dataClass = ProductSales::class.java,
                 dateField = "timestamp_created",
+                isCollectionGroup = true,
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isSalesDecremented
             ) { result, mutex ->
@@ -849,7 +951,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 manualReportListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty()) {
                 manualReportListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -857,9 +959,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             val isManualReportDecremented = AtomicBoolean(false)
 
             manualReportListener = listenToData(
-                collectionPath = "${userEmployeeData.rootRef}/manual_report",
+                collectionPath = "manual_report",
                 dataClass = ManualIncomeData::class.java,
                 dateField = "timestamp_created",
+                isCollectionGroup = true,
                 userEmployeeData = userEmployeeData,
                 decrementFlag = isManualReportDecremented
             ) { result, mutex ->
@@ -890,16 +993,15 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 userBonListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty()) {
                 userBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            val bonRef = db.collection("${userEmployeeData.rootRef}/employee_bon")
-
-            userBonListener = bonRef.where(
+            //jklp
+            userBonListener = db.collectionGroup("employee_bon").where(
                 Filter.and(
                     Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
                     Filter.greaterThan("bon_details.remaining_bon", 0),
@@ -910,6 +1012,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                     homePageViewModel.listenerBonAccumulationMutex.withStateLock {
                         exception?.let {
                             homePageViewModel.setUserAccumulationBon(-999)
+                            Logger.d("CheckBon", "❌ Error listening to user bon data: ${it.message}")
                             toastViewModel.showToast("Error listening to user bon data: ${it.message}", false)
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
@@ -945,13 +1048,14 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun getCapsterData() {
+    private fun getCapsterData(isRefreshingPage: Boolean = false) {
         lifecycleScope.launch {
             dataCapsterRef.let {
                 if (it.isEmpty()) {
                     homePageViewModel.setUserAccumulationBon(-999)
-                    displayEmployeeData()
-                    Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                    Logger.d("CheckBon", "❌ getCapsterData: userRef kosong, tidak dapat memuat data pengguna!!!")
+                    homePageViewModel.setUserEmployeeData(UserEmployeeData(), false)
+                    Logger.d("HomePageCheck", "❌ getCapsterData: Gagal memuat data pengguna!!!")
                     toastViewModel.showToast("Gagal memuat data pengguna!", false)
                     return@let
                 }
@@ -970,22 +1074,27 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                                 val userEmployeeData = document.toObject(UserEmployeeData::class.java)?.apply {
                                     userRef = document.reference.path
                                     outletRef = ""
+                                    roleDetail = setEmployeeRoleDefaultValue()
                                 } ?: UserEmployeeData()
 
                                 Log.d("CheckShimmer", "✅ getCapsterData Success (Offline-Aware)")
                                 homePageViewModel.setUserEmployeeData(userEmployeeData, false)
+                                if (isRefreshingPage && userEmployeeData.rootRef.isNotEmpty()) getEmployeeRolesDataFromDatabase(userEmployeeData)
+                                else { if (isRefreshingPage) getAllData() }
                             }
                         } else {
                             homePageViewModel.setUserAccumulationBon(-999)
-                            displayEmployeeData()
-                            Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                            Logger.d("CheckBon", "❌ getCapsterData: Dokumen tidak ditemukan atau kosong, tidak dapat memuat data pengguna!!!")
+                            homePageViewModel.setUserEmployeeData(UserEmployeeData(), false)
+                            Logger.d("HomePageCheck", "❌ getCapsterData: Gagal memuat data pengguna!!!")
                             if (snapshot.displayMessage) toastViewModel.showToast(snapshot.errorMessage.toString(), false)
                             else toastViewModel.showToast("Gagal memuat data pengguna!", false)
                         }
                     } else {
                         homePageViewModel.setUserAccumulationBon(-999)
-                        displayEmployeeData()
-                        Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                        Logger.d("CheckBon", "❌ getCapsterData: Gagal mengambil data pengguna dari server, tidak dapat memuat data pengguna!!!")
+                        homePageViewModel.setUserEmployeeData(UserEmployeeData(), false)
+                        Logger.d("HomePageCheck", "❌ getCapsterData: Gagal memuat data pengguna!!!")
                         if (snapshot.displayMessage) {
                             if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
                                 NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
@@ -994,9 +1103,77 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                     }
                 } catch (e: Exception) {
                     homePageViewModel.setUserAccumulationBon(-999)
-                    displayEmployeeData()
-                    Logger.d("CheckShimmer", "❌ getCapsterData: Gagal memuat data pengguna!!!")
+                    Logger.d("CheckBon", "❌ getCapsterData: Exception ${e.message}, tidak dapat memuat data pengguna!!!")
+                    homePageViewModel.setUserEmployeeData(UserEmployeeData(), false)
+                    Logger.d("HomePageCheck", "❌ getCapsterData: Gagal memuat data pengguna!!!")
                     toastViewModel.showToast("Gagal memuat data pengguna!", false)
+                }
+            }
+        }
+    }
+
+    private fun setEmployeeRoleDefaultValue(): EmployeeRolesData {
+        return EmployeeRolesData(
+            barbershopRef = "All",
+            jobDesc = "Default role with default permissions. Please contact your administrator to assign the correct role.",
+            permissions = mapOf(
+                "approval_bon" to false,
+                "beranda_admin" to false,
+                "dashboard_admin" to false,
+                "manage_queue" to true,
+                "manual_report" to true,
+            ),
+            roleName = "Employee",
+            uid = "----------------"
+        )
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun getEmployeeRolesDataFromDatabase(userEmployeeData: UserEmployeeData) {
+        lifecycleScope.launch {
+            homePageViewModel.rolesListMutex.withStateLock {
+                try {
+                    val snapshot = withContext(Dispatchers.IO) {
+                        db.collection("roles")
+                            .whereIn("barbershop_ref", listOf("All", userEmployeeData.rootRef))
+                            .awaitGetWithOfflineFallback(tag = "GetEmployeeRolesData")
+                    }
+
+                    if (snapshot.isSuccessful) {
+                        val documents = snapshot.data
+                        if (documents != null) {
+                            val employeeRoles = documents.mapNotNull { document ->
+                                document.toObject(EmployeeRolesData::class.java)
+                            }
+
+                            homePageViewModel.setEmployeeRoles(employeeRoles)
+                            getAllData()
+                            Log.d("CheckShimmer", "✅ getEmployeeRolesDataFromDatabase Success (Offline-Aware)")
+                        } else {
+                            homePageViewModel.setUserAccumulationBon(-999)
+                            Logger.d("CheckBon", "❌ getEmployeeRolesDataFromDatabase: Dokumen tidak ditemukan atau kosong, tidak dapat memuat data role karyawan!!!")
+                            displayEmployeeData()
+                            Logger.d("CheckShimmer", "❌ getEmployeeRolesDataFromDatabase: Gagal memuat data role karyawan!!!")
+                            if (snapshot.displayMessage) toastViewModel.showToast(snapshot.errorMessage.toString(), false)
+                            else toastViewModel.showToast("Gagal memuat data role karyawan!", false)
+                        }
+                    } else {
+                        homePageViewModel.setUserAccumulationBon(-999)
+                        Logger.d("CheckBon", "❌ getEmployeeRolesDataFromDatabase: Gagal mengambil data role karyawan dari server, tidak dapat memuat data role karyawan!!!")
+                        displayEmployeeData()
+                        Logger.d("CheckShimmer", "❌ getEmployeeRolesDataFromDatabase: Gagal memuat data role karyawan!!!")
+                        if (snapshot.displayMessage) {
+                            if (snapshot.errorMessage.toString() == NetworkMonitor.errorMessage.value || snapshot.errorMessage.toString() == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
+                                NetworkMonitor.showToast(snapshot.errorMessage.toString(), true)
+                            } else toastViewModel.showToast(snapshot.errorMessage.toString(), false)
+                        } else toastViewModel.showToast("Gagal memuat data role karyawan!", false)
+                    }
+                } catch (e: Exception) {
+                    homePageViewModel.setUserAccumulationBon(-999)
+                    Logger.d("CheckBon", "❌ getEmployeeRolesDataFromDatabase: Exception ${e.message}, tidak dapat memuat data role karyawan!!!")
+                    displayEmployeeData()
+                    Logger.d("CheckShimmer", "❌ getEmployeeRolesDataFromDatabase: Gagal memuat data role karyawan!!!")
+                    toastViewModel.showToast("Gagal memuat data role karyawan!", false)
                 }
             }
         }
@@ -1008,8 +1185,18 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
             homePageViewModel.allDataMutex.withStateLock {
                 if (!NetworkMonitor.isOnline.value) delay(550L)
                 homePageViewModel.userEmployeeData.value?.let { userEmployeeData ->
+                    // Jika rootRef kosong, akun belum terdaftar di barbershop manapun.
+                    // Tidak perlu query apapun — tampilkan data kosong dengan bon = 0.
+//                    if (userEmployeeData.rootRef.isEmpty()) {
+//                        Logger.d("CheckBon", "ℹ️ getAllData: rootRef kosong, akun belum terdaftar di barbershop manapun. Menampilkan data kosong.")
+//                        resetVariabel()
+//                        displayEmployeeData()
+//                        return@let
+//                    }
+
                     if (userEmployeeData.userRef.isEmpty()) {
                         homePageViewModel.setUserAccumulationBon(-999)
+                        Logger.d("CheckBon", "❌ getAllData: userRef kosong, tidak dapat memuat data yang dibutuhkan!!!")
                         displayEmployeeData()
                         Logger.d("CheckError", "❌ getAllData: Gagal memuat data yang dibutuhkan!!!")
                         toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
@@ -1018,6 +1205,16 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
 
                     try {
                         // 🔹 Siapkan filter untuk setiap koleksi
+                        val reservationFilter = Filter.and(
+                            Filter.equalTo("root_ref", userEmployeeData.rootRef),
+                            Filter.or(
+                                Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
+                                Filter.equalTo("capster_info.capster_ref", "")
+                            ),
+                            Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfMonth),
+                            Filter.lessThan("timestamp_to_booking", startOfNextMonth)
+                        )
+
                         val bookFilter = Filter.and(
                             Filter.equalTo("capster_info.capster_ref", userEmployeeData.userRef),
                             Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfMonth),
@@ -1038,43 +1235,45 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
 
                         // 🔹 Jalankan semua operasi Firestore secara paralel
                         val reservationsJob = async(Dispatchers.IO) {
-                            db.collection("${userEmployeeData.rootRef}/reservations")
-                                .where(bookFilter)
+                            db.collectionGroup("reservations")
+                                .where(reservationFilter)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterReservations")
                         }
 
                         val appointmentJob = async(Dispatchers.IO) {
-                            db.collection("${userEmployeeData.rootRef}/appointment")
+                            db.collectionGroup("appointment")
                                 .where(bookFilter)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterAppointments")
                         }
 
                         val salesJob = async(Dispatchers.IO) {
-                            db.collection("${userEmployeeData.rootRef}/sales")
+                            db.collectionGroup("sales")
                                 .where(createFilter)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterSales")
                         }
 
                         val manualReportJob = async(Dispatchers.IO) {
-                            db.collection("${userEmployeeData.rootRef}/manual_report")
+                            db.collectionGroup("manual_report")
                                 .where(createFilter)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterManualReports")
                         }
 
                         val outletsJob = async(Dispatchers.IO) {
-                            db.document(userEmployeeData.rootRef)
-                                .collection("outlets")
+                            db.collectionGroup("outlets")
+                                .whereEqualTo("root_ref", userEmployeeData.rootRef)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterOutlets")
                         }
 
+                        //jklp
                         val bonJob = async(Dispatchers.IO) {
-                            db.collection("${userEmployeeData.rootRef}/employee_bon")
+                            db.collectionGroup("employee_bon")
                                 .where(bonFilter)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterBon")
                         }
 
                         val productsJob = async(Dispatchers.IO) {
-                            db.collection("${userEmployeeData.rootRef}/products")
+                            db.collectionGroup("products")
+                                .whereEqualTo("root_ref", userEmployeeData.rootRef)
                                 .awaitGetWithOfflineFallback(tag = "GetCapsterProducts")
                         }
 
@@ -1106,47 +1305,67 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
 
                             // 🔹 Proses hasil secara paralel
                             val jobs = listOf(
-                                async {
+                                "reservations" to async {
                                     homePageViewModel.reservationListMutex.withStateLock {
                                         homePageViewModel.iterateReservationData(reservationsResult)
                                     }
                                 },
-                                async {
+                                "appointment" to async {
                                     homePageViewModel.appointmentListMutex.withStateLock {
                                         homePageViewModel.iterateAppointmentData(appointmentResult)
                                     }
                                 },
-                                async {
+                                "sales" to async {
                                     homePageViewModel.productSalesListMutex.withStateLock {
                                         homePageViewModel.iterateSalesData(salesResult)
                                     }
                                 },
-                                async {
+                                "manual_report" to async {
                                     homePageViewModel.manualReportListMutex.withStateLock {
                                         homePageViewModel.iterateManualReportData(manualReportResult)
                                     }
                                 },
-                                async {
+                                "outlets" to async {
                                     homePageViewModel.outletsListMutex.withStateLock {
                                         //setOutletList
                                         homePageViewModel.iterateOutletData(outletResult)
                                     }
                                 },
-                                async {
+                                "employee_bon" to async {
                                     homePageViewModel.accumulateBonData(bonResult)
                                 },
-                                async {
+                                "products" to async {
                                     homePageViewModel.iterateProductData(productResult)
                                 }
                             )
 
-                            val iterateJob = jobs.awaitAll()
+                            val iterateJob = jobs.map { it.first to it.second.await() }
                             // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
                             // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
                             // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
-                            val allSuccess = snapshotJobs.all { it.isSuccessful } && iterateJob.all { it }
+                            val failedSnapshotJobs = listOf(
+                                "reservations" to snapshotJobs.getOrNull(0),
+                                "appointment" to snapshotJobs.getOrNull(1),
+                                "sales" to snapshotJobs.getOrNull(2),
+                                "manual_report" to snapshotJobs.getOrNull(3),
+                                "outlets" to snapshotJobs.getOrNull(4),
+                                "employee_bon" to snapshotJobs.getOrNull(5),
+                                "products" to snapshotJobs.getOrNull(6)
+                            ).filter { it.second?.isSuccessful != true }
+
+                            val failedIterateJobs = iterateJob.filter { !it.second }.map { it.first }
+
+                            val allSuccess = failedSnapshotJobs.isEmpty() && failedIterateJobs.isEmpty()
+
+                            if (!allSuccess) {
+                                Logger.d(
+                                    "CheckBon",
+                                    "❌ getAllData failure detail | snapshotJobs failed: ${failedSnapshotJobs.joinToString { "${it.first}=${it.second?.isSuccessful}" }} | iterateJobs failed: ${failedIterateJobs.joinToString()}"
+                                )
+                            }
 
                             if (allSuccess) {
+                                Logger.d("CheckBon", "tttttttttt")
                                 Log.d("CapsterData", "✅ getAllData Success (Offline-Aware)")
                                 displayEmployeeData()
 
@@ -1161,19 +1380,24 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                                     } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", false)
                                 }
                             } else {
-                                Logger.d("CheckError", "❌ getAllData: Gagal memuat data yang dibutuhkan!!!")
-                                throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                                homePageViewModel.setUserAccumulationBon(-999)
+                                Logger.d("CheckBon", "❌ getAllData: Sebagian data gagal untuk dimuat, tidak dapat memuat data yang dibutuhkan dengan lengkap!!!")
+                                displayEmployeeData()
+                                Logger.d("CheckError", "❌ getAllData: Sebagian data gagal untuk dimuat!!!")
+                                toastViewModel.showToast("Terjadi kesalahan: Sebagian data gagal untuk dimuat!!!", false)
                             }
                         }
                     } catch (e: Exception) {
                         resetVariabel()
                         homePageViewModel.setUserAccumulationBon(-999)
+                        Logger.d("CheckBon", "❌ getAllData: Exception ${e.message}, tidak dapat memuat data yang dibutuhkan!!!")
                         displayEmployeeData()
                         Logger.d("CheckError", "❌ getAllData: ${e.message}")
                         toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
                     }
                 } ?: run {
                     homePageViewModel.setUserAccumulationBon(-999)
+                    Logger.d("CheckBon", "❌ getAllData: userEmployeeData null, tidak dapat memuat data yang dibutuhkan!!!")
                     displayEmployeeData()
                     Logger.d("CheckError", "❌ getAllData: Gagal memuat data yang dibutuhkan!!!")
                     toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
@@ -1311,7 +1535,10 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                     Log.d("ClickAble", "clickable: ${fabListQueue.isClickable}")
                     if (!debounce.run { v.isSafeClick() }) return
                     // hmmmmm
-                    if (homePageViewModel.userEmployeeData.value?.uid != "----------------") {
+                    val userData = homePageViewModel.userEmployeeData.value
+                    if (userData?.uid != "----------------") {
+                        if (userData?.rootRef?.isEmpty() == true) Toast.makeText(this@HomePageCapster, "Saat ini Anda sedang tidak terafiliasi dengan barbershop manapun!", Toast.LENGTH_SHORT).show()
+                        else if (homePageViewModel.outletList.value?.isEmpty() == true) Toast.makeText(this@HomePageCapster, "Data outlet barbershop tidak tersedia!", Toast.LENGTH_SHORT).show()
                         navigatePage(this@HomePageCapster, QueueControlPage::class.java, true, fabListQueue)
                     } else toastViewModel.showToast("Data pengguna tidak tersedia!", true)
 //                    Toast.makeText(this@HomePageCapster, "Queue control feature is under development...", Toast.LENGTH_SHORT).show()
@@ -1338,8 +1565,8 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 R.id.cvPerijinan -> {
                     if (!debounce.run { v.isSafeClick() }) return
                     // hmmmmm
-                    showSwitchAvailabilityDialog()
-                    // Toast.makeText(this@HomePageCapster, "Permit application feature is under development...", Toast.LENGTH_SHORT).show()
+                    showSwitchAttendanceDialog()
+                    // toastViewModel.showToast("Permit application feature is under development...", true)
                 }
                 R.id.cvPresensi -> {
                     if (!debounce.run { v.isSafeClick() }) return
@@ -1355,9 +1582,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                     if (!debounce.run { v.isSafeClick() }) return
                     // hmmmmm
                     if (!isShimmerVisible) {
-                        if (!homePageViewModel.getIsCapitalDialogShow() && homePageViewModel.outletList.value?.isEmpty() == false) {
+                        val userData = homePageViewModel.userEmployeeData.value
+                        if (userData?.uid != "----------------") {
+                            if (userData?.rootRef?.isEmpty() == true) toastViewModel.showToast("Saat ini Anda sedang tidak terafiliasi dengan barbershop manapun!", true)
+                            else if (!homePageViewModel.getIsCapitalDialogShow() && homePageViewModel.outletList.value?.isEmpty() == true) toastViewModel.showToast("Data outlet barbershop tidak tersedia!", true)
                             showCapitalInputDialog()
-                        } else toastViewModel.showToast("Data outlet barbershop tidak tersedia!", true)
+                        } else toastViewModel.showToast("Data pengguna tidak tersedia!", true)
                     }
                 }
                 R.id.fabAddManualReport -> {
@@ -1369,23 +1599,23 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         }
     }
 
-    private fun showSwitchAvailabilityDialog() {
+    private fun showSwitchAttendanceDialog() {
         // Periksa apakah dialog dengan tag "ListQueueFragment" sudah ada
-        if (supportFragmentManager.findFragmentByTag("SwitchAvailabilityFragment") != null) {
+        if (supportFragmentManager.findFragmentByTag("SwitchAttendanceFragment") != null) {
             return
         }
 
-        //val dialogFragment = SwitchAvailabilityFragment.newInstance(userEmployeeData)
-        val dialogFragment = SwitchAvailabilityFragment.newInstance()
+        //val dialogFragment = SwitchAttendanceFragment.newInstance(userEmployeeData)
+        val dialogFragment = SwitchAttendanceFragment.newInstance()
         // hmmmmm
-        dialogFragment.setOnDismissListener(object : SwitchAvailabilityFragment.OnDismissListener {
+        dialogFragment.setOnDismissListener(object : SwitchAttendanceFragment.OnDismissListener {
             override fun onDialogDismissed() {
 //                isNavigating = false
 //                currentView?.isClickable = true
                 Log.d("DialogDismiss", "Dialog was dismissed")
             }
         })
-        dialogFragment.show(supportFragmentManager, "SwitchAvailabilityFragment")
+        dialogFragment.show(supportFragmentManager, "SwitchAttendanceFragment")
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -1397,6 +1627,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 isNavigating = true
                 val intent = Intent(context, destination)
                 if (isSendData) {
+                    intent.putParcelableArrayListExtra(ROLES_DATA_KEY, ArrayList(homePageViewModel.employeeRolesList.value ?: emptyList()))
                     intent.putParcelableArrayListExtra(OUTLET_LIST_KEY, ArrayList(homePageViewModel.outletList.value ?: emptyList()))
                     intent.putExtra(CAPSTER_DATA_KEY, homePageViewModel.userEmployeeData.value)
 //                CoroutineScope(Dispatchers.Default).launch {
@@ -1437,7 +1668,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         isNavigating = false
 //        currentView?.isClickable = true
         if (!isRecreated) {
-            if ((!::outletListener.isInitialized || !::reservationListener.isInitialized || !::salesListener.isInitialized || !::employeeListener.isInitialized && !::userBonListener.isInitialized) && !isFirstLoad) {
+            if ((!::outletListener.isInitialized || !::reservationListener.isInitialized || !::salesListener.isInitialized || !::employeeListener.isInitialized || !::userBonListener.isInitialized || !::appointmentListener.isInitialized || !::manualReportListener.isInitialized || !::productListener.isInitialized || !::rolesListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -1526,10 +1757,12 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
         if (::salesListener.isInitialized) salesListener.remove()
         if (::userBonListener.isInitialized) userBonListener.remove()
         if (::productListener.isInitialized) productListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
         // if (::locationListener.isInitialized) locationListener.remove()
     }
 
     companion object {
+        const val ROLES_DATA_KEY = "roles_data_key"
         const val CAPSTER_DATA_KEY = "user_data_key"
         const val RESERVATIONS_KEY = "reservations_key"
         const val OUTLET_SELECTED_KEY = "outlet_selected_key"
@@ -1539,3 +1772,4 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
 
 
 }
+

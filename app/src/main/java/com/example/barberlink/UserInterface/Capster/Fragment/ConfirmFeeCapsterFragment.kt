@@ -363,4 +363,5 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
                 }
             }
     }
+
 }

@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <style name="RoundedCornerImageView" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
     <style name="FormLabel">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
@@ -12,7 +18,7 @@
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:background">@drawable/rounded_edittext_background</item>
-        <item name="android:fontFamily">@font/poppins_regular</item>
+        <item name="android:fontFamily">@font/poppins_medium</item>
         <item name="android:inputType">text</item>
         <item name="android:textColor">@color/black_font_color</item>
         <item name="android:textColorHint">#A0A0A0</item>
@@ -51,13 +57,23 @@
         <item name="android:textColor">@color/black</item>
     </style>
 
+    <style name="PrefixTextAppearance4" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14.5sp</item>
+        <item name="android:paddingBottom">6dp</item>
+    </style>
+
+    <style name="PrefixTextAppearance5" parent="TextAppearance.MaterialComponents.Body1">
+        <item name="android:textSize">14.5sp</item>
+        <item name="android:textColor">@color/disable_grey_background</item>
+    </style>
+
     <style name="MyTransparentFragmentStyle" parent="Theme.AppCompat.DayNight.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
-<!--        <item name="android:backgroundDimAmount">0.32</item>-->
+        <!--        <item name="android:backgroundDimAmount">0.32</item>-->
     </style>
 
     <style name="MyFullScreenWithBGScrim" parent="android:Theme.Holo.Light.Dialog.NoActionBar">
-<!--        <item name="android:windowBackground">@android:color/transparent</item>-->
+        <!--        <item name="android:windowBackground">@android:color/transparent</item>-->
         <!--        <item name="android:backgroundDimAmount">0.32</item>-->
     </style>
 
@@ -69,12 +85,30 @@
         <item name="materialThemeOverlay">@style/ThemeOverlay.App.Switch</item>
     </style>
 
+    <style name="Widget.App.Switch2" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="materialThemeOverlay">@style/ThemeOverlay.App.Switch2</item>
+    </style>
+
+    <style name="Widget.App.Switch3" parent="Widget.Material3.CompoundButton.MaterialSwitch">
+        <item name="materialThemeOverlay">@style/ThemeOverlay.App.Switch3</item>
+    </style>
+
     <style name="Widget.App.RadioButton" parent="Widget.MaterialComponents.CompoundButton.RadioButton">
         <item name="buttonTint">@color/checkbox_color</item>
     </style>
 
     <style name="ThemeOverlay.App.Switch" parent="">
         <item name="colorPrimary">@color/dark_blue</item>
+        <item name="colorSurfaceVariant">?attr/colorSurfaceContainerHighest</item>
+    </style>
+
+    <style name="ThemeOverlay.App.Switch2" parent="">
+        <item name="colorPrimary">@color/red</item>
+        <item name="colorSurfaceVariant">?attr/colorSurfaceContainerHighest</item>
+    </style>
+
+    <style name="ThemeOverlay.App.Switch3" parent="">
+        <item name="colorPrimary">@color/sky_blue</item>
         <item name="colorSurfaceVariant">?attr/colorSurfaceContainerHighest</item>
     </style>
 
@@ -88,7 +122,8 @@
     </style>
 
     <style name="Widget.App.ExtendedFloatingActionButton" parent="Widget.Material3.ExtendedFloatingActionButton.Icon.Primary">
-        <item name="materialThemeOverlay">@style/ThemeOverlay.App.ExtendedFloatingActionButton</item>
+        <item name="materialThemeOverlay">@style/ThemeOverlay.App.ExtendedFloatingActionButton
+        </item>
     </style>
 
     <style name="ThemeOverlay.App.ExtendedFloatingActionButton" parent="">
@@ -131,6 +166,11 @@
 
     <style name="RoundedSquare">
         <item name="cornerSize">10%</item>
+    </style>
+
+    <style name="Widget.Theme.BarberLink.ButtonBar.Fullscreen" parent="">
+        <item name="android:background">@color/black_overlay</item>
+        <item name="android:buttonBarStyle">?android:attr/buttonBarStyle</item>
     </style>
 
 </resources>

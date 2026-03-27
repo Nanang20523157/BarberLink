@@ -13,7 +13,7 @@ import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
-import com.example.barberlink.databinding.ItemListSelectOutletAdapterBinding
+import com.example.barberlink.databinding.ItemListSelectDestinationAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutSelectOutletCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
@@ -54,7 +54,7 @@ class ItemListDestinationAdapter(
             val shimmerBinding = ShimmerLayoutSelectOutletCardBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
         } else {
-            val binding = ItemListSelectOutletAdapterBinding.inflate(inflater, parent, false)
+            val binding = ItemListSelectDestinationAdapterBinding.inflate(inflater, parent, false)
             ItemViewHolder(binding)
         }
     }
@@ -118,7 +118,7 @@ class ItemListDestinationAdapter(
         }
     }
 
-    inner class ItemViewHolder(private val binding: ItemListSelectOutletAdapterBinding) :
+    inner class ItemViewHolder(private val binding: ItemListSelectDestinationAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(outlet: Outlet) {
@@ -136,14 +136,16 @@ class ItemListDestinationAdapter(
 
                 setStatusOutlet(outlet.openStatus, binding)
 
+                // Use Glide to load the image
+                Glide.with(root.context).clear(ivOutlet)
                 if (outlet.imgOutlet.isNotEmpty()) {
-                    // Use Glide to load the image
                     Glide.with(root.context)
                         .load(outlet.imgOutlet)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.image_placeholder))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.image_placeholder))
+                        .placeholder(R.drawable.image_placeholder)
+                        .error(R.drawable.image_placeholder)
                         .into(ivOutlet)
+                } else {
+                    ivOutlet.setImageResource(R.drawable.image_placeholder)
                 }
 
                 cvMainInfoOutlet.setOnClickListener {
@@ -163,7 +165,7 @@ class ItemListDestinationAdapter(
 
     }
 
-    private fun setStatusOutlet(isOpen: Boolean, binding: ItemListSelectOutletAdapterBinding) {
+    private fun setStatusOutlet(isOpen: Boolean, binding: ItemListSelectDestinationAdapterBinding) {
         with (binding) {
             if (isOpen) {
                 // Outlet is open

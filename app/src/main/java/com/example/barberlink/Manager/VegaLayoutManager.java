@@ -178,9 +178,15 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         int screenFilledHeight = 0;
         for (int i = itemCount - 1; i >= 0; i--) {
             Rect rect = locationRects.get(i);
-            screenFilledHeight = screenFilledHeight + (rect.bottom - rect.top);
+            int itemHeight = rect.bottom - rect.top;
+            screenFilledHeight = screenFilledHeight + itemHeight;
             if (screenFilledHeight > getHeight()) {
-                int extraSnapHeight = getHeight() - (screenFilledHeight - (rect.bottom - rect.top));
+                if (i == itemCount - 1) {
+                    // Item terakhir sudah lebih besar dari layar, 
+                    // tidak perlu tambah extraSnapHeight agar tidak scroll off.
+                    break;
+                }
+                int extraSnapHeight = getHeight() - (screenFilledHeight - itemHeight);
                 maxScroll = maxScroll + extraSnapHeight;
                 break;
             }

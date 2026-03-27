@@ -92,7 +92,29 @@
     <color name="alpha_magenta">#F2DA0063</color>
     <color name="grey_dark_input_prefix">#7A7878</color>
     <color name="grey_default_material_layout">#991D1B20</color>
-    
+
     <!-- Added slate_600 for UI consistency -->
     <color name="slate_600">#64748B</color>
+    <color name="light_blue_600">#FF039BE5</color>
+    <color name="light_blue_900">#FF01579B</color>
+    <color name="light_blue_A200">#FF40C4FF</color>
+    <color name="light_blue_A400">#FF00B0FF</color>
+    <color name="slate_50">#F8FAFC</color>
+    <color name="slate_100">#F1F5F9</color>
+    <color name="slate_200">#E2E8F0</color>
+    <color name="slate_400">#94A3B8</color>
+    <color name="slate_800">#1E293B</color>
+    <color name="black_overlay">#66000000</color>
+    <color name="bg_content_f8fafa">#F8FAFA</color>
+    <color name="slate_900">#0F172A</color>
+    <color name="sky_blue_transparent_4d">#4D10BBBB</color>
+    <color name="form_label_color">#475569</color>
+    <color name="bg_icon_service_unselected">#ECEEEE</color>
+    <color name="stroke_color_transparent_26">#26BBC9C9</color>
+    <color name="white_transparent_fa">#FAFFFFFF</color>
+    <color name="divider_color_transparent_1a">#1ABBC9C9</color>
+
+    <color name="color_stroke_material_card_default">#FFCAC4D0</color>
+    <color name="color_stroke_material_card_pink">#98DA0063</color>
+
 </resources>

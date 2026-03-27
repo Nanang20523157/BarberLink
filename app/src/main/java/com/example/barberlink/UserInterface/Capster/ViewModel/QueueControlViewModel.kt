@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BonEmployeeData
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.DataClass.NotificationReminder
 import com.example.barberlink.DataClass.Outlet
@@ -26,8 +27,8 @@ import com.example.barberlink.Utils.NumberUtils.numberToCurrency
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -53,6 +54,7 @@ class QueueControlViewModel(
     val servicesListMutex = ReentrantCoroutineMutex()
     val bundlingPackagesListMutex = ReentrantCoroutineMutex()
     val capsterListMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerOutletListMutex = ReentrantCoroutineMutex()
     val listenerCapsterListMutex = ReentrantCoroutineMutex()
@@ -61,6 +63,7 @@ class QueueControlViewModel(
     val listenerBundlingListMutex = ReentrantCoroutineMutex()
     val listenerReservationsMutex = ReentrantCoroutineMutex()
     val listenerCustomerDataMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     // =========================================================
     // === UTILITAS DASAR
@@ -213,6 +216,9 @@ class QueueControlViewModel(
 
     private val _userCustomerData = MutableLiveData<UserCustomerData?>().apply { value = null }
     val userCustomerData: LiveData<UserCustomerData?> = _userCustomerData
+
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
 
     sealed class ResultState {
         data class Triggered(val data: ReservationData, val previousStatus: String, val showSnackbar: Boolean): ResultState()
@@ -367,6 +373,20 @@ class QueueControlViewModel(
     fun setUserEmployeeData(userEmployeeData: UserEmployeeData) {
         viewModelScope.launch {
             _userEmployeeData.value = userEmployeeData
+        }
+    }
+
+    fun setEmployeeRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val employeeData = _userEmployeeData.value
+            _employeeRolesList.value = list
+
+            if (employeeData != null) {
+                employeeData.let { data ->
+                    data.roleDetail = list.find { it.roleName == data.role }
+                }
+                _userEmployeeData.value = employeeData
+            }
         }
     }
 
@@ -1079,7 +1099,7 @@ class QueueControlViewModel(
                     existingService.apply {
                         applyToGeneral = it.applyToGeneral
                         autoSelected = it.autoSelected
-                        categoryDetail = it.categoryDetail
+                        //categoryDetail = it.categoryDetail
                         defaultItem = it.defaultItem
                         freeOfCharge = it.freeOfCharge
                         resultsShareAmount = it.resultsShareAmount

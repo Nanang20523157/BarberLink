@@ -17,6 +17,7 @@ import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.barberlink.Adapter.ItemListPickUserAdapter
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
@@ -27,6 +28,7 @@ import com.example.barberlink.UserInterface.Capster.Fragment.PinInputFragment
 import com.example.barberlink.UserInterface.Capster.ViewModel.SelectAccountViewModel
 import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.databinding.ActivitySelectAccountPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
@@ -55,8 +57,8 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
     private lateinit var employeeAdapter: ItemListPickUserAdapter
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var outletListener: ListenerRegistration
-    private val employeeMutex = Mutex()
-    private var remainingListeners = AtomicInteger(2)
+    private lateinit var rolesListener: ListenerRegistration
+    private var remainingListeners = AtomicInteger(3)
     private var shouldClearBackStack = true
     private var isHandlingBack: Boolean = false
 
@@ -103,23 +105,21 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(FormAccessCodeFragment.ROLES_DATA_KEY, EmployeeRolesData::class.java)?.let {
+                    selectAccountViewModel.setEmployeeRoles(it.toMutableList())
+                }
                 intent.getParcelableArrayListExtra(FormAccessCodeFragment.EMPLOYEE_DATA_KEY, UserEmployeeData::class.java)?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        employeeMutex.withLock {
-                            selectAccountViewModel.setEmployeeList(it.toMutableList())
-                        }
-                    }
+                    selectAccountViewModel.setEmployeeList(it.toMutableList())
                 }
                 intent.getParcelableExtra(FormAccessCodeFragment.OUTLET_DATA_KEY, Outlet::class.java)?.let {
                     selectAccountViewModel.setOutletSelected(it)
                 }
             } else {
+                intent.getParcelableArrayListExtra<EmployeeRolesData>(FormAccessCodeFragment.ROLES_DATA_KEY)?.let {
+                    selectAccountViewModel.setEmployeeRoles(it.toMutableList())
+                }
                 intent.getParcelableArrayListExtra<UserEmployeeData>(FormAccessCodeFragment.EMPLOYEE_DATA_KEY)?.let {
-                    lifecycleScope.launch(Dispatchers.Default) {
-                        employeeMutex.withLock {
-                            selectAccountViewModel.setEmployeeList(it.toMutableList())
-                        }
-                    }
+                    selectAccountViewModel.setEmployeeList(it.toMutableList())
                 }
                 intent.getParcelableExtra<Outlet>(FormAccessCodeFragment.OUTLET_DATA_KEY)?.let {
                     selectAccountViewModel.setOutletSelected(it)
@@ -228,9 +228,10 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(2)
+        if (skippedProcess) remainingListeners.set(3)
         listenToEmployeesData()
         listenSpecificOutletData()
+        listenToEmployeesRoles()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
@@ -312,7 +313,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
             }
             var decrementGlobalListener = false
 
-            employeeListener = db.collectionGroup("employees")
+            employeeListener = db.collection("employees")
                 .whereEqualTo("root_ref", outletSelected.rootRef)
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
@@ -335,10 +336,13 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
                                                 document.toObject(UserEmployeeData::class.java)?.apply {
                                                     userRef = document.reference.path
                                                     outletRef = outletData.outletReference
+                                                    roleDetail = selectAccountViewModel.employeeRolesList.value?.find {
+                                                        it.roleName == this.role
+                                                    }
                                                 }?.takeIf { it.uid in employeeUidList }
                                             }
 
-                                            selectAccountViewModel.employeeMutex.withStateLock {
+                                            selectAccountViewModel.employeeListMutex.withStateLock {
                                                 selectAccountViewModel.setEmployeeList(newEmployeesList.toMutableList())
                                                 selectAccountViewModel.triggerFilteringDataEmployee(false)
                                             }
@@ -361,6 +365,61 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         }
     }
 
+    private fun listenToEmployeesRoles() {
+        selectAccountViewModel.outletSelected.value?.let { outletSelected ->
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", outletSelected.rootRef))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        selectAccountViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        selectAccountViewModel.rolesListMutex.withStateLock {
+                                            val employeeRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            selectAccountViewModel.setEmployeeRoles(employeeRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
+        } ?: run {
+            rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        }
+    }
+
     private fun displayAllData() {
         lifecycleScope.launch {
             // filterOutlets(keyword, shimmerState)  // Update UI with the data
@@ -374,7 +433,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         lifecycleScope.launch(Dispatchers.Default) {
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
 
-            val filteredResult = employeeMutex.withLock {
+            val filteredResult = selectAccountViewModel.employeeListMutex.withStateLock {
                 if (lowerCaseQuery.isEmpty()) {
                     selectAccountViewModel.employeeList.value ?: emptyList()
                 } else {
@@ -445,7 +504,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         // Set sudut dinamis sesuai perangkat
         // WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         if (!isRecreated) {
-            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
+            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !::rolesListener.isInitialized && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -523,6 +582,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
         selectAccountViewModel.clearState()
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
     }
 
     override fun onClearBackStackRequested() {

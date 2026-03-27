@@ -17,8 +17,8 @@ import com.example.barberlink.Network.NetworkMonitor
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -40,6 +40,8 @@ class AddCustomerViewModel(
     private var userPhoneNumber: String = ""
     private var userInputName: String = ""
     private var userInputGender: String = "Rahasiakan"
+    private var preSyncUserInputName: String = ""
+    private var preSyncUserInputGender: String = "Rahasiakan"
     private lateinit var userEmployeeData: UserEmployeeData
     private lateinit var userAdminData: UserAdminData
     private lateinit var userCustomerData: UserCustomerData
@@ -158,9 +160,33 @@ class AddCustomerViewModel(
         }
     }
 
-    fun getUserInputGander(): String {
+    fun getUserInputGender(): String {
         return runBlocking {
             userInputGender
+        }
+    }
+
+    fun getPreSyncUserInputName(): String {
+        return runBlocking {
+            preSyncUserInputName
+        }
+    }
+
+    fun getPreSyncUserInputGender(): String {
+        return runBlocking {
+            preSyncUserInputGender
+        }
+    }
+
+    fun setPreSyncUserInputName(name: String) {
+        viewModelScope.launch {
+            preSyncUserInputName = name
+        }
+    }
+
+    fun setPreSyncUserInputGender(gender: String) {
+        viewModelScope.launch {
+            preSyncUserInputGender = gender
         }
     }
 
@@ -297,24 +323,24 @@ class AddCustomerViewModel(
                 }
                 "pairEC(-)", "pairEC(+)" -> {
                     updateJobs += async { updateCustomerData(userRolesData.customerRef) }
-                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
-                    }
+//                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
+//                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
+//                    }
                 }
                 "pairAC(-)", "pairAC(+)" -> {
                     updateJobs += async { updateCustomerData(userRolesData.customerRef) }
-                    if (userAdminData.ownerName != userInputName) {
-                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
-                    }
+//                    if (userAdminData.ownerName != userInputName) {
+//                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
+//                    }
                 }
                 "hybrid(-)", "hybrid(+)" -> {
                     updateJobs += async { updateCustomerData(userRolesData.customerRef) }
-                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
-                    }
-                    if (userAdminData.ownerName != userInputName) {
-                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
-                    }
+//                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
+//                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
+//                    }
+//                    if (userAdminData.ownerName != userInputName) {
+//                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
+//                    }
                 }
                 else -> {
                     if (customerRef.isNotEmpty()) {
@@ -490,6 +516,8 @@ class AddCustomerViewModel(
                 _addCustomerResult.postValue(ResultState.DisplayError)
             } else {
                 Log.d("TriggerUU", "X6.2X")
+                preSyncUserInputName = userInputName
+                preSyncUserInputGender = userInputGender
                 //                userInputName = binding.etFullname.text.toString().trim()
                 //                userInputGender = binding.genderDropdown.text.toString().trim()
                 when (userRolesData.role) {
@@ -503,6 +531,7 @@ class AddCustomerViewModel(
                             fullname = if (userAdminData.ownerName.contains("Owner", ignoreCase = true)) {
                                 userInputName
                             } else { userAdminData.ownerName }
+                            // username = userAdminData.username
                         }
 
                         _addCustomerResult.postValue(ResultState.DisplayData("admin"))
@@ -516,6 +545,7 @@ class AddCustomerViewModel(
                             photoProfile = userEmployeeData.photoProfile
                             gender = userEmployeeData.gender
                             fullname = userEmployeeData.fullname
+                            // username = userEmployeeData.username
                         }
 
                         _addCustomerResult.postValue(ResultState.DisplayData("employee"))
@@ -575,24 +605,24 @@ class AddCustomerViewModel(
 
             when (userRolesData.role) {
                 "admin" -> {
-                    if (userAdminData.ownerName != userInputName) {
-                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
-                    }
+//                    if (userAdminData.ownerName != userInputName) {
+//                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
+//                    }
                     updateJobs += async { updateRoleInUsersCollection() }
                 }
                 "employee" -> {
-                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
-                    }
+//                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
+//                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
+//                    }
                     updateJobs += async { updateRoleInUsersCollection() }
                 }
                 "pairAE" -> {
-                    if (userAdminData.ownerName != userInputName) {
-                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
-                    }
-                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
-                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
-                    }
+//                    if (userAdminData.ownerName != userInputName) {
+//                        updateJobs += async { updateAdminData(userRolesData.adminRef) }
+//                    }
+//                    if (userEmployeeData.fullname != userInputName || userEmployeeData.gender != userInputGender) {
+//                        updateJobs += async { updateEmployeeData(userRolesData.employeeRef) }
+//                    }
                     updateJobs += async { updateRoleInUsersCollection() }
                 }
             }
@@ -637,14 +667,14 @@ class AddCustomerViewModel(
     private suspend fun updateOutletListCustomers(outlet: Outlet) {
         Log.d("TriggerUU", "X10X")
         try {
-            val outletRef = db.document(outlet.rootRef)
+            val docsRef = db.document(outlet.rootRef)
                 .collection("outlets")
                 .document(outlet.uid)
 
             onCustomerAddResult?.invoke(true)
 
             val task = withContext(Dispatchers.IO) {
-                outletRef
+                docsRef
                     .update("list_customers", outlet.listCustomers)
                     .awaitWriteWithOfflineFallback(tag = "UpdateOutletCustomers")
             }
@@ -770,11 +800,12 @@ class AddCustomerViewModel(
 
     fun resetObtainedData(savetyData: String) {
         viewModelScope.launch {
+            preSyncUserInputName = ""
+            preSyncUserInputGender = "Rahasiakan"
             userAdminData = UserAdminData()
             userEmployeeData = UserEmployeeData()
             userRolesData = UserRolesData()
             userCustomerData = UserCustomerData(
-                userReminder = null,
                 email = "",
                 fullname = userInputName,
                 gender = userInputGender.ifEmpty { savetyData },
@@ -782,10 +813,12 @@ class AddCustomerViewModel(
                 password = "",
                 phone = userPhoneNumber,
                 photoProfile = "",
-                userNotification = null,
                 uid = userPhoneNumber,
+                userCoins = 0,
+                userNotification = null,
+                userReminder = null,
                 username = "",
-                userCoins = 0
+                // qwerty
             )
         }
     }

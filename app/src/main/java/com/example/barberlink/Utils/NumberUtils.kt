@@ -58,4 +58,10 @@ object NumberUtils {
 
         return cleanValue
     }
+
+    fun formatNumber(number: Long): String {
+        val localeID = Locale("id", "ID")
+        val numberFormat = NumberFormat.getInstance(localeID)
+        return numberFormat.format(number)
+    }
 }

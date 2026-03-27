@@ -137,7 +137,7 @@ class ItemListQueueBoardAdapter(
                 tvEmployeeName.text = userEmployeeData.fullname
                 // Set queue number based on the employee's uid
                 var queueNumber = currentQueue[userEmployeeData.uid] ?: "00" // Jika tidak ada data, tampilkan "N/A"
-                queueNumber = if (userEmployeeData.availabilityStatus) {
+                queueNumber = if (userEmployeeData.attendanceStatus) {
                     if (queueNumber == "00") "00"
                     else queueNumber
                 } else {

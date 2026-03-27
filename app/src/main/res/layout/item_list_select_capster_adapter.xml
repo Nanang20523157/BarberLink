@@ -8,6 +8,8 @@
     android:layout_marginHorizontal="4dp"
     app:cardCornerRadius="20dp"
     app:cardElevation="0dp"
+    app:strokeWidth="2.5dp"
+    app:strokeColor="@color/color_stroke_material_card_pink"
     android:backgroundTint="@color/light_grey_horizons_background">
 
     <androidx.constraintlayout.widget.ConstraintLayout

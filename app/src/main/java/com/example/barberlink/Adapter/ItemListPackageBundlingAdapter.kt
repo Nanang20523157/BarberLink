@@ -1,5 +1,6 @@
 package com.example.barberlink.Adapter
 
+import android.annotation.SuppressLint
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -193,8 +194,9 @@ class ItemListPackageBundlingAdapter(
             return oldItem.uid == newItem.uid
         }
 
+        @SuppressLint("DiffUtilEquals")
         override fun areContentsTheSame(oldItem: BundlingPackage, newItem: BundlingPackage): Boolean {
-            return oldItem == newItem
+            return oldItem == newItem && oldItem.listItemDetails == newItem.listItemDetails
         }
     }
 }

@@ -20,6 +20,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
@@ -31,6 +34,7 @@ import com.example.barberlink.Adapter.ItemListCustomerAdapter
 import com.example.barberlink.Adapter.ItemListPackageBookingAdapter
 import com.example.barberlink.Adapter.ItemListServiceBookingAdapter
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
@@ -42,6 +46,7 @@ import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.BookingSessionManager
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.SignIn.Form.FormAccessCodeFragment
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.Teller.Fragment.AddNewCustomerFragment
 import com.example.barberlink.UserInterface.Teller.ViewModel.SharedReserveViewModel
@@ -59,7 +64,7 @@ import com.google.android.material.datepicker.MaterialDatePicker
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -83,7 +88,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: AddNewCustomerFragment
-    private var remainingListeners = AtomicInteger(6)
+    private var remainingListeners = AtomicInteger(7)
     private var setUpObserverIsDone: Boolean = false
 
 //    private lateinit var capsterSelected: UserEmployeeData
@@ -114,6 +119,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private lateinit var customerSelectedListener: ListenerRegistration
     private lateinit var customerListListener: ListenerRegistration
     private lateinit var capsterListener: ListenerRegistration
+    private lateinit var rolesListener: ListenerRegistration
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
@@ -132,21 +138,45 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
         // Set sudut dinamis sesuai perangkat
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
-        WindowInsetsHandler.applyWindowInsets(binding.root) { top, left, right, _ ->
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, windowInsets ->
+            val systemBarsInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val systemGesturesInsets = windowInsets.getInsets(WindowInsetsCompat.Type.systemGestures())
+            val displayCutoutInsets = windowInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val imeVisible = windowInsets.isVisible(WindowInsetsCompat.Type.ime())
+
+            // Hitung nilai padding yang akan diterapkan
+            val leftPadding = maxOf(systemGesturesInsets.left, displayCutoutInsets.left, systemBarsInsets.left)
+            val topPadding = maxOf(systemGesturesInsets.top, displayCutoutInsets.top, systemBarsInsets.top)
+            val rightPadding = maxOf(systemGesturesInsets.right, displayCutoutInsets.right, systemBarsInsets.right)
+            val bottomPadding = maxOf(systemGesturesInsets.bottom, displayCutoutInsets.bottom, systemBarsInsets.bottom)
+
+            // Terapkan padding pada view
+            v.updatePadding(
+                left = leftPadding,
+                top = topPadding,
+                right = rightPadding,
+                bottom = bottomPadding
+            )
+
             val layoutParams1 = binding.lineMarginLeft.layoutParams
-            Log.d("WindowInsets", "topMargin: $top || rightMargin: $right || leftMargin: $left")
             if (layoutParams1 is ViewGroup.MarginLayoutParams) {
-                layoutParams1.topMargin = -top
+                layoutParams1.topMargin = -topPadding
                 binding.lineMarginLeft.layoutParams = layoutParams1
             }
             val layoutParams2 = binding.lineMarginRight.layoutParams
             if (layoutParams2 is ViewGroup.MarginLayoutParams) {
-                layoutParams2.topMargin = -top
+                layoutParams2.topMargin = -topPadding
                 binding.lineMarginRight.layoutParams = layoutParams2
             }
 
-            binding.lineMarginLeft.visibility = if (left != 0) View.VISIBLE else View.GONE
-            binding.lineMarginRight.visibility = if (right != 0) View.VISIBLE else View.GONE
+            binding.lineMarginLeft.visibility = if (leftPadding != 0) View.VISIBLE else View.GONE
+            binding.lineMarginRight.visibility = if (rightPadding != 0) View.VISIBLE else View.GONE
+
+            if (!imeVisible) {
+                binding.searchId.clearFocus()
+            }
+
+            windowInsets
         }
         setContentView(binding.root)
         isRecreated = savedInstanceState?.getBoolean("is_recreated", false) ?: false
@@ -194,9 +224,17 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             // Receive the intent data
             @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(QueueTrackerPage.ROLES_DATA_KEY, EmployeeRolesData::class.java)?.let { list ->
+                    Log.d("CacheChecking", "ADD ROLES LIST FROM INTENT")
+                    bookingPageViewModel.setCapsterRoles(list)
+                }
                 outletSelected = intent.getParcelableExtra(QueueTrackerPage.OUTLET_DATA_KEY, Outlet::class.java) ?: Outlet()
                 capsterSelected = intent.getParcelableExtra(QueueTrackerPage.CAPSTER_DATA_KEY, UserEmployeeData::class.java) ?: UserEmployeeData()
             } else {
+                intent.getParcelableArrayListExtra<EmployeeRolesData>(QueueTrackerPage.ROLES_DATA_KEY)?.let { list ->
+                    Log.d("CacheChecking", "ADD ROLES LIST FROM INTENT")
+                    bookingPageViewModel.setCapsterRoles(list)
+                }
                 outletSelected = intent.getParcelableExtra(QueueTrackerPage.OUTLET_DATA_KEY) ?: Outlet()
                 capsterSelected = intent.getParcelableExtra(QueueTrackerPage.CAPSTER_DATA_KEY) ?: UserEmployeeData()
             }
@@ -379,6 +417,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
         }
+
 
     }
 
@@ -584,7 +623,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 Log.d("ScrollCustomer", "Button Save Clicked 9")
                 bookingPageViewModel.displayAllDataToUI(displayAllData)
 
-                listenToCustomerSelectedData(customerData)
+                // qwerty
+                // listenToCustomerSelectedData(customerData) ===> CustomerSelected sudah include diperbarui di listenToCustomerList
             }
 
         }
@@ -614,6 +654,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                 if (docs.exists()) {
                                     withContext(Dispatchers.Default) {
                                         bookingPageViewModel.customerMutex.withStateLock {
+                                            val outletCustomerList = bookingPageViewModel.outletSelected.value?.listCustomers ?: emptyList()
                                             // Check if the customer document exists
                                             Log.d("ScanAll", "V1")
                                             val updatedCustomer = docs.toObject(UserCustomerData::class.java)?.apply {
@@ -630,7 +671,6 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                                 if (index != -1) {
                                                     if (customerList[index] != newCustomerData) {
                                                         val dataToUpdate = customerList[index].apply {
-                                                            userReminder = newCustomerData.userReminder
                                                             email = newCustomerData.email
                                                             fullname = newCustomerData.fullname
                                                             gender = newCustomerData.gender
@@ -638,10 +678,14 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                                             password = newCustomerData.password
                                                             phone = newCustomerData.phone
                                                             photoProfile = newCustomerData.photoProfile
-                                                            userNotification = newCustomerData.userNotification
                                                             uid = newCustomerData.uid
-                                                            username = newCustomerData.username
                                                             userCoins = newCustomerData.userCoins
+                                                            userNotification = newCustomerData.userNotification
+                                                            userReminder = newCustomerData.userReminder
+                                                            username = newCustomerData.username
+                                                            lastReserve = outletCustomerList.find { it.uidCustomer == this.uid }?.lastReserve ?: this.lastReserve
+                                                            // dataSelected = newCustomerData.dataSelected
+                                                            // guestAccount = newCustomerData.guestAccount
                                                             userRef = newCustomerData.userRef
                                                         }
 
@@ -956,7 +1000,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
     private fun setupListeners(skippedProcess: Boolean = false) {
         Log.d("ScanAll", "LL1")
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(6)
+        if (skippedProcess) remainingListeners.set(7)
         listenToCustomerList()
         if (bookingPageViewModel.capsterSelected.value?.uid != "----------------") listenToCapsterSelected()
         else if (remainingListeners.get() > 0) {
@@ -966,6 +1010,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
             }
             remainingListeners.decrementAndGet()
         }
+        listenToEmployeesRoles()
         listenToOutletData()
         listenToOutletList()
         listenToServicesData()
@@ -1018,6 +1063,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                                     // Set the userRef with the document path
                                                     userRef = docs.reference.path
                                                     outletRef = outletData.outletReference
+                                                    roleDetail = bookingPageViewModel.capsterRolesList.value?.find {
+                                                        it.roleName == this.role
+                                                    }
                                                 }
                                                 updatedCapster?.let { newCapsterData ->
                                                     Log.d("CapsterListener", "Capster data updated: ${newCapsterData.fullname}")
@@ -1044,6 +1092,61 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                 }
         } ?: run {
             capsterListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        }
+    }
+
+    private fun listenToEmployeesRoles() {
+        bookingPageViewModel.outletSelected.value?.let { outletSelected ->
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", outletSelected.rootRef))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        bookingPageViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        bookingPageViewModel.rolesListMutex.withStateLock {
+                                            val capsterRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            bookingPageViewModel.setCapsterRoles(capsterRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
+        } ?: run {
+            rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
     }
@@ -1606,7 +1709,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                         emptyMessage = "No services found",
                                         dataClass = Service::class.java,
                                         filterIds = serviceFilterIds,
-                                        showError = true
+                                        showError = false
                                     ) { services ->
                                         Logger.d("DataSync", "SET SERVICE LIST FROM SUCCESS GET ALL DATA")
                                         Log.d("ScanAll", "E1")
@@ -1619,7 +1722,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                         emptyMessage = "No bundling packages found",
                                         dataClass = BundlingPackage::class.java,
                                         filterIds = bundlingFilterIds,
-                                        showError = true
+                                        showError = false
                                     ) { bundling ->
                                         Logger.d("DataSync", "SET BUNDLING LIST FROM SUCCESS GET ALL DATA")
                                         Log.d("ScanAll", "F1")
@@ -1633,7 +1736,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                             emptyMessage = "No customer found",
                                             dataClass = UserCustomerData::class.java,
                                             filterIds = list,
-                                            showError = true
+                                            showError = false
                                         ) { fetchedCustomers ->
                                             // Sort data customer berdasarkan lastReserve
                                             val sortedCustomerList = customerList.mapNotNull { customerInOutlet ->
@@ -1659,7 +1762,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                                         emptyMessage = "No outlet data found",
                                         dataClass = Outlet::class.java,
                                         filterIds = outletFilterIds, // Fetch all
-                                        showError = true
+                                        showError = false
                                     ) { outletList ->
                                         bookingPageViewModel.setOutletList(outletList)
                                     }
@@ -1855,8 +1958,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         if (!::serviceListener.isInitialized) Log.d("ListenerCheck", "BBP Service Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!::bundlingListener.isInitialized) Log.d("ListenerCheck", "BBP Bundling Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!::customerListListener.isInitialized) Log.d("ListenerCheck", "BBP Customer List Listener is not initialized || isFirstLoad: $isFirstLoad")
+        if (!::rolesListener.isInitialized) Log.d("ListenerCheck", "BBP Roles Listener is not initialized || isFirstLoad: $isFirstLoad")
         if (!isRecreated) {
-            if ((!::capsterListener.isInitialized || !::dataOutletListener.isInitialized || !::listOutletListener.isInitialized || !::serviceListener.isInitialized || !::bundlingListener.isInitialized || !::customerListListener.isInitialized) && !isFirstLoad) {
+            if ((!::capsterListener.isInitialized || !::dataOutletListener.isInitialized || !::listOutletListener.isInitialized || !::serviceListener.isInitialized || !::bundlingListener.isInitialized || !::customerListListener.isInitialized || !::rolesListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -1958,6 +2062,7 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
         if (::bundlingListener.isInitialized) bundlingListener.remove()
         if (::customerSelectedListener.isInitialized) customerSelectedListener.remove()
         if (::customerListListener.isInitialized) customerListListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
 
         // Periksa apakah onDestroy dipanggil karena perubahan konfigurasi
         if (isChangingConfigurations) {

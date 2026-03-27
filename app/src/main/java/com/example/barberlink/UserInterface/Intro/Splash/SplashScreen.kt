@@ -1,23 +1,30 @@
 package com.example.barberlink.UserInterface.Intro.Splash
 
+import android.Manifest
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowInsetsController
 import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.activity.addCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.example.barberlink.Helper.PermissionHelper
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.Intro.OnBoarding.OnBoardingPage
+import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivitySplashScreenBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -31,9 +38,48 @@ class SplashScreen : AppCompatActivity() {
     private var sessionTeller: Boolean = false
     private var sessionCapster: Boolean = false
     private var isHandlingBack: Boolean = false
+    private var isPopUpPermissionShow: Boolean = false
+    private var permissionRequestStartTime: Long = 0
+    private var initialRationaleStates: Map<String, Boolean> = emptyMap()
+
+    private val requestPermissionLauncher: ActivityResultLauncher<Array<String>> = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val duration = System.currentTimeMillis() - permissionRequestStartTime
+
+        if (duration > 300) {
+            var wasAnyBackButtonPressed = false
+
+            results.forEach { (permission, isGranted) ->
+                if (!isGranted) {
+                    val newRationale = ActivityCompat.shouldShowRequestPermissionRationale(this, permission)
+                    val isRationaleStateChanged = initialRationaleStates[permission] != newRationale
+
+                    // Jika durasi lama (> 300ms) dan status Rationale TIDAK berubah,
+                    // berarti user membatalkan izin ini melalui tombol Back.
+                    if (!isRationaleStateChanged) {
+                        wasAnyBackButtonPressed = true
+                    }
+                }
+            }
+
+            if (!wasAnyBackButtonPressed) {
+                // Semua izin sudah ditangani secara eksplisit (Diterima, Ditolak, atau Sudah Diblokir)
+                sessionManager.setPermissionsDecided(true)
+            }
+
+            Logger.d("SplashCheck", "Permission results: $results, Duration: ${duration}ms, Was Back Pressed: $wasAnyBackButtonPressed")
+            startAppFlow()
+        } else {
+            Logger.d("SplashCheck", "Permission request dismissed quickly (Duration: ${duration}ms), treating as Back Press. Results: $results")
+            sessionManager.setPermissionsDecided(true)
+            startAppFlow()
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
+        Logger.d("SplashCheck", "onCreate called. SavedInstanceState: $savedInstanceState, PermissionsDecided: ${sessionManager.getPermissionsDecided()}")
         StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, addStatusBar = true)
 
         // Set window background sesuai tema
@@ -47,19 +93,76 @@ class SplashScreen : AppCompatActivity() {
         sessionCapster = sessionManager.getSessionCapster()
         sessionTeller = sessionManager.getSessionTeller()
         sessionAdmin = sessionManager.getSessionAdmin()
-        if (savedInstanceState != null) isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+        if (savedInstanceState != null) {
+            isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            isPopUpPermissionShow = savedInstanceState.getBoolean("is_pop_up_permission_show", false)
+            permissionRequestStartTime = savedInstanceState.getLong("permission_request_start_time", 0)
+            @Suppress("UNCHECKED_CAST", "DEPRECATION")
+            initialRationaleStates = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                savedInstanceState.getSerializable("initial_rationale_states", HashMap::class.java) as? Map<String, Boolean> ?: emptyMap()
+            } else {
+                savedInstanceState.getSerializable("initial_rationale_states") as? Map<String, Boolean> ?: emptyMap()
+            }
+        }
 
         animateSplashScreen()
 
+        if (!sessionManager.getPermissionsDecided()) {
+            if (!isPopUpPermissionShow) requestAppPermissions()
+        } else {
+            Logger.d("SplashCheck", "Permissions already decided, proceeding to app flow.")
+            startAppFlow()
+        }
+
+        onBackPressedDispatcher.addCallback(this) {
+            handleCustomBack()
+        }
+    }
+
+    private fun requestAppPermissions() {
+        val permissions = mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA,
+            Manifest.permission.READ_CONTACTS
+        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            permissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        val missingPermissions = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isNotEmpty()) {
+            isPopUpPermissionShow = true
+            permissionRequestStartTime = System.currentTimeMillis()
+            initialRationaleStates = missingPermissions.associateWith {
+                ActivityCompat.shouldShowRequestPermissionRationale(this, it)
+            }
+            requestPermissionLauncher.launch(missingPermissions.toTypedArray())
+        } else {
+            // Jika semua izin sudah diberikan secara manual sebelum splash jalan
+            Logger.d("SplashCheck", "All permissions already granted before splash, proceeding to app flow.")
+            sessionManager.setPermissionsDecided(true)
+            startAppFlow()
+        }
+    }
+
+    private fun startAppFlow() {
         lifecycleScope.launch {
             delay(3750)
             if (isDestroyed) return@launch
 
-            headAnimator.cancel()
-            logoAnimator.cancel()
+            if (::headAnimator.isInitialized) headAnimator.cancel()
+            if (::logoAnimator.isInitialized) logoAnimator.cancel()
+            
             if (sessionAdmin || sessionTeller || sessionCapster) {
                 val intent = Intent(this@SplashScreen, LandingPage::class.java)
-                intent.putExtra(ORIGIN_PAGE_KEY, "splash_screen") // Menambahkan kunci dan nilai ke Intent
+                intent.putExtra(ORIGIN_PAGE_KEY, "splash_screen")
                 startActivity(intent)
                 finish()
             } else {
@@ -68,16 +171,14 @@ class SplashScreen : AppCompatActivity() {
                 finish()
             }
         }
-
-
-        onBackPressedDispatcher.addCallback(this) {
-            handleCustomBack()
-        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_handling_back", isHandlingBack)
+        outState.putBoolean("is_pop_up_permission_show", isPopUpPermissionShow)
+        outState.putLong("permission_request_start_time", permissionRequestStartTime)
+        outState.putSerializable("initial_rationale_states", HashMap(initialRationaleStates))
     }
 
 //    @RequiresApi(Build.VERSION_CODES.S)

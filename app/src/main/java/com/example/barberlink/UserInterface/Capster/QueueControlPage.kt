@@ -60,6 +60,7 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.ReservationData
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.SaveStateViewModelFactory
 import com.example.barberlink.Helper.Event
@@ -84,6 +85,7 @@ import com.example.barberlink.UserInterface.Capster.Fragment.SwitchCapsterFragme
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.SwitchCapsterViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
+import com.example.barberlink.UserInterface.SignIn.Login.LoginAdminPage
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.DateComparisonUtils.isSameDay
@@ -102,7 +104,7 @@ import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.judemanutd.autostarter.AutoStartPermissionHelper
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import de.hdodenhof.circleimageview.CircleImageView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -110,6 +112,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -163,6 +166,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     private var adjustAdapterQueue: Boolean = true
     private var isResetOrder: Boolean = true
     private var setUpObserverIsDone: Boolean = false
+    private var isPopUpDropdownShow: Boolean = false
     private var uidDropdownPosition: String = ""
     private var textDropdownOutletName: String = ""
     // For Service Order
@@ -177,7 +181,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     // private val bundlingPackagesList = mutableListOf<BundlingPackage>()
     private var blockAllUserClickAction: Boolean = false
 
-    private var remainingListeners = AtomicInteger(5)
+    private var remainingListeners = AtomicInteger(7)
 //    private var isOppositeValue: Boolean = false
     private var todayDate: String = ""
     private lateinit var calendar: Calendar
@@ -195,6 +199,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     private lateinit var bundlingListener: ListenerRegistration
     private lateinit var customerListener: ListenerRegistration
     private lateinit var capsterListener: ListenerRegistration
+    private lateinit var rolesListener: ListenerRegistration
     private lateinit var serviceAdapter: ItemListServiceOrdersAdapter
     private lateinit var bundlingAdapter: ItemListPackageOrdersAdapter
     private lateinit var queueAdapter: ItemListCollapseQueueAdapter
@@ -215,6 +220,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     private var networkOnlineSinceMs: Long = 0L
     private var listenerJob: Job? = null
     private var isHandlingBack: Boolean = false
+    private var popupObserverJob: Job? = null
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -316,6 +322,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             blockAllUserClickAction = savedInstanceState.getBoolean("block_all_user_click_action", false)
             lastSnackbarMessage = savedInstanceState.getString("last_snackbar_message", null)
             networkOnlineSinceMs = savedInstanceState.getLong("network_online_since_ms", 0L)
+            isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
 
             Log.d("CheckShimmer", "orientation change :: queueControlViewModel.setupDropdownOutletWithNullState(false)")
@@ -329,27 +336,24 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             } else {
                 intent.getParcelableExtra(HomePageCapster.CAPSTER_DATA_KEY) ?: UserEmployeeData()
             }
-            Log.d("QCPCheck", "username: ${userEmployeeData.fullname} || uid: ${userEmployeeData.uid} || userRef: ${userEmployeeData.userRef}")
+            Log.d("QCPCheck", "username: ${userEmployeeData.fullname} || uid: ${userEmployeeData.uid}")
             queueControlViewModel.setUserEmployeeData(userEmployeeData)
+
+            val employeeRoles = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(HomePageCapster.ROLES_DATA_KEY, EmployeeRolesData::class.java) ?: emptyList()
+            } else {
+                intent.getParcelableArrayListExtra<EmployeeRolesData>(HomePageCapster.ROLES_DATA_KEY) ?: emptyList()
+            }
+            queueControlViewModel.setEmployeeRoles(employeeRoles)
 
             @Suppress("DEPRECATION")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 intent.getParcelableArrayListExtra(HomePageCapster.OUTLET_LIST_KEY, Outlet::class.java)?.let { outlets ->
-                    lifecycleScope.launch {
-                        Log.d("DataExecution", "set outlet list by intent")
-                        queueControlViewModel.outletsListMutex.withStateLock {
-                            queueControlViewModel.setOutletList(outlets, setupDropdown = true, isSavedInstanceStateNull = true)
-                        }
-                    }
+                    queueControlViewModel.setOutletList(outlets, setupDropdown = true, isSavedInstanceStateNull = true)
                 }
             } else {
                 intent.getParcelableArrayListExtra<Outlet>(HomePageCapster.OUTLET_LIST_KEY)?.let { outlets ->
-                    lifecycleScope.launch {
-                        Log.d("DataExecution", "set outlet list by intent")
-                        queueControlViewModel.outletsListMutex.withStateLock {
-                            queueControlViewModel.setOutletList(outlets, setupDropdown = true, isSavedInstanceStateNull = true)
-                        }
-                    }
+                    queueControlViewModel.setOutletList(outlets, setupDropdown = true, isSavedInstanceStateNull = true)
                 }
             }
         }
@@ -900,6 +904,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         outState.putBoolean("block_all_user_click_action", blockAllUserClickAction)
         outState.putString("last_snackbar_message", lastSnackbarMessage)
         outState.putLong("network_online_since_ms", networkOnlineSinceMs)
+        outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putBoolean("is_handling_back", isHandlingBack)
 
         // outState.putParcelableArrayList("reservation_list", ArrayList(reservationList))
@@ -1830,12 +1835,14 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(5)
+        if (skippedProcess) remainingListeners.set(7)
         listenToOutletList()
         listenToCapsterList()
         listenToUserCapsterData()
         listenToServicesData()
         listenToBundlingPackagesData()
+        listenToEmployeesRoles()
+
         if (textDropdownOutletName != "---") listenForTodayListReservation()
         else if (remainingListeners.get() > 0) {
             // === Fake init semua listener kalau belum ada ===
@@ -1900,19 +1907,19 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun listenToOutletList() {
-        queueControlViewModel.userEmployeeData.value?.let { userEmployeeData ->
+        queueControlViewModel.outletSelected.value?.let { outletSelected ->
             if (::listOutletListener.isInitialized) {
                 listOutletListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (outletSelected.rootRef.isEmpty()) {
                 listOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            listOutletListener = db.document(userEmployeeData.rootRef)
+            listOutletListener = db.document(outletSelected.rootRef)
                 .collection("outlets")
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
@@ -1970,10 +1977,8 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             }
             var decrementGlobalListener = false
 
-            capsterListener = db.document(outletSelected.rootRef)
-                .collection("divisions")
-                .document("capster")
-                .collection("employees")
+            capsterListener = db.collection("employees")
+                .whereEqualTo("root_ref", outletSelected.rootRef)
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
                         queueControlViewModel.listenerCapsterListMutex.withStateLock {
@@ -1994,8 +1999,11 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                             val newCapsterList = docs.mapNotNull { document ->
                                                 document.toObject(UserEmployeeData::class.java).apply {
                                                     userRef = document.reference.path
-                                                    outletRef = outletSelected.outletReference
-                                                }.takeIf { it.uid in employeeUidList && it.availabilityStatus }
+                                                    outletRef = outletData.outletReference
+                                                    roleDetail = queueControlViewModel.employeeRolesList.value?.find {
+                                                        it.roleName == this.role
+                                                    } ?: setEmployeeRoleDefaultValue()
+                                                }.takeIf { it.uid in employeeUidList && it.attendanceStatus && it.roleDetail?.permissions?.get("manage_queue") == true }
                                             }
 
                                             Log.d(/* tag = */ "MyListenerData", /* msg = */ "listenToCapsterList detected")
@@ -2020,12 +2028,12 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun listenToUserCapsterData() {
-        dataCapsterRef.let {
+        dataCapsterRef.let { data ->
             if (::employeeListener.isInitialized) {
                 employeeListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (data.isEmpty()) {
                 employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -2051,10 +2059,19 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                             val userEmployeeData = docs.toObject(UserEmployeeData::class.java)?.apply {
                                                 userRef = docs.reference.path
                                                 outletRef = queueControlViewModel.outletSelected.value?.outletReference ?: ""
+                                                roleDetail = queueControlViewModel.employeeRolesList.value?.find {
+                                                    it.roleName == this.role
+                                                } ?: setEmployeeRoleDefaultValue()
                                             }
                                             userEmployeeData?.let {
+                                                val oldUserData = queueControlViewModel.userEmployeeData.value ?: UserEmployeeData()
                                                 Log.d("ListenerCheck", "listenToUserCapsterData detected: ${it.uid}")
                                                 queueControlViewModel.setUserEmployeeData(userEmployeeData)
+
+                                                if (oldUserData.uid != "----------------" && oldUserData != it) setupDropdownOutlet(
+                                                    setupDropdown = false,
+                                                    isSavedInstanceStateNull = true
+                                                )
                                             }
                                         }
                                     }
@@ -2073,19 +2090,19 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun listenToServicesData() {
-        queueControlViewModel.userEmployeeData.value?.let { userEmployeeData ->
+        queueControlViewModel.outletSelected.value?.let { outletSelected ->
             if (::serviceListener.isInitialized) {
                 serviceListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (outletSelected.rootRef.isEmpty()) {
                 serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            serviceListener = db.document(userEmployeeData.rootRef)
+            serviceListener = db.document(outletSelected.rootRef)
                 .collection("services")
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
@@ -2125,19 +2142,19 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     }
 
     private fun listenToBundlingPackagesData() {
-        queueControlViewModel.userEmployeeData.value?.let { userEmployeeData ->
+        queueControlViewModel.outletSelected.value?.let { outletSelected ->
             if (::bundlingListener.isInitialized) {
                 bundlingListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (outletSelected.rootRef.isEmpty()) {
                 bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            bundlingListener = db.document(userEmployeeData.rootRef)
+            bundlingListener = db.document(outletSelected.rootRef)
                 .collection("bundling_packages")
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
@@ -2308,6 +2325,62 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         }
     }
 
+    private fun listenToEmployeesRoles() {
+        queueControlViewModel.outletSelected.value?.let { outletSelected ->
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (outletSelected.rootRef.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", outletSelected.rootRef))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        queueControlViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        queueControlViewModel.rolesListMutex.withStateLock {
+                                            val employeeRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            queueControlViewModel.setEmployeeRoles(employeeRoles)
+                                            switchCapsterViewModel.setCapsterRoles(employeeRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
+        } ?: run {
+            rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        }
+    }
+
     private fun setupDropdownOutlet(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
             queueControlViewModel.userEmployeeData.value?.let { userEmployeeData ->
@@ -2426,6 +2499,12 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     }
                 }
 
+                if (!isFirstLoad && isPopUpDropdownShow) {
+                    Log.d("BindingFocus", "LLL")
+                    binding.acOutletName.showDropDown()
+                }
+                startPopupObserver()
+
                 if ((isSavedInstanceStateNull && setupDropdown) || (isShimmerVisible && isFirstLoad)) {
                     Logger.d("CheckShimmer", "getAllData()")
                     getAllData()
@@ -2438,6 +2517,32 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     }
                 }
             }
+        }
+    }
+
+    private fun startPopupObserver() {
+        popupObserverJob?.cancel()
+
+        popupObserverJob = lifecycleScope.launch {
+            while (isActive) {
+                observePopupState()
+                delay(50)
+            }
+        }
+    }
+
+    private fun observePopupState() {
+        val currentStatePopUp = binding.acOutletName.isPopupShowing
+
+        if (currentStatePopUp != isPopUpDropdownShow) {
+            isPopUpDropdownShow = currentStatePopUp
+
+            Log.d("BindingFocus", "Popup: $isPopUpDropdownShow")
+
+            val icon = if (isPopUpDropdownShow) com.google.android.material.R.drawable.mtrl_ic_arrow_drop_up
+            else com.google.android.material.R.drawable.mtrl_ic_arrow_drop_down
+
+            binding.wrapperOutletName.setEndIconDrawable(icon)
         }
     }
 
@@ -2465,7 +2570,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 this?.setImageDrawable(
                     ContextCompat.getDrawable(
                         applicationContext,
-                        R.drawable.item_indicator_inactive
+                        R.drawable.ic_indicator_inactive
                     )
                 )
                 this?.layoutParams = layoutParams
@@ -2487,14 +2592,14 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     imageView.setImageDrawable(
                         ContextCompat.getDrawable(
                             applicationContext,
-                            R.drawable.item_indicator_active
+                            R.drawable.ic_indicator_active
                         )
                     )
                 } else{
                     imageView.setImageDrawable(
                         ContextCompat.getDrawable(
                             applicationContext,
-                            R.drawable.item_indicator_inactive
+                            R.drawable.ic_indicator_inactive
                         )
                     )
                 }
@@ -2514,7 +2619,9 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
     ) {
         try {
             Logger.d("CheckShimmer", "getCollectionData for ${dataClass.simpleName}")
-            val collectionRef = db.collection(collectionPath)
+            val collectionRef = if (collectionPath == "employees") {
+                db.collection(collectionPath).whereEqualTo("root_ref", outletSelected.rootRef)
+            } else db.collection(collectionPath)
 
             // Menambahkan penanganan null untuk timestamp_to_booking
             val snapshot = withContext(Dispatchers.IO) {
@@ -2560,14 +2667,17 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                     item.apply {
                                         userRef = document.reference.path
                                         outletRef = outletSelected.outletReference
+                                        roleDetail = queueControlViewModel.employeeRolesList.value?.find {
+                                            it.roleName == this.role
+                                        }
                                     }.takeIf {
-                                        it.uid in outletSelected.listEmployees && it.availabilityStatus
+                                        it.uid in outletSelected.listEmployees && it.attendanceStatus && it.roleDetail?.permissions?.get("manage_queue") == true
                                     } as? T
                                 }
 
                                 else -> null
                             }
-                        } ?: mutableListOf()
+                        }
 
                         val sortedItems: List<T> = when (dataClass) {
                             ReservationData::class.java -> (items as List<ReservationData>).sortedBy { it.queueNumber } as List<T>
@@ -2624,21 +2734,21 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                             awaitAll(
                                 async {
                                     getCollectionData(
-                                        collectionPath = "${userEmployeeData.rootRef}/services",
+                                        collectionPath = "${outletSelected.rootRef}/services",
                                         // listToUpdate = servicesList,
                                         emptyMessage = "No services found",
                                         dataClass = Service::class.java,
-                                        showError = true,
+                                        showError = false,
                                         outletSelected = outletSelected
                                     )
                                 },
                                 async {
                                     getCollectionData(
-                                        collectionPath = "${userEmployeeData.rootRef}/bundling_packages",
+                                        collectionPath = "${outletSelected.rootRef}/bundling_packages",
                                         // listToUpdate = bundlingPackagesList,
                                         emptyMessage = "No bundling packages found",
                                         dataClass = BundlingPackage::class.java,
-                                        showError = true,
+                                        showError = false,
                                         outletSelected = outletSelected
                                     )
                                 },
@@ -2650,13 +2760,13 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                         dataClass = ReservationData::class.java,
                                         startOfDay = startOfDay,
                                         endOfDay = startOfNextDay,
-                                        showError = true,
+                                        showError = false,
                                         outletSelected = outletSelected
                                     )
                                 },
                                 async {
                                     getCollectionData(
-                                        collectionPath = "${outletSelected.rootRef}/divisions/capster/employees",
+                                        collectionPath = "employees",
                                         emptyMessage = "No capster found",
                                         dataClass = UserEmployeeData::class.java,
                                         showError = false,
@@ -2696,6 +2806,22 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             switchCapsterViewModel.setCapsterList(emptyList(), setupDropdown = null, isSavedInstanceStateNull = null)
         }
         queueControlViewModel.setupAfterGetAllData(true)
+    }
+
+    private fun setEmployeeRoleDefaultValue(): EmployeeRolesData {
+        return EmployeeRolesData(
+            barbershopRef = "All",
+            jobDesc = "Default role with default permissions. Please contact your administrator to assign the correct role.",
+            permissions = mapOf(
+                "approval_bon" to false,
+                "beranda_admin" to false,
+                "dashboard_admin" to false,
+                "manage_queue" to true,
+                "manual_report" to true,
+            ),
+            roleName = "Employee",
+            uid = "----------------"
+        )
     }
 
     // TERLALU BANYAK GETTING DATA
@@ -4437,26 +4563,28 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                if (isExpiredQueue) {
-                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                                }
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    if (isExpiredQueue) {
+                                                        toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                        return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
+                                                    }
 
-                                                val currentReservation = list.getOrNull(currentIndexQueue)
-                                                currentReservation?.let {
-                                                    if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
-                                                        Logger.d("LogOperation", "COMPLETED currentIndexQueue $currentIndexQueue")
-                                                        checkAccessibilityIsOnOrNot(currentReservation)
-                                                    } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
-                                                } ?: run {
-                                                    Logger.d("LogOperation", "No reservation data received")
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                                }
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+                                                    val currentReservation = list.getOrNull(currentIndexQueue)
+                                                    currentReservation?.let {
+                                                        if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
+                                                            Logger.d("LogOperation", "COMPLETED currentIndexQueue $currentIndexQueue")
+                                                            checkAccessibilityIsOnOrNot(currentReservation)
+                                                        } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
+                                                    } ?: run {
+                                                        Logger.d("LogOperation", "No reservation data received")
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                    }
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4482,27 +4610,29 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                if (isExpiredQueue) {
-                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                                }
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    if (isExpiredQueue) {
+                                                        toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                        return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
+                                                    }
 
-                                                val currentReservation = list.getOrNull(currentIndexQueue)
-                                                currentReservation?.let {
-                                                    if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
-                                                        Logger.d("LogOperation", "CACNCELED currentIndexQueue $currentIndexQueue")
-                                                        dismissSnackbarSafely()
-                                                        queueProcessing("canceled", currentReservation)
-                                                    } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
-                                                } ?: run {
-                                                    Logger.d("LogOperation", "No reservation data received")
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                                }
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+                                                    val currentReservation = list.getOrNull(currentIndexQueue)
+                                                    currentReservation?.let {
+                                                        if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
+                                                            Logger.d("LogOperation", "CACNCELED currentIndexQueue $currentIndexQueue")
+                                                            dismissSnackbarSafely()
+                                                            queueProcessing("canceled", currentReservation)
+                                                        } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
+                                                    } ?: run {
+                                                        Logger.d("LogOperation", "No reservation data received")
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                    }
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4528,27 +4658,29 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                if (isExpiredQueue) {
-                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                                }
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    if (isExpiredQueue) {
+                                                        toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                        return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
+                                                    }
 
-                                                val currentReservation = list.getOrNull(currentIndexQueue)
-                                                currentReservation?.let {
-                                                    if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
-                                                        Logger.d("LogOperation", "SKIPPED currentIndexQueue $currentIndexQueue")
-                                                        dismissSnackbarSafely()
-                                                        queueProcessing("skipped", currentReservation)
-                                                    } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
-                                                } ?: run {
-                                                    Logger.d("LogOperation", "No reservation data received")
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                                }
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+                                                    val currentReservation = list.getOrNull(currentIndexQueue)
+                                                    currentReservation?.let {
+                                                        if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
+                                                            Logger.d("LogOperation", "SKIPPED currentIndexQueue $currentIndexQueue")
+                                                            dismissSnackbarSafely()
+                                                            queueProcessing("skipped", currentReservation)
+                                                        } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
+                                                    } ?: run {
+                                                        Logger.d("LogOperation", "No reservation data received")
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                    }
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4574,38 +4706,40 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                if (isExpiredQueue) {
-                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                                }
-
-                                                // Cek apakah tidak ada reservasi dengan status "process"
-                                                if (list.none { it.queueStatus == "process" }) {
-                                                    val currentReservation = list.getOrNull(currentIndexQueue)
-                                                    currentReservation?.let {
-                                                        Logger.d("LogOperation", "DOIT currentIndexQueue $currentIndexQueue")
-                                                        val isFirstWaiting =
-                                                            list.firstOrNull { it.queueStatus.equals("waiting", true) }?.uid ==
-                                                                    currentReservation.uid
-
-                                                        if (isFirstWaiting) {
-                                                            // Lanjutkan operasi dengan currentReservation
-                                                            dismissSnackbarSafely()
-                                                            queueControlViewModel.setCurrentReservationData(currentReservation)
-                                                            queueControlViewModel.setDuplicateServiceList(serviceAdapter.currentList, false)
-                                                            queueControlViewModel.setDuplicateBundlingPackageList(bundlingAdapter.currentList, false)
-                                                            showQueueExecutionDialog()
-                                                        } else toastViewModel.showToast("Anda harus melayani pelanggan sesuai dengan urutannya!", true)
-                                                    } ?: run {
-                                                        Logger.d("LogOperation", "No reservation data received")
-                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    if (isExpiredQueue) {
+                                                        toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                        return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
                                                     }
-                                                } else toastViewModel.showToast("Selesaikan dahulu antrian yang sedang Anda layani!!!", true)
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+
+                                                    // Cek apakah tidak ada reservasi dengan status "process"
+                                                    if (list.none { it.queueStatus == "process" }) {
+                                                        val currentReservation = list.getOrNull(currentIndexQueue)
+                                                        currentReservation?.let {
+                                                            Logger.d("LogOperation", "DOIT currentIndexQueue $currentIndexQueue")
+                                                            val isFirstWaiting =
+                                                                list.firstOrNull { it.queueStatus.equals("waiting", true) }?.uid ==
+                                                                        currentReservation.uid
+
+                                                            if (isFirstWaiting) {
+                                                                // Lanjutkan operasi dengan currentReservation
+                                                                dismissSnackbarSafely()
+                                                                queueControlViewModel.setCurrentReservationData(currentReservation)
+                                                                queueControlViewModel.setDuplicateServiceList(serviceAdapter.currentList, false)
+                                                                queueControlViewModel.setDuplicateBundlingPackageList(bundlingAdapter.currentList, false)
+                                                                showQueueExecutionDialog()
+                                                            } else toastViewModel.showToast("Anda harus melayani pelanggan sesuai dengan urutannya!", true)
+                                                        } ?: run {
+                                                            Logger.d("LogOperation", "No reservation data received")
+                                                            toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                        }
+                                                    } else toastViewModel.showToast("Selesaikan dahulu antrian yang sedang Anda layani!!!", true)
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4631,60 +4765,62 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                if (isExpiredQueue) {
-                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                                }
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    if (isExpiredQueue) {
+                                                        toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                        return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
+                                                    }
 
-                                                val outletSelected = queueControlViewModel.outletSelected.value ?: run {
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data outlet tidak valid!", true)
-                                                    return@checkNetworkConnection
-                                                }
-                                                val currentQueue = outletSelected.currentQueue?.toMutableMap() ?: mutableMapOf()
-                                                val currentReservation = list.getOrNull(currentIndexQueue)
-                                                currentReservation?.let {
-                                                    val capsterUid = currentReservation.capsterInfo?.capsterRef?.split("/")?.lastOrNull() ?: ""
-                                                    val existingQueueNumber = currentQueue[capsterUid] ?: "00"
-
-                                                    // Cek apakah ada antrian lain yang masih dalam status "process" selain currentReservation
-                                                    val hasUnfinishedQueue = list.any { it.queueStatus == "process" }
-                                                    val canRequeueThisQueue = existingQueueNumber.toIntOrNull()?.let {
-                                                        currentReservation.queueNumber.toIntOrNull()?.let { newQueue ->
-                                                            newQueue > it
-                                                        }
-                                                    } ?: true // Jika tidak ada data sebelumnya, kita anggap boleh update
-                                                    if (hasUnfinishedQueue && !canRequeueThisQueue) {
-                                                        toastViewModel.showToast("Selesaikan dahulu antrian yang sedang Anda layani!!!", true)
+                                                    val outletSelected = queueControlViewModel.outletSelected.value ?: run {
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data outlet tidak valid!", true)
                                                         return@checkNetworkConnection
                                                     }
+                                                    val currentQueue = outletSelected.currentQueue?.toMutableMap() ?: mutableMapOf()
+                                                    val currentReservation = list.getOrNull(currentIndexQueue)
+                                                    currentReservation?.let {
+                                                        val capsterUid = currentReservation.capsterInfo?.capsterRef?.split("/")?.lastOrNull() ?: ""
+                                                        val existingQueueNumber = currentQueue[capsterUid] ?: "00"
 
-                                                    val previousStatus = currentReservation.queueStatus
-                                                    if (previousStatus in listOf("skipped", "canceled")) {
-                                                        Logger.d("LogOperation", "REQUEUE currentIndexQueue $currentIndexQueue")
-
-                                                        dismissSnackbarSafely()
-                                                        val dataReservationToExecution = currentReservation.copy().apply {
-                                                            queueStatus = "waiting"
-                                                            // isRequeue = false
+                                                        // Cek apakah ada antrian lain yang masih dalam status "process" selain currentReservation
+                                                        val hasUnfinishedQueue = list.any { it.queueStatus == "process" }
+                                                        val canRequeueThisQueue = existingQueueNumber.toIntOrNull()?.let {
+                                                            currentReservation.queueNumber.toIntOrNull()?.let { newQueue ->
+                                                                newQueue > it
+                                                            }
+                                                        } ?: true // Jika tidak ada data sebelumnya, kita anggap boleh update
+                                                        if (hasUnfinishedQueue && !canRequeueThisQueue) {
+                                                            toastViewModel.showToast("Selesaikan dahulu antrian yang sedang Anda layani!!!", true)
+                                                            return@checkNetworkConnection
                                                         }
-                                                        dataReservationToExecution.let { reservation ->
-                                                            queueControlViewModel.setReservationDataToExecution(reservation)
-                                                            // INI GIMANA KALOK 07(existingQueueNumber), 08, 15(INSTAN SKIPPED), 21(INSTAN SKIPPED DAN DATA INI MERUPAKAN currentIndexQueue YANG AKAN DI REQUEUE) BUKANKAH rollbackCurrentQueue == FALSE ???
-                                                            // ANSWER >>> GPP Emang gitu langsung updateUserReservationStatus lewat else block di BB Without Update Current Queue
+
+                                                        val previousStatus = currentReservation.queueStatus
+                                                        if (previousStatus in listOf("skipped", "canceled")) {
+                                                            Logger.d("LogOperation", "REQUEUE currentIndexQueue $currentIndexQueue")
+
+                                                            dismissSnackbarSafely()
+                                                            val dataReservationToExecution = currentReservation.copy().apply {
+                                                                queueStatus = "waiting"
+                                                                // isRequeue = false
+                                                            }
+                                                            dataReservationToExecution.let { reservation ->
+                                                                queueControlViewModel.setReservationDataToExecution(reservation)
+                                                                // INI GIMANA KALOK 07(existingQueueNumber), 08, 15(INSTAN SKIPPED), 21(INSTAN SKIPPED DAN DATA INI MERUPAKAN currentIndexQueue YANG AKAN DI REQUEUE) BUKANKAH rollbackCurrentQueue == FALSE ???
+                                                                // ANSWER >>> GPP Emang gitu langsung updateUserReservationStatus lewat else block di BB Without Update Current Queue
 //                                                            (JJK) IMPLEMENTASI BUTTON REQUEUE
-                                                            if (existingQueueNumber == currentReservation.queueNumber) queueControlViewModel.setRollbackState(true)
-                                                            queueControlViewModel.triggeredUpdatingData(reservation, previousStatus, showSnackbar = true)
+                                                                if (existingQueueNumber == currentReservation.queueNumber) queueControlViewModel.setRollbackState(true)
+                                                                queueControlViewModel.triggeredUpdatingData(reservation, previousStatus, showSnackbar = true)
+                                                            }
                                                         }
+                                                    } ?: run {
+                                                        Logger.d("LogOperation", "No reservation data received")
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
                                                     }
-                                                } ?: run {
-                                                    Logger.d("LogOperation", "No reservation data received")
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                                }
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4736,50 +4872,52 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                     return@checkNetworkConnection
                                 }
 
-                                if (it.availabilityStatus) {
-                                    queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                        if (list.isNotEmpty()) {
-                                            if (isExpiredQueue) {
-                                                toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                            }
+                                if (it.attendanceStatus) {
+                                    if (it.availabilityStatus) {
+                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                            if (list.isNotEmpty()) {
+                                                if (isExpiredQueue) {
+                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
+                                                }
 
-                                            val currentReservation = list.getOrNull(currentIndexQueue)
-                                            currentReservation?.let {
-                                                if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
-                                                    if (currentReservation.queueStatus == "process" || currentReservation.queueStatus == "waiting") {
-                                                        Logger.d("LogOperation", "EDIT DATA RESERVATION")
-                                                        Logger.d("LogOperation", "shareProfitCapsterRef: ${currentReservation.shareProfitCapsterRef} || uid: ${queueControlViewModel.userEmployeeData.value?.uid} || queueStatus: ${currentReservation.queueStatus}")
-                                                        if (currentReservation.shareProfitCapsterRef.isNotEmpty() && (currentReservation.shareProfitCapsterRef != queueControlViewModel.userEmployeeData.value?.userRef)) {
-                                                            getCapsterShareFormatData(currentReservation) { employee ->
-                                                                employee?.let {
-                                                                    dismissSnackbarSafely()
-                                                                    queueControlViewModel.setCurrentReservationData(currentReservation)
-                                                                    queueControlViewModel.setDuplicateServiceList(serviceAdapter.currentList.map { it.copy() }, false)
-                                                                    queueControlViewModel.setDuplicateBundlingPackageList(bundlingAdapter.currentList.map { it.copy() }, false)
-                                                                    showConfirmFeeCapster(employee.fullname)
-                                                                } ?: run {
-                                                                    toastViewModel.showToast("Gagal memuat data capster barbershop!", true)
+                                                val currentReservation = list.getOrNull(currentIndexQueue)
+                                                currentReservation?.let {
+                                                    if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
+                                                        if (currentReservation.queueStatus == "process" || currentReservation.queueStatus == "waiting") {
+                                                            Logger.d("LogOperation", "EDIT DATA RESERVATION")
+                                                            Logger.d("LogOperation", "shareProfitCapsterRef: ${currentReservation.shareProfitCapsterRef} || uid: ${queueControlViewModel.userEmployeeData.value?.uid} || queueStatus: ${currentReservation.queueStatus}")
+                                                            if (currentReservation.shareProfitCapsterRef.isNotEmpty() && (currentReservation.shareProfitCapsterRef != queueControlViewModel.userEmployeeData.value?.userRef)) {
+                                                                getCapsterShareFormatData(currentReservation) { employee ->
+                                                                    employee?.let {
+                                                                        dismissSnackbarSafely()
+                                                                        queueControlViewModel.setCurrentReservationData(currentReservation)
+                                                                        queueControlViewModel.setDuplicateServiceList(serviceAdapter.currentList.map { it.copy() }, false)
+                                                                        queueControlViewModel.setDuplicateBundlingPackageList(bundlingAdapter.currentList.map { it.copy() }, false)
+                                                                        showConfirmFeeCapster(employee.fullname)
+                                                                    } ?: run {
+                                                                        toastViewModel.showToast("Gagal memuat data capster barbershop!", true)
+                                                                    }
                                                                 }
+                                                            } else {
+                                                                dismissSnackbarSafely()
+                                                                val priceText = numberToCurrency(currentReservation.paymentDetail.finalPrice.toDouble())
+                                                                queueControlViewModel.setCurrentReservationData(currentReservation)
+                                                                queueControlViewModel.serviceList.value?.map { it.deepCopy() }
+                                                                    ?.let { queueControlViewModel.setDuplicateServiceList(it, false) }
+                                                                queueControlViewModel.bundlingPackageList.value?.map { it.deepCopy(false) }
+                                                                    ?.let { queueControlViewModel.setDuplicateBundlingPackageList(it, false) }
+                                                                showEditOrderDialog("Edit Pesanan", false, priceText)
                                                             }
-                                                        } else {
-                                                            dismissSnackbarSafely()
-                                                            val priceText = numberToCurrency(currentReservation.paymentDetail.finalPrice.toDouble())
-                                                            queueControlViewModel.setCurrentReservationData(currentReservation)
-                                                            queueControlViewModel.serviceList.value?.map { it.deepCopy() }
-                                                                ?.let { queueControlViewModel.setDuplicateServiceList(it, false) }
-                                                            queueControlViewModel.bundlingPackageList.value?.map { it.deepCopy(false) }
-                                                                ?.let { queueControlViewModel.setDuplicateBundlingPackageList(it, false) }
-                                                            showEditOrderDialog("Edit Pesanan", false, priceText)
-                                                        }
-                                                    } else toastViewModel.showToast("Hanya antrian dengan status sedang dilayani atau menunggu yang dapat diedit!", true)
-                                                } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
-                                            } ?: run {
-                                                Logger.d("LogOperation", "No reservation data received")
-                                                toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                            }
-                                        } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                    }
+                                                        } else toastViewModel.showToast("Hanya antrian dengan status sedang dilayani atau menunggu yang dapat diedit!", true)
+                                                    } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
+                                                } ?: run {
+                                                    Logger.d("LogOperation", "No reservation data received")
+                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                }
+                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                        }
+                                    } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                 } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
                         }
@@ -4804,47 +4942,49 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                // Open WA Chatting Room with specific number
-                                                val currentReservation = list.getOrNull(currentIndexQueue)
-                                                currentReservation?.let {
-                                                    if (currentReservation.dataCreator?.userRef?.isNotEmpty() == true) {
-                                                        dismissSnackbarSafely()
-                                                        val phoneNumber = currentReservation.dataCreator?.userPhone ?: ""
-                                                        val wordByTime = getGreetingMessage()
-                                                        val message = "$wordByTime, pelanggan ${queueControlViewModel.outletSelected.value?.outletName ?: "..."} yang terhormat. Perkenalkan nama saya ${queueControlViewModel.userEmployeeData.value?.fullname ?: "..."} selaku salah satu Capster dari ${queueControlViewModel.outletSelected.value?.outletName ?: "..."}, izin... _{edit your message}_"
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    // Open WA Chatting Room with specific number
+                                                    val currentReservation = list.getOrNull(currentIndexQueue)
+                                                    currentReservation?.let {
+                                                        if (currentReservation.dataCreator?.userRef?.isNotEmpty() == true) {
+                                                            dismissSnackbarSafely()
+                                                            val phoneNumber = currentReservation.dataCreator?.userPhone ?: ""
+                                                            val wordByTime = getGreetingMessage()
+                                                            val message = "$wordByTime, pelanggan ${queueControlViewModel.outletSelected.value?.outletName ?: "..."} yang terhormat. Perkenalkan nama saya ${queueControlViewModel.userEmployeeData.value?.fullname ?: "..."} selaku salah satu Capster dari ${queueControlViewModel.outletSelected.value?.outletName ?: "..."}, izin... _{edit your message}_"
 
-                                                        // Format the phone number to be used in the WhatsApp URI (it should not contain any special characters or spaces)
-                                                        val formattedPhoneNumber = phoneNumber.replace("\\D".toRegex(), "")
+                                                            // Format the phone number to be used in the WhatsApp URI (it should not contain any special characters or spaces)
+                                                            val formattedPhoneNumber = phoneNumber.replace("\\D".toRegex(), "")
 
-                                                        // Create the URI for WhatsApp chat
-                                                        val whatsappUri =
-                                                            "https://wa.me/$formattedPhoneNumber?text=${
-                                                                Uri.encode(message)
-                                                            }".toUri()
+                                                            // Create the URI for WhatsApp chat
+                                                            val whatsappUri =
+                                                                "https://wa.me/$formattedPhoneNumber?text=${
+                                                                    Uri.encode(message)
+                                                                }".toUri()
 
-                                                        // Create the intent to open WhatsApp with the specific message
-                                                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                                                            data = whatsappUri
-                                                            setPackage("com.whatsapp")
-                                                        }
-                                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            // Create the intent to open WhatsApp with the specific message
+                                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                                data = whatsappUri
+                                                                setPackage("com.whatsapp")
+                                                            }
+                                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
-                                                        // Check if WhatsApp is installed on the device
-                                                        try {
-                                                            if (intent.resolveActivity(packageManager) != null) {
-                                                                applicationContext.startActivity(intent)
-                                                            } else toastViewModel.showToast("Aplikasi WhatsApp tidak terinstall!", true)
-                                                        } catch (e: ActivityNotFoundException) { toastViewModel.showToast("Error: + $e", true) }
-                                                    } else toastViewModel.showToast("Pesanan ini tidak memiliki nomor telepon pelanggan yang dapat dihubungi!", true)
-                                                } ?: run {
-                                                    Logger.d("LogOperation", "No reservation data received")
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                                }
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+                                                            // Check if WhatsApp is installed on the device
+                                                            try {
+                                                                if (intent.resolveActivity(packageManager) != null) {
+                                                                    applicationContext.startActivity(intent)
+                                                                } else toastViewModel.showToast("Aplikasi WhatsApp tidak terinstall!", true)
+                                                            } catch (e: ActivityNotFoundException) { toastViewModel.showToast("Error: + $e", true) }
+                                                        } else toastViewModel.showToast("Pesanan ini tidak memiliki nomor telepon pelanggan yang dapat dihubungi!", true)
+                                                    } ?: run {
+                                                        Logger.d("LogOperation", "No reservation data received")
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                    }
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4870,32 +5010,34 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                 }
 
                                 if (!blockAllUserClickAction) {
-                                    if (it.availabilityStatus) {
-                                        queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
-                                            if (list.isNotEmpty()) {
-                                                if (isExpiredQueue) {
-                                                    toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
-                                                    return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
-                                                }
+                                    if (it.attendanceStatus) {
+                                        if (it.availabilityStatus) {
+                                            queueControlViewModel.reservationDataList.value.orEmpty().let { list ->
+                                                if (list.isNotEmpty()) {
+                                                    if (isExpiredQueue) {
+                                                        toastViewModel.showToast("Antrian di bawah tanggal ${GetDateUtils.formatTimestampToDate(Timestamp.now())} tidak dapat diproses!", true)
+                                                        return@checkNetworkConnection  // Menghentikan eksekusi lebih lanjut pada blok ini
+                                                    }
 
-                                                val currentReservation = list.getOrNull(currentIndexQueue)
-                                                currentReservation?.let {
-                                                    if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
-                                                        Logger.d("LogOperation", "SWITCH CAPSTER DATA RESERVATION")
-                                                        if (currentReservation.queueStatus == "process" || currentReservation.queueStatus == "waiting") {
-                                                            dismissSnackbarSafely()
-                                                            queueControlViewModel.setCurrentReservationData(currentReservation)
-                                                            queueControlViewModel.setDuplicateServiceList(serviceAdapter.currentList.map { it.copy() }, false)
-                                                            queueControlViewModel.setDuplicateBundlingPackageList(bundlingAdapter.currentList.map { it.copy() }, false)
-                                                            showSwitchCapsterDialog(currentReservation)
-                                                        } else toastViewModel.showToast("Hanya antrian dengan status sedang dilayani atau menunggu yang dapat dialihkan!", true)
-                                                    } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
-                                                } ?: run {
-                                                    Logger.d("LogOperation", "No reservation data received")
-                                                    toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
-                                                }
-                                            } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
-                                        }
+                                                    val currentReservation = list.getOrNull(currentIndexQueue)
+                                                    currentReservation?.let {
+                                                        if (currentReservation.capsterInfo?.capsterRef?.isNotEmpty() == true) {
+                                                            Logger.d("LogOperation", "SWITCH CAPSTER DATA RESERVATION")
+                                                            if (currentReservation.queueStatus == "process" || currentReservation.queueStatus == "waiting") {
+                                                                dismissSnackbarSafely()
+                                                                queueControlViewModel.setCurrentReservationData(currentReservation)
+                                                                queueControlViewModel.setDuplicateServiceList(serviceAdapter.currentList.map { it.copy() }, false)
+                                                                queueControlViewModel.setDuplicateBundlingPackageList(bundlingAdapter.currentList.map { it.copy() }, false)
+                                                                showSwitchCapsterDialog(currentReservation)
+                                                            } else toastViewModel.showToast("Hanya antrian dengan status sedang dilayani atau menunggu yang dapat dialihkan!", true)
+                                                        } else toastViewModel.showToast("Anda harus mengambil antrian ini terlebih dahulu!", true)
+                                                    } ?: run {
+                                                        Logger.d("LogOperation", "No reservation data received")
+                                                        toastViewModel.showToast("Tidak dapat melanjutkan proses karena data reservasi tidak valid!", true)
+                                                    }
+                                                } else toastViewModel.showToast("Tidak ada antrian yang dapat diproses!", true)
+                                            }
+                                        } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang istirahat!", true)
                                     } else toastViewModel.showToast("Tidak dapat menindaklanjuti permintaan saat Anda sedang libur!", true)
                                 } else toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
                             } ?: run { toastViewModel.showToast("Data pengguna tidak tersedia!", true) }
@@ -4925,7 +5067,13 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
             if (snapshot.isSuccessful) {
                 val document = snapshot.data
                 if (document != null) {
-                    val data = document.toObject(UserEmployeeData::class.java)
+                    val data = document.toObject(UserEmployeeData::class.java)?.apply {
+                        userRef = document.reference.path
+                        outletRef = queueControlViewModel.outletSelected.value?.outletReference ?: ""
+                        roleDetail = queueControlViewModel.employeeRolesList.value?.find {
+                            it.roleName == this.role
+                        } ?: setEmployeeRoleDefaultValue()
+                    }
                     onResult(data)
                 } else {
                     if (snapshot.displayMessage) toastViewModel.showToast(snapshot.errorMessage.toString(), true)
@@ -5239,8 +5387,9 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
         if (!::dataOutletListener.isInitialized) Log.d("ListenerCheck", "QCP Data Outlet Listener not initialized || isFirstLoad: $isFirstLoad")
         if (!::serviceListener.isInitialized) Log.d("ListenerCheck", "QCP Services Listener not initialized || isFirstLoad: $isFirstLoad")
         if (!::bundlingListener.isInitialized) Log.d("ListenerCheck", "QCP Bundling Listener not initialized || isFirstLoad: $isFirstLoad")
+        if (!::rolesListener.isInitialized) Log.d("ListenerCheck", "QCP Roles Listener not initialized || isFirstLoad: $isFirstLoad")
         if (!isRecreated) {
-            if (((!::reservationListener.isInitialized && textDropdownOutletName != "---") || !::employeeListener.isInitialized || !::listOutletListener.isInitialized || (!::dataOutletListener.isInitialized && textDropdownOutletName != "---") || !::serviceListener.isInitialized || !::bundlingListener.isInitialized) && !isFirstLoad) {
+            if (((!::reservationListener.isInitialized && textDropdownOutletName != "---") || !::employeeListener.isInitialized || !::listOutletListener.isInitialized || (!::dataOutletListener.isInitialized && textDropdownOutletName != "---") || !::serviceListener.isInitialized || !::bundlingListener.isInitialized || !::capsterListener.isInitialized || !::rolesListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -5388,6 +5537,7 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
         if (::serviceListener.isInitialized) serviceListener.remove()
         if (::bundlingListener.isInitialized) bundlingListener.remove()
         if (::customerListener.isInitialized) customerListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
         queueControlViewModel.clearDropdownStateValue()
 
         LocalBroadcastManager.getInstance(this).unregisterReceiver(myLocalBroadcastReceiver)

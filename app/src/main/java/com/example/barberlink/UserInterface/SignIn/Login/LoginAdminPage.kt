@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
 import androidx.lifecycle.lifecycleScope
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Factory.AuthDBViewModelFactory
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
@@ -34,8 +35,8 @@ import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.UserInterface.SignIn.ViewModel.LoginPageViewModel
-import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
-import com.example.barberlink.UserInterface.SignUp.Page.SignUpSuccess
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpUserPhoneStep
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpFinalSuccessStep
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityLoginAdminPageBinding
 import com.google.android.material.textfield.TextInputEditText
@@ -106,7 +107,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
 //
 //        windowInsetsController?.isAppearanceLightStatusBars = false
 
-        val loginType: String
+//        val loginType: String
         if (savedInstanceState != null) {
             isEmailValid = savedInstanceState.getBoolean("is_email_valid", false)
             isPasswordValid = savedInstanceState.getBoolean("is_password_valid", false)
@@ -114,36 +115,51 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
             textErrorForPassword = savedInstanceState.getString("text_error_for_password", "undefined") ?: "undefined"
             originPageFrom = savedInstanceState.getString("origin_page_from", "") ?: ""
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
-            loginType = loginPageViewModel.getLoginType()
         } else {
-            // BISA DARI SELECTUSERROLEPAGE ATAU SIGNUPSTEPONE ATAU SIGNUPSUCCESS
-            loginType = intent.getStringExtra("login_type_key") ?: ""
             originPageFrom = intent.getStringExtra("origin_page_key").toString()
+            // BISA DARI SELECTUSERROLEPAGE ATAU SIGNUPSTEPONE ATAU SIGNUPSUCCESS
+            val loginType = intent.getStringExtra("login_type_key") ?: ""
+            loginPageViewModel.setLoginType(loginType)
             // SignUpSuccess
-            @Suppress("DEPRECATION")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                intent.getParcelableExtra(SignUpSuccess.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
-                    binding.signInEmail.setText(it.email)
-                    binding.signInPassword.setText(it.password)
+            if (loginType == "Login as Admin") {
+                @Suppress("DEPRECATION")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(SignUpFinalSuccessStep.ADMIN_DATA_KEY, UserAdminData::class.java)?.let {
+                        binding.signInEmail.setText(it.email)
+                        binding.signInPassword.setText(it.password)
+                    }
+                } else {
+                    intent.getParcelableExtra<UserAdminData>(SignUpFinalSuccessStep.ADMIN_DATA_KEY)?.let {
+                        binding.signInEmail.setText(it.email)
+                        binding.signInPassword.setText(it.password)
+                    }
                 }
-            } else {
-                intent.getParcelableExtra<UserAdminData>(SignUpSuccess.ADMIN_DATA_KEY)?.let {
-                    binding.signInEmail.setText(it.email)
-                    binding.signInPassword.setText(it.password)
+            } else if (loginType == "Login as Employee") {
+                @Suppress("DEPRECATION")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(SignUpFinalSuccessStep.EMPLOYEE_DATA_KEY, UserEmployeeData::class.java)?.let {
+                        binding.signInEmail.setText(it.email)
+                        binding.signInPassword.setText(it.password)
+                    }
+                } else {
+                    intent.getParcelableExtra<UserEmployeeData>(SignUpFinalSuccessStep.EMPLOYEE_DATA_KEY)?.let {
+                        binding.signInEmail.setText(it.email)
+                        binding.signInPassword.setText(it.password)
+                    }
                 }
             }
         }
-        loginPageViewModel.setLoginType(loginType)
+//        loginPageViewModel.setLoginType(loginType)
         binding.btnLogin.setOnClickListener(this)
         binding.btnSignUp.setOnClickListener(this)
 
-        if (loginType == "Login as Employee") {
-            binding.dontHaveAnyAccount.visibility = View.INVISIBLE
-            binding.btnSignUp.visibility = View.INVISIBLE
-        } else if (loginType == "Login as Admin") {
-            binding.dontHaveAnyAccount.visibility = View.VISIBLE
-            binding.btnSignUp.visibility = View.VISIBLE
-        }
+//        if (loginType == "Login as Employee") {
+//            binding.dontHaveAnyAccount.visibility = View.INVISIBLE
+//            binding.btnSignUp.visibility = View.INVISIBLE
+//        } else if (loginType == "Login as Admin") {
+//            binding.dontHaveAnyAccount.visibility = View.VISIBLE
+//            binding.btnSignUp.visibility = View.VISIBLE
+//        }
 
         loginPageViewModel.loginStateResult.observe(this) { result ->
             when (result) {
@@ -164,7 +180,7 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     if (result.type == "Login as Employee") {
                         val userEmployeeData = loginPageViewModel.getEmployeeData()
                         sessionManager.setSessionCapster(true)
-                        sessionManager.setDataCapsterRef(userEmployeeData.userRef)
+                        sessionManager.setDataCapsterRef("employees/${userEmployeeData.uid}")
                         // Lakukan sesuatu dengan userEmployeeData
                         // AutoLogoutManager.startAutoLogout(this, "Employee", 60000) // 1 menit
                         navigatePage(this@LoginAdminPage, HomePageCapster::class.java, userEmployeeData.uid, binding.btnLogin)
@@ -185,10 +201,12 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                         handleLoginError(errorMessage)
                     } else {
                         if (result.type == "Login as Employee") {
+                            textErrorForEmail = getString(R.string.no_matching_capster_account)
                             binding.emailCustomError.text =
                                 getString(R.string.no_matching_capster_account)
                             setFocus(binding.signInEmail)
                         } else if (result.type == "Login as Admin") {
+                            textErrorForEmail = getString(R.string.no_matching_owner_account)
                             binding.emailCustomError.text =
                                 getString(R.string.no_matching_owner_account)
                             setFocus(binding.signInEmail)
@@ -428,14 +446,15 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                         )
                     }) return
                     // hmmmmm
-                    if (loginPageViewModel.getLoginType() == "Login as Admin") {
-                        Log.d("OriginPage", "origin page: $originPageFrom")
-                        if (originPageFrom == "SelectUserRolePage") {
-                            navigatePage(this@LoginAdminPage, SignUpStepOne::class.java, null, btnSignUp)
-                        } else {
-                            onBackPressedDispatcher.onBackPressed()
-                        }
-                    }
+                    navigatePage(this@LoginAdminPage, SignUpUserPhoneStep::class.java, null, btnSignUp)
+
+//                    if (loginPageViewModel.getLoginType() == "Login as Admin") {
+//                        Log.d("OriginPage", "origin page: $originPageFrom")
+//                        if (originPageFrom == "SelectUserRolePage") {
+//                        } else {
+//                            onBackPressedDispatcher.onBackPressed()
+//                        }
+//                    }
                 }
             }
         }
@@ -510,14 +529,17 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
                     startActivity(intentToSelectUserRoles)
 
                     if (loginPageViewModel.getLoginType() == "Login as Admin") intentToDestination.putExtra(ADMIN_DATA_KEY, loginPageViewModel.getAdminData())
-                    else intentToDestination.putExtra(EMPLOYEE_DATA_KEY, loginPageViewModel.getEmployeeData())
+                    else {
+                        intentToDestination.putParcelableArrayListExtra(ROLES_DATA_KEY, ArrayList(loginPageViewModel.employeeRolesList.value ?: emptyList()))
+                        intentToDestination.putExtra(EMPLOYEE_DATA_KEY, loginPageViewModel.getEmployeeData())
+                    }
                     startActivity(intentToDestination)
                     overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
                     finish()
                 } ?: run {
-                    // kode dibawah ini sepertinya udah gak di pakai karena sudah di ganti dengan onBackPress
-                    if (destination == SignUpStepOne::class.java) {
+                    if (destination == SignUpUserPhoneStep::class.java) {
                         intentToDestination.putExtra(ORIGIN_PAGE_KEY, "LoginAdminPage")
+                        intentToDestination.putExtra(LOGIN_TYPE_KEY, loginPageViewModel.getLoginType())
                         intentToDestination.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
                     }
                     startActivity(intentToDestination)
@@ -639,9 +661,11 @@ class LoginAdminPage : AppCompatActivity(), View.OnClickListener {
     }
 
     companion object {
-        const val ADMIN_DATA_KEY = "ADMIN_DATA_KEY"
-        const val EMPLOYEE_DATA_KEY = "EMPLOYEE_DATA_KEY"
+        const val ROLES_DATA_KEY = "roles_data_key"
+        const val ADMIN_DATA_KEY = "admin_data_key"
+        const val EMPLOYEE_DATA_KEY = "employee_data_key"
         const val ORIGIN_PAGE_KEY = "origin_page_key"
+        const val LOGIN_TYPE_KEY = "login_type_key"
     }
 
 }

@@ -17,13 +17,14 @@ import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.example.barberlink.Adapter.ItemListOutletAdapter
+import com.example.barberlink.Adapter.ItemManageOutletAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Contract.NavigationCallback
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
@@ -38,21 +39,23 @@ import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityManageOutletPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
-class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAdapter.OnItemClicked, ItemListOutletAdapter.OnQueueResetListener, ItemListOutletAdapter.UpdateExpendedState,
-    ItemListOutletAdapter.DisplayThisToastMessage, ItemListOutletAdapter.UpdateOutletStatus, ItemListOutletAdapter.UpdateOutletAccessCode, ItemListOutletAdapter.OnNavigationPage {
+class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletAdapter.OnItemClicked, ItemManageOutletAdapter.OnQueueResetListener, ItemManageOutletAdapter.UpdateExpendedState,
+    ItemManageOutletAdapter.DisplayThisToastMessage, ItemManageOutletAdapter.UpdateOutletStatus, ItemManageOutletAdapter.UpdateOutletAccessCode, ItemManageOutletAdapter.OnNavigationPage {
     private lateinit var binding: ActivityManageOutletPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
     private val manageOutletViewModel: ManageOutletViewModel by viewModels {
-        DatabaseViewModelFactory(db)
+        DatabaseViewModelFactory(db, storage)
     }
     private val toastViewModel: ToastViewModel by viewModels()
-    private lateinit var outletAdapter: ItemListOutletAdapter
+    private lateinit var outletAdapter: ItemManageOutletAdapter
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: DialogFragment
     private lateinit var vegaLayoutManager: VegaLayoutManager
@@ -71,7 +74,8 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
     private lateinit var outletListener: ListenerRegistration
     private lateinit var employeeListener: ListenerRegistration
-    private var remainingListeners = AtomicInteger(2)
+    private lateinit var rolesListener: ListenerRegistration
+    private var remainingListeners = AtomicInteger(3)
     private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
@@ -149,26 +153,23 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             val args = ManageOutletPageArgs.fromBundle(intent.extras ?: Bundle())
 
             // Melakukan operasi dengan data tersebut
-            lifecycleScope.launch(Dispatchers.Main) {
-                manageOutletViewModel.outletsMutex.withStateLock {
-                    val outletsList = args.outletList.toCollection(ArrayList())
-                    manageOutletViewModel.setOutletList(outletsList)
-                }
+            val rolestList = args.employeeRoles.toCollection(ArrayList())
+            manageOutletViewModel.setEmployeeRoles(rolestList)
 
-                manageOutletViewModel.employeesMutex.withStateLock {
-                    val employeeList = args.employeeList
-                        .filter { employee -> employee.role == "Capster" }
-                        .toCollection(ArrayList())
+            val outletsList = args.outletList.toCollection(ArrayList())
+            manageOutletViewModel.setOutletList(outletsList)
 
-                    manageOutletViewModel.setEmployeeList(employeeList)
-                }
+            val employeeList = args.employeeList
+                .filter { employee -> (employee.roleDetail?.permissions?.get("manage_queue") == true) }
+                .toCollection(ArrayList())
 
-                // Pastikan untuk menjalankan bagian ini di main thread jika perlu
-                val userAdminData = args.userAdminData
-                manageOutletViewModel.setUserAdminData(userAdminData)
-                barbershopId = userAdminData.uid
-                Log.d("SwitchAnomali", "ABC")
-            }
+            manageOutletViewModel.setEmployeeList(employeeList)
+
+            // Pastikan untuk menjalankan bagian ini di main thread jika perlu
+            val userAdminData = args.userAdminData
+            manageOutletViewModel.setUserAdminData(userAdminData)
+            barbershopId = userAdminData.uid
+            Log.d("SwitchAnomali", "ABC")
         }
 
         init(savedInstanceState)
@@ -215,7 +216,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
             outletAdapter.submitList(outletList)
             Logger.d("OutletList", "notifyDataSetChanged()")
-            outletAdapter.notifyDataSetChanged()
+            if (!isShimmerVisible) outletAdapter.notifyDataSetChanged()
             binding.tvOutletCountTitle.text = getString(R.string.daftar_outlet_title_template, outletList.size)
             binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
         }
@@ -302,14 +303,14 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
     private fun init(savedInstanceState: Bundle?) {
         vegaLayoutManager = VegaLayoutManager()
-        outletAdapter = ItemListOutletAdapter(this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
+        outletAdapter = ItemManageOutletAdapter(this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
         binding.rvOutletList.layoutManager = vegaLayoutManager
         binding.rvOutletList.adapter = outletAdapter
 
         // ── Swipe to delete ──────────────────────────────────────────────────
         val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
             0, // no drag directions
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT
+            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
         ) {
             override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
                                 vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
@@ -362,10 +363,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                         itemView.right + dX, itemView.top.toFloat(),
                         itemView.right.toFloat(), itemView.bottom.toFloat(), paint
                     )
-                    // Trash icon
                     val icon = androidx.core.content.ContextCompat.getDrawable(
-                        this@ManageOutletPage, R.drawable.ic_swipe_to_delete
+                        this@ManageOutletPage, R.drawable.ic_swipe_to_left
                     )
+                    // Trash icon
                     icon?.let {
                         val iconSize = 28.dp
                         val margin = 20.dp
@@ -374,6 +375,30 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                             itemView.right - margin - iconSize,
                             iconTop,
                             itemView.right - margin,
+                            iconTop + iconSize
+                        )
+                        it.setTint(android.graphics.Color.WHITE)
+                        it.draw(c)
+                    }
+                } else if (dX > 0) { // swiping right
+                    // Red background
+                    paint.color = android.graphics.Color.parseColor("#FF3B30")
+                    c.drawRect(
+                        itemView.left.toFloat(), itemView.top.toFloat(),
+                        itemView.left + dX, itemView.bottom.toFloat(), paint
+                    )
+                    val icon = androidx.core.content.ContextCompat.getDrawable(
+                        this@ManageOutletPage, R.drawable.ic_swipe_to_right
+                    )
+                    // Trash icon
+                    icon?.let {
+                        val iconSize = 28.dp
+                        val margin = 20.dp
+                        val iconTop = itemView.top + (itemView.height - iconSize) / 2
+                        it.setBounds(
+                            itemView.left + margin,
+                            iconTop,
+                            itemView.left + margin + iconSize,
                             iconTop + iconSize
                         )
                         it.setTint(android.graphics.Color.WHITE)
@@ -439,9 +464,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(2)
+        if (skippedProcess) remainingListeners.set(3)
         listenToEmployeeData()
         listenToOutletList()
+        listenToEmployeesRoles()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
@@ -467,7 +493,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
             }
             var decrementGlobalListener = false
 
-            employeeListener = db.collectionGroup("employees")
+            employeeListener = db.collection("employees")
                 .whereEqualTo("root_ref", "barbershops/$barbershopId")
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
@@ -485,22 +511,27 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                                 if (!isFirstLoad && !skippedProcess) {
                                     withContext(Dispatchers.Default) {
                                         val newUserEmployeeListData = docs.mapNotNull { document ->
-                                            document.toObject(UserEmployeeData::class.java)
-                                                .takeIf { employee -> employee.role == "Capster" }
+                                            document.toObject(UserEmployeeData::class.java).apply {
+                                                userRef = document.reference.path
+                                                outletRef = ""
+                                                roleDetail = manageOutletViewModel.employeeRolesList.value?.find {
+                                                    it.roleName == this.role
+                                                }
+                                            }.takeIf { employee -> employee.roleDetail?.permissions?.get("manage_queue") == true }
                                         }
 
                                         // Update employeeList dengan data baru
-                                        manageOutletViewModel.employeesMutex.withStateLock {
+                                        manageOutletViewModel.employeeListMutex.withStateLock {
                                             val outletOldData = manageOutletViewModel.outletSelected.value
                                             if (!manageOutletViewModel.capsterList.value.isNullOrEmpty() && outletOldData != null && isDisplayQueueBoard) {
                                                 outletOldData.let { outlet ->
                                                     val capsterList = newUserEmployeeListData.filter { it ->
-                                                        it.uid in outlet.listEmployees && it.availabilityStatus
+                                                        it.uid in outlet.listEmployees && it.attendanceStatus
                                                     }
                                                     manageOutletViewModel.setCapsterList(capsterList)
                                                 }
                                             }
-                                            manageOutletViewModel.setEmployeeList(newUserEmployeeListData.toMutableList())
+                                            manageOutletViewModel.setEmployeeList(newUserEmployeeListData)
                                         }
                                     }
                                 }
@@ -560,14 +591,14 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                                             }
                                         }
 
-                                        manageOutletViewModel.outletsMutex.withStateLock {
+                                        manageOutletViewModel.outletListMutex.withStateLock {
                                             manageOutletViewModel.setExtendedStateMap(newOutletsList.associateBy({ it.uid }, { it.isCollapseCard }).toMutableMap())
                                             val outletOldData = manageOutletViewModel.outletSelected.value
                                             if (outletOldData != null && isDisplayQueueBoard) {
                                                 outletOldData.let { outlet ->
                                                     val outletNewData = newOutletsList.find { it -> it.uid == outlet.uid }
                                                     val capsterList = manageOutletViewModel.employeeList.value?.filter { it ->
-                                                        it.uid in outlet.listEmployees && it.availabilityStatus
+                                                        it.uid in outlet.listEmployees && it.attendanceStatus
                                                     } ?: emptyList()
 
                                                     if (outletNewData != null) manageOutletViewModel.setOutletSelected(outletNewData)
@@ -589,6 +620,58 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                         }
                     }
                 }
+        }
+    }
+
+    private fun listenToEmployeesRoles() {
+        barbershopId.let {
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (it.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", "barbershops/$barbershopId"))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageOutletViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        manageOutletViewModel.rolesListMutex.withStateLock {
+                                            val employeeRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            manageOutletViewModel.setEmployeeRoles(employeeRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
         }
     }
 
@@ -650,10 +733,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
                 toastViewModel.showToast("Daftar karyawan untuk outlet ini belum ditambahkan", true)
                 return@launch
             }
-            // Ambil daftar karyawan yang cocok dengan uid di employeeUidList dan availabilityStatus == true
-            val capsterList = manageOutletViewModel.employeesMutex.withStateLock {
+            // Ambil daftar karyawan yang cocok dengan uid di employeeUidList dan attendanceStatus == true
+            val capsterList = manageOutletViewModel.employeeListMutex.withStateLock {
                 manageOutletViewModel.employeeList.value?.filter {
-                    it.uid in outlet.listEmployees && it.availabilityStatus
+                    it.uid in outlet.listEmployees && it.attendanceStatus
                 } ?: emptyList()
             }
 
@@ -743,7 +826,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         // Reset the navigation flag and view's clickable state
         isNavigating = false
         if (!isRecreated) {
-            if (!::outletListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
+            if (!::outletListener.isInitialized && !::rolesListener.isInitialized && !::employeeListener.isInitialized && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -834,6 +917,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemListOutletAda
         // Hapus listener untuk menghindari memory leak
         if (::outletListener.isInitialized) outletListener.remove()
         if (::employeeListener.isInitialized) employeeListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
     }
 
 }

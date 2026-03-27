@@ -15,7 +15,7 @@ import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListPickUserAdapterBinding
-import com.example.barberlink.databinding.ShimmerLayoutPickUserBinding
+import com.example.barberlink.databinding.ShimmerLayoutPickUserCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemListPickUserAdapter(
@@ -52,7 +52,7 @@ class ItemListPickUserAdapter(
             recyclerView = parent as RecyclerView
         }
         return if (viewType == VIEW_TYPE_SHIMMER) {
-            val shimmerBinding = ShimmerLayoutPickUserBinding.inflate(inflater, parent, false)
+            val shimmerBinding = ShimmerLayoutPickUserCardBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
         } else {
             val binding = ItemListPickUserAdapterBinding.inflate(inflater, parent, false)
@@ -108,7 +108,7 @@ class ItemListPickUserAdapter(
 
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutPickUserBinding) :
+    inner class ShimmerViewHolder(private val binding: ShimmerLayoutPickUserCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(userEmployeeData: UserEmployeeData) {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -271,14 +271,22 @@ class ItemListPickUserAdapter(
         private fun setUserRole(role: String) {
             with (binding) {
                 tvRole.text = role
-                if (role == "Capster") {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
-                } else if (role == "Kasir") {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
-                } else if (role == "Keamanan") {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
-                } else if (role == "Administrator") {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
+                when (role) {
+                    "Supervisor" -> {
+                        tvRole.setTextColor(root.context.resources.getColor(R.color.green_text_wa))
+                    }
+                    "Capster" -> {
+                        tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
+                    }
+                    "Kasir" -> {
+                        tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
+                    }
+                    "Keamanan" -> {
+                        tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
+                    }
+                    "Administrator" -> {
+                        tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
+                    }
                 }
             }
 

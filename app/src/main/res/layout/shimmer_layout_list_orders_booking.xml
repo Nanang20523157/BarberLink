@@ -269,7 +269,7 @@
 
                     <!-- Price -->
                     <TextView
-                        android:id="@+id/price"
+                        android:id="@+id/tvPrice"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minWidth="53dp"

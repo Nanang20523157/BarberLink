@@ -20,7 +20,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -585,7 +585,7 @@ class ReviewOrderViewModel(
         var isFailed: Boolean
         try {
             outletSelected.let { outlet ->
-                val outletRef = db.document(outlet.rootRef)
+                val docsRef = db.document(outlet.rootRef)
                     .collection("outlets")
                     .document(outlet.uid)
 
@@ -608,7 +608,7 @@ class ReviewOrderViewModel(
 
                 // Update Firestore
                 val task = withContext(Dispatchers.IO) {
-                    outletRef
+                    docsRef
                         .update("list_customers", outlet.listCustomers)
                         .awaitWriteWithOfflineFallback(tag = "UpdateOutletCustomerList")
                 }

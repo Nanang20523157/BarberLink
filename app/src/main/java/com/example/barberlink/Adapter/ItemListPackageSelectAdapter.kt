@@ -23,7 +23,7 @@ class ItemListPackageSelectAdapter(
     private val shimmerList = mutableListOf<ShimmerFrameLayout>()
 
     // Service details injected so we can display service icons in the bundling card
-    var allServices: List<Service> = emptyList()
+    private var allServices: List<Service> = emptyList()
 
     fun setShimmer(shimmer: Boolean) {
         if (isShimmer == shimmer) return
@@ -34,6 +34,10 @@ class ItemListPackageSelectAdapter(
     fun updateSelectedIds(ids: Set<String>) {
         selectedIds = ids
         notifyDataSetChanged()
+    }
+
+    fun setAllServices(services: List<Service>) {
+        allServices = services
     }
 
     override fun getItemViewType(position: Int) =

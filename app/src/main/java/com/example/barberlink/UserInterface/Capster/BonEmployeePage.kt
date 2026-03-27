@@ -27,6 +27,7 @@ import com.demogorgorn.monthpicker.MonthPickerDialog
 import com.example.barberlink.Adapter.ItemListEmployeeBonAdapter
 import com.example.barberlink.Adapter.ItemListTagFilteringAdapter
 import com.example.barberlink.DataClass.BonEmployeeData
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.UserFilterCategories
 import com.example.barberlink.Factory.DatabaseViewModelFactory
@@ -40,7 +41,7 @@ import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.Fragment.FormInputBonFragment
-import com.example.barberlink.UserInterface.Capster.ViewModel.AddedBonViewModel
+import com.example.barberlink.UserInterface.Capster.ViewModel.AddKasbonViewModel
 import com.example.barberlink.UserInterface.ViewModel.BonEmployeeViewModel
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.Concurrency.withStateLock
@@ -53,7 +54,7 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -74,7 +75,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private val bonEmployeeViewModel: BonEmployeeViewModel by viewModels {
         SaveStateViewModelFactory(this)
     }
-    private val addedBonViewModel: AddedBonViewModel by viewModels {
+    private val addKasbonViewModel: AddKasbonViewModel by viewModels {
         DatabaseViewModelFactory(db)
     }
     private val toastViewModel: ToastViewModel by viewModels()
@@ -91,7 +92,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private lateinit var builder: MonthPickerDialog.Builder
     private lateinit var startOfMonth: Timestamp
     private lateinit var startOfNextMonth: Timestamp
-    private var remainingListeners = AtomicInteger(3)
+    private var remainingListeners = AtomicInteger(4)
     private var dataCapsterRef: String = ""
     private var isFirstLoad: Boolean = true
     private var updateListener: Boolean = false
@@ -122,6 +123,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private lateinit var listBonListener: ListenerRegistration
     private lateinit var employeeListener: ListenerRegistration
     private lateinit var nextPrevBonListener: ListenerRegistration
+    private lateinit var rolesListener: ListenerRegistration
     private val listBonMutex = Mutex()
     private var currentSnackbar: Snackbar? = null
     private var isHandlingBack: Boolean = false
@@ -172,7 +174,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         }
 
         bonEmployeeViewModel
-        addedBonViewModel
+        addKasbonViewModel
         toastViewModel
         fragmentManager = supportFragmentManager
         dataCapsterRef = sessionManager.getDataCapsterRef() ?: ""
@@ -201,8 +203,14 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             } else {
                 intent.getParcelableExtra(HomePageCapster.CAPSTER_DATA_KEY) ?: UserEmployeeData()
             }
-//            bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, initPage = true, setupDropdown = true, isSavedInstanceStateNull = true)
             bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, setupDropdown = true, isSavedInstanceStateNull = true)
+//            bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, initPage = true, setupDropdown = true, isSavedInstanceStateNull = true)
+            val employeeRoles = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableArrayListExtra(HomePageCapster.ROLES_DATA_KEY, EmployeeRolesData::class.java) ?: emptyList()
+            } else {
+                intent.getParcelableArrayListExtra<EmployeeRolesData>(HomePageCapster.ROLES_DATA_KEY) ?: emptyList()
+            }
+            bonEmployeeViewModel.setEmployeeRoles(employeeRoles)
         }
 
         init(savedInstanceState)
@@ -214,14 +222,14 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             ivBack.setOnClickListener(this@BonEmployeePage)
         }
 
-        addedBonViewModel.updateStateResult.observe(this) { result ->
+        addKasbonViewModel.updateStateResult.observe(this) { result ->
             when (result) {
-                is AddedBonViewModel.ResultState.Loading -> {
+                is AddKasbonViewModel.ResultState.Loading -> {
                     if (result.isRestore) isRestoreDeletedData = true
                     if (binding.progressBar.isGone) binding.progressBar.visibility = View.VISIBLE
                     listBonAdapter.setBlockStatusUI(true)
                 }
-                is AddedBonViewModel.ResultState.Success -> {
+                is AddKasbonViewModel.ResultState.Success -> {
                     // Navigasi ke halaman sebelumnya
                     binding.progressBar.visibility = View.GONE
                     listBonAdapter.setBlockStatusUI(false)
@@ -229,14 +237,14 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                     if (result.type == "Delete Item") {
                         bonEmployeeViewModel.setDataBonDeleted(result.bonData, "Berhasil Menghapus Data Pinjaman Anda")
                     }
-                    addedBonViewModel.setUpdateStateResult(null)
+                    addKasbonViewModel.setUpdateStateResult(null)
                 }
-                is AddedBonViewModel.ResultState.Failure -> {
+                is AddKasbonViewModel.ResultState.Failure -> {
                     if (result.isRestore) isRestoreDeletedData = false
                     binding.progressBar.visibility = View.GONE
                     listBonAdapter.setBlockStatusUI(false)
                     toastViewModel.showToast(result.message, true)
-                    addedBonViewModel.setUpdateStateResult(null)
+                    addKasbonViewModel.setUpdateStateResult(null)
                 }
                 null -> {}
             }
@@ -509,7 +517,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                         return@let
                     }
 
-                    addedBonViewModel.restoreDeletedData(bonData, rootRef)
+                    addKasbonViewModel.restoreDeletedData(bonData, rootRef)
                 }
             }
 
@@ -710,7 +718,8 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                     val messagetext = if (e.message.toString() == "Terjadi kesalahan saat mengkalkulasi daftar hutang pegawai!") {
                         e.message.toString()
                     } else {
-                        "Terjadi kesalahan saat memperbarui status aktif dari device!."
+                        "Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!"
+                        //"Terjadi kesalahan saat memperbarui status aktif dari device!."
                     }
                     toastViewModel.showToast(messagetext, false)
                 } finally {
@@ -733,7 +742,8 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             }
 
             try {
-                val query = db.collection("${userEmployeeData.rootRef}/employee_bon")
+                //jklp
+                val query = db.collectionGroup("employee_bon")
                     .where(
                         Filter.and(
                             Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
@@ -809,7 +819,8 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
             }
 
             try {
-                val bonRef = db.collection("${userEmployeeData.rootRef}/employee_bon")
+                //jklp
+                val bonRef = db.collectionGroup("employee_bon")
                 val query = bonRef.where(
                     Filter.and(
                         Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
@@ -854,6 +865,22 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         }
     }
 
+    private fun setEmployeeRoleDefaultValue(): EmployeeRolesData {
+        return EmployeeRolesData(
+            barbershopRef = "All",
+            jobDesc = "Default role with default permissions. Please contact your administrator to assign the correct role.",
+            permissions = mapOf(
+                "approval_bon" to false,
+                "beranda_admin" to false,
+                "dashboard_admin" to false,
+                "manage_queue" to true,
+                "manual_report" to true,
+            ),
+            roleName = "Employee",
+            uid = "----------------"
+        )
+    }
+
     private fun filteringByCategorySelected(bonList: List<BonEmployeeData>): MutableList<BonEmployeeData> {
         // Filter berdasarkan filterByTag (seperti sebelumnya)
         val filteredByTag = when (filterByTag) {
@@ -879,10 +906,11 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(3)
+        if (skippedProcess) remainingListeners.set(4)
         listenToUserCapsterData()
         listenAllBonData()
         listenNextAndPreviousRemainingBon()
+        listenToEmployeesRoles()
 
         // Tambahkan logika sinkronisasi di sini
         lifecycleScope.launch {
@@ -897,12 +925,12 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     }
 
     private fun listenToUserCapsterData() {
-        dataCapsterRef.let {
+        dataCapsterRef.let { data ->
             if (::employeeListener.isInitialized) {
                 employeeListener.remove()
             }
 
-            if (dataCapsterRef.isEmpty()) {
+            if (data.isEmpty()) {
                 employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -928,6 +956,9 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                                             val userEmployeeData = docs.toObject(UserEmployeeData::class.java)?.apply {
                                                 userRef = docs.reference.path
                                                 outletRef = ""
+                                                roleDetail = bonEmployeeViewModel.employeeRolesList.value?.find {
+                                                    it.roleName == this.role
+                                                } ?: setEmployeeRoleDefaultValue()
                                             }
                                             userEmployeeData?.let {
                                                 bonEmployeeViewModel.setUserEmployeeData(userEmployeeData, setupDropdown = false, isSavedInstanceStateNull = true)
@@ -948,20 +979,76 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         }
     }
 
+    private fun listenToEmployeesRoles() {
+        bonEmployeeViewModel.userEmployeeData.value?.let { userEmployeeData ->
+            if (::rolesListener.isInitialized) {
+                rolesListener.remove()
+            }
+
+            if (userEmployeeData.rootRef.isEmpty()) {
+                rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            rolesListener = db.collection("roles")
+                .whereIn("barbershop_ref", listOf("All", userEmployeeData.rootRef))
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        bonEmployeeViewModel.listenerRolesMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to employee roles data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    withContext(Dispatchers.Default) {
+                                        bonEmployeeViewModel.rolesListMutex.withStateLock {
+                                            val employeeRoles = docs.mapNotNull { document ->
+                                                document.toObject(EmployeeRolesData::class.java)
+                                            }
+
+                                            bonEmployeeViewModel.setEmployeeRoles(employeeRoles)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Kurangi counter pada snapshot pertama
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+
+        } ?: run {
+            rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        }
+    }
+
     private fun listenAllBonData() {
         bonEmployeeViewModel.userEmployeeData.value?.let { userEmployeeData ->
             if (::listBonListener.isInitialized) {
                 listBonListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty()) {
                 listBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            listBonListener = db.collection("${userEmployeeData.rootRef}/employee_bon").where(
+            //jklp
+            listBonListener = db.collectionGroup("employee_bon").where(
                 Filter.and(
                     Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
                     Filter.greaterThanOrEqualTo("timestamp_created", startOfMonth),
@@ -1026,15 +1113,16 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
                 nextPrevBonListener.remove()
             }
 
-            if (userEmployeeData.rootRef.isEmpty()) {
+            if (userEmployeeData.userRef.isEmpty()) {
                 nextPrevBonListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            val bonRef = db.collection("${userEmployeeData.rootRef}/employee_bon")
+            val bonRef = db.collectionGroup("employee_bon")
 
+            //jklp
             nextPrevBonListener = bonRef.where(
                 Filter.and(
                     Filter.equalTo("data_creator.user_ref", userEmployeeData.userRef),
@@ -1188,12 +1276,12 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
 //        BarberLinkApp.sessionManager.setActivePage("Admin")
-        Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-OUTLET =====================")
+        Log.d("CheckLifecycle", "==================== ON RESUME BON-EMPLOYEE-PAGE =====================")
         super.onResume()
         // Set sudut dinamis sesuai perangkat
 //        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         if (!isRecreated) {
-            if ((!::employeeListener.isInitialized || !::listBonListener.isInitialized || !::nextPrevBonListener.isInitialized) && !isFirstLoad) {
+            if ((!::employeeListener.isInitialized || !::listBonListener.isInitialized || !::nextPrevBonListener.isInitialized || !::rolesListener.isInitialized) && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -1251,7 +1339,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     }
 
     override fun onPause() {
-        Log.d("CheckLifecycle", "==================== ON PAUSE MANAGE-OUTLET  =====================")
+        Log.d("CheckLifecycle", "==================== ON PAUSE BON-EMPLOYEE-PAGE  =====================")
         super.onPause()
         if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
             clearBackStack()
@@ -1280,6 +1368,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::listBonListener.isInitialized) listBonListener.remove()
         if (::nextPrevBonListener.isInitialized) nextPrevBonListener.remove()
+        if (::rolesListener.isInitialized) rolesListener.remove()
         bonEmployeeViewModel.clearDropdownStateValue()
     }
 
@@ -1287,14 +1376,14 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
         bonData: BonEmployeeData,
         newStatus: String
     ) {
-        addedBonViewModel.updateBonStatus(bonData, newStatus)
+        addKasbonViewModel.updateBonStatus(bonData, newStatus)
     }
 
     override fun deleteBonItem(
         bonData: BonEmployeeData,
         isLastPosition: Boolean
     ) {
-        addedBonViewModel.deleteBonItem(bonData, isLastPosition)
+        addKasbonViewModel.deleteBonItem(bonData, isLastPosition)
     }
 
     override fun setActiveTagFilterCategory(position: Int) {

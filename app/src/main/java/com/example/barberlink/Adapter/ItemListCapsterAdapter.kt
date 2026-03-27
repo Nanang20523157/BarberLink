@@ -148,6 +148,20 @@ class ItemListCapsterAdapter(
             with (binding) {
                 tvWaitingListLabel.isSelected = true
                 tvCapsterName.isSelected = true
+
+                val density = root.resources.displayMetrics.density
+                if (userEmployeeData.availabilityStatus) {
+                    root.apply {
+                        strokeColor = ContextCompat.getColor(context, R.color.color_stroke_material_card_default)
+                        strokeWidth = (1 * density).toInt()
+                    }
+                } else {
+                    root.apply {
+                        strokeColor = ContextCompat.getColor(context, R.color.color_stroke_material_card_pink)
+                        strokeWidth = (2.5 * density).toInt()
+                    }
+                }
+
                 tvCapsterName.text = userEmployeeData.fullname
                 val username = userEmployeeData.username.ifEmpty { "---" }
                 tvUsername.text = root.context.getString(R.string.username_template, username)
@@ -156,11 +170,6 @@ class ItemListCapsterAdapter(
                 tvRestQueueFromCapster.text = NumberUtils.convertToFormattedString(userEmployeeData.restOfQueue)
 
                 setUserGender(userEmployeeData.gender)
-//                val specializationCost = NumberUtils.toKFormat(employee.specializationCost)
-//                tvSpecializationCost.text = specializationCost
-
-//                if (employee.availabilityStatus) setBtnNextToEnableState()
-//                else setBtnNextToDisableState()
 
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)

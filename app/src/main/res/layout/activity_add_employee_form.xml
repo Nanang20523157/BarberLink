@@ -1,0 +1,1286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    tools:context=".UserInterface.Admin.AddEmployeeFormActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/main_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <View
+                android:id="@+id/border_status_bar"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:background="@color/white"
+                android:elevation="1dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toTopOf="@id/headerContainer"/>
+
+            <!-- Header - Top Navigation Bar -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/headerContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/white"
+                android:paddingVertical="12dp"
+                android:elevation="10dp"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:id="@+id/ivBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginStart="30dp"
+                    android:contentDescription="@string/icon_back_button_desc"
+                    android:src="@drawable/ic_back"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="#0F172A" />
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="13dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:text="@string/toolbar_edit_employee"
+                    android:textColor="#0F172A"
+                    android:textSize="19sp"
+                    android:letterSpacing="-0.02"
+                    android:layout_marginTop="3.5dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/ivBack"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <LinearLayout
+                    android:id="@+id/modeBadgeContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/bg_badge_edit_mode_figma"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    android:gravity="center"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@+id/ivMore"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <TextView
+                        android:id="@+id/tvModeBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:text="@string/form_edit_mode"
+                        android:textColor="#10BBBB"
+                        android:textSize="12sp"
+                        android:textAllCaps="true"
+                        android:letterSpacing="0.05" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/ivMore"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/icon_select_mode_desc"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_triple_more_circle"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="#0F172A" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Main Content -->
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/nestedScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:fillViewport="true"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/headerContainer">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="24dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false">
+
+                    <!-- Profile Image Section -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/flImagePicker"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:layout_marginHorizontal="18dp"
+                        app:cardCornerRadius="12dp"
+                        app:cardBackgroundColor="#E2E8F0"
+                        app:strokeColor="#4D10BBBB"
+                        app:strokeWidth="2dp"
+                        app:cardElevation="0dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?attr/selectableItemBackground">
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent">
+
+                            <ImageView
+                                android:id="@+id/ivEmployeePhoto"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:contentDescription="@string/image_outlet_placeholder_desc"
+                                android:scaleType="centerCrop"
+                                android:alpha="0.6"
+                                android:src="@drawable/img_capster_placeholder" />
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center"
+                                android:gravity="center"
+                                android:orientation="vertical">
+
+                                <FrameLayout
+                                    android:layout_width="56dp"
+                                    android:layout_height="56dp"
+                                    android:background="@drawable/circle_teal">
+
+                                    <ImageView
+                                        android:layout_width="24dp"
+                                        android:layout_height="24dp"
+                                        android:layout_gravity="center"
+                                        android:contentDescription="@string/icon_select_image_desc"
+                                        android:src="@drawable/ic_pick_image"
+                                        app:tint="@color/white" />
+
+                                </FrameLayout>
+
+                                <TextView
+                                    android:id="@+id/tvImagePlaceholderLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="8dp"
+                                    android:fontFamily="@font/poppins_semibold"
+                                    android:text="@string/change_cover_image_intruction"
+                                    android:textColor="#0F172A"
+                                    android:textSize="14sp" />
+                            </LinearLayout>
+                        </FrameLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Basic Information Section -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="20dp"
+                        android:layout_marginStart="18dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        tools:ignore="UseCompoundDrawables">
+
+                        <ImageView
+                            android:layout_width="21.5dp"
+                            android:layout_height="21.5dp"
+                            android:contentDescription="@string/icon_general_outlet_desc"
+                            android:src="@drawable/ic_user_outline"
+                            app:tint="@color/sky_blue" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1.5dp"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/label_basic_information"
+                            android:textColor="#1A1A1A"
+                            android:textSize="18sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <!-- Fullname -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/hint_fullname"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="6.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etFullname"
+                        style="@style/FormInputText"
+                        android:autofillHints=""
+                        android:background="@drawable/bg_input_disabled_figma"
+                        android:hint="@string/hint_fullname_employee"
+                        android:inputType="textPersonName"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:paddingTop="15dp"
+                        android:paddingBottom="11dp"
+                        android:paddingHorizontal="17dp"/>
+
+                    <!-- Username -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/label_username"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etUsername"
+                        style="@style/FormInputText"
+                        android:autofillHints="username"
+                        android:background="@drawable/bg_input_disabled_figma"
+                        android:hint="\@J5mithJR"
+                        android:inputType="textVisiblePassword"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:paddingTop="15dp"
+                        android:paddingBottom="11dp"
+                        android:paddingHorizontal="17dp"/>
+
+                    <!-- Email -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/email_label"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etEmail"
+                        style="@style/FormInputText"
+                        android:autofillHints="emailAddress"
+                        android:background="@drawable/bg_input_disabled_figma"
+                        android:hint="@string/hint_email_employee"
+                        android:inputType="textEmailAddress"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:paddingTop="15dp"
+                        android:paddingBottom="11dp"
+                        android:paddingHorizontal="17dp"/>
+
+                    <!-- Phone Number -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/phone_number_staff"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etPhoneNumber"
+                        style="@style/FormInputText"
+                        android:autofillHints="phone"
+                        android:background="@drawable/bg_input_disabled_figma"
+                        android:hint="@string/outlet_phone_number_hint"
+                        android:inputType="phone"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:paddingTop="15dp"
+                        android:paddingBottom="11dp"
+                        android:paddingHorizontal="17dp"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:clipToPadding="false"
+                        android:clipChildren="false">
+
+                        <!-- Employee Gender -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:clipToPadding="false"
+                            android:clipChildren="false">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    style="@style/FormLabel"
+                                    android:layout_marginStart="2dp"
+                                    android:text="@string/label_gender"
+                                    android:textColor="#475569"
+                                    android:textStyle="bold"
+                                    android:textSize="14sp" />
+
+                                <TextView
+                                    style="@style/FormLabel"
+                                    android:layout_marginStart="1.5dp"
+                                    android:layout_marginTop="-1.4dp"
+                                    android:text="*"
+                                    android:textColor="@color/red_role"
+                                    android:textSize="14sp"
+                                    android:textStyle="bold" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="7dp">
+
+                                <androidx.cardview.widget.CardView
+                                    android:layout_width="0dp"
+                                    android:layout_height="46dp"
+                                    android:layout_weight="1"
+                                    android:elevation="18dp"
+                                    app:cardCornerRadius="7.61dp"
+                                    android:outlineAmbientShadowColor="@color/black"
+                                    android:outlineSpotShadowColor="@color/black">
+
+                                    <!-- AutoCompleteTextView for Dropdown -->
+                                    <com.google.android.material.textfield.TextInputLayout
+                                        android:id="@+id/tilCapsterGander"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        app:hintEnabled="false"
+                                        app:errorEnabled="true"
+                                        app:boxStrokeErrorColor="@color/red"
+                                        app:boxBackgroundColor="@color/white"
+                                        app:errorIconDrawable="@drawable/ic_error"
+                                        app:errorIconTint="@color/red"
+                                        app:errorTextColor="@color/red"
+                                        android:backgroundTint="@android:color/transparent"
+                                        app:boxStrokeColor="@android:color/transparent"
+                                        android:layout_below="@id/tvSearchDropdownLabel"
+                                        android:layout_alignParentStart="true"
+                                        app:boxStrokeWidth="0dp"
+                                        app:boxCornerRadiusBottomEnd="7.61dp"
+                                        app:boxCornerRadiusBottomStart="7.61dp"
+                                        app:boxCornerRadiusTopEnd="7.61dp"
+                                        app:boxCornerRadiusTopStart="7.61dp"
+                                        app:endIconTint="@color/grey_default_material_layout"
+                                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                        app:endIconMode="dropdown_menu">
+
+                                        <AutoCompleteTextView
+                                            android:id="@+id/acCapsterGender"
+                                            android:layout_width="match_parent"
+                                            android:layout_height="match_parent"
+                                            android:paddingStart="15dp"
+                                            android:paddingEnd="0dp"
+                                            android:textSize="15sp"
+                                            android:hint="@string/hint_gender"
+                                            android:inputType="none"
+                                            android:background="@drawable/bg_dropdown_disabled_figma"
+                                            android:cursorVisible="false"/>
+
+                                    </com.google.android.material.textfield.TextInputLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                                <View
+                                    android:layout_width="8dp"
+                                    android:layout_height="match_parent"/>
+
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvGender"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_gravity="center"
+                                    app:cardCornerRadius="10dp"
+                                    android:elevation="18dp">
+
+                                    <LinearLayout
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:background="@drawable/bg_input_disabled_figma">
+
+                                        <ImageView
+                                            android:id="@+id/ivGender"
+                                            android:layout_width="20dp"
+                                            android:layout_height="20dp"
+                                            android:paddingHorizontal="1dp"
+                                            android:layout_marginVertical="12dp"
+                                            android:layout_marginHorizontal="12dp"
+                                            android:src="@drawable/ic_questions"
+                                            android:contentDescription="@string/icon_gender_ilustration" />
+
+                                    </LinearLayout>
+
+                                </androidx.cardview.widget.CardView>
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- Employee Role -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/label_role_pegawai"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="16dp">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="0dp"
+                            android:layout_height="46dp"
+                            android:layout_weight="1"
+                            android:elevation="18dp"
+                            app:cardCornerRadius="7.61dp"
+                            android:outlineAmbientShadowColor="@color/black"
+                            android:outlineSpotShadowColor="@color/black">
+
+                            <!-- AutoCompleteTextView for Dropdown -->
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:id="@+id/tilRole"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                app:hintEnabled="false"
+                                app:errorEnabled="true"
+                                app:boxStrokeErrorColor="@color/red"
+                                app:boxBackgroundColor="@color/white"
+                                app:errorIconDrawable="@drawable/ic_error"
+                                app:errorIconTint="@color/red"
+                                app:errorTextColor="@color/red"
+                                android:backgroundTint="@android:color/transparent"
+                                app:boxStrokeColor="@android:color/transparent"
+                                app:boxStrokeWidth="0dp"
+                                app:boxCornerRadiusBottomEnd="7.61dp"
+                                app:boxCornerRadiusBottomStart="7.61dp"
+                                app:boxCornerRadiusTopEnd="7.61dp"
+                                app:boxCornerRadiusTopStart="7.61dp"
+                                app:endIconTint="@color/grey_default_material_layout"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                                app:endIconMode="dropdown_menu">
+
+                                <AutoCompleteTextView
+                                    android:id="@+id/actvRole"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:paddingStart="15dp"
+                                    android:paddingEnd="0dp"
+                                    android:textSize="15sp"
+                                    android:hint="@string/hint_role"
+                                    android:inputType="none"
+                                    android:cursorVisible="false"/>
+
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                        </androidx.cardview.widget.CardView>
+
+                        <View
+                            android:layout_width="8dp"
+                            android:layout_height="match_parent"/>
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cvRole"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="center"
+                            app:cardCornerRadius="10dp"
+                            android:elevation="18dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@drawable/bg_button_select_maps_figma">
+
+                                <ImageView
+                                    android:id="@+id/ivRole"
+                                    android:layout_width="20dp"
+                                    android:layout_height="20dp"
+                                    android:scaleX="1.1"
+                                    android:scaleY="1.1"
+                                    android:layout_marginVertical="12dp"
+                                    android:layout_marginHorizontal="12dp"
+                                    android:src="@drawable/ic_pen"
+                                    app:tint="@color/white"
+                                    android:contentDescription="@string/icon_gender_ilustration" />
+
+                            </LinearLayout>
+
+                        </androidx.cardview.widget.CardView>
+
+                    </LinearLayout>
+
+                    <!-- Role Description Accordion -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cvRoleDescription"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginEnd="16dp"
+                        app:cardCornerRadius="15dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E1E3E3"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <!-- Accordion Header -->
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/clRoleDescriptionHeader"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:paddingVertical="20dp"
+                                android:paddingHorizontal="16dp"
+                                android:background="@color/white"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackground">
+
+                                <TextView
+                                    android:id="@+id/tvRoleDescriptionTitle"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/label_role_description"
+                                    android:textColor="@color/slate_800"
+                                    android:textSize="13.5sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginStart="5dp"
+                                    app:layout_constraintEnd_toStartOf="@+id/ivRoleDescriptionArrow"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintTop_toTopOf="parent" />
+
+                                <TextView
+                                    android:id="@+id/tvRoleDescriptionSubTitle"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="@string/desc_role_description"
+                                    android:textColor="@color/slate_400"
+                                    android:textSize="12sp"
+                                    android:layout_marginTop="3.5dp"
+                                    android:layout_marginStart="5dp"
+                                    android:layout_marginEnd="5dp"
+                                    app:layout_constraintEnd_toStartOf="@+id/ivRoleDescriptionArrow"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintTop_toBottomOf="@id/tvRoleDescriptionTitle" />
+
+                                <ImageView
+                                    android:id="@+id/ivRoleDescriptionArrow"
+                                    android:layout_width="32dp"
+                                    android:layout_height="32dp"
+                                    android:background="@drawable/circle_soft_teal"
+                                    android:contentDescription="@string/icon_arrow_desc"
+                                    android:padding="6dp"
+                                    android:layout_marginEnd="5dp"
+                                    android:src="@drawable/ic_arrow_dropdown"
+                                    app:layout_constraintBottom_toBottomOf="parent"
+                                    app:layout_constraintEnd_toEndOf="parent"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:tint="#10BBBB" />
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <!-- Accordion Content (Collapsible) -->
+                            <LinearLayout
+                                android:id="@+id/llRoleDescriptionContent"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:paddingTop="16dp"
+                                android:paddingHorizontal="16dp"
+                                android:paddingBottom="5dp"
+                                android:clipToPadding="false"
+                                android:clipToOutline="false"
+                                android:background="@drawable/bg_accordion_content_figma"
+                                android:visibility="gone">
+
+                                <View
+                                    android:layout_width="match_parent"
+                                    android:layout_height="1dp"
+                                    android:background="@color/slate_200"
+                                    android:layout_marginTop="-16dp"
+                                    android:layout_marginStart="-16dp"
+                                    android:layout_marginEnd="-16dp" />
+
+                                <TextView
+                                    android:id="@+id/tvAccessRights"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="20dp"
+                                    android:layout_marginHorizontal="5dp"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="@string/hint_desc_role_description"
+                                    android:textColor="@color/slate_800"
+                                    android:textSize="11.5sp"
+                                    android:lineSpacingExtra="4dp" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Permissions List Accordion -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cvEmployeePermission"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginEnd="16dp"
+                        app:cardCornerRadius="15dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="#E1E3E3"
+                        app:strokeWidth="1dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <!-- Accordion Header -->
+                            <androidx.constraintlayout.widget.ConstraintLayout
+                                android:id="@+id/clEmployeePermissionHeader"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:paddingVertical="20dp"
+                                android:paddingHorizontal="16dp"
+                                android:background="@color/white"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackground">
+
+                                <TextView
+                                    android:id="@+id/tvEmployeePermissionTitle"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/label_permission_list"
+                                    android:textColor="@color/slate_800"
+                                    android:textSize="13.5sp"
+                                    android:textStyle="bold"
+                                    android:layout_marginStart="5dp"
+                                    app:layout_constraintEnd_toStartOf="@+id/ivEmployeePermissionArrow"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintTop_toTopOf="parent" />
+
+                                <TextView
+                                    android:id="@+id/tvEmployeePermissionSubTitle"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="@string/desc_permission_list"
+                                    android:textColor="@color/slate_400"
+                                    android:textSize="12sp"
+                                    android:layout_marginTop="3dp"
+                                    android:layout_marginStart="5dp"
+                                    android:layout_marginEnd="5dp"
+                                    app:layout_constraintEnd_toStartOf="@+id/ivEmployeePermissionArrow"
+                                    app:layout_constraintStart_toStartOf="parent"
+                                    app:layout_constraintTop_toBottomOf="@id/tvEmployeePermissionTitle" />
+
+                                <ImageView
+                                    android:id="@+id/ivEmployeePermissionArrow"
+                                    android:layout_width="32dp"
+                                    android:layout_height="32dp"
+                                    android:background="@drawable/circle_soft_teal"
+                                    android:contentDescription="@string/icon_arrow_desc"
+                                    android:padding="6dp"
+                                    android:layout_marginEnd="5dp"
+                                    android:src="@drawable/ic_arrow_dropdown"
+                                    app:layout_constraintBottom_toBottomOf="parent"
+                                    app:layout_constraintEnd_toEndOf="parent"
+                                    app:layout_constraintTop_toTopOf="parent"
+                                    app:tint="#10BBBB" />
+
+                            </androidx.constraintlayout.widget.ConstraintLayout>
+
+                            <!-- Accordion Content (Collapsible) -->
+                            <LinearLayout
+                                android:id="@+id/llEmployeePermissionContent"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:paddingTop="16dp"
+                                android:paddingHorizontal="16dp"
+                                android:clipToPadding="false"
+                                android:clipToOutline="false"
+                                android:background="@drawable/bg_accordion_content_figma"
+                                android:visibility="gone">
+
+                                <View
+                                    android:layout_width="match_parent"
+                                    android:layout_height="1dp"
+                                    android:background="@color/slate_200"
+                                    android:layout_marginTop="-16dp"
+                                    android:layout_marginStart="-16dp"
+                                    android:layout_marginEnd="-16dp" />
+
+                                <androidx.recyclerview.widget.RecyclerView
+                                    android:id="@+id/rvPermissions"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:nestedScrollingEnabled="false"
+                                    android:layout_marginTop="16dp"
+                                    tools:itemCount="2"
+                                    tools:listitem="@layout/item_list_permission_card"
+                                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Employee Salary -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/label_salary"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+<!--                    <com.google.android.material.textfield.TextInputLayout-->
+<!--                        android:id="@+id/tilSalary"-->
+<!--                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="1.5dp"-->
+<!--                        android:layout_marginHorizontal="15dp"-->
+<!--                        app:prefixText="Rp "-->
+<!--                        app:prefixTextColor="@color/black_font_color"-->
+<!--                        app:prefixTextAppearance="@style/PrefixTextAppearance4">-->
+
+<!--                        <EditText-->
+<!--                            android:id="@+id/etSalary"-->
+<!--                            style="@style/FormInputText"-->
+<!--                            android:layout_width="match_parent"-->
+<!--                            android:layout_height="wrap_content"-->
+<!--                            android:autofillHints=""-->
+<!--                            android:background="@drawable/bg_input_selector"-->
+<!--                            android:text="@string/value_default_salary"-->
+<!--                            android:textSize="14.5sp"-->
+<!--                            android:inputType="number"-->
+<!--                            android:paddingTop="15dp"-->
+<!--                            android:paddingBottom="11dp"-->
+<!--                            android:paddingHorizontal="17dp" />-->
+
+<!--                    </com.google.android.material.textfield.TextInputLayout>-->
+                    <FrameLayout
+                        android:id="@+id/containerSalary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="visible"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="14dp"
+                        android:layout_marginBottom="8dp">
+
+                        <EditText
+                            android:id="@+id/etSalary"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_input_selector_blue"
+                            android:paddingStart="42dp"
+                            android:paddingEnd="16dp"
+                            android:paddingTop="14.7dp"
+                            android:paddingBottom="16dp"
+                            android:hint="0"
+                            android:textColorHint="#191C1D"
+                            android:textColor="#191C1D"
+                            android:textSize="16sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:inputType="number"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="start|center_vertical"
+                            android:layout_marginStart="16dp"
+                            android:text="Rp"
+                            android:textColor="#191C1D"
+                            android:textSize="14sp"
+                            android:fontFamily="sans-serif-medium"/>
+
+                    </FrameLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#E2E8F0"
+                        android:layout_marginTop="24dp"
+                        android:layout_marginHorizontal="10dp"
+                        android:layout_marginBottom="12dp"/>
+
+                    <!-- Attendance Status -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginHorizontal="12dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="3dp"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="@string/label_attendance_status"
+                            android:textColor="#334155"
+                            android:textSize="14sp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAttendance"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            app:thumbTint="@color/white"
+                            app:trackTint="#10BBBB"/>
+                    </LinearLayout>
+
+                    <!-- Availability Status -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="7dp"
+                        android:layout_marginHorizontal="12dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="3dp"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="@string/label_availability_status"
+                            android:textColor="#334155"
+                            android:textSize="14sp" />
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchAvailability"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            app:thumbTint="@color/white"
+                            app:trackTint="#10BBBB"/>
+                    </LinearLayout>
+
+                    <!-- Employee Rating -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginHorizontal="12dp">
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="3dp"
+                            android:text="@string/label_employee_rating"
+                            android:textColor="#334155"
+                            android:textSize="14sp"
+                            android:fontFamily="@font/poppins_regular"/>
+                        
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+                            <!-- Star Icons -->
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_star_full_figma" app:tint="#10BBBB" android:contentDescription="@string/star_image_desc"/>
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_star_full_figma" app:tint="#10BBBB" android:contentDescription="@string/star_image_desc"/>
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_star_full_figma" app:tint="#10BBBB" android:contentDescription="@string/star_image_desc"/>
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_star_full_figma" app:tint="#10BBBB" android:contentDescription="@string/star_image_desc"/>
+                            <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_star_empty_figma" app:tint="#10BBBB" android:contentDescription="@string/star_image_desc"/>
+                            <!-- Rating Value -->
+                            <TextView
+                                android:id="@+id/tvEmployeeRatingVal"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2.25dp"
+                                android:layout_marginStart="8dp"
+                                android:layout_marginEnd="5dp"
+                                android:fontFamily="@font/poppins_bold"
+                                android:textColor="#0F172A"
+                                android:textSize="17sp"
+                                android:text="@string/value_default_rating"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="26dp"/>
+
+                    <!-- Work Placement (Outlets) Header -->
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:layout_marginHorizontal="14dp">
+
+                        <ImageView
+                            android:id="@+id/ivWorkPlacementIcon"
+                            android:layout_width="23dp"
+                            android:layout_height="23dp"
+                            android:contentDescription="@string/image_outlet_placeholder_desc"
+                            android:src="@drawable/ic_outlet"
+                            app:tint="@color/sky_blue"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                        <TextView
+                            android:id="@+id/tvLabelWorkPlacement"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/label_work_placement_outlets"
+                            android:textColor="#1A1A1A"
+                            android:textSize="18sp"
+                            app:layout_constraintStart_toEndOf="@id/ivWorkPlacementIcon"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"/>
+
+                        <FrameLayout
+                            android:id="@+id/btnAddWorkPlacement"
+                            android:layout_width="36dp"
+                            android:layout_height="36dp"
+                            android:layout_marginTop="1.5dp"
+                            android:background="@drawable/bg_btn_soft_teal_figma"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:foreground="?attr/selectableItemBackground"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent">
+                            <ImageView
+                                android:layout_width="14dp"
+                                android:layout_height="14dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="@string/icon_add_item_desc"
+                                android:src="@drawable/ic_add_figma"
+                                app:tint="#10BBBB" />
+                        </FrameLayout>
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <!-- Work Placement List -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvWorkPlacement"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:clipChildren="false"
+                        android:nestedScrollingEnabled="false"
+                        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                        tools:listitem="@layout/item_list_work_placement_adapter"
+                        tools:itemCount="2"/>
+
+                    <View
+                        android:id="@+id/view_space"
+                        android:layout_width="match_parent"
+                        android:layout_height="85dp"
+                        android:visibility="visible"/>
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
+
+    <!-- Bottom Action Bar -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomFloatArea"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:background="#FAFFFFFF"
+        android:elevation="24dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1ABBC9C9"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:paddingHorizontal="24dp"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <TextView
+                android:id="@+id/btnNavCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BATAL"
+                android:fontFamily="@font/poppins_bold"
+                android:textColor="@color/magenta"
+                android:textSize="14sp"
+                android:padding="16dp"
+                android:layout_marginStart="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnNavSave"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                app:cardBackgroundColor="@color/sky_blue"
+                app:cardCornerRadius="24dp"
+                android:layout_marginEnd="20dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="1dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:clipToPadding="false"
+                android:clipChildren="false">
+
+                <LinearLayout
+                    android:layout_width="204dp"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingHorizontal="24dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_check_mark_outline"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="SIMPAN PEGAWAI"
+                        android:layout_marginTop="1.5dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Loading Overlay -->
+    <FrameLayout
+        android:id="@+id/flLoadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:elevation="100dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="5dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:cardElevation="7dp"
+            android:layout_marginTop="-30dp"
+            android:layout_gravity="center"
+            app:cardCornerRadius="30dp">
+
+            <ProgressBar
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:layout_margin="5dp"
+                android:elevation="20dp"
+                android:indeterminateTint="@color/sky_blue" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
+
+</FrameLayout>

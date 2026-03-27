@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- Background color based on the design's soft gray/white look -->
+    <solid android:color="#FFFFFF" />
+
+    <!-- rounded-2xl style (approx 16dp) -->
+    <corners android:radius="8dp" />
+
+    <!-- Dashed Border as seen in the wireframe/screenshot -->
+    <stroke
+        android:width="1.5dp"
+        android:color="#D1D5DB"
+        android:dashWidth="6dp"
+        android:dashGap="4dp" />
+</shape>

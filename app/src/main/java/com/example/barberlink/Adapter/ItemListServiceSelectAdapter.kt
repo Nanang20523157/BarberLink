@@ -8,6 +8,8 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Service
+import com.example.barberlink.R
+import com.example.barberlink.Utils.ServiceIconUtils
 import com.example.barberlink.databinding.ItemServiceSelectAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutServiceSelectBinding
 import com.facebook.shimmer.ShimmerFrameLayout
@@ -70,16 +72,17 @@ class ItemListServiceSelectAdapter(
                 tvServiceName.text = service.serviceName
                 tvServiceDescription.text = service.serviceDesc.ifEmpty { service.serviceCategory }
                 tvRating.text = service.serviceRating.toString()
-                price.text = formatPrice(service.servicePrice)
+                tvPrice.text = formatPrice(service.servicePrice)
 
 
                 // Load service icon
                 if (service.serviceIcon.isNotEmpty()) {
-                    Glide.with(root.context).load(service.serviceIcon)
-                        .centerCrop().into(ivIconService)
+                    ServiceIconUtils.loadServiceIcon(root.context, service.serviceIcon, ivIconService)
                 } else if (service.serviceImg.isNotEmpty()) {
                     Glide.with(root.context).load(service.serviceImg)
                         .centerCrop().into(ivIconService)
+                } else {
+                    ivIconService.setImageResource(R.drawable.img_service_icon_placeholder)
                 }
 
                 val isSelected = selectedIds.contains(service.uid)

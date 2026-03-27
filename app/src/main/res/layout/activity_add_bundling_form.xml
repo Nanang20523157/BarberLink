@@ -1,0 +1,1243 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
+    tools:context=".UserInterface.Admin.AddBundlingFormActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/main_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <View
+                android:id="@+id/border_status_bar"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:background="@color/white"
+                android:elevation="1dp"
+                app:layout_constraintBottom_toTopOf="@id/headerContainer"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+            <!-- Header - Top Navigation Bar -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/headerContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/white"
+                android:elevation="10dp"
+                android:paddingVertical="12dp"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <ImageView
+                    android:id="@+id/ivBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginStart="30dp"
+                    android:contentDescription="Tombol Kembali"
+                    android:src="@drawable/ic_back"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/slate_900" />
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="13dp"
+                    android:layout_marginTop="3.5dp"
+                    android:fontFamily="@font/poppins_bold"
+                    android:letterSpacing="-0.02"
+                    android:text="Edit Paket"
+                    android:textColor="@color/slate_900"
+                    android:textSize="19sp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/ivBack"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <LinearLayout
+                    android:id="@+id/modeBadgeContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/bg_badge_edit_mode_figma"
+                    android:gravity="center"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="4dp"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@+id/ivMore"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <TextView
+                        android:id="@+id/tvModeBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/poppins_bold"
+                        android:letterSpacing="0.05"
+                        android:text="EDIT MODE"
+                        android:textAllCaps="true"
+                        android:textColor="@color/sky_blue"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/ivMore"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Tombol Opsi Lainnya"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_triple_more_circle"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="@color/slate_900" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Main Content -->
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/nestedScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:clipChildren="false"
+                android:clipToPadding="false"
+                android:fillViewport="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/headerContainer">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="24dp">
+
+                    <!-- Package Insight Card Component -->
+                    <androidx.cardview.widget.CardView
+                        xmlns:android="http://schemas.android.com/apk/res/android"
+                        xmlns:app="http://schemas.android.com/apk/res-auto"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        app:cardBackgroundColor="#1A1C1E"
+                        app:cardCornerRadius="32dp"
+                        app:cardElevation="8dp">
+
+                        <androidx.constraintlayout.widget.ConstraintLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:padding="32dp"
+                            android:clipToPadding="false"
+                            android:clipChildren="false">
+
+                            <!-- Title Section -->
+                            <TextView
+                                android:id="@+id/tv_package_insight_title"
+                                android:layout_width="110dp"
+                                android:layout_height="wrap_content"
+                                android:text="PACKAGE INSIGHT"
+                                android:textColor="@color/white"
+                                android:textSize="24sp"
+                                android:fontFamily="sans-serif-black"
+                                android:letterSpacing="-0.025"
+                                android:lineSpacingExtra="0dp"
+                                android:maxWidth="180dp"
+                                android:layout_marginTop="-7dp"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent"/>
+
+                            <!-- Chart Icon Container -->
+                            <FrameLayout
+                                android:id="@+id/icon_container"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_chart_icon"
+                                android:padding="8dp"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintTop_toTopOf="parent">
+
+                                <ImageView
+                                    android:id="@+id/iv_chart_icon"
+                                    android:layout_width="13.33dp"
+                                    android:layout_height="13.33dp"
+                                    android:src="@drawable/ic_chart_bar"
+                                    android:contentDescription="Icon chart ilustration"/>
+                            </FrameLayout>
+
+                            <!-- Description Text -->
+                            <TextView
+                                android:id="@+id/tv_package_insight_description"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="20dp"
+                                android:text="Optimalkan pendapatan melalui strategi paket bundling, Anda dapat menyesuaikan harga agar lebih bersahabat dibandingkan dengan harga wajarnya."
+                                android:textColor="#B3FFFFFF"
+                                android:textSize="14sp"
+                                android:fontFamily="sans-serif"
+                                android:lineSpacingExtra="8.75dp"
+                                android:maxWidth="280dp"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toBottomOf="@id/tv_package_insight_title"
+                                app:layout_constraintEnd_toEndOf="parent"/>
+
+                            <!-- Background Decoration Icon -->
+                            <ImageView
+                                android:id="@+id/iv_background_decoration"
+                                android:layout_width="120dp"
+                                android:layout_height="120dp"
+                                android:layout_marginEnd="-50dp"
+                                android:layout_marginBottom="-53dp"
+                                android:src="@drawable/ic_chart_background"
+                                android:contentDescription="Icon decoration background chart"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintBottom_toBottomOf="parent"/>
+
+                        </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    </androidx.cardview.widget.CardView>
+
+                    <!-- Informasi Paket Title -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="23dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="4dp"
+                            android:layout_height="32dp"
+                            app:cardBackgroundColor="@color/sky_blue"
+                            app:cardCornerRadius="2dp"
+                            app:cardElevation="0dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="1.5dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="Informasi Paket"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="18sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <!-- Nama Paket -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="18dp"
+                            android:layout_marginTop="8dp"
+                            android:text="Nama Paket"
+                            android:textColor="@color/form_label_color"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="6.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etPackageName"
+                        style="@style/FormInputText"
+                        android:layout_marginHorizontal="16dp"
+                        android:layout_marginTop="7dp"
+                        android:autofillHints=""
+                        android:background="@drawable/bg_input_selector_blue"
+                        android:hint="Contoh: Paket Ganteng Maksimal"
+                        android:paddingHorizontal="17dp"
+                        android:paddingTop="15dp"
+                        android:paddingBottom="11dp" />
+
+                    <!-- Deskripsi Paket -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="18dp"
+                            android:layout_marginTop="16dp"
+                            android:text="Deskripsi Paket"
+                            android:textColor="@color/form_label_color"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <EditText
+                        android:id="@+id/etPackageDescription"
+                        style="@style/FormInputText"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="16dp"
+                        android:layout_marginTop="7dp"
+                        android:autofillHints=""
+                        android:background="@drawable/bg_input_selector_blue"
+                        android:gravity="top|start"
+                        android:hint="Jelaskan isi paket ini..."
+                        android:inputType="textMultiLine"
+                        android:minLines="3"
+                        android:paddingHorizontal="17dp"
+                        android:paddingTop="15dp"
+                        android:paddingBottom="11dp" />
+
+                    <!-- Rating -->
+                    <TextView
+                        style="@style/FormLabel"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="17dp"
+                        android:text="Rating Layanan"
+                        android:textColor="@color/form_label_color"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="17dp"
+                        android:layout_marginTop="9dp"
+                        android:background="@drawable/bg_rating_container"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="17dp">
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+                            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="3dp" android:src="@drawable/ic_star_full_figma" />
+                            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="4dp" android:src="@drawable/ic_star_full_figma" />
+                            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="4dp" android:src="@drawable/ic_star_full_figma" />
+                            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="4dp" android:src="@drawable/ic_star_full_figma" />
+                            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:layout_marginStart="4dp" android:src="@drawable/ic_star_full_figma" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tvRating"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="10dp"
+                            android:layout_weight="1"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="sans-serif-black"
+                            android:gravity="end"
+                            android:inputType="numberDecimal"
+                            android:maxLength="3"
+                            android:text="5.0"
+                            android:textColor="@color/black"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Daftar Layanan Terpilih -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="30dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="4dp"
+                            android:layout_height="32dp"
+                            app:cardBackgroundColor="@color/sky_blue"
+                            app:cardCornerRadius="2dp"
+                            app:cardElevation="0dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="1.5dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="Daftar Layanan"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="18sp" />
+
+                        <View
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"/>
+
+                        <ImageView
+                            android:id="@+id/ivAddServiceItem"
+                            android:layout_width="32dp"
+                            android:layout_height="32dp"
+                            android:background="@drawable/bg_btn_soft_teal_figma"
+                            android:padding="8dp"
+                            android:src="@drawable/ic_add_figma"
+                            android:contentDescription="@string/icon_add_item_desc"
+                            app:tint="#10BBBB"
+                            android:layout_marginEnd="20dp"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="15dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <!-- Empty State Container -->
+                        <LinearLayout
+                            android:id="@+id/llEmptyListService"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_border_dashed_figma"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="34dp"
+                            android:layout_marginHorizontal="20dp"
+                            android:layout_marginBottom="8dp"
+                            android:visibility="visible">
+
+                            <FrameLayout
+                                android:layout_width="64dp"
+                                android:layout_height="64dp"
+                                android:background="@drawable/bg_round_soft_empty_figma"
+                                android:layout_marginBottom="16dp">
+                                <ImageView
+                                    android:id="@+id/ivEmptyServiceIcon"
+                                    android:layout_width="28dp"
+                                    android:layout_height="28dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_empty_list_service"
+                                    android:contentDescription="@string/icon_empty_state_desc"
+                                    app:tint="#64748B" />
+                            </FrameLayout>
+
+                            <TextView
+                                android:id="@+id/tvEmptyServiceTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/poppins_bold"
+                                android:text="@string/empty_state_service_title"
+                                android:textColor="#0F172A"
+                                android:textSize="16sp"
+                                android:layout_marginBottom="8dp"/>
+
+                            <TextView
+                                android:id="@+id/tvEmptyServiceSubtitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textAlignment="center"
+                                android:fontFamily="@font/poppins_regular"
+                                android:text="@string/empty_state_service_subtitle"
+                                android:textColor="#64748B"
+                                android:textSize="14sp"
+                                android:layout_marginBottom="24dp"
+                                android:paddingHorizontal="16dp"/>
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnLinkServiceData"
+                                android:layout_width="wrap_content"
+                                android:layout_height="40dp"
+                                app:backgroundTint="#1A1A1A"
+                                android:fontFamily="@font/poppins_bold"
+                                android:text="@string/btn_select_service"
+                                android:textColor="#8FD14F"
+                                android:insetTop="0dp"
+                                android:insetBottom="0dp"
+                                app:cornerRadius="8dp"
+                                android:gravity="center_vertical"
+                                android:includeFontPadding="false"
+                                app:icon="@drawable/ic_add_figma"
+                                app:iconSize="20dp"
+                                app:iconTint="#8FD14F" />
+
+                        </LinearLayout>
+
+                        <!-- Content Container -->
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/rvListService"
+                            android:layout_width="match_parent"
+                            android:layout_height="102.5dp"
+                            android:visibility="gone"
+                            tools:itemCount="4"
+                            tools:listitem="@layout/item_list_service_provide_adapter"
+                            android:paddingHorizontal="34dp"
+                            android:layout_marginStart="-16dp"
+                            android:layout_marginEnd="-16dp"
+                            android:layout_marginTop="-10dp"
+                            android:orientation="horizontal"
+                            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                            android:clipChildren="false"
+                            android:clipToPadding="false"/>
+
+                    </FrameLayout>
+
+                    <!-- Tipe & Opsi Layanan Title -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="32dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="4dp"
+                            android:layout_height="32dp"
+                            app:cardBackgroundColor="@color/sky_blue"
+                            app:cardCornerRadius="2dp"
+                            app:cardElevation="0dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="1.5dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="Tipe &amp; Opsi Paket"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="18sp" />
+                    </LinearLayout>
+
+                    <!-- Item Utama -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginEnd="16dp"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="2dp"
+                        app:strokeColor="@color/stroke_color_transparent_26"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="20dp"
+                            android:paddingVertical="18dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="5dp"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/item_utama"
+                                    android:textColor="@color/slate_800"
+                                    android:textSize="13.5sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2.5dp"
+                                    android:layout_marginEnd="5dp"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="@string/item_utama_description"
+                                    android:textColor="@color/slate_400"
+                                    android:textSize="12sp" />
+
+                            </LinearLayout>
+
+                            <com.google.android.material.materialswitch.MaterialSwitch
+                                android:id="@+id/switchCore"
+                                style="@style/Widget.App.Switch3"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="-5dp"
+                                android:checked="false"
+                                android:scaleX="0.55"
+                                android:scaleY="0.55" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Otomatis Terpilih -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="15dp"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginEnd="16dp"
+                        app:cardBackgroundColor="@color/white"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="2dp"
+                        app:strokeColor="@color/stroke_color_transparent_26"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="20dp"
+                            android:paddingVertical="18dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="5dp"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/otomatis_terpilih"
+                                    android:textColor="@color/slate_800"
+                                    android:textSize="13.5sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2.5dp"
+                                    android:layout_marginEnd="5dp"
+                                    android:fontFamily="@font/poppins_regular"
+                                    android:text="@string/otomatis_terpilih_description"
+                                    android:textColor="@color/slate_400"
+                                    android:textSize="12sp" />
+
+                            </LinearLayout>
+
+                            <com.google.android.material.materialswitch.MaterialSwitch
+                                android:id="@+id/switchAuto"
+                                style="@style/Widget.App.Switch3"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="-5dp"
+                                android:checked="false"
+                                android:scaleX="0.55"
+                                android:scaleY="0.55" />
+
+                        </LinearLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Biaya Layanan Title -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="32dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="4dp"
+                            android:layout_height="32dp"
+                            app:cardBackgroundColor="@color/sky_blue"
+                            app:cardCornerRadius="2dp"
+                            app:cardElevation="0dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="1.5dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="Harga Paket"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="18sp" />
+                    </LinearLayout>
+
+                    <!-- Price Card -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_card_white"
+                        android:orientation="vertical"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginHorizontal="16dp"
+                        android:padding="25dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="RINCIAN HARGA"
+                            android:textColor="@color/grey_text_wa"
+                            android:textSize="11sp"
+                            android:fontFamily="sans-serif-medium"
+                            android:letterSpacing="0.1"/>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="#ECEEEE"
+                            android:layout_marginVertical="15dp"/>
+
+                        <!-- Discount Toggle -->
+                        <androidx.constraintlayout.widget.ConstraintLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_service_item"
+                            android:padding="16dp"
+                            android:layout_marginTop="7dp"
+                            android:layout_marginBottom="8dp">
+
+                            <TextView
+                                android:id="@+id/tv_discount_toggle_title"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:text="Berikan Potongan Harga?"
+                                android:textColor="#191C1D"
+                                android:textSize="14sp"
+                                android:layout_marginTop="6dp"
+                                android:fontFamily="sans-serif-medium"
+                                app:layout_constraintTop_toTopOf="@id/switchDiscount"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintEnd_toStartOf="@id/switchDiscount"/>
+
+                            <TextView
+                                android:id="@+id/tv_discount_toggle_desc"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="Aktifkan untuk menyesuaikan harga paket"
+                                android:textColor="#3C4949"
+                                android:textSize="10sp"
+                                android:fontFamily="sans-serif"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toBottomOf="@id/tv_discount_toggle_title"
+                                app:layout_constraintEnd_toStartOf="@id/switchDiscount"/>
+
+                            <com.google.android.material.materialswitch.MaterialSwitch
+                                android:id="@+id/switchDiscount"
+                                style="@style/Widget.App.Switch3"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="-5dp"
+                                android:checked="false"
+                                android:scaleX="0.55"
+                                android:scaleY="0.55"
+                                app:layout_constraintTop_toTopOf="parent"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"/>
+
+                        </androidx.constraintlayout.widget.ConstraintLayout>
+
+                        <!-- Accumulated Price -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Akumulasi Harga Item"
+                                android:textColor="@color/grey_text_wa"
+                                android:textSize="11sp"
+                                android:layout_marginTop="15dp"
+                                android:layout_marginStart="3dp"
+                                android:fontFamily="sans-serif-medium"
+                                android:letterSpacing="0"
+                                android:textAllCaps="true"
+                                android:layout_marginBottom="12dp"/>
+
+                            <TextView
+                                style="@style/FormLabel"
+                                android:layout_marginStart="1.5dp"
+                                android:layout_marginTop="13.9dp"
+                                android:text="*"
+                                android:textColor="@color/red_role"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="8dp">
+
+                            <EditText
+                                android:id="@+id/et_accumulated_price"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_disabled_figma"
+                                android:paddingStart="44dp"
+                                android:paddingEnd="16dp"
+                                android:paddingTop="14.7dp"
+                                android:paddingBottom="16dp"
+                                android:enabled="false"
+                                android:text="0"
+                                android:textSize="16sp"
+                                android:fontFamily="sans-serif-medium"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center_vertical"
+                                android:layout_marginStart="16dp"
+                                android:text="Rp"
+                                android:textColor="?android:attr/textColorHint"
+                                android:textSize="14sp"
+                                android:fontFamily="sans-serif-medium"/>
+                        </FrameLayout>
+
+                        <!-- Discount Amount -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:visibility="visible">
+
+                            <TextView
+                                android:id="@+id/label_discount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Potongan Harga"
+                                android:textColor="@color/grey_text_wa"
+                                android:textSize="11sp"
+                                android:layout_marginTop="15dp"
+                                android:layout_marginStart="3dp"
+                                android:fontFamily="sans-serif-medium"
+                                android:letterSpacing="0"
+                                android:textAllCaps="true"
+                                android:visibility="visible"
+                                android:layout_marginBottom="12dp"/>
+
+                            <TextView
+                                style="@style/FormLabel"
+                                android:layout_marginStart="1.5dp"
+                                android:layout_marginTop="13.9dp"
+                                android:text="*"
+                                android:textColor="@color/red_role"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <FrameLayout
+                            android:id="@+id/container_discount"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="visible"
+                            android:layout_marginBottom="8dp">
+
+                            <EditText
+                                android:id="@+id/etSalary"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_selector_white"
+                                android:paddingStart="42dp"
+                                android:paddingEnd="16dp"
+                                android:paddingTop="14.7dp"
+                                android:paddingBottom="16dp"
+                                android:hint="0"
+                                android:textColorHint="#191C1D"
+                                android:textColor="#191C1D"
+                                android:textSize="16sp"
+                                android:fontFamily="sans-serif-medium"
+                                android:inputType="number"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center_vertical"
+                                android:layout_marginStart="16dp"
+                                android:text="Rp"
+                                android:textColor="#191C1D"
+                                android:textSize="14sp"
+                                android:fontFamily="sans-serif-medium"/>
+
+                        </FrameLayout>
+
+                        <!-- Final Price -->
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="HARGA AKHIR"
+                                android:textColor="@color/grey_text_wa"
+                                android:textSize="11sp"
+                                android:layout_marginTop="15dp"
+                                android:layout_marginStart="3dp"
+                                android:fontFamily="sans-serif-medium"
+                                android:letterSpacing="0"
+                                android:textAllCaps="true"
+                                android:layout_marginBottom="12dp"/>
+
+                            <TextView
+                                style="@style/FormLabel"
+                                android:layout_marginStart="1.5dp"
+                                android:layout_marginTop="13.9dp"
+                                android:text="*"
+                                android:textColor="@color/red_role"
+                                android:textSize="11sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <EditText
+                                android:id="@+id/et_final_price"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_blue_figma"
+                                android:enabled="false"
+                                android:fontFamily="sans-serif-medium"
+                                android:paddingStart="44dp"
+                                android:paddingTop="14.7dp"
+                                android:paddingEnd="16dp"
+                                android:paddingBottom="16dp"
+                                android:text="0"
+                                android:textColor="#191C1D"
+                                android:textSize="16sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="start|center_vertical"
+                                android:layout_marginStart="16dp"
+                                android:text="Rp"
+                                android:textColor="#191C1D"
+                                android:textSize="14sp"
+                                android:fontFamily="sans-serif-medium"/>
+                        </FrameLayout>
+
+                    </LinearLayout>
+
+
+                    <!-- Bagi Hasil -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:layout_marginTop="25dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="4dp"
+                            android:layout_height="32dp"
+                            app:cardBackgroundColor="@color/sky_blue"
+                            app:cardCornerRadius="2dp"
+                            app:cardElevation="0dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginTop="1.5dp"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="Bagi Hasil"
+                            android:textColor="@color/black_font_color"
+                            android:textSize="18sp" />
+                    </LinearLayout>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cvAdminAccess"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="19dp"
+                        android:layout_marginTop="16dp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardCornerRadius="18dp"
+                        app:cardElevation="1dp"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toBottomOf="@id/cvKartu"
+                        app:strokeColor="@android:color/transparent"
+                        android:visibility="gone">
+
+                        <androidx.constraintlayout.widget.ConstraintLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_card_selector_limabelas_dp"
+                            android:padding="20dp">
+
+                            <FrameLayout
+                                android:id="@+id/flIconContainer"
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:background="@drawable/bg_icon_circle_green"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintStart_toStartOf="parent"
+                                app:layout_constraintTop_toTopOf="parent">
+
+                                <ImageView
+                                    android:layout_width="28dp"
+                                    android:layout_height="28dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_money"
+                                    app:tint="@color/green_lime_wf" />
+
+                            </FrameLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="16dp"
+                                android:layout_marginEnd="16dp"
+                                android:orientation="vertical"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toStartOf="@+id/ivChevronRight"
+                                app:layout_constraintStart_toEndOf="@id/flIconContainer"
+                                app:layout_constraintTop_toTopOf="parent">
+
+                                <TextView
+                                    android:id="@+id/tvCommissionLabel"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="sans-serif-medium"
+                                    android:text="Pengaturan Bagi Hasil"
+                                    android:textColor="@color/white"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tvSubtitle"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:fontFamily="sans-serif"
+                                    android:text="@string/atur_nominal_komisi"
+                                    android:textColor="#99FFFFFF"
+                                    android:textSize="12sp" />
+
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/ivChevronRight"
+                                android:layout_width="20dp"
+                                android:layout_height="25dp"
+                                android:layout_marginEnd="5dp"
+                                android:src="@drawable/ic_chevron_right"
+                                app:layout_constraintBottom_toBottomOf="parent"
+                                app:layout_constraintEnd_toEndOf="parent"
+                                app:layout_constraintTop_toTopOf="parent"
+                                app:tint="#B1F66F" />
+
+                        </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Bottom padding so it doesn't get covered by fixed bottom navigation -->
+                    <View
+                        android:id="@+id/view_space"
+                        android:layout_width="match_parent"
+                        android:layout_height="90dp"
+                        android:visibility="visible" />
+
+                </LinearLayout>
+
+            </androidx.core.widget.NestedScrollView>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
+
+    <!-- BottomNavBar (Action Bar) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomFloatArea"
+        android:layout_width="match_parent"
+        android:layout_height="90dp"
+        android:background="@color/white_transparent_fa"
+        android:elevation="24dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider_color_transparent_1a"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:paddingHorizontal="24dp"
+            android:clipToPadding="false"
+            android:clipChildren="false">
+
+            <TextView
+                android:id="@+id/btnNavCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BATAL"
+                android:fontFamily="@font/poppins_bold"
+                android:textColor="@color/magenta"
+                android:textSize="14sp"
+                android:padding="16dp"
+                android:layout_marginStart="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
+
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnNavSave"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                app:cardBackgroundColor="@color/sky_blue"
+                app:cardCornerRadius="24dp"
+                android:layout_marginEnd="20dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="1dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:clipToPadding="false"
+                android:clipChildren="false">
+
+                <LinearLayout
+                    android:layout_width="204dp"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingHorizontal="24dp">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_check_mark_outline"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="SIMPAN PAKET"
+                        android:layout_marginTop="1.5dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Loading Overlay -->
+    <FrameLayout
+        android:id="@+id/flLoadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone"
+        android:elevation="100dp">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="5dp"
+            android:backgroundTint="@color/light_grey_horizons_background"
+            app:cardElevation="7dp"
+            android:layout_marginTop="-30dp"
+            android:layout_gravity="center"
+            app:cardCornerRadius="30dp">
+
+            <ProgressBar
+                android:layout_width="35dp"
+                android:layout_height="35dp"
+                android:layout_margin="5dp"
+                android:elevation="20dp"
+                android:indeterminateTint="@color/sky_blue" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
+
+</FrameLayout>

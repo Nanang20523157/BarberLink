@@ -21,14 +21,17 @@ import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Intro.Splash.SplashScreen
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
-import com.example.barberlink.UserInterface.SignUp.Page.SignUpStepOne
+import com.example.barberlink.UserInterface.SignUp.Page.SignUpUserPhoneStep
 import com.example.barberlink.Utils.SvgUtils.loadSVGFromResource
 import com.example.barberlink.databinding.ActivityLandingPageBinding
+import com.example.barberlink.Manager.SessionManager
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 
 class LandingPage : AppCompatActivity(), View.OnClickListener {
     private lateinit var binding: ActivityLandingPageBinding
     private val debounce by lazy { ScopedUniversalDebounce() }
+    private val sessionManager by lazy { SessionManager.getInstance(this) }
     private var isNavigating = false
 //    private var currentView: View? = null
 
@@ -92,30 +95,20 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
             when (v?.id) {
                 R.id.btnSignIn -> {
                     if (!debounce.run { v.isSafeClick() }) return
-                    // hmmmmm
-//                    if (imageBarbershop.alpha.toInt() == 0) {
-//                        imageBarbershop.alpha = 1f // Tampilkan ImageView
-//                        wvGifBarbershop.apply {
-//                            clearCache(true)
-//                            clearHistory()
-//                            loadUrl("about:blank")
-//                        }
-//                    }
+                    if (!sessionManager.getIsVersionAllowed()) {
+                        showVersionRestrictedDialog()
+                        return
+                    }
                     navigatePage(this@LandingPage, SelectUserRolePage::class.java, btnSignIn)
                 }
-                R.id.btnSignUp -> {
-                    if (!debounce.run { v.isSafeClick() }) return
-                    // hmmmmm
-//                    if (imageBarbershop.alpha.toInt() == 0) {
-//                        imageBarbershop.alpha = 1f // Tampilkan ImageView
-//                        wvGifBarbershop.apply {
-//                            clearCache(true)
-//                            clearHistory()
-//                            loadUrl("about:blank")
-//                        }
+//                R.id.btnSignUp -> {
+//                    if (!debounce.run { v.isSafeClick() }) return
+//                    if (!sessionManager.getIsVersionAllowed()) {
+//                        showVersionRestrictedDialog()
+//                        return
 //                    }
-                    navigatePage(this@LandingPage, SignUpStepOne::class.java, btnSignUp)
-                }
+//                    navigatePage(this@LandingPage, SignUpUserPhoneStep::class.java, btnSignUp)
+//                }
             }
         }
     }
@@ -128,7 +121,7 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
             if (!isNavigating) {
                 isNavigating = true
                 val intent = Intent(context, destination)
-                if (destination == SignUpStepOne::class.java || destination == SelectUserRolePage::class.java) {
+                if (destination == SignUpUserPhoneStep::class.java || destination == SelectUserRolePage::class.java) {
                     intent.putExtra(ORIGIN_PAGE_KEY, "LandingPage")
                 }
                 Log.d("WinWinWin", "LandingPage: navigation")
@@ -191,6 +184,17 @@ class LandingPage : AppCompatActivity(), View.OnClickListener {
     override fun onDestroy() {
         super.onDestroy()
         NetworkMonitor.cancelToast()
+    }
+
+    private fun showVersionRestrictedDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Versi Aplikasi Tidak Didukung")
+            .setMessage("Maaf, versi aplikasi yang Anda gunakan saat ini (${com.example.barberlink.BuildConfig.VERSION_NAME}) sudah tidak didukung lagi atau telah ditarik otoritasnya. Silakan hubungi pengembang untuk mendapatkan versi terbaru.")
+            .setPositiveButton("Mengerti") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     companion object {

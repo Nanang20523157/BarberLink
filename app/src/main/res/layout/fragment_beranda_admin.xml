@@ -148,8 +148,8 @@
                                     android:layout_height="match_parent"
                                     app:iss_auto_cycle="true"
                                     app:iss_delay="2000"
-                                    app:iss_selected_dot="@drawable/item_indicator_active"
-                                    app:iss_unselected_dot="@drawable/item_indicator_inactive"
+                                    app:iss_selected_dot="@drawable/ic_indicator_active"
+                                    app:iss_unselected_dot="@drawable/ic_indicator_inactive"
                                     app:iss_placeholder="@drawable/image_placeholder"
                                     app:iss_period="5000"
                                     app:iss_text_align="CENTER" />
@@ -241,7 +241,7 @@
                                         android:layout_marginStart="40dp"/>
 
                                     <ImageView
-                                        android:id="@+id/ivAddNewService"
+                                        android:id="@+id/ivAddNewLayanan"
                                         android:layout_width="60dp"
                                         android:layout_height="60dp"
                                         android:src="@drawable/ic_plus"
@@ -368,7 +368,7 @@
                                 android:layout_marginTop="5.5dp" />
 
                             <LinearLayout
-                                android:id="@+id/seeAllListPegawai"
+                                android:id="@+id/seeAllPegawai"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginEnd="20dp"
@@ -408,10 +408,10 @@
                                 <androidx.recyclerview.widget.RecyclerView
                                     android:id="@+id/recyclerPegawai"
                                     android:layout_width="match_parent"
-                                    android:layout_height="182dp"
+                                    android:layout_height="184dp"
                                     android:visibility="visible"
                                     tools:itemCount="4"
-                                    tools:listitem="@layout/item_list_employee_adapter"
+                                    tools:listitem="@layout/item_list_employee_small_adapter"
                                     android:paddingHorizontal="30dp"
                                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                                     android:orientation="horizontal"
@@ -468,7 +468,7 @@
                                 android:layout_marginTop="10dp"/>
 
                             <LinearLayout
-                                android:id="@+id/seeAllListProduk"
+                                android:id="@+id/seeAllProduk"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginEnd="20dp"

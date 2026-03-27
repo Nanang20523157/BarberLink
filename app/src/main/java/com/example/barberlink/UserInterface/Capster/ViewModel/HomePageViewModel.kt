@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.AppointmentData
 import com.example.barberlink.DataClass.BonEmployeeData
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.ManualIncomeData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
@@ -15,6 +16,7 @@ import com.example.barberlink.DataClass.UserEmployeeData
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.QuerySnapshot
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -30,6 +32,7 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     val manualReportListMutex = ReentrantCoroutineMutex()
     val productSalesListMutex = ReentrantCoroutineMutex()
     val outletsListMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
     val productListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerEmployeeDataMutex = ReentrantCoroutineMutex()
@@ -40,6 +43,7 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     val listenerOutletListMutex = ReentrantCoroutineMutex()
     val listenerProductListMutex = ReentrantCoroutineMutex()
     val listenerBonAccumulationMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     // =========================================================
     // === UTILITAS DASAR
@@ -127,6 +131,9 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
     private val _displayEmployeeData = MutableLiveData<Boolean?>().apply { value = null }
     val displayEmployeeData: LiveData<Boolean?> = _displayEmployeeData
 
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
+
     private var isCapitalDialogShow: Boolean = false
 
     fun getIsCapitalDialogShow(): Boolean {
@@ -151,6 +158,26 @@ class HomePageViewModel(state: SavedStateHandle) : InputFragmentViewModel(state)
         viewModelScope.launch {
             _userEmployeeData.value = userEmployeeData
             _displayEmployeeData.value = displayData
+        }
+    }
+
+    fun setEmployeeRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val employeeData = _userEmployeeData.value
+            _employeeRolesList.value = list
+
+            if (employeeData != null) {
+                employeeData.let { data ->
+                    data.roleDetail = list.find { it.roleName == data.role }
+                }
+                _userEmployeeData.value = employeeData
+            }
+        }
+    }
+
+    fun setDisplayEmployeeData(display: Boolean) {
+        viewModelScope.launch {
+            _displayEmployeeData.value = display
         }
     }
 

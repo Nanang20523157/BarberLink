@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:clipToPadding="false"
+    android:clipToOutline="false"
+    android:layout_marginHorizontal="2dp"
+    android:background="@drawable/bg_item_rounded_unselected"
+    android:padding="16dp">
+
+    <!-- Outlet Image (Gambar Barbershop) -->
+    <!-- Catatan: Gunakan ShapeableImageView untuk mendapatkan sudut melengkung -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/ivOutletImage"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:shapeAppearanceOverlay="@style/RoundedCornerImageView"
+        tools:src="@tools:sample/backgrounds/scenic" />
+
+    <!-- Outlet Name (Nama Barbershop) -->
+    <TextView
+        android:id="@+id/tvOutletName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-black"
+        android:maxLines="1"
+        android:textColor="#191C1D"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toStartOf="@+id/ivCheckSelector"
+        app:layout_constraintStart_toEndOf="@+id/ivOutletImage"
+        app:layout_constraintTop_toTopOf="@+id/ivOutletImage"
+        tools:text="Barbershop 01 - Sudirman" />
+
+    <!-- Outlet Address (Alamat) -->
+    <TextView
+        android:id="@+id/tvOutletAddress"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="#3C4949"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toEndOf="@+id/tvOutletName"
+        app:layout_constraintStart_toStartOf="@+id/tvOutletName"
+        app:layout_constraintTop_toBottomOf="@+id/tvOutletName"
+        tools:text="Jl. Jendral Sudirman No. 1" />
+
+    <!-- Container untuk Badge Status dan Jarak -->
+    <LinearLayout
+        android:id="@+id/llBadgesContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:layout_marginStart="-1dp"
+        android:clipToOutline="false"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toBottomOf="@+id/tvOutletAddress"
+        app:layout_constraintStart_toStartOf="@+id/tvOutletName">
+
+        <!-- Card 2: Jarak -->
+        <!-- Badge Container (Status AKTIF / Jarak KM) -->
+        <LinearLayout
+            android:id="@+id/llBadgeContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_badge_inactive_distance"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginEnd="13dp"
+            android:paddingStart="17dp"
+            android:paddingEnd="6dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:paddingVertical="4.5dp">
+
+            <!-- Titik indikator kecil -->
+            <View
+                android:id="@+id/vBadgeDot"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/ic_dot_inactive_distance" />
+
+            <TextView
+                android:id="@+id/tvBadgeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:textAllCaps="true"
+                android:textColor="#3C4949"
+                android:textSize="12sp"
+                android:gravity="center_vertical"
+                android:lineSpacingExtra="3sp"
+                android:letterSpacing="-0.03"
+                android:layout_marginTop="-1dp"
+                tools:text="2.4km" />
+
+            <TextView
+                android:id="@+id/tvStatusOutlet"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/background_status_close2"
+                android:fontFamily="@font/arial_bold"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="3dp"
+                tools:text="Buka"
+                android:textColor="@color/magenta"
+                android:textSize="10sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginStart="8dp"
+                android:clipToOutline="false"/>
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Selector Icon (Lingkaran Centang Cyan / Kosong) -->
+    <ImageView
+        android:id="@+id/ivCheckSelector"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:src="@drawable/ic_checkbox_item_selected" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -5,6 +5,7 @@ plugins {
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
     id("androidx.navigation.safeargs")
+    id("app.cash.paparazzi")
 }
 
 android {
@@ -15,8 +16,8 @@ android {
         applicationId = "com.example.barberlink"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 200
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +33,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
     //binding
     compileOptions {
@@ -53,13 +55,15 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore:25.0.0")
     implementation("com.google.firebase:firebase-storage:21.0.0")
     implementation("com.google.firebase:firebase-auth:23.0.0")
-    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.4")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.legacy:legacy-support-v4:1.0.0")
     implementation("androidx.recyclerview:recyclerview:1.3.1")
     implementation("androidx.glance:glance:1.1.1")
+    implementation("androidx.activity:activity:1.8.0")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("app.cash.paparazzi:paparazzi:1.3.4")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.8.10")
@@ -107,13 +111,14 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.2.0")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.2.0")
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 
     implementation("com.github.judemanutd:autostarter:1.1.0")
 
     implementation("androidx.activity:activity-ktx:1.8.0") // Pastikan versi terbaru (edgeToEdge FullSceen)
 
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.8.4")
+    implementation("androidx.navigation:navigation-ui-ktx:2.8.4")
 
     implementation("androidx.work:work-runtime-ktx:2.8.1")
 
@@ -121,3 +126,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 
 }
+
+configurations.all {
+    resolutionStrategy {
+        // Resolve conflict between checker-qual and checker-util
+        force("org.checkerframework:checker-qual:3.33.0")
+    }
+}

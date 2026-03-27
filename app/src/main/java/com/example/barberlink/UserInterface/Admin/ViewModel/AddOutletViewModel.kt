@@ -3,6 +3,7 @@ package com.example.barberlink.UserInterface.Admin.ViewModel
 import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
@@ -21,8 +22,17 @@ import kotlinx.coroutines.tasks.await
 
 class AddOutletViewModel(
     private val repository: OutletRepository,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    private val handle: SavedStateHandle
 ) : ViewModel() {
+
+    companion object {
+        private const val OUTLET_PARAMS_KEY = "outlet_params"
+        private const val PENDING_IMAGE_URI_KEY = "pending_image_uri"
+        private const val CURRENT_MODE_KEY = "current_mode"
+        private const val BARBERSHOP_ID_KEY = "barbershop_id"
+        private const val OUTLET_SELECTED_ID_KEY = "outlet_selected_id"
+    }
 
     val outletListMutex = ReentrantCoroutineMutex()
     val servicesListMutex = ReentrantCoroutineMutex()
@@ -40,8 +50,19 @@ class AddOutletViewModel(
     private val _originalOutlet = MutableLiveData<Outlet>()
     val originalOutlet: LiveData<Outlet> get() = _originalOutlet
 
-    private val _outletParams = MutableLiveData<Outlet>()
+    // Backed by SavedStateHandle to survive process death
+    private val _outletParams = handle.getLiveData<Outlet>(OUTLET_PARAMS_KEY)
     val outletParams: LiveData<Outlet> get() = _outletParams
+
+    // 0: VIEW, 1: EDIT, 2: ADD
+    private val _currentMode = handle.getLiveData<Int>(CURRENT_MODE_KEY, 0)
+    val currentMode: LiveData<Int> get() = _currentMode
+
+    private val _barbershopId = handle.getLiveData<String>(BARBERSHOP_ID_KEY, "")
+    val barbershopId: LiveData<String> get() = _barbershopId
+
+    private val _outletSelectedId = handle.getLiveData<String>(OUTLET_SELECTED_ID_KEY, "")
+    val outletSelectedId: LiveData<String> get() = _outletSelectedId
 
     private val _userAdminData = MutableLiveData<UserAdminData>()
     val userAdminData: LiveData<UserAdminData> = _userAdminData
@@ -52,22 +73,23 @@ class AddOutletViewModel(
     private val _saveResult = MutableLiveData<FirestoreResult<Unit>?>()
     val saveResult: LiveData<FirestoreResult<Unit>?> get() = _saveResult
 
-    private val _allServices = MutableLiveData<List<Service>>(emptyList())
+    private val _allServices = MutableLiveData<List<Service>>()
     val allServices: LiveData<List<Service>> get() = _allServices
 
-    private val _allBundling = MutableLiveData<List<BundlingPackage>>(emptyList())
+    private val _allBundling = MutableLiveData<List<BundlingPackage>>()
     val allBundling: LiveData<List<BundlingPackage>> get() = _allBundling
 
-    private val _allStaff = MutableLiveData<List<UserEmployeeData>>(emptyList())
+    private val _allStaff = MutableLiveData<List<UserEmployeeData>>()
     val allStaff: LiveData<List<UserEmployeeData>> get() = _allStaff
 
-    private val _allProducts = MutableLiveData<List<Product>>(emptyList())
+    private val _allProducts = MutableLiveData<List<Product>>()
     val allProducts: LiveData<List<Product>> get() = _allProducts
 
-    private val _outletList = MutableLiveData<List<Outlet>>(emptyList())
+    private val _outletList = MutableLiveData<List<Outlet>>()
     val outletList: LiveData<List<Outlet>> get() = _outletList
 
-    private val _pendingImageUri = MutableLiveData<Uri?>()
+    // Backed by SavedStateHandle
+    private val _pendingImageUri = handle.getLiveData<Uri?>(PENDING_IMAGE_URI_KEY)
     val pendingImageUri: LiveData<Uri?> get() = _pendingImageUri
 
     fun setUserAdminData(userAdminData: UserAdminData) {
@@ -114,7 +136,7 @@ class AddOutletViewModel(
 
     fun setOutletList(outlets: List<Outlet>) {
         viewModelScope.launch {
-            _outletList.postValue(outlets)
+            _outletList.value = outlets
         }
     }
 
@@ -130,9 +152,28 @@ class AddOutletViewModel(
         }
     }
 
-    fun saveOutlet(barbershopId: String, isAddMode: Boolean) {
+    fun setBarbershopId(id: String) {
+        viewModelScope.launch {
+            _barbershopId.value = id
+        }
+    }
+
+    fun setOutletSelectedId(id: String) {
+        viewModelScope.launch {
+            _outletSelectedId.value = id
+        }
+    }
+
+    fun setCurrentMode(mode: Int) {
+        viewModelScope.launch {
+            _currentMode.value = mode
+        }
+    }
+
+    fun saveOutlet(isAddMode: Boolean) {
         viewModelScope.launch {
             val currentOutlet = _outletParams.value ?: return@launch
+            val bId = _barbershopId.value ?: return@launch
 
             _isSaving.value = true
             try {
@@ -159,9 +200,9 @@ class AddOutletViewModel(
                 }
 
                 val result = if (isAddMode) {
-                    repository.createOutlet(barbershopId, currentOutlet)
+                    repository.createOutlet(bId, currentOutlet)
                 } else {
-                    repository.updateOutlet(barbershopId, currentOutlet)
+                    repository.updateOutlet(bId, currentOutlet)
                 }
 
                 _isSaving.value = false
@@ -174,11 +215,6 @@ class AddOutletViewModel(
         }
     }
 
-    private fun getFileExtension(uri: Uri): String {
-        return runBlocking {
-            uri.path?.substringAfterLast('.', "jpg") ?: "jpg"
-        }
-    }
 
     fun clearSaveResult() {
         viewModelScope.launch {

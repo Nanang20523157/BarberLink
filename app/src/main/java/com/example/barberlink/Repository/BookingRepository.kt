@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
@@ -89,6 +90,9 @@ class BookingRepository {
     private val _capsterSelected = MutableLiveData<UserEmployeeData?>()
     val capsterSelected: LiveData<UserEmployeeData?> = _capsterSelected
 
+    private val _capsterRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = listOf() }
+    val capsterRolesList: LiveData<List<EmployeeRolesData>> = _capsterRolesList
+
     private val _customerSelected = MutableLiveData<UserCustomerData?>()
     val customerSelected: LiveData<UserCustomerData?> = _customerSelected
 
@@ -127,6 +131,18 @@ class BookingRepository {
 
     suspend fun updateCapsterSelected(capster: UserEmployeeData?) {
         _capsterSelected.updateOnMain(capster)
+    }
+
+    suspend fun setCapsterRoles(list: List<EmployeeRolesData>) {
+        val capsterSelected = _capsterSelected.value
+        _capsterRolesList.updateOnMain(list)
+
+        if (capsterSelected != null) {
+            capsterSelected.let { capster ->
+                capster.roleDetail = list.find { it.roleName == capster.role }
+            }
+            _capsterSelected.updateOnMain(capsterSelected)
+        }
     }
 
     suspend fun updateCustomerSelected(customer: UserCustomerData?) {

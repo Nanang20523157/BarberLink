@@ -67,7 +67,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -250,19 +250,14 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
             dashboardViewModel.setupDropdownFilterWithNullState()
         } else {
             // Mengambil argumen dari Safe Args
-            lifecycleScope.launch(Dispatchers.Default) {
-                val args = DashboardAdminPageArgs.fromBundle(intent.extras ?: Bundle())
+            val args = DashboardAdminPageArgs.fromBundle(intent.extras ?: Bundle())
 
-                args.userAdminData.let { dashboardViewModel.setUserAdminData(it, false) }
-                dashboardViewModel.outletsListMutex.withStateLock {
-                    val outletsList = args.outletList.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
-                    dashboardViewModel.setOutletList(outletsList, setupDropdown = true, isSavedInstanceStateNull = true)
-                }
-                dashboardViewModel.productListMutex.withStateLock {
-                    val productList = args.productList.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
-                    dashboardViewModel.setProductList(productList)
-                }
-            }
+            args.userAdminData.let { dashboardViewModel.setUserAdminData(it, false) }
+            val outletsList = args.outletList.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
+            dashboardViewModel.setOutletList(outletsList, setupDropdown = true, isSavedInstanceStateNull = true)
+
+            val productList = args.productList.toCollection(ArrayList())  // Konversi ke MutableList jika diperlukan
+            dashboardViewModel.setProductList(productList)
         }
 
         init(savedInstanceState)

@@ -213,6 +213,100 @@
 
         </androidx.cardview.widget.CardView>
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cvAdminAccess"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:layout_marginHorizontal="19dp"
+            android:clickable="true"
+            android:focusable="true"
+            app:cardElevation="1dp"
+            app:cardCornerRadius="15dp"
+            app:strokeColor="@android:color/transparent"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/cvKartu"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/dark_black_gradation"
+                android:padding="20dp">
+
+                <!-- Wadah Ikon Bulat -->
+                <FrameLayout
+                    android:id="@+id/flIconContainer"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="@drawable/bg_icon_circle_green"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <!-- Ikon Uang (Ganti @drawable/ic_money dengan ikon Vector Asset Anda) -->
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_admin_access" />
+                </FrameLayout>
+
+                <!-- Wadah Teks (Judul & Subjudul) -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="-1dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:orientation="vertical"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toStartOf="@+id/ivChevronRight"
+                    app:layout_constraintStart_toEndOf="@id/flIconContainer"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <!-- Catatan: Ganti fontFamily dengan custom font 'Manrope' jika sudah Anda import di folder font -->
+
+                    <TextView
+                        android:id="@+id/tvTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Admin Kontrol"
+                        android:textColor="#FFFFFF"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSubtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="Akses ke beberapa fitur admin"
+                        android:textColor="#99FFFFFF"
+                        android:textSize="12sp"
+                        android:fontFamily="sans-serif" />
+                    <!-- Catatan: Ganti fontFamily dengan custom font 'Inter' jika Anda gunakan -->
+
+                </LinearLayout>
+
+                <!-- Ikon Chevron Kanan -->
+                <!-- Ganti @drawable/ic_chevron_right dengan ikon Vector Asset Anda -->
+                <ImageView
+                    android:id="@+id/ivChevronRight"
+                    android:layout_width="20dp"
+                    android:layout_height="25dp"
+                    android:src="@drawable/ic_chevron_right"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:tint="#B1F66F" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
         <androidx.appcompat.widget.LinearLayoutCompat
             android:id="@+id/llMenu"
             android:layout_width="match_parent"
@@ -220,7 +314,7 @@
             android:orientation="horizontal"
             android:layout_marginTop="10dp"
             android:layout_marginHorizontal="15dp"
-            app:layout_constraintTop_toBottomOf="@id/cvKartu"
+            app:layout_constraintTop_toBottomOf="@id/cvAdminAccess"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 

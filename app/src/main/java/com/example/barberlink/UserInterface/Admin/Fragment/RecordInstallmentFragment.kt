@@ -346,19 +346,25 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 
     private fun updateMargins() {
         val params = binding.cdRecordInstallment.layoutParams as ViewGroup.MarginLayoutParams
+        val pbParams = binding.progressBar.layoutParams as ViewGroup.MarginLayoutParams
         val orientation = resources.configuration.orientation
 
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
             params.topMargin = dpToPx(30)
             params.bottomMargin = dpToPx(30)
+            pbParams.topMargin = dpToPx(30)
+            pbParams.bottomMargin = dpToPx(30)
             Log.d("FormulirBon", "updateMargins: PORTRAIT")
         } else {
             params.topMargin = dpToPx(355)
             params.bottomMargin = dpToPx(0)
+            pbParams.topMargin = dpToPx(355)
+            pbParams.bottomMargin = dpToPx(0)
             Log.d("FormulirBon", "updateMargins: LANDSCAPE")
         }
 
         binding.cdRecordInstallment.layoutParams = params
+        binding.progressBar.layoutParams = pbParams
     }
 
     // Konversi dari dp ke pixel

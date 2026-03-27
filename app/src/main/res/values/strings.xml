@@ -4,7 +4,7 @@
     <string name="skip_intro">Skip Intro</string>
     <string name="follow_us_on">Follow Us On</string>
     <string name="don_t_have_any_account">Don\'t have any account?</string>
-    <string name="sign_in">Sign in</string>
+    <string name="sign_in">MASUK</string>
     <string name="join_now">Bergabunglah Sekarang.</string>
     <string name="join_us">Jadilah pionir dalam industri perawatan dan penataan gaya rambut. Gunakan BarberLink Admin dan nikmati setiap keunggulannya, manfaatkanlah berbagai fitur dan teknologi canggih yang ada di dalamnya!</string>
     <string name="welcome_to">Selamat Datang di</string>
@@ -27,6 +27,7 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="login">Login</string>
     <string name="title_sign_in_uppercase">SIGN IN</string>
+    <string name="email_label">Alamat Email</string>
     <string name="email_hint">Email</string>
     <string name="forget_password">Lupa Password?</string>
     <string name="icon_back_button_desc">Icon back button</string>
@@ -86,7 +87,6 @@
     <string name="password_hint">Password</string>
     <string name="confirm_password_hint">Confirm Password</string>
     <string name="create_account">Buat Akun</string>
-    <string name="string_p_o_s_barber_template">~ Aplikasi Point of Sales Toko %1$s ~</string>
     <string name="image_success_icon">image success icon</string>
     <string name="Congratulations">Selamat!</string>
     <string name="submessage_Congratulations">Akun kamu telah terdaftar</string>
@@ -247,20 +247,21 @@
     <string name="success_image_desc">Success image to illustrate the completed process</string>
     <string name="image_slide_desc">Illustrative image to introduce the BarberLink application</string>
     <string name="title_new_customer">Pelanggan Baru</string>
-    <string name="hint_fullname">Fullname</string>
-    <string name="hint_phone">Phone</string>
+    <string name="hint_fullname">Nama Pegawai</string>
+    <string name="hint_phone">Telepon</string>
     <string name="example_number_phone">085769245608</string>
     <string name="empty_text_barbershop_name">Nama barbershop Anda tidak boleh kosong!</string>
     <string name="empty_text_email_address">Alamat email Anda tidak boleh kosong!</string>
+    <string name="empty_text_username_identity">Username Anda tidak boleh kosong!</string>
     <string name="invalid_text_email_address">Alamat email yang Anda masukkan tidak valid.</string>
-    <string name="invalid_text_number_phone">Nomor telepon harus berupa angka dan diawali dengan 0 (nol)</string>
+    <string name="invalid_phone_number_format">Nomor telepon harus berupa angka dan diawali dengan 0 (nol)</string>
     <string name="phone_number_already_exists_text">Silahkan SignIn, nomor Anda telah terdaftar sebelumnya!</string>
     <string name="browse_and_select_your_image_to_upload_file">browse and select your image to upload file</string>
     <string name="gallery_text">Gallery</string>
     <string name="camera_text">Camera</string>
     <string name="toolbar_select_your_image">Select Your Image</string>
     <string name="barbershop_name_exists">Nama barbershop Anda sudah dipergunakan!</string>
-    <string name="hello_template_admin">Hay %1$s, sepertinya Anda menggunakan alamat email dari aplikasi Barberlink App Anda, apakah Anda yakin ingin melakukan sinkronisasi data pada alamat email, profile, dan password lama Anda?</string>
+    <string name="hello_template_admin">Hay %1$s, sepertinya Anda menggunakan alamat email dari aplikasi yang terhubung dengan ekosistem Barberlink App kami, apakah Anda yakin ingin melanjutkan dengan menggunakan alamat email, profile, dan password lama Anda?</string>
     <string name="hello_template_customer">Hay %1$s, sepertinya Anda terdeteksi sebagai salah satu pengguna aplikasi Barberlink Admin kami, kami berupaya untuk melakukan sinkronisasi data pada nama pengguna, nomor telepon, dan profile Anda?</string>
     <!-- Spanned text-->
     <!-- Ini Lupa Buat Apa (Complete auto antrian selanjutnya keknya)  -->
@@ -273,6 +274,7 @@
     <string name="confirm_password_required">Confirm Password dibutuhkan!</string>
     <string name="cpasswords_do_not_match">Confirm Password tidak cocok.</string>
     <string name="email_already_exist">Email sudah digunakan. Silakan masuk ke halaman login.</string>
+    <string name="username_is_already_taken">Username sudah ada/digunakan oleh pengguna lain.</string>
     <string name="toolbar_settings_page">Settings</string>
     <string name="ponsel_notification">Notifikasi Ponsel</string>
     <string name="sound">Suara</string>
@@ -283,6 +285,9 @@
     <string name="logout">logout</string>
     <string name="network_tracking">Pelacakan Jaringan</string>
     <string name="toolbar_manage_outlet_page">Manage Outlet</string>
+    <string name="toolbar_manage_service_page">Manage Layanan</string>
+    <string name="daftar_layanan_title_template">Daftar Layanan (%1$d)</string>
+    <string name="daftar_produk_title_template">Daftar Produk (%1$d)</string>
     <string name="version_1_0_0_2024_barberlink_inc">Version 1.0.0 ©2024 BarberLink Inc.</string>
     <string name="permission_app">Perijinan Aplikasi</string>
     <string name="security_and_privacy">Privasi dan Keamanan</string>
@@ -319,6 +324,7 @@
     <string name="toolbar_select_outlet">Pilih Outlet</string>
     <string name="list_outlet">Daftar Outlet</string>
     <string name="daftar_outlet_title_template">Daftar Outlet (%1$d)</string>
+    <string name="free_of_charge_label">Gratis</string>
     <string name="example_customer">Rico Anggit Aditya</string>
     <string name="example_number">0863-1289-0421</string>
     <string name="nanang_kurniawan">Nanang Kurniawan</string>
@@ -372,8 +378,8 @@
     <string name="phone_number_is_too_long">Nomor telepon terlalu panjang</string>
     <string name="phone_number_is_too_short">Nomor telepon terlalu pendek</string>
     <string name="phone_number_less_than_11">Nomor telepon harus lebih dari 11 digit</string>
-    <string name="fullname_cannot_be_empty">Nama lengkap tidak boleh kosong</string>
-    <string name="phone_number_is_registered">Nomor telepon yang anda masukkan sudah terdaftar</string>
+    <string name="fullname_cannot_be_empty">Nama lengkap Anda tidak boleh kosong.</string>
+    <string name="phone_number_is_registered">Nomor telepon yang Anda masukkan sudah terdaftar.</string>
     <string name="Is_this_you">Apakah ini Anda?</string>
     <string name="owner_barber">Owner %1$s</string>
     <string name="employee_barber">Pegawai %1$s</string>
@@ -478,7 +484,8 @@
     <string name="text_btn_selected">Terpilih</string>
     <string name="_500_terjual">500+ terjual</string>
     <string name="jakarta_barat">Jakarta Barat</string>
-    <string name="employee_list_bon">Daftar Bon Pegawai</string>
+    <string name="toolbar_queue_kasbon_page">Kasbon Pegawai</string>
+    <string name="toolbar_queue_kasbon_gateway">Kasbon Gateway</string>
     <string name="btn_edit_manual_report_desc">Edit button for list manual report</string>
     <string name="btn_remove_manual_report_desc">Remove button for list manual report</string>
     <string name="btn_remove_employee_bon_desc">Remove button for list employee bon</string>
@@ -598,7 +605,7 @@
     <string name="hint_bon_status_filtering">Bon Status</string>
     <string name="text_all_dropdown">Semua</string>
     <string name="label_text_gender">Gender:</string>
-    <string name="hint_text_select_gender">Select Gender</string>
+    <string name="hint_text_select_gender">Pilih Gender</string>
     <string name="input_data_customer_is_correct">Data Sudah Sesuai</string>
     <string name="text_delivery_cost">Ongkos Kirim:</string>
     <string name="text_discount_price">Potongan Harga:</string>
@@ -626,8 +633,9 @@
     <string name="icon_general_outlet_desc">Icon general outlet ilustration</string>
     <string name="general_information_label">Detail Informasi Outlet</string>
     <string name="phone_number_label">Nomor Telepon Outlet</string>
+    <string name="phone_number_staff">Nomor Telepon</string>
     <string name="tagline_description_label">Tagline / Diskripsi</string>
-    <string name="address_label">Alamat</string>
+    <string name="address_label">Alamat Outlet</string>
     <string name="outlet_rating_label">Rating Outlet (0-5)</string>
     <string name="outlet_access_code_label">Kode Outlet Akses</string>
     <string name="coordinate_outlet_label">Titik Koordinat Outlet</string>
@@ -652,7 +660,7 @@
     <string name="empty_state_product_title">Tidak Ada Product</string>
     <string name="empty_state_product_subtitle">Kelola daftar produk yang tersedia di outlet ini.</string>
     <string name="btn_select_product_relation">Pilih Produk</string>
-    <string name="btn_save_outlet_data">Simpan Outlet Data</string>
+    <string name="btn_save_outlet_data">Simpan Data Outlet</string>
     <string name="icon_pick_location_desc">Icon pick location from maps</string>
     <string name="icon_add_item_desc">Icon add item to list</string>
     <string name="icon_empty_state_desc">Icon empty state illustration</string>
@@ -676,5 +684,151 @@
     <string name="latitude_display">Lat: %1$s</string>
     <string name="longitude_display">Long: %1$s</string>
     <string name="swipe_icon_desc">Icon swipe to delete item ilustration</string>
-    <string name="swipe_text_intruction">Swipe ke kiri untuk menghapus</string>
+    <string name="swipe_text_intruction">Swipe ke samping untuk menghapus</string>
+
+    <!-- Add/Edit Employee Form -->
+    <string name="toolbar_edit_employee">Edit Pegawai</string>
+    <string name="toolbar_new_employee">Pegawai Baru</string>
+    <string name="label_basic_information">Detail Informasi Pegawai</string>
+    <string name="hint_fullname_employee">Johnathan Smith</string>
+    <string name="hint_email_employee">j.smith@barberlink.com</string>
+    <string name="hint_salary_employee">4.500.000</string>
+    <string name="label_salary">Gaji Pokok Pegawai</string>
+    <string name="label_gender">Jenis Kelamin</string>
+    <string name="label_role">Role Pegawai</string>
+    <string name="label_position">Posisi</string>
+    <string name="hint_gender">Jenis Kelamin</string>
+    <string name="hint_role">Pilih Peran Pegawai</string>
+    <string name="hint_position">Pilih Posisi</string>
+    <string name="label_availability_status">Status Ketersediaan</string>
+    <string name="label_employee_rating">Rating Pegawai</string>
+    <string name="label_work_placement_outlets">Penempatan (Outlets)</string>
+    <string name="btn_save_employee_data">Simpan Data Pegawai</string>
+    <string name="icon_remove_item_desc">Icon hapus item</string>
+
+    <!-- Select Outlet Page -->
+    <string name="toolbar_select_work_placement">Pilih Penempatan Kerja</string>
+    <string name="hint_search_outlet">Cari outlet...</string>
+    <string name="label_available">TERSEDIA</string>
+    <string name="label_outlet_location">Lokasi Outlet</string>
+    <string name="label_select_all">Pilih Semua</string>
+    <string name="btn_confirm">KONFIRMASI</string>
+    <string name="icon_search_desc">Icon search for outlet</string>
+    <string name="btn_unselect_all_desc">Unselect all Checkbox</string>
+    <string name="btn_select_all_desc">Select all Checkbox</string>
+
+    <!--  Permissions Access String Resource  -->
+    <string name="beranda_admin_string_resource">Beranda Admin</string>
+    <string name="approval_bon_string_resource">Kasbbon Gateway</string>
+    <string name="dashboard_admin_string_resource">Dashboard Admin</string>
+    <string name="manual_report_string_resource">Manual Report</string>
+    <string name="manage_queue_string_resource">Queue Control</string>
+
+    <!-- Sign Up Capster Data Page -->
+    <string name="tag_line_productivity_capster">Together, we can take your productivity to the next level.</string>
+    <string name="create_new_employee_account_title">Buat Akun Pegawai Baru</string>
+    <string name="label_employee_name">Nama Pegawai</string>
+    <string name="hint_input_fullname_employee">Isikan nama lengkapmu</string>
+    <string name="label_username">Username</string>
+    <string name="hint_input_username_employee">Isikan username milikmu</string>
+    <string name="label_employee_email">Email Pegawai</string>
+    <string name="hint_input_email_employee">Isikan email milikmu</string>
+    <string name="label_employee_gender">Gender Pegawai</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="label_role_pegawai">Peran Pegawai</string>
+    <string name="label_attendance_status">Status Kehadiran</string>
+    <string name="label_role_description">DESKRIPSI PERAN</string>
+    <string name="desc_role_description">Lihat deskripsi mengenai peran yang diberikan kepada pegaai ini.</string>
+    <string name="hint_desc_role_description">Sebagai Employee, tanggung jawab utama meliputi pelayanan pelanggan secara profesional, menjaga kebersihan area kerja, dan memastikan kepuasan setiap tamu. Pegawai diharapkan dapat bekerja sama dalam tim, mengelola jadwal reservasi dengan efisien, serta memberikan rekomendasi produk atau jasa yang sesuai dengan kebutuhan pelanggan untuk meningkatkan pengalaman kunjungan mereka secara keseluruhan. Pegawai juga berperan aktif dalam mempromosikan program loyalitas outlet.</string>
+    <string name="label_main_responsibility">Tanggung Jawab Utama</string>
+    <string name="label_access_rights">Hak Akses</string>
+    <string name="resp_item_haircut">Melakukan pemotongan dan penataan rambut sesuai permintaan pelanggan.</string>
+    <string name="resp_item_cleanliness">Menjaga kebersihan area kerja dan peralatan.</string>
+    <string name="resp_item_consultation">Memberikan konsultasi gaya rambut yang sesuai.</string>
+    <string name="access_item_transaction">Mencatat transaksi layanan.</string>
+    <string name="access_item_appointments">Mengelola jadwal janji temu.</string>
+    <string name="value_default_salary">0</string>
+    <string name="value_default_rating">5.0</string>
+    <string name="bullet_responsibilities">\u2022 Melakukan pemotongan dan penataan rambut sesuai permintaan pelanggan.\n\u2022 Menjaga kebersihan area kerja dan peralatan.\n\u2022 Memberikan konsultasi gaya rambut yang sesuai.</string>
+    <string name="bullet_access_rights">\u2022 Mencatat transaksi layanan.\n\u2022 Mengelola jadwal janji temu.</string>
+    <string name="label_permission_list">AKSES DAN PERIZINAN</string>
+    <string name="desc_permission_list">Daftar hak akses dan izin yang diberikan kepada karyawan.</string>
+    <string name="toolbar_edit_service">Edit Layanan</string>
+    <string name="ubah_foto_layanan">Ubah Foto Layanan</string>
+    <string name="informasi_layanan">Informasi Layanan</string>
+    <string name="nama_layanan">Nama Layanan</string>
+    <string name="hint_executive_scissor_cut">Executive Scissor Cut</string>
+    <string name="kategori_layanan">Kategori Layanan</string>
+    <string name="pilih_kategori">Pilih Kategori</string>
+    <string name="deskripsi_layanan">Deskripsi Layanan</string>
+    <string name="hint_service_description">Potongan rapih khas executive menggunakan gunting dan teknik texture...</string>
+    <string name="icon_layanan">Icon Layanan</string>
+    <string name="rating_layanan">Rating Layanan</string>
+    <string name="default_rating">5.0</string>
+    <string name="tipe_dan_opsi_layanan">Tipe &amp; Opsi Layanan</string>
+    <string name="gratis">Gratis</string>
+    <string name="gratis_description">Layanan ini akan dimasukkan dan ditandai sebagai daftar layanan gratis</string>
+    <string name="item_utama">Item Utama</string>
+    <string name="item_utama_description">Item ini akan selau ditambahkan ke daftar pesanan pelanggan dan tidak bisa di-unselect.</string>
+    <string name="otomatis_terpilih">Otomatis Terpilih</string>
+    <string name="otomatis_terpilih_description">Item ini otomatis ditambahkan ke daftar pesanan pelanggan.</string>
+    <string name="biaya_layanan">Biaya Layanan</string>
+    <string name="harga_layanan">Harga Layanan</string>
+    <string name="hint_service_price">50000</string>
+    <string name="bagi_hasil">Bagi Hasil</string>
+    <string name="pengaturan_bagi_hasil">Pengaturan Bagi Hasil</string>
+    <string name="label_distributor_commission">Atur Nominal Komisi untuk Distributor</string>
+    <string name="atur_nominal_komisi">Atur nominal komisi tiap pegawai</string>
+    <string name="batal">BATAL</string>
+    <string name="simpan_layanan">SIMPAN LAYANAN</string>
+    <string name="icon_arrow_desc">Image arrow extend ilustration</string>
+    <string name="product_list">Daftar Produk</string>
+    <string name="no_product_found">Tidak ada produk ditemukan</string>
+    <string name="error_loading_products">Gagal memuat produk. Silakan coba lagi.</string>
+    <string name="delete_product_confirmation">Apakah Anda yakin ingin menghapus produk ini?</string>
+    <string name="product_deleted_successfully">Produk berhasil dihapus</string>
+    <string name="error_deleting_product">Gagal menghapus produk</string>
+    <string name="add_new_category">Tambah Kategori Baru</string>
+    <string name="product_name">Nama Produk</string>
+    <string name="commission">Komisi</string>
+    <string name="simpan_product">Simpan Produk</string>
+    <string name="category">Kategori</string>
+    <string name="price">Harga</string>
+    <string name="stock">Stok</string>
+    <string name="description">Deskripsi</string>
+    <string name="add_category">Tambah Kategori</string>
+    <string name="product_image">Foto Produk</string>
+    <string name="hint_distributor_commission">Misal: 10.000</string>
+    <string name="change_product_image">Ubah Foto</string>
+    <string name="product_information">Informasi Produk</string>
+    <string name="product_category">Kategori Produk</string>
+    <string name="select_category">Pilih Kategori</string>
+    <string name="product_description">Deskripsi Produk (Opsional)</string>
+    <string name="product_stock">Stok Produk</string>
+    <string name="selling_price">Harga Jual</string>
+    <string name="purchase_price">Harga Beli</string>
+    <string name="set_prices_for_each_capster">Atur komisi berbeda tiap capster</string>
+    <string name="set_capster_commission">Atur Komisi Capster</string>
+    <string name="product_commission">Komisi Produk</string>
+    <string name="edit_product">Ubah Produk</string>
+    <string name="add_product">Tambah Produk</string>
+    <string name="product_photo">Foto Produk</string>
+    <string name="toolbar_manage_product_page">Kelola Produk</string>
+
+    <string name="welcome_new_employee_account">~ Mulai dari dirimulah awal dari setiap perubahan ~</string>
+    <string name="string_p_o_s_barber_template">~ Aplikasi Point of Sales Toko %1$s ~</string>
+
+    <string name="error_fullname_empty">Nama lengkap tidak boleh kosong</string>
+    <string name="error_username_empty">Username tidak boleh kosong</string>
+    <string name="error_username_too_short">Username minimal 3 karakter</string>
+    <string name="error_email_empty">Email tidak boleh kosong</string>
+    <string name="error_invalid_email">Format email tidak valid</string>
+    <string name="error_username_taken">Username sudah digunakan</string>
+    <string name="error_email_taken">Email sudah digunakan</string>
+    <string-array name="gender_list">
+        <item>Rahasiakan</item>
+        <item>Laki-laki</item>
+        <item>Perempuan</item>
+    </string-array>
 </resources>

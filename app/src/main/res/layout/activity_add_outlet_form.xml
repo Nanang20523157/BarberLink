@@ -168,7 +168,7 @@
                                 android:contentDescription="@string/image_outlet_placeholder_desc"
                                 android:scaleType="centerCrop"
                                 android:alpha="0.6"
-                                android:src="@drawable/img_placeholder_outlet" />
+                                android:src="@drawable/img_outlet_placeholder" />
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
@@ -181,6 +181,7 @@
                                     android:layout_width="56dp"
                                     android:layout_height="56dp"
                                     android:background="@drawable/circle_teal">
+
                                     <ImageView
                                         android:layout_width="24dp"
                                         android:layout_height="24dp"
@@ -188,6 +189,7 @@
                                         android:contentDescription="@string/icon_select_image_desc"
                                         android:src="@drawable/ic_pick_image"
                                         app:tint="@color/white" />
+
                                 </FrameLayout>
 
                                 <TextView
@@ -214,8 +216,8 @@
                         tools:ignore="UseCompoundDrawables">
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
+                            android:layout_width="23dp"
+                            android:layout_height="23dp"
                             android:contentDescription="@string/icon_general_outlet_desc"
                             android:src="@drawable/ic_outlet"
                             app:tint="@color/sky_blue" />
@@ -227,7 +229,7 @@
                             android:layout_marginStart="8dp"
                             android:fontFamily="@font/poppins_bold"
                             android:text="@string/general_information_label"
-                            android:textColor="#0F172A"
+                            android:textColor="#1A1A1A"
                             android:textSize="18sp" />
                     </LinearLayout>
 
@@ -236,20 +238,48 @@
                         android:layout_height="8dp" />
 
                     <!-- Outlet Name -->
-                    <TextView
-                        style="@style/FormLabel"
-                        android:layout_marginTop="8dp"
-                        android:layout_marginStart="18dp"
-                        android:text="@string/outlet_name_label"
-                        android:textColor="#475569"
-                        android:textStyle="bold"
-                        android:textSize="14sp" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
 
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/outlet_name_label"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="6.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+<!--                    <androidx.cardview.widget.CardView-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="7dp"-->
+<!--                        android:layout_marginHorizontal="16dp"-->
+<!--                        android:elevation="15dp"-->
+<!--                        app:cardCornerRadius="10dp"-->
+<!--                        android:outlineAmbientShadowColor="@color/black"-->
+<!--                        android:outlineSpotShadowColor="@color/black">-->
+
+
+<!--                    </androidx.cardview.widget.CardView>-->
                     <EditText
                         android:id="@+id/etOutletName"
                         style="@style/FormInputText"
                         android:autofillHints=""
-                        android:background="@drawable/bg_input_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="@string/outlet_name_hint"
                         android:paddingTop="15dp"
                         android:paddingBottom="11dp"
@@ -258,20 +288,48 @@
                         android:layout_marginHorizontal="16dp"/>
 
                     <!-- Phone Number -->
-                    <TextView
-                        style="@style/FormLabel"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="18dp"
-                        android:text="@string/phone_number_label"
-                        android:textColor="#475569"
-                        android:textStyle="bold"
-                        android:textSize="14sp" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
 
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/phone_number_label"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+<!--                    <androidx.cardview.widget.CardView-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="7dp"-->
+<!--                        android:layout_marginHorizontal="16dp"-->
+<!--                        android:elevation="15dp"-->
+<!--                        app:cardCornerRadius="10dp"-->
+<!--                        android:outlineAmbientShadowColor="@color/black"-->
+<!--                        android:outlineSpotShadowColor="@color/black">-->
+
+
+<!--                    </androidx.cardview.widget.CardView>-->
                     <EditText
                         android:id="@+id/etPhone"
                         style="@style/FormInputText"
                         android:autofillHints="phone"
-                        android:background="@drawable/bg_input_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="@string/outlet_phone_number_hint"
                         android:inputType="phone"
                         android:paddingTop="15dp"
@@ -281,20 +339,48 @@
                         android:layout_marginHorizontal="16dp"/>
 
                     <!-- Tagline / Description -->
-                    <TextView
-                        style="@style/FormLabel"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="18dp"
-                        android:text="@string/tagline_description_label"
-                        android:textColor="#475569"
-                        android:textStyle="bold"
-                        android:textSize="14sp" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
 
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/tagline_description_label"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+<!--                    <androidx.cardview.widget.CardView-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="7dp"-->
+<!--                        android:layout_marginHorizontal="16dp"-->
+<!--                        android:elevation="15dp"-->
+<!--                        app:cardCornerRadius="10dp"-->
+<!--                        android:outlineAmbientShadowColor="@color/black"-->
+<!--                        android:outlineSpotShadowColor="@color/black">-->
+
+
+<!--                    </androidx.cardview.widget.CardView>-->
                     <EditText
                         android:id="@+id/etTagline"
                         style="@style/FormInputText"
                         android:autofillHints=""
-                        android:background="@drawable/bg_input_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="@string/outlet_tagline_hint"
                         android:paddingTop="15dp"
                         android:paddingBottom="11dp"
@@ -303,23 +389,49 @@
                         android:layout_marginHorizontal="16dp"/>
 
                     <!-- Address -->
-                    <TextView
-                        style="@style/FormLabel"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="18dp"
-                        android:text="@string/address_label"
-                        android:textColor="#475569"
-                        android:textStyle="bold"
-                        android:textSize="14sp" />
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
 
-                    <!-- Rating -->
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/address_label"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+<!--                    <androidx.cardview.widget.CardView-->
+<!--                        android:layout_width="match_parent"-->
+<!--                        android:layout_height="wrap_content"-->
+<!--                        android:layout_marginTop="7dp"-->
+<!--                        android:layout_marginHorizontal="16dp"-->
+<!--                        android:elevation="15dp"-->
+<!--                        app:cardCornerRadius="10dp"-->
+<!--                        android:outlineAmbientShadowColor="@color/black"-->
+<!--                        android:outlineSpotShadowColor="@color/black">-->
+
+<!--                    </androidx.cardview.widget.CardView>-->
+
                     <EditText
                         android:id="@+id/etAddress"
                         style="@style/FormInputText"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="7dp"
                         android:autofillHints="postalAddress"
-                        android:background="@drawable/bg_input_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:gravity="top|start"
                         android:hint="@string/outlet_address_hint"
                         android:inputType="textMultiLine"
@@ -327,8 +439,10 @@
                         android:paddingHorizontal="17dp"
                         android:paddingTop="15dp"
                         android:paddingBottom="11dp"
+                        android:layout_marginTop="7dp"
                         android:layout_marginHorizontal="16dp"/>
 
+                    <!-- Rating -->
                     <TextView
                         style="@style/FormLabel"
                         android:layout_marginTop="16dp"
@@ -344,19 +458,31 @@
                         android:gravity="center_vertical"
                         android:orientation="horizontal"
                         android:layout_marginTop="7dp"
-                        android:layout_marginHorizontal="16dp">
+                        android:layout_marginHorizontal="16dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <TextView
-                            android:id="@+id/etRating"
-                            android:layout_width="96dp"
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:background="@drawable/bg_input_disabled_figma"
-                            android:gravity="center"
-                            android:paddingVertical="13dp"
-                            android:paddingHorizontal="17dp"
-                            android:text="@string/five_star_rating"
-                            android:textColor="#64748B"
-                            android:textSize="16sp" />
+                            android:elevation="15dp"
+                            app:cardCornerRadius="10dp"
+                            android:outlineAmbientShadowColor="@color/black"
+                            android:outlineSpotShadowColor="@color/black">
+
+                            <TextView
+                                android:id="@+id/etRating"
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_input_disabled_figma"
+                                android:gravity="center"
+                                android:paddingVertical="13dp"
+                                android:paddingHorizontal="17dp"
+                                android:text="@string/five_star_rating"
+                                android:textColor="#64748B"
+                                android:textSize="16sp" />
+
+                        </androidx.cardview.widget.CardView>
 
                         <LinearLayout
                             android:layout_width="wrap_content"
@@ -381,70 +507,120 @@
                         android:textStyle="bold"
                         android:textSize="14sp" />
 
-                    <TextView
-                        android:id="@+id/etAccessCode"
+                    <androidx.cardview.widget.CardView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_input_disabled_figma"
-                        android:text="@string/default_empty_code_access"
-                        android:letterSpacing="0.1"
-                        android:paddingVertical="13dp"
-                        android:paddingHorizontal="17dp"
-                        android:gravity="center_vertical"
-                        android:textColor="#94A3B8"
-                        android:textSize="16sp"
                         android:layout_marginTop="7dp"
-                        android:layout_marginHorizontal="16dp"/>
+                        android:layout_marginHorizontal="16dp"
+                        android:elevation="15dp"
+                        app:cardCornerRadius="10dp"
+                        android:outlineAmbientShadowColor="@color/black"
+                        android:outlineSpotShadowColor="@color/black">
+
+                        <TextView
+                            android:id="@+id/etAccessCode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_input_disabled_figma"
+                            android:text="@string/default_empty_code_access"
+                            android:letterSpacing="0.1"
+                            android:paddingVertical="13dp"
+                            android:paddingHorizontal="17dp"
+                            android:gravity="center_vertical"
+                            android:textColor="#94A3B8"
+                            android:textSize="16sp"/>
+
+                    </androidx.cardview.widget.CardView>
 
                     <!-- Coordinate -->
-                    <TextView
-                        style="@style/FormLabel"
-                        android:layout_marginTop="16dp"
-                        android:layout_marginStart="18dp"
-                        android:text="@string/coordinate_outlet_label"
-                        android:textColor="#475569"
-                        android:textStyle="bold"
-                        android:textSize="14sp"/>
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginStart="18dp"
+                            android:text="@string/coordinate_outlet_label"
+                            android:textColor="#475569"
+                            android:textStyle="bold"
+                            android:textSize="14sp"/>
+
+                        <TextView
+                            style="@style/FormLabel"
+                            android:layout_marginStart="1.5dp"
+                            android:layout_marginTop="14.6dp"
+                            android:text="*"
+                            android:textColor="@color/red_role"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
                         android:layout_marginTop="7dp"
-                        android:layout_marginHorizontal="16dp">
+                        android:layout_marginHorizontal="16dp"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
 
-                        <EditText
-                            android:id="@+id/etCoordinate"
-                            style="@style/FormInputText"
+                        <androidx.cardview.widget.CardView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:autofillHints=""
-                            android:background="@drawable/bg_input_figma"
-                            android:hint="@string/coordinate_outlet_hint"
-                            android:gravity="center_vertical"
-                            android:paddingTop="15dp"
-                            android:paddingBottom="11dp"
-                            android:paddingHorizontal="17dp"
-                            android:focusable="false"/>
+                            android:elevation="15dp"
+                            app:cardCornerRadius="10dp"
+                            android:outlineAmbientShadowColor="@color/black"
+                            android:outlineSpotShadowColor="@color/black">
 
-                        <FrameLayout
-                            android:id="@+id/btnMapPicker"
-                            android:layout_width="48dp"
-                            android:layout_height="48dp"
+                            <EditText
+                                android:id="@+id/etCoordinate"
+                                style="@style/FormInputText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:autofillHints=""
+                                android:background="@drawable/bg_input_white_tiga_dp"
+                                android:hint="@string/coordinate_outlet_hint"
+                                android:gravity="center"
+                                android:paddingTop="15dp"
+                                android:paddingBottom="11dp"
+                                android:paddingHorizontal="17dp"
+                                android:focusable="false"/>
+
+                        </androidx.cardview.widget.CardView>
+
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:elevation="18dp"
+                            app:cardCornerRadius="10dp"
+                            android:layout_marginTop="-0.5dp"
                             android:layout_marginStart="8dp"
-                            android:background="@drawable/bg_button_select_maps_figma"
-                            android:clickable="true"
-                            android:focusable="true"
-                            android:foreground="?attr/selectableItemBackground">
-                            <ImageView
-                                android:layout_width="18dp"
-                                android:layout_height="18dp"
-                                android:layout_gravity="center"
-                                android:src="@drawable/ic_pick_maps"
-                                android:contentDescription="@string/icon_pick_location_desc"
-                                app:tint="@android:color/white" />
-                        </FrameLayout>
+                            android:outlineAmbientShadowColor="@color/black"
+                            android:outlineSpotShadowColor="@color/black">
+
+                            <FrameLayout
+                                android:id="@+id/btnMapPicker"
+                                android:layout_width="51dp"
+                                android:layout_height="51dp"
+                                android:background="@drawable/bg_button_select_maps_figma"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackground">
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:layout_gravity="center"
+                                    android:src="@drawable/ic_pick_maps"
+                                    android:contentDescription="@string/icon_pick_location_desc"
+                                    app:tint="@android:color/white" />
+                            </FrameLayout>
+
+                        </androidx.cardview.widget.CardView>
+
                     </LinearLayout>
 
                     <View
@@ -467,10 +643,9 @@
 
                             <ImageView
                                 android:id="@+id/ivListService"
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
+                                android:layout_width="22dp"
+                                android:layout_height="22dp"
                                 android:contentDescription="@string/image_service_item_desc"
-                                android:padding="4dp"
                                 android:src="@drawable/ic_list_service_title"
                                 app:tint="#10BBBB"
                                 android:layout_marginStart="20dp"
@@ -526,7 +701,7 @@
                                 android:padding="34dp"
                                 android:layout_marginHorizontal="20dp"
                                 android:layout_marginBottom="8dp"
-                                android:visibility="gone">
+                                android:visibility="visible">
 
                                 <FrameLayout
                                     android:layout_width="64dp"
@@ -589,7 +764,7 @@
                                 android:id="@+id/rvListService"
                                 android:layout_width="match_parent"
                                 android:layout_height="102.5dp"
-                                android:visibility="visible"
+                                android:visibility="gone"
                                 tools:itemCount="4"
                                 tools:listitem="@layout/item_list_service_provide_adapter"
                                 android:paddingHorizontal="34dp"
@@ -621,10 +796,9 @@
 
                             <ImageView
                                 android:id="@+id/ivListBundling"
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
+                                android:layout_width="23dp"
+                                android:layout_height="23dp"
                                 android:contentDescription="@string/image_bundle_item_desc"
-                                android:padding="4dp"
                                 android:src="@drawable/ic_list_bundle_title"
                                 app:tint="#10BBBB"
                                 android:layout_marginStart="20dp"
@@ -775,10 +949,9 @@
 
                             <ImageView
                                 android:id="@+id/ivListEmployee"
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
+                                android:layout_width="23dp"
+                                android:layout_height="23dp"
                                 android:contentDescription="@string/image_employee_item_desc"
-                                android:padding="4dp"
                                 android:src="@drawable/ic_list_capster_title"
                                 app:tint="#10BBBB"
                                 android:layout_marginStart="20dp"
@@ -897,10 +1070,10 @@
                             <androidx.recyclerview.widget.RecyclerView
                                 android:id="@+id/rvListEmployee"
                                 android:layout_width="match_parent"
-                                android:layout_height="182dp"
+                                android:layout_height="184dp"
                                 android:visibility="visible"
                                 tools:itemCount="4"
-                                tools:listitem="@layout/item_list_employee_adapter"
+                                tools:listitem="@layout/item_list_employee_small_adapter"
                                 android:paddingHorizontal="34dp"
                                 android:layout_marginStart="-16dp"
                                 android:layout_marginEnd="-16dp"
@@ -930,10 +1103,9 @@
 
                             <ImageView
                                 android:id="@+id/ivListProduct"
-                                android:layout_width="32dp"
-                                android:layout_height="32dp"
+                                android:layout_width="23dp"
+                                android:layout_height="23dp"
                                 android:contentDescription="@string/image_product_item_desc"
-                                android:padding="4dp"
                                 android:src="@drawable/ic_list_product_title"
                                 app:tint="#10BBBB"
                                 android:layout_marginStart="20dp"
@@ -1071,7 +1243,7 @@
                     <View
                         android:id="@+id/view_space"
                         android:layout_width="match_parent"
-                        android:layout_height="77dp"
+                        android:layout_height="65dp"
                         android:visibility="visible"/>
 
                 </LinearLayout>
@@ -1094,83 +1266,91 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/bottomFloatArea"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:visibility="visible"
-        android:gravity="center"
-        android:paddingTop="25dp"
-        android:paddingHorizontal="18dp"
-        android:elevation="10dp"
-        android:background="@drawable/background_bottom_float_area2"
+        android:layout_height="90dp"
+        android:background="#FAFFFFFF"
+        android:elevation="24dp"
         android:layout_gravity="bottom|center_horizontal"
         android:clipToPadding="false"
         android:clipChildren="false">
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1ABBC9C9"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginVertical="20dp"
-            app:cardCornerRadius="10dp"
-            app:cardElevation="1dp"
-            android:backgroundTint="@color/black_font_color"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent">
+            android:orientation="horizontal"
+            android:gravity="center"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:paddingHorizontal="24dp"
+            android:clipToPadding="false"
+            android:clipChildren="false">
 
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="57dp"
-                android:text="@string/btn_cancel"
-                android:textSize="15sp"
-                android:textColor="@color/magenta"
-                android:textStyle="bold"
-                android:gravity="center"
-                android:paddingHorizontal="35dp"
-                android:layout_marginTop="-2dp"/>
-
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/btnSaveOutlet"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginVertical="20dp"
-            app:cardCornerRadius="10dp"
-            app:cardElevation="1dp"
-            android:backgroundTint="@color/black_font_color"
-            app:layout_constraintStart_toEndOf="@id/btnCancel"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent">
-
-            <LinearLayout
-                android:layout_width="match_parent"
+                android:id="@+id/btnNavCancel"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="35dp"
-                android:gravity="center">
+                android:text="BATAL"
+                android:fontFamily="@font/poppins_bold"
+                android:textColor="@color/magenta"
+                android:textSize="14sp"
+                android:padding="16dp"
+                android:layout_marginStart="20dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:clickable="true"
+                android:focusable="true"/>
 
-                <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:src="@drawable/ic_save_outlet_data"
-                    android:contentDescription="@string/icon_save_desc"
-                    app:tint="@color/green_lime_wf"
-                    android:layout_gravity="center_vertical"/>
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"/>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="57dp"
-                    android:text="@string/btn_save_outlet_data"
-                    android:textSize="15sp"
-                    android:textColor="@color/green_lime_wf"
-                    android:textStyle="bold"
-                    android:gravity="center|start"
-                    android:layout_marginStart="10dp"
-                    android:layout_marginTop="-2dp"/>
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/btnNavSave"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                app:cardBackgroundColor="@color/sky_blue"
+                app:cardCornerRadius="24dp"
+                android:layout_marginEnd="20dp"
+                app:cardElevation="4dp"
+                app:strokeWidth="1dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:clipToPadding="false"
+                android:clipChildren="false">
 
-            </LinearLayout>
+                <LinearLayout
+                    android:layout_width="204dp"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:paddingHorizontal="24dp">
 
-        </com.google.android.material.card.MaterialCardView>
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_check_mark_outline"
+                        app:tint="@color/white" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="SIMPAN OUTLET"
+                        android:layout_marginTop="1.5dp"
+                        android:fontFamily="@font/poppins_bold"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

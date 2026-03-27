@@ -1,0 +1,453 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    tools:context=".UserInterface.Capster.EditProfileCapster">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefreshLayout"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:elevation="3dp"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:layout_weight="1">
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/main_content"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <androidx.appcompat.widget.LinearLayoutCompat
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="10dp"
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="16dp"
+                    android:clipToPadding="false"
+                    android:clipChildren="false">
+
+                    <!-- Title -->
+                    <TextView
+                        android:id="@+id/tvTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Edit Profile"
+                        android:textSize="24sp"
+                        android:gravity="center"
+                        android:fontFamily="@font/arial_bold"
+                        android:textStyle="bold"
+                        android:layout_marginHorizontal="30dp"
+                        android:textColor="@color/black"
+                        android:layout_centerHorizontal="true"/>
+
+                    <ImageView
+                        android:id="@+id/ivEmptyProfile"
+                        android:layout_width="110dp"
+                        android:layout_height="110dp"
+                        android:layout_below="@id/tvSubtitle"
+                        android:layout_centerHorizontal="true"
+                        android:layout_marginTop="20dp"
+                        android:visibility="visible"
+                        android:layout_marginBottom="10dp"
+                        android:layout_gravity="center_horizontal"
+                        android:src="@drawable/uploud_photo"
+                        android:contentDescription="@string/profile_picture"
+                        android:scaleType="fitCenter"/>
+
+                    <!-- Employee Fullname Label -->
+                    <TextView
+                        android:id="@+id/tvEmployeeFullnameLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_employee_name"
+                        android:textSize="13sp"
+                        android:textColor="@color/black_font_color"
+                        android:layout_marginTop="10dp"
+                        android:layout_marginStart="30dp"/>
+
+                    <!-- Employee Fullname Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/wrapperEmployeeFullname"
+                        android:layout_width="match_parent"
+                        android:layout_height="45dp"
+                        android:layout_marginHorizontal="20dp"
+                        android:gravity="start"
+                        app:hintEnabled="false"
+                        app:errorEnabled="true"
+                        app:boxStrokeErrorColor="@color/red"
+                        app:errorIconDrawable="@drawable/ic_error"
+                        app:errorIconTint="@color/red"
+                        app:errorTextColor="@color/red"
+                        app:boxStrokeColor="@color/green_lime_wf"
+                        android:layout_marginTop="10dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etFullname"
+                            android:layout_width="match_parent"
+                            android:layout_height="45dp"
+                            android:layout_marginHorizontal="10dp"
+                            android:drawableEnd="@drawable/ic_user"
+                            android:hint="@string/hint_input_fullname_employee"
+                            android:inputType="text"
+                            android:padding="3dp"
+                            android:drawablePadding="5dp"
+                            android:textSize="12.5sp" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Employee Username Label -->
+                    <TextView
+                        android:id="@+id/tvEmployeeUsernameLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_username"
+                        android:textSize="13sp"
+                        android:textColor="@color/black_font_color"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginStart="30dp"/>
+
+                    <!-- Employee Username Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/wrapperEmployeeUsername"
+                        android:layout_width="match_parent"
+                        android:layout_height="45dp"
+                        android:layout_marginHorizontal="20dp"
+                        android:gravity="start"
+                        app:hintEnabled="false"
+                        app:errorEnabled="true"
+                        app:boxStrokeErrorColor="@color/red"
+                        app:errorIconDrawable="@drawable/ic_error"
+                        app:errorIconTint="@color/red"
+                        app:errorTextColor="@color/red"
+                        app:boxStrokeColor="@color/green_lime_wf"
+                        android:layout_marginTop="10dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etUsername"
+                            android:layout_width="match_parent"
+                            android:layout_height="45dp"
+                            android:hint="@string/hint_input_username_employee"
+                            android:inputType="text"
+                            android:textSize="12.5sp"
+                            android:padding="3dp"
+                            android:drawablePadding="5dp"
+                            android:layout_marginHorizontal="10dp"
+                            android:drawableEnd="@drawable/ic_mention" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Employee Phone Label -->
+                    <TextView
+                        android:id="@+id/tvEmployeePhoneLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Nomor Telepon"
+                        android:textSize="13sp"
+                        android:textColor="@color/black_font_color"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginStart="30dp"/>
+
+                    <!-- Employee Phone Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/wrapperEmployeePhone"
+                        android:layout_width="match_parent"
+                        android:layout_height="45dp"
+                        android:layout_marginHorizontal="20dp"
+                        android:gravity="start"
+                        app:hintEnabled="false"
+                        app:errorEnabled="true"
+                        app:boxStrokeErrorColor="@color/red"
+                        app:errorIconDrawable="@drawable/ic_error"
+                        app:errorIconTint="@color/red"
+                        app:errorTextColor="@color/red"
+                        app:boxStrokeColor="@color/green_lime_wf"
+                        android:layout_marginTop="10dp">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etPhone"
+                            android:layout_width="match_parent"
+                            android:layout_height="45dp"
+                            android:hint="Isikan nomor telepon milikmu"
+                            android:inputType="number"
+                            android:textSize="12.5sp"
+                            android:padding="3dp"
+                            android:drawablePadding="5dp"
+                            android:layout_marginHorizontal="10dp"
+                            android:drawableEnd="@drawable/ic_phone" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:id="@+id/tvEmployeeGender"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/label_employee_gender"
+                        android:textSize="13sp"
+                        android:textColor="@color/black_font_color"
+                        android:layout_marginTop="15dp"
+                        android:layout_marginStart="30dp"/>
+
+                    <LinearLayout
+                        android:id="@+id/wrapperEmployeeGender"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="4.5dp"
+                        android:layout_marginBottom="15dp"
+                        android:layout_marginHorizontal="30dp"
+                        android:paddingVertical="4dp"
+                        android:paddingEnd="2dp"
+                        android:paddingStart="0dp"
+                        android:gravity="center_horizontal"
+                        android:clipChildren="false"
+                        android:clipToPadding="false">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/textInputLayout"
+                            android:layout_width="0dp"
+                            android:layout_height="45dp"
+                            app:hintEnabled="false"
+                            app:boxStrokeColor="@color/green_lime_wf"
+                            android:layout_weight="1"
+                            android:layout_gravity="center"
+                            android:layout_marginEnd="10dp"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
+                            app:endIconMode="dropdown_menu">
+
+                            <AutoCompleteTextView
+                                android:id="@+id/genderDropdown"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:paddingStart="15dp"
+                                android:paddingEnd="0dp"
+                                android:textSize="14.5sp"
+                                android:hint="@string/hint_text_select_gender"
+                                android:inputType="none"
+                                android:cursorVisible="false"/>
+
+                            <!--                <Spinner-->
+                            <!--                    android:id="@+id/gender_spinner"-->
+                            <!--                    android:layout_width="match_parent"-->
+                            <!--                    android:layout_height="match_parent"-->
+                            <!--                    android:background="@null" />-->
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <androidx.cardview.widget.CardView
+                            android:id="@+id/cvGender"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="center"
+                            app:cardCornerRadius="10dp"
+                            app:cardElevation="1dp"
+                            app:cardBackgroundColor="@color/grey_300">
+
+                            <ImageView
+                                android:id="@+id/ivGender"
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:paddingHorizontal="1dp"
+                                android:layout_marginVertical="12dp"
+                                android:layout_marginHorizontal="12dp"
+                                android:src="@drawable/ic_questions"
+                                android:contentDescription="@string/icon_gender_ilustration" />
+
+                            <!--                    <TextView-->
+                            <!--                        android:id="@+id/tvGender"-->
+                            <!--                        android:layout_width="wrap_content"-->
+                            <!--                        android:layout_height="wrap_content"-->
+                            <!--                        tools:text="laki-laki"-->
+                            <!--                        android:fontFamily="@font/arial_bold"-->
+                            <!--                        android:textColor="@color/black_font_color"-->
+                            <!--                        android:textSize="10sp"-->
+                            <!--                        android:layout_marginStart="2dp"-->
+                            <!--                        android:layout_marginEnd="3dp"-->
+                            <!--                        android:gravity="center"-->
+                            <!--                        android:layout_gravity="center_vertical"/>-->
+
+                        </androidx.cardview.widget.CardView>
+
+                    </LinearLayout>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/accountCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="visible"
+                        android:layout_marginHorizontal="23dp"
+                        app:cardBackgroundColor="@color/white"
+                        android:layout_gravity="center"
+                        app:cardCornerRadius="20dp"
+                        app:cardElevation="1dp">
+
+                        <RelativeLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content">
+
+                            <TextView
+                                android:id="@+id/tvQuestion"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/Is_this_you"
+                                android:textSize="14sp"
+                                android:layout_centerHorizontal="true"
+                                android:textStyle="bold"
+                                android:paddingVertical="5dp"
+                                android:paddingHorizontal="10dp"
+                                android:layout_gravity="center"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginHorizontal="20dp"/>
+
+                            <RelativeLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginHorizontal="20dp"
+                                android:layout_below="@id/tvQuestion"
+                                android:layout_marginTop="3dp"
+                                android:layout_marginBottom="20dp"
+                                android:paddingVertical="20dp"
+                                android:paddingHorizontal="20dp"
+                                android:background="@drawable/background_user_notes">
+
+                                <de.hdodenhof.circleimageview.CircleImageView
+                                    android:id="@+id/ivPhotoProfile"
+                                    android:layout_width="43dp"
+                                    android:layout_height="43dp"
+                                    android:layout_centerVertical="true"
+                                    android:layout_marginStart="3dp"
+                                    android:src="@drawable/placeholder_user_profile" />
+
+                                <TextView
+                                    android:id="@+id/tvRelatedName"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_toEndOf="@id/ivPhotoProfile"
+                                    android:layout_marginStart="15dp"
+                                    android:singleLine="true"
+                                    android:ellipsize="marquee"
+                                    android:marqueeRepeatLimit="marquee_forever"
+                                    android:fontFamily="@font/outfit_medium"
+                                    android:text="@string/user_author"
+                                    android:textColor="#000000"
+                                    android:textSize="16.5sp" />
+
+                                <TextView
+                                    android:id="@+id/tvInformation"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_toEndOf="@id/ivPhotoProfile"
+                                    android:layout_below="@id/tvRelatedName"
+                                    android:singleLine="true"
+                                    android:ellipsize="marquee"
+                                    android:marqueeRepeatLimit="marquee_forever"
+                                    android:layout_marginStart="15dp"
+                                    android:layout_marginTop="3dp"
+                                    android:fontFamily="@font/outfit_regular"
+                                    android:text="@string/owner_barber"
+                                    android:textColor="#808080"
+                                    android:textSize="12sp" />
+
+                            </RelativeLayout>
+
+                        </RelativeLayout>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/lineCard"
+                        android:layout_width="match_parent"
+                        android:layout_marginTop="10dp"
+                        android:layout_height="2dp"
+                        android:layout_marginHorizontal="38dp"
+                        android:layout_alignStart="@id/wrapperCapitalAmount"
+                        android:layout_alignEnd="@id/wrapperCapitalAmount"
+                        android:layout_below="@id/wrapperCapitalAmount"
+                        android:layout_centerHorizontal="true"
+                        android:visibility="visible"
+                        android:elevation="0dp"
+                        app:cardBackgroundColor="@color/charcoal_grey_background"/>
+
+                    <LinearLayout
+                        android:id="@+id/llCheckBoxData"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginTop="5dp"
+                        android:layout_marginStart="10dp"
+                        android:layout_gravity="center_horizontal">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:text="@string/input_data_customer_is_correct"
+                            android:layout_marginTop="-0.5dp"
+                            android:fontFamily="@font/arial_medium"
+                            android:textSize="13.5sp"
+                            android:layout_gravity="center" />
+
+                        <CheckBox
+                            android:id="@+id/checkBoxData"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="-8dp"
+                            android:textSize="12sp"
+                            style="@style/Widget.App.CheckBox"/>
+
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSaveChanges"
+                        android:layout_width="match_parent"
+                        android:layout_height="47dp"
+                        android:layout_marginTop="-3dp"
+                        android:layout_marginBottom="35dp"
+                        android:layout_marginHorizontal="70dp"
+                        android:minWidth="110dp"
+                        android:text="Simpan Perubahan"
+                        android:textSize="13sp"
+                        android:enabled="false"
+                        android:backgroundTint="@color/black"
+                        android:textColor="@color/green_lime_wf" />
+
+                </androidx.appcompat.widget.LinearLayoutCompat>
+
+            </androidx.core.widget.NestedScrollView>
+
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
+
+</FrameLayout>
+

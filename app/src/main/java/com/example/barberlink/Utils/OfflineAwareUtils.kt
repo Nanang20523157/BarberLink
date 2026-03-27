@@ -1,4 +1,4 @@
-package com.yourapp.utils
+package com.example.barberlink.Utils
 
 import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.Network.NetworkMonitor

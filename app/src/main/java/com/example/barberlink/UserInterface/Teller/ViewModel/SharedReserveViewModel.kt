@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserCustomerData
@@ -28,6 +29,7 @@ class SharedReserveViewModel(
 
     val stateMutex = ReentrantCoroutineMutex() // sudah mewakili servicesMutex dan juga bundlingMutex
     val customerMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerCustomerDataMutex = ReentrantCoroutineMutex()
     val listenerCapsterDataMutex = ReentrantCoroutineMutex()
@@ -36,6 +38,7 @@ class SharedReserveViewModel(
     val listenerOutletDataMutex = ReentrantCoroutineMutex()
     val listenerBundlingsMutex = ReentrantCoroutineMutex()
     val listenerServicesMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     val itemSelectedCounting: LiveData<Int> = repository.itemSelectedCounting
     val itemNameSelected: LiveData<List<Pair<String, String>>> = repository.itemNameSelected
@@ -56,6 +59,7 @@ class SharedReserveViewModel(
     val isSetItemBundling: LiveData<Boolean> = repository.isSetItemBundling
     val outletSelected: LiveData<Outlet> = repository.outletSelected
     val capsterSelected: LiveData<UserEmployeeData?> = repository.capsterSelected
+    val capsterRolesList: LiveData<List<EmployeeRolesData>> = repository.capsterRolesList
     val customerSelected: LiveData<UserCustomerData?> = repository.customerSelected
 
     fun setOutletSelected(outlet: Outlet) {
@@ -76,6 +80,14 @@ class SharedReserveViewModel(
         viewModelScope.launch {
             Logger.d("DataSync", "A1 || capster: ${capster?.uid}")
             repository.updateCapsterSelected(capster)
+        }
+    }
+
+    fun setCapsterRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            rolesListMutex.withStateLock {
+                repository.setCapsterRoles(list)
+            }
         }
     }
 
@@ -140,7 +152,6 @@ class SharedReserveViewModel(
                     if (existingCustomer != null) {
                         Logger.d("DataSync", "if (existingCustomer != null) ${newCustomerData.phone}")
                         existingCustomer.apply {
-                            userReminder = newCustomerData.userReminder
                             email = newCustomerData.email
                             fullname = newCustomerData.fullname
                             gender = newCustomerData.gender
@@ -148,10 +159,11 @@ class SharedReserveViewModel(
                             password = newCustomerData.password
                             phone = newCustomerData.phone
                             photoProfile = newCustomerData.photoProfile
-                            userNotification = newCustomerData.userNotification
                             uid = newCustomerData.uid
-                            username = newCustomerData.username
                             userCoins = newCustomerData.userCoins
+                            userNotification = newCustomerData.userNotification
+                            userReminder = newCustomerData.userReminder
+                            username = newCustomerData.username
                             lastReserve = newCustomerData.lastReserve
                             // dataSelected = newCustomerData.dataSelected
                             // guestAccount = newCustomerData.guestAccount
@@ -529,7 +541,7 @@ class SharedReserveViewModel(
                                 // Perbarui semua properti dari matching item tanpa mengganti referensi
                                 applyToGeneral = currentService.applyToGeneral
                                 autoSelected = currentService.autoSelected
-                                categoryDetail = currentService.categoryDetail
+                                //categoryDetail = currentService.categoryDetail
                                 defaultItem = currentService.defaultItem
                                 freeOfCharge = currentService.freeOfCharge
                                 resultsShareAmount = currentService.resultsShareAmount

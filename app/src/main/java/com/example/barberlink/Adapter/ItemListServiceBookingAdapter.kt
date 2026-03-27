@@ -132,12 +132,12 @@ class ItemListServiceBookingAdapter(
             with (binding) {
                 tvServiceName.isSelected = true
                 tvFeeCapsterInfo.isSelected = true
-                price.isSelected = true
+                tvPrice.isSelected = true
                 tvServiceName.text = service.serviceName
                 tvServiceDescription.text = service.serviceDesc
                 tvRating.text = service.serviceRating.toString()
                 val priceItem = if (service.freeOfCharge) "GRATIS" else NumberUtils.numberToCurrency(service.priceToDisplay.toDouble())
-                price.text = priceItem
+                tvPrice.text = priceItem
 
                 // Use Glide to load the image
                 Glide.with(root.context)

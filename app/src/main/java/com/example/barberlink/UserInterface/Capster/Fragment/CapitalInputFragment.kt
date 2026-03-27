@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
@@ -13,9 +12,7 @@ import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
-import android.view.GestureDetector
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
@@ -71,10 +68,12 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.Filter
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import com.yourapp.utils.awaitGetWithOfflineFallback
-import com.yourapp.utils.awaitWriteWithOfflineFallback
+import com.example.barberlink.Utils.awaitGetWithOfflineFallback
+import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
@@ -118,6 +117,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private var isCapitalAmountValid = false
     private var dailyCapitalString: String = ""
     private var isFirstLoad: Boolean = true
+    private var isPopUpDropdownShow: Boolean = false
     private var uidDropdownPosition: String = ""
     private var textDropdownOutletName: String = ""
     private var isOrientationChanged: Boolean = false
@@ -156,6 +156,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     //private var userPegawaiData: Employee? = null
     private var currentSnackbar: Snackbar? = null
 
+    private var popupObserverJob: Job? = null
+
 //    private lateinit var sessionDelegate: FragmentSessionDelegate
 
 //    override fun onAttach(context: Context) {
@@ -181,6 +183,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             uidDailyCapital = savedInstanceState.getString("uid_daily_capital", "") ?: ""
             skippedUpdateText = savedInstanceState.getBoolean("skipped_update_text", false)
             timeStampFilter = Timestamp(Date(savedInstanceState.getLong("timestamp_filter")))
+            isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
             textErrorForCapitalAmount = savedInstanceState.getString("text_error_for_capital_amount", "undefined") ?: "undefined"
 
             parentFragmentViewModel.setupDropdownFilterWithNullState()
@@ -271,8 +274,14 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
             parentFragmentViewModel.userEmployeeData.observe(viewLifecycleOwner) { userData ->
                 if (userData != null) {
+                    val oldUserData = capitalInputViewModel.getUserPegawaiData() ?: UserEmployeeData()
                     userPegawaiData = userData
                     capitalInputViewModel.setUserPegawaiData(userData)
+
+                    if (oldUserData.uid != "----------------" && oldUserData != userData) setupDropdownOutlet(
+                        setupDropdown = false,
+                        isSavedInstanceStateNull = true
+                    )
                     // Menghapus backgroundTint (mengatur ke warna default)
                     val color: Int = ContextCompat.getColor(context, R.color.light_grey_horizons_background)
                     binding.cvDateFilterLabel.backgroundTintList = ColorStateList.valueOf(color)
@@ -304,32 +313,17 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         // Simpan listener agar bisa dihapus nanti jika perlu
         this.lifecycleListener = listener
 
-        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapUp(e: MotionEvent): Boolean {
-                // Jangan dismiss dialog jika area cdCapitalForm yang diklik
-                if (isTouchOnForm(e)) {
-                    return false  // Jangan lanjutkan dismiss
-                }
+        binding.nvBackgroundScrim.setOnClickListener {
+            setFragmentResult("action_dismiss_dialog", bundleOf(
+                "dismiss_dialog" to true
+            ))
 
-                setFragmentResult("action_dismiss_dialog", bundleOf(
-                    "dismiss_dialog" to true
-                ))
+            dismiss()
+            parentFragmentManager.popBackStack()
+        }
 
-                dismiss()
-                parentFragmentManager.popBackStack()
-                return true
-            }
-        })
-
-        binding.nvBackgroundScrim.setOnTouchListener { view, event ->
-            if (gestureDetector.onTouchEvent(event)) {
-                // Deteksi klik dan panggil performClick untuk aksesibilitas
-                view.performClick()
-                true
-            } else {
-                // Teruskan event ke sistem untuk menangani scroll/swipe
-                false
-            }
+        binding.cdCapitalForm.setOnClickListener {
+            // Consume click to prevent dismissal when clicking inside the form
         }
 
         with (binding) {
@@ -377,16 +371,11 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         outState.putString("uid_daily_capital", uidDailyCapital)
         outState.putBoolean("skipped_update_text", skippedUpdateText)
         outState.putLong("timestamp_filter", timeStampFilter.toDate().time)
+        outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putString("text_error_for_capital_amount", textErrorForCapitalAmount)
     }
 
-    private fun isTouchOnForm(event: MotionEvent): Boolean {
-        val location = IntArray(2)
-        binding.cdCapitalForm.getLocationOnScreen(location)
-        val rect = Rect(location[0], location[1], location[0] + binding.cdCapitalForm.width, location[1] + binding.cdCapitalForm.height)
 
-        return rect.contains(event.rawX.toInt(), event.rawY.toInt())
-    }
 
     private fun updateMargins() {
         val params = binding.cdCapitalForm.layoutParams as ViewGroup.MarginLayoutParams
@@ -539,10 +528,22 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private fun setupDropdownOutlet(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
             parentFragmentViewModel.outletList.value?.let { outletList ->
+                // Filter outlet hanya untuk flow employee (HomePageCapster);
+                // flow admin (BerandaAdmin) menggunakan seluruh outlet yang tersedia.
+                val outletSourceList = if (::userPegawaiData.isInitialized) {
+                    userPegawaiData.uidListPlacement.mapNotNull { placement ->
+                        outletList.find { outlet ->
+                            outlet.uid.equals(placement, ignoreCase = true)
+                        }
+                    }
+                } else {
+                    outletList
+                }
+
                 // Filter dan urutkan outlet, lalu tambahkan item khusus
                 val outletItemDropdown = buildList {
                     addAll(
-                        outletList
+                        outletSourceList
                             // Buang duplikat berdasarkan outletName, lalu urutkan berdasarkan outletName
                             .distinctBy { it.outletName }
                             .sortedBy { it.outletName.lowercase(Locale.getDefault()) }
@@ -616,6 +617,12 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     }
                 }
 
+                if (!isFirstLoad && isPopUpDropdownShow) {
+                    Log.d("BindingFocus", "LLL")
+                    binding.acOutletName.showDropDown()
+                }
+                startPopupObserver()
+
                 if ((isSavedInstanceStateNull && setupDropdown) || isFirstLoad) {
                     Log.d("CheckDialog", "getDailyCapital()")
                     getDailyCapital()
@@ -627,6 +634,32 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     }
                 }
             }
+        }
+    }
+
+    private fun startPopupObserver() {
+        popupObserverJob?.cancel()
+
+        popupObserverJob = lifecycleScope.launch {
+            while (isActive) {
+                observePopupState()
+                delay(50)
+            }
+        }
+    }
+
+    private fun observePopupState() {
+        val currentStatePopUp = binding.acOutletName.isPopupShowing
+
+        if (currentStatePopUp != isPopUpDropdownShow) {
+            isPopUpDropdownShow = currentStatePopUp
+
+            Log.d("BindingFocus", "Popup: $isPopUpDropdownShow")
+
+            val icon = if (isPopUpDropdownShow) com.google.android.material.R.drawable.mtrl_ic_arrow_drop_up
+            else com.google.android.material.R.drawable.mtrl_ic_arrow_drop_down
+
+            binding.wrapperOutletName.setEndIconDrawable(icon)
         }
     }
 
@@ -700,9 +733,19 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         if (skippedProcess) remainingListeners.set(2)
         Log.d("CheckDialog", "textDropdownOutletName: $textDropdownOutletName, isFirstLoad: $isFirstLoad")
         if (textDropdownOutletName != "---") listenSpecificOutletData()
-        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        else if (remainingListeners.get() > 0) {
+            if (!::dataOutletListener.isInitialized) {
+                dataOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            }
+            remainingListeners.decrementAndGet()
+        }
         if (textDropdownOutletName != "---") listenToDailyCapital()
-        else if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+        else if (remainingListeners.get() > 0) {
+            if (!::capitalListener.isInitialized) {
+                capitalListener = db.collection("fake").addSnapshotListener { _, _ -> }
+            }
+            remainingListeners.decrementAndGet()
+        }
 
         // Tambahkan logika sinkronisasi di sini
         lifecycleScope.launch {
@@ -901,7 +944,10 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                         checkNetworkConnection {
                             val formattedAmount = format.parse(dailyCapitalString)?.toInt()
                             if (formattedAmount != null) {
-                                capitalInputViewModel.saveDailyCapital(formattedAmount, parentFragmentViewModel.outletSelected.value, uidDailyCapital, timeStampFilter)
+                                val dailyCapitalData = parentFragmentViewModel.dailyCapital.value
+                                val dataCreator = if (dailyCapitalData != null && (dailyCapitalString.replace(".", "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) dailyCapitalData.dataCreator
+                                else null
+                                capitalInputViewModel.saveDailyCapital(formattedAmount, parentFragmentViewModel.outletSelected.value, uidDailyCapital, timeStampFilter, dataCreator)
                             } else {
                                 toastViewModel.showToast("Data yang dimasukkan pengguna tidak valid!", true)
                                 setFocus(binding.etDailyCapital)

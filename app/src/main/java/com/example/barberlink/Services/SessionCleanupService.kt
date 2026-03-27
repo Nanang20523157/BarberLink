@@ -24,28 +24,52 @@ class SessionCleanupService : Service() {
         Log.d("UserInteraction", "Service Created")
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Membuat NotificationChannel jika diperlukan (Android 8.0 ke atas)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Session Cleanup",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
+        val showNotification = intent?.getBooleanExtra("SHOW_NOTIFICATION", true) ?: true
+        Log.d("SessionCleanupService", "onStartCommand: showNotification = $showNotification")
+
+        if (showNotification) {
+            // Membuat NotificationChannel jika diperlukan (Android 8.0 ke atas)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    "Session Cleanup",
+                    NotificationManager.IMPORTANCE_LOW
+                )
+                val notificationManager = getSystemService(NotificationManager::class.java)
+                notificationManager?.createNotificationChannel(channel)
+            }
+
+            // Membuat Notifikasi
+            val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle("Session Cleanup Running")
+                .setContentText("Cleanup service is running in the background.")
+                .setSmallIcon(R.drawable.ic_notification) // Gunakan ikon yang valid
+                .build()
+
+            // Memulai layanan sebagai foreground service
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
+            } catch (e: Exception) {
+                Log.e("SessionCleanupService", "Failed to start foreground service: ${e.message}", e)
+            }
+        } else {
+            // Hentikan status foreground jika sebelumnya berjalan sebagai foreground
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
+            } catch (e: Exception) {
+                Log.e("SessionCleanupService", "Failed to stop foreground: ${e.message}", e)
+            }
         }
-
-        // Membuat Notifikasi
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Session Cleanup Running")
-            .setContentText("Cleanup service is running in the background.")
-            .setSmallIcon(R.drawable.ic_notification) // Gunakan ikon yang valid
-            .build()
-
-        // Memulai layanan sebagai foreground service
-        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
 
         return START_STICKY
     }

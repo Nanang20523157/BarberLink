@@ -112,7 +112,7 @@
                     android:clipToPadding="false"
                     android:clipChildren="false"
                     android:nestedScrollingEnabled="true"
-                    tools:listitem="@layout/item_list_select_outlet_adapter"/>
+                    tools:listitem="@layout/item_list_select_destination_adapter"/>
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 

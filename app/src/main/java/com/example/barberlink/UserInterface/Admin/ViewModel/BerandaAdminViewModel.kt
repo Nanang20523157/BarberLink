@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.Service
@@ -27,8 +28,9 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     val outletListMutex = ReentrantCoroutineMutex()
     val servicesListMutex = ReentrantCoroutineMutex()
     val bundlingListMutex = ReentrantCoroutineMutex()
-    val employeesListMutex = ReentrantCoroutineMutex()
+    val employeeListMutex = ReentrantCoroutineMutex()
     val productsListMutex = ReentrantCoroutineMutex()
+    val rolesListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerBarbershopMutex = ReentrantCoroutineMutex()
     val listenerOutletsMutex = ReentrantCoroutineMutex()
@@ -36,6 +38,7 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     val listenerBundlingsMutex = ReentrantCoroutineMutex()
     val listenerEmployeeDataMutex = ReentrantCoroutineMutex()
     val listenerProductsMutex = ReentrantCoroutineMutex()
+    val listenerRolesMutex = ReentrantCoroutineMutex()
 
     // =========================================================
     // === UTILITAS DASAR
@@ -66,6 +69,9 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     private val _employeeList = MutableLiveData<List<UserEmployeeData>>().apply { value = mutableListOf() }
     val employeeList: LiveData<List<UserEmployeeData>> = _employeeList
 
+    private val _employeeRolesList = MutableLiveData<List<EmployeeRolesData>>().apply { value = mutableListOf() }
+    val employeeRolesList: LiveData<List<EmployeeRolesData>> = _employeeRolesList
+
     private val _isSetItemBundling = MutableLiveData<Boolean>().apply { value = false }
     val isSetItemBundling: LiveData<Boolean> = _isSetItemBundling
 
@@ -91,6 +97,7 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 
     fun setUserAdminData(userAdminData: UserAdminData) {
         viewModelScope.launch {
+            Log.d("PlayCheck", "viewModel :: ${userAdminData.uid}")
             _userAdminData.value = userAdminData
         }
     }
@@ -148,6 +155,22 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
     fun setEmployeeList(list: List<UserEmployeeData>) {
         viewModelScope.launch {
             _employeeList.value = list
+        }
+    }
+
+    fun setEmployeeRoles(list: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            val employees = _employeeList.value ?: emptyList()
+            _employeeRolesList.value = list
+
+            if (employees.isNotEmpty()) {
+                employeeListMutex.withStateLock {
+                    employees.forEach { employee ->
+                        employee.roleDetail = list.find { it.roleName == employee.role }
+                    }
+                    _employeeList.value = employees
+                }
+            }
         }
     }
 

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:clipChildren="false"
+    tools:context=".UserInterface.Admin.ManageServicePage">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <View
+            android:id="@+id/lineMarginLeft"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/main_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <TextView
+                android:id="@+id/tvEmptyService"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="@string/no_data"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:fontFamily="@font/arial_regular"
+                android:textColor="@color/black_font_color"
+                android:visibility="gone"/>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="10dp"
+                android:paddingHorizontal="16dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <!-- Back Button -->
+                <ImageView
+                    android:id="@+id/ivBack"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_alignParentStart="true"
+                    android:layout_marginStart="10dp"
+                    android:src="@drawable/ic_back"
+                    android:contentDescription="@string/icon_back_button_desc" />
+
+                <!-- Title -->
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:text="@string/toolbar_manage_service_page"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#000000" />
+
+                <LinearLayout
+                    android:id="@+id/llHeaderInfo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@id/tvTitle"
+                    android:layout_marginTop="20dp"
+                    android:orientation="horizontal"
+                    android:layout_marginHorizontal="8dp"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvServiceCountTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/public_sans_medium"
+                        tools:text="DAFTAR LAYANAN (0)"
+                        android:textColor="@color/slate_600"
+                        android:textSize="13sp"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.05"
+                        android:textAllCaps="true"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <ImageView
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:src="@drawable/ic_swipe_to_right"
+                            app:tint="#A0A0A0"
+                            android:layout_marginEnd="4dp"
+                            android:contentDescription="@string/swipe_icon_desc"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/swipe_text_intruction"
+                            android:textSize="11sp"
+                            android:textStyle="italic"
+                            android:textColor="#A0A0A0" />
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rv_service_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_below="@id/llHeaderInfo"
+                    android:layout_marginStart="-16dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginEnd="-16dp"
+                    android:layout_marginBottom="80dp"
+                    android:clipChildren="false"
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="true"
+                    tools:itemCount="2"
+                    app:spanCount="2"
+                    app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
+                    tools:listitem="@layout/item_list_manage_service_adapter" />
+
+            </RelativeLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <View
+            android:id="@+id/lineMarginRight"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:layerType="software"
+            android:background="@drawable/background_border_line"/>
+
+    </LinearLayout>
+
+    <!-- Bottom Float Area -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bottomFloatArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="30dp"
+        android:elevation="10dp"
+        android:background="@drawable/background_bottom_float_area2"
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnCreateNewService"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="35dp"
+            android:layout_marginVertical="20dp"
+            app:cardCornerRadius="10dp"
+            app:cardElevation="1dp"
+            android:backgroundTint="@color/black_font_color"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="47dp"
+                android:text="@string/create_new"
+                android:textSize="14sp"
+                android:textColor="@color/green_lime_wf"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="-2dp"/>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

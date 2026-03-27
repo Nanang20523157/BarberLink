@@ -8,14 +8,20 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.Services.SessionCleanupService
+import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
+import com.example.barberlink.UserInterface.Intro.Splash.SplashScreen
+import com.example.barberlink.Manager.SessionManager
+import com.example.barberlink.DataClass.EmployeeRolesData
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.*
+import androidx.lifecycle.lifecycleScope
 
-class BarberLinkApp : Application(), LifecycleObserver {
+class BarberLinkApp : Application(), DefaultLifecycleObserver {
 
     private val monitoredSeasonCleanUp = listOf(
         "MainActivity",
@@ -32,23 +38,45 @@ class BarberLinkApp : Application(), LifecycleObserver {
         "ReviewOrderPage"
     )
 
+    private var currentActivity: Activity? = null
+
     override fun onCreate() {
-        super.onCreate()
+        super<Application>.onCreate()
         // Memulai CleanupService saat aplikasi dimulai
-        // Daftarkan ActivityLifecycleCallbacks
         Log.d("UserInteraction", "Application started")
         NetworkMonitor.init(this)
-        registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
+        setupActivityLifecycle()
+        setupRemoteVersionChecker()
 
+        //val sessionManager = SessionManager.getInstance(this)
+        //sessionManager.loadRolesFromPrefs()
+        //setupRolesListener()
+
+        observeVersionAllowedStatus()
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+    }
+
+    private fun setupActivityLifecycle() {
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
             override fun onActivityStarted(activity: Activity) {
+                currentActivity = activity
                 Log.d("UserInteraction", "Activity Started: ${activity.javaClass.simpleName}")
+
+                // Segera cek status versi saat activity dimulai (mengatasi kasus background -> foreground)
+                val sessionManager = SessionManager.getInstance(applicationContext)
+                if (!sessionManager.getIsVersionAllowed()) {
+                    redirectToLandingPageIfNeeded()
+                }
             }
             override fun onActivityResumed(activity: Activity) {
+                currentActivity = activity
             }
             override fun onActivityPaused(activity: Activity) {}
             override fun onActivityStopped(activity: Activity) {
-
+                if (currentActivity === activity) {
+                    currentActivity = null
+                }
             }
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {
@@ -62,43 +90,167 @@ class BarberLinkApp : Application(), LifecycleObserver {
 
                 if (!isAppInRecentApps) {
                     if (activityName in monitoredSeasonCleanUp) triggerSessionCleanupWorker()
-                    // else if (activityName in monitoredActiveDevice) TNODO("Implementation Decrement Active Device")
                 }
             }
-
         })
-
-        startCleanupService()
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_START)
-    fun onAppForeground() {
+    private fun setupRemoteVersionChecker() {
+        val db = FirebaseFirestore.getInstance()
+        val sessionManager = SessionManager.getInstance(this)
+        val currentVersion = BuildConfig.VERSION_NAME
+
+        db.collection("official").document("barberlink2024")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("VersionCheck", "Listen failed.", e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    // Check if data is from server or cache
+                    val isFromCache = snapshot.metadata.isFromCache
+                    if (!isFromCache) {
+                        val versionApp = snapshot.get("version_app") as? List<String>
+                        val permissionList = snapshot.get("permission_list") as? Map<String, Any>
+
+                        if (versionApp != null) {
+                            val isAllowed = currentVersion in versionApp
+                            sessionManager.setVersionAllowed(isAllowed)
+                            Log.d("VersionCheck", "Version check from server: $currentVersion in $versionApp -> $isAllowed")
+                        } else {
+                            // Field missing or wrong type, block for safety
+                            sessionManager.setVersionAllowed(false)
+                        }
+
+                        if (permissionList != null) {
+                            sessionManager.savePermissionList(permissionList)
+                            Log.d("VersionCheck", "Permission list saved to SessionManager: $permissionList")
+                        }
+                    } else {
+                        // Data from cache. We DO NOT update the status to ensure persistence 
+                        // of the last known server state (especially if it was blocked).
+                        Log.d("VersionCheck", "Data from cache. Skipping update to preserve last server state.")
+                    }
+                } else {
+                    // Document not found or explicitly deleted, access must be revoked.
+                    sessionManager.setVersionAllowed(false)
+                    Log.d("VersionCheck", "Document not found/deleted. Access revoked.")
+                }
+            }
+    }
+
+    private fun setupRolesListener() {
+        val db = FirebaseFirestore.getInstance()
+        val sessionManager = SessionManager.getInstance(this)
+
+        db.collection("roles")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("RolesListener", "Listen failed.", e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && !snapshot.isEmpty) {
+                    val rolesList = mutableListOf<EmployeeRolesData>()
+                    for (doc in snapshot.documents) {
+                        val roleData = doc.toObject(EmployeeRolesData::class.java)
+                        roleData?.let { rolesList.add(it) }
+                    }
+                    sessionManager.saveRolesData(rolesList)
+                    Log.d("RolesListener", "Roles data updated: ${rolesList.size} roles saved.")
+                } else {
+                    Log.d("RolesListener", "Roles data empty or not found.")
+                }
+            }
+    }
+
+    private fun observeVersionAllowedStatus() {
+        val sessionManager = SessionManager.getInstance(this)
+        ProcessLifecycleOwner.get().lifecycleScope.launch {
+            sessionManager.isVersionAllowed.collect { isAllowed ->
+                if (!isAllowed) {
+                    redirectToLandingPageIfNeeded()
+                }
+            }
+        }
+    }
+
+    private fun redirectToLandingPageIfNeeded() {
+        val sessionManager = SessionManager.getInstance(this)
+        // Hanya arahkan ke LandingPage jika status memang FALSE
+        if (!sessionManager.getIsVersionAllowed()) {
+            currentActivity?.let { activity ->
+                val activityName = activity.javaClass.simpleName
+                if (activityName != LandingPage::class.java.simpleName && activityName != SplashScreen::class.java.simpleName) {
+                    val intent = Intent(activity, LandingPage::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
+                    activity.startActivity(intent)
+                    activity.finish()
+                }
+            }
+        }
+    }
+
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
         NetworkMonitor.startMonitoring()
-        // App masuk foreground
+        // App masuk foreground, luncurkan service secara legal
+        startCleanupService()
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
-    fun onAppBackgrounded() {
+    override fun onStop(owner: LifecycleOwner) {
+        super.onStop(owner)
         NetworkMonitor.stopMonitoring()
         Log.d("UserInteraction", "App moved to background or removed from Recent Apps")
         Log.d("ConnectionUserCheck", "App moved to background or removed from Recent Apps")
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    fun onAppDestroyed() {
+    override fun onDestroy(owner: LifecycleOwner) {
+        super.onDestroy(owner)
         Log.d("UserInteraction", "App destroyed")
         Log.d("ConnectionUserCheck", "App destroyed")
     }
 
     private fun startCleanupService() {
-        val serviceIntent = Intent(this, SessionCleanupService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Log.d("UserInteraction", "Starting foreground service")
-            startForegroundService(serviceIntent)
+        val sessionManager = SessionManager.getInstance(this)
+        val showNotification = sessionManager.getShowCleanupNotification()
+        Log.d("UserInteraction", "startCleanupService: showNotification = $showNotification")
+
+        val serviceIntent = Intent(this, SessionCleanupService::class.java).apply {
+            putExtra("SHOW_NOTIFICATION", showNotification)
+        }
+
+        if (showNotification) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Log.d("UserInteraction", "Starting foreground service")
+                try {
+                    startForegroundService(serviceIntent)
+                } catch (e: Exception) {
+                    Log.e("UserInteraction", "Failed to start foreground service: ${e.message}", e)
+                    // Fallback ke background service biasa jika ada pembatasan OS
+                    try {
+                        startService(serviceIntent)
+                    } catch (e2: Exception) {
+                        Log.e("UserInteraction", "Failed to start service fallback: ${e2.message}", e2)
+                    }
+                }
+            } else {
+                Log.d("UserInteraction", "Starting service")
+                try {
+                    startService(serviceIntent)
+                } catch (e: Exception) {
+                    Log.e("UserInteraction", "Failed to start service: ${e.message}", e)
+                }
+            }
         } else {
-            Log.d("UserInteraction", "Starting service")
-            startService(serviceIntent)
+            Log.d("UserInteraction", "Starting background service without notification")
+            try {
+                startService(serviceIntent)
+            } catch (e: Exception) {
+                Log.e("UserInteraction", "Failed to start service: ${e.message}", e)
+            }
         }
     }
 
@@ -122,6 +274,5 @@ class BarberLinkApp : Application(), LifecycleObserver {
 //        WorkManager.getInstance(applicationContext).enqueue(workRequest)
         Log.d("UserInteraction", "SessionCleanupWorker triggered")
     }
-
 
 }

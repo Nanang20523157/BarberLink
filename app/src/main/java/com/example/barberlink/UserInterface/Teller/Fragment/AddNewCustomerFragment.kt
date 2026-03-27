@@ -23,7 +23,6 @@ import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
 import androidx.core.view.isGone
-import androidx.core.view.isVisible
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -77,7 +76,7 @@ class AddNewCustomerFragment : DialogFragment() {
     private val toastViewModel: ToastViewModel by viewModels()
     private val debounce by lazy { ScopedUniversalDebounce() }
     private var customerAddResultListener: OnCustomerAddResultListener? = null
-    private val listGender = listOf("Rahasiakan", "Laki-laki", "Perempuan")
+    //private val listGender = listOf("Rahasiakan", "Laki-laki", "Perempuan")
     private lateinit var context: Context
 
     private var checkBoxIsCheck = false // ????
@@ -112,6 +111,10 @@ class AddNewCustomerFragment : DialogFragment() {
     private var param1: String? = null
     private var param2: String? = null
 
+    private val listGender by lazy {
+        resources.getStringArray(R.array.gender_list)
+    }
+
     interface OnCustomerAddResultListener {
         fun onCustomerAddResult(success: Boolean)
     }
@@ -139,6 +142,7 @@ class AddNewCustomerFragment : DialogFragment() {
             isUpdatingPhoneText = savedInstanceState.getBoolean("is_updating_phone_text", false)
             isOrientationChanged = savedInstanceState.getBoolean("is_orientation_changed", false)
             isSystemWriteData = savedInstanceState.getBoolean("is_system_write_data", false)
+            isShowSnackbarReplacement = savedInstanceState.getBoolean("is_show_snackbar_replacement", false)
         }
 //        arguments?.let {
 //            outletSelected = it.getParcelable(ARG_PARAM1)
@@ -177,14 +181,14 @@ class AddNewCustomerFragment : DialogFragment() {
             addCustomerViewModel.setUserEmployeeData(UserEmployeeData())
             addCustomerViewModel.setUserRolesData(UserRolesData())
             addCustomerViewModel.setUserCustomerData(UserCustomerData(
-                gender = addCustomerViewModel.getUserInputGander().ifEmpty { binding.genderDropdown.text.toString().trim() }
+                gender = addCustomerViewModel.getUserInputGender().ifEmpty { binding.genderDropdown.text.toString().trim() }
             ))
         }
         shareReserveViewModel.outletSelected.observe(viewLifecycleOwner) {
             addCustomerViewModel.setOutletSelected(it)
         }
         binding.tvInformation.isSelected = true
-        binding.tvUsername.isSelected = true
+        binding.tvRelatedName.isSelected = true
 
         // Panggil fungsi pertama kali
         updateMargins()
@@ -291,7 +295,7 @@ class AddNewCustomerFragment : DialogFragment() {
                             .into(binding.ivPhotoProfile)
                     }
 
-                    binding.tvUsername.text = addCustomerViewModel.getUserCustomerData().fullname
+                    binding.tvRelatedName.text = addCustomerViewModel.getUserCustomerData().fullname
                     displayObtainedData()
                     updateMargins()
                     binding.btnSave.text = getString(R.string.btn_sinkron)
@@ -410,6 +414,9 @@ class AddNewCustomerFragment : DialogFragment() {
         //Log.d("InitialCheckBox", "outletSelected: ${outletSelected?.outletName}")
         Log.d("InitialCheckBox", "previousText: $previousText")
 
+        if (addCustomerViewModel.getButtonStatus() == "Sync") {
+            restoreSyncUIState()
+        }
     }
 
     private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
@@ -452,6 +459,7 @@ class AddNewCustomerFragment : DialogFragment() {
         outState.putBoolean("is_phone_number_valid", isPhoneNumberValid)
         outState.putString("previous_text", previousText)
         outState.putString("text_error_for_fullname", textErrorForFullname)
+        outState.putBoolean("is_show_snackbar_replacement", isShowSnackbarReplacement)
         outState.putString("text_error_for_phone_number", textErrorForPhoneNumber)
         outState.putBoolean("show_toast_checking", showToastChecking)
         //outState.putBoolean("is_save_data", isSaveData)
@@ -601,7 +609,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 super.onDismissed(transientBottomBar, event)
                 // action user && mabual code
                 if (message == "Kembalikan inputan pengguna ke nilai awal") {
-                    Log.d("InputName", "T1")
+                    Logger.d("InputName", "T1")
                     shareReserveViewModel.showSnackBarToAll("", "", "")
                 }
                 if (event != DISMISS_EVENT_ACTION && event != DISMISS_EVENT_MANUAL) {
@@ -643,7 +651,7 @@ class AddNewCustomerFragment : DialogFragment() {
         lifecycleScope.launch(Dispatchers.Main) {
             val adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, listGender)
             binding.genderDropdown.setAdapter(adapter)
-            setupDropdownOption(listGender.indexOf(addCustomerViewModel.getUserInputGander()))
+            setupDropdownOption(listGender.indexOf(addCustomerViewModel.getUserInputGender()))
 
             // Listener to handle user selection
             binding.genderDropdown.setOnItemClickListener { _, _, position, _ ->
@@ -1066,6 +1074,9 @@ class AddNewCustomerFragment : DialogFragment() {
 
     private fun setFocus(view: View) {
         view.requestFocus()
+        if (view is EditText) {
+            view.setSelection(view.text.length)
+        }
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
     }
@@ -1076,8 +1087,13 @@ class AddNewCustomerFragment : DialogFragment() {
         currentSnackbar?.dismiss()
 
         if (replacingInput && isShowSnackbarReplacement) {
-            val userReplacedName = shareReserveViewModel.userFullname.value?.peekContent() ?: ""
-            val userReplacedGender = shareReserveViewModel.userGender.value?.peekContent() ?: ""
+            val userReplacedName = shareReserveViewModel.userFullname.value?.peekContent()?.ifEmpty {
+                addCustomerViewModel.getPreSyncUserInputName()
+            } ?: addCustomerViewModel.getPreSyncUserInputName()
+
+            val userReplacedGender = shareReserveViewModel.userGender.value?.peekContent()?.ifEmpty {
+                addCustomerViewModel.getPreSyncUserInputGender()
+            } ?: addCustomerViewModel.getPreSyncUserInputGender()
 
             val textInputName = binding.etFullname.text.toString().trim()
             val textInputGender = binding.genderDropdown.text.toString().trim()
@@ -1085,17 +1101,18 @@ class AddNewCustomerFragment : DialogFragment() {
                 isShowSnackbarReplacement = false
                 // Toast.makeText(context, "Kembalikan Nama: $userReplacedName dan Gander: $userReplacedGender", Toast.LENGTH_SHORT).show()
 
+                Logger.d("InputName", "userReplacedName: $userReplacedName || textInputName: $textInputName || userReplacedGender: $userReplacedGender || textInputGender: $textInputGender")
                 shareReserveViewModel.showSnackBarToAll(
                     userReplacedName,
                     userReplacedGender,
                     "Kembalikan inputan pengguna ke nilai awal"
                 )
             } else {
-                Log.d("InputName", "userReplacedName: $userReplacedName || textInputName: $textInputName || userReplacedGender: $userReplacedGender || textInputGender: $textInputGender")
+                Logger.d("InputName", "userReplacedName: $userReplacedName || textInputName: $textInputName || userReplacedGender: $userReplacedGender || textInputGender: $textInputGender")
                 shareReserveViewModel.showSnackBarToAll("", "", "")
             }
         } else {
-            Log.d("InputName", "T2")
+            Logger.d("InputName", "T2")
             shareReserveViewModel.showSnackBarToAll("", "", "")
         }
 
@@ -1130,50 +1147,99 @@ class AddNewCustomerFragment : DialogFragment() {
             Log.d("TriggerUU", "X!!X")
             val userFullname = addCustomerViewModel.getUserCustomerData().fullname
             val userGender = addCustomerViewModel.getUserCustomerData().gender
-            if ((addCustomerViewModel.getUserInputName() != userFullname && userFullname.isNotEmpty()) && (addCustomerViewModel.getUserInputGander() != userGender && userGender.isNotEmpty())) {
+            val preSyncName = addCustomerViewModel.getPreSyncUserInputName()
+            val preSyncGender = addCustomerViewModel.getPreSyncUserInputGender()
+            
+            if ((preSyncName != userFullname && userFullname.isNotEmpty()) && (preSyncGender != userGender && userGender.isNotEmpty())) {
                 Log.d("TriggerUU", "X!A!X")
                 isSystemWriteData = true
                 addCustomerViewModel.setUserManualInput(false)
 
                 // SnackBar
                 shareReserveViewModel.showSnackBarToAll(
-                    addCustomerViewModel.getUserInputName(),
-                    addCustomerViewModel.getUserInputGander(),
+                    preSyncName,
+                    preSyncGender,
                     "Kembalikan nama dan gander dari pengguna"
                 )
                 binding.etFullname.setText(userFullname)
                 binding.etFullname.setSelection(userFullname.length) // Set cursor di akhir nama
                 setUserCustomerGender(userGender)
-            } else if (addCustomerViewModel.getUserInputName() != userFullname && userFullname.isNotEmpty()) {
+            } else if (preSyncName != userFullname && userFullname.isNotEmpty()) {
                 Log.d("TriggerUU", "X!B!X")
                 isSystemWriteData = true
                 addCustomerViewModel.setUserManualInput(false)
 
                 // SnackBar
                 shareReserveViewModel.showSnackBarToAll(
-                    addCustomerViewModel.getUserInputName(),
-                    addCustomerViewModel.getUserInputGander(),
+                    preSyncName,
+                    preSyncGender,
                     "Kembalikan nama panjang dari pengguna"
                 )
                 binding.etFullname.setText(userFullname)
                 binding.etFullname.setSelection(userFullname.length) // Set cursor di akhir nama
-            } else if (addCustomerViewModel.getUserInputGander() != userGender && userGender.isNotEmpty()) {
+            } else if (preSyncGender != userGender && userGender.isNotEmpty()) {
                 Log.d("TriggerUU", "X!C!X")
                 isSystemWriteData = true
                 addCustomerViewModel.setUserManualInput(false)
 
                 shareReserveViewModel.showSnackBarToAll(
-                    addCustomerViewModel.getUserInputName(),
-                    addCustomerViewModel.getUserInputGander(),
+                    preSyncName,
+                    preSyncGender,
                     "Kembalikan nilai gander dari pengguna"
                 )
                 setUserCustomerGender(userGender)
             } else {
-                Log.d("InputName", "T3")
+                Logger.d("InputName", "T3")
                 shareReserveViewModel.showSnackBarToAll("", "", "")
                 // reset disini karena tidak menampilkan snackbar
                 addCustomerViewModel.setAddCustomerResult(null)
             }
+        }
+    }
+
+    private fun restoreSyncUIState() {
+        if (addCustomerViewModel.getButtonStatus() == "Sync") {
+            binding.progressBar.visibility = View.GONE
+            isShowSnackbarReplacement = true
+            val role = when (addCustomerViewModel.getUserRolesData().role) {
+                "admin" -> "admin"
+                "employee", "pairAE" -> "employee"
+                else -> "customer"
+            }
+            when (role) {
+                "admin" -> {
+                    binding.tvInformation.text = getString(R.string.owner_barber, addCustomerViewModel.getUserAdminData().barbershopName)
+                }
+                "employee" -> {
+                    val firstUid = addCustomerViewModel.getUserEmployeeData().uidListPlacement.firstOrNull()
+                    val outletName = firstUid?.let { uid ->
+                        shareReserveViewModel.outletList.value?.find { it.uid == uid }?.outletName
+                    } ?: "Barbershop"
+
+                    binding.tvInformation.text = getString(
+                        R.string.employee_barber,
+                        outletName
+                    )
+                }
+                "customer" -> {
+                    binding.tvInformation.text = getString(R.string.user_customer_information)
+                }
+            }
+
+            addCustomerViewModel.getUserCustomerData().photoProfile.takeIf { it.isNotEmpty() }.let {
+                Glide.with(context)
+                    .load(it)
+                    .placeholder(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                    .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                    .into(binding.ivPhotoProfile)
+            }
+
+            binding.tvRelatedName.text = addCustomerViewModel.getUserCustomerData().fullname
+            updateMargins()
+            binding.btnSave.text = getString(R.string.btn_sinkron)
+            binding.accountCard.visibility = View.VISIBLE
+            binding.lineCard.visibility = View.VISIBLE
+            setMarginForCheckBox(5)
         }
     }
 

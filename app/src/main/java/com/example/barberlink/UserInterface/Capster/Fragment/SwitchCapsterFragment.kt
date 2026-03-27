@@ -42,9 +42,10 @@ import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.QueueControlViewModel
 import com.example.barberlink.UserInterface.Capster.ViewModel.SwitchCapsterViewModel
+import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
-import com.example.barberlink.databinding.FragmentSwitchQueueBinding
+import com.example.barberlink.databinding.FragmentSwitchCapsterBinding
 import com.google.android.material.textfield.TextInputLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,7 +69,7 @@ private const val ARG_PARAM5 = "outletSelected"
  * create an instance of this fragment.
  */
 class SwitchCapsterFragment : DialogFragment() {
-    private var _binding: FragmentSwitchQueueBinding? = null
+    private var _binding: FragmentSwitchCapsterBinding? = null
     private val queueControlViewModel: QueueControlViewModel by activityViewModels()
     private val switchCapsterViewModel: SwitchCapsterViewModel by activityViewModels()
     private val toastViewModel: ToastViewModel by viewModels()
@@ -127,7 +128,7 @@ class SwitchCapsterFragment : DialogFragment() {
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-        _binding = FragmentSwitchQueueBinding.inflate(inflater, container, false)
+        _binding = FragmentSwitchCapsterBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -317,45 +318,49 @@ class SwitchCapsterFragment : DialogFragment() {
             }
 
             override fun afterTextChanged(s: Editable?) {
-                setupTextFieldInputType(s.toString(), isOrientationChanged)
+                lifecycleScope.launch(Dispatchers.Main) {
+                    setupTextFieldInputType(s.toString(), isOrientationChanged)
 
-                isUserTyping = false
+                    isUserTyping = false
+                }
             }
         }
 
         binding.acCapsterName.addTextChangedListener(textWatcher)
     }
 
-    private fun setupTextFieldInputType(s: String, isRecreated: Boolean) {
+    private suspend fun setupTextFieldInputType(s: String, isRecreated: Boolean) {
         if (!isRecreated) {
-            val capsterList = switchCapsterViewModel.capsterList.value ?: emptyList()
+            switchCapsterViewModel.capsterListMutex.withStateLock {
+                val capsterList = switchCapsterViewModel.capsterList.value ?: emptyList()
 //            val modifiedCapsterList = mutableListOf(UserEmployeeData(uid = "Semua", fullname = "Semua"))
 //            modifiedCapsterList.addAll(capsterList)
-            val selectedCapster: UserEmployeeData? = capsterList.find { it.fullname == s }
-            isCompleteSearch = selectedCapster != null
-            uidDropdownPosition = selectedCapster?.uid ?: "----------------"
-            textDropdownCapsterName = s
+                val selectedCapster: UserEmployeeData? = capsterList.find { it.fullname == s }
+                isCompleteSearch = selectedCapster != null
+                uidDropdownPosition = selectedCapster?.uid ?: "----------------"
+                textDropdownCapsterName = s
 
-            if (isCompleteSearch || s.isEmpty()) {
-                Log.d("BindingFocus", "isCompleteSearch: true")
-                // Kembalikan ke dropdown menu
-                binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-                binding.acCapsterName.dismissDropDown()
-                if (::adapter.isInitialized) adapter.filter.filter(null)
-                if (s.isEmpty()) {
-                    // Tunda sedikit agar showDropDown tidak ditimpa oleh dismiss bawaan
-                    handler.postDelayed({
-                        Log.d("BindingFocus", "123")
-                        if (!binding.acCapsterName.isPopupShowing) {
-                            binding.acCapsterName.showDropDown()
-                        }
-                    }, 50)
-                }
-            } else {
-                // Ubah ikon jadi clear
+                if (isCompleteSearch || s.isEmpty()) {
+                    Log.d("BindingFocus", "isCompleteSearch: true")
+                    // Kembalikan ke dropdown menu
+                    binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                    binding.acCapsterName.dismissDropDown()
+                    if (::adapter.isInitialized) adapter.filter.filter(null)
+                    if (s.isEmpty()) {
+                        // Tunda sedikit agar showDropDown tidak ditimpa oleh dismiss bawaan
+                        handler.postDelayed({
+                            Log.d("BindingFocus", "123")
+                            if (!binding.acCapsterName.isPopupShowing) {
+                                binding.acCapsterName.showDropDown()
+                            }
+                        }, 50)
+                    }
+                } else {
+                    // Ubah ikon jadi clear
 //                binding.realLayout.textInputLayout.end
-                Log.d("BindingFocus", "isCompleteSearch: false")
-                binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                    Log.d("BindingFocus", "isCompleteSearch: false")
+                    binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                }
             }
         }
     }
@@ -392,110 +397,112 @@ class SwitchCapsterFragment : DialogFragment() {
 
     private fun setupDropdownCapster(setupDropdown: Boolean, isSavedInstanceStateNull: Boolean) {
         lifecycleScope.launch(Dispatchers.Main) {
-            switchCapsterViewModel.capsterList.value?.let { capsterList ->
-                Logger.d("DropdownCheck", "isFirstLoad: $isFirstLoad || setupDropdown: $setupDropdown || isSavedInstanceStateNull: $isSavedInstanceStateNull")
-                Logger.d("DropdownCheck", "==========================================================================")
-                val capsterItemDropdown = capsterList
-                    .filterNot { it.uid == initialUidCapster } // hilangkan nama sendiri
-                    .distinctBy { it.fullname } // Pastikan setiap nama capster unik
-                    .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
-                    .ifEmpty { listOf(UserEmployeeData(uid = "---", fullname = "---")) }
+            switchCapsterViewModel.capsterListMutex.withStateLock {
+                switchCapsterViewModel.capsterList.value?.let { capsterList ->
+                    Logger.d("DropdownCheck", "isFirstLoad: $isFirstLoad || setupDropdown: $setupDropdown || isSavedInstanceStateNull: $isSavedInstanceStateNull")
+                    Logger.d("DropdownCheck", "==========================================================================")
+                    val capsterItemDropdown = capsterList
+                        .filterNot { it.uid == initialUidCapster } // hilangkan nama sendiri
+                        .distinctBy { it.fullname } // Pastikan setiap nama capster unik
+                        .sortedBy { it.fullname.lowercase(Locale.getDefault()) }
+                        .ifEmpty { listOf(UserEmployeeData(uid = "---", fullname = "---")) }
 
-                capsterItemDropdown.forEach {
-                    Logger.d("SetDropdown", "Dropdown Item: ${it.fullname}" )
-                }
-                val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
-                adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
-                binding.acCapsterName.setAdapter(adapter)
-                binding.acCapsterName.threshold = 0
-                binding.acCapsterName.setOnFocusChangeListener { _, state ->
-                    isCapsterDropdownFocus = state
-                    Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
-                }
-
-                binding.acCapsterName.setOnItemClickListener { _, _, position, _ ->
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        // xxxxx y if (blockAllUserClickAction) { gak perlu gak ada loading }
-                        // Dapatkan teks yang dipilih dari dropdown
-                        val selectedName = adapter.getItem(position)
-                        // Cari UserEmployeeData yang sesuai dari capsterItemDropdown
-                        val dataCapster = capsterItemDropdown.find { it.fullname == selectedName } ?: capsterItemDropdown.first()
-
-                        Logger.d("SetDropdown", "Dropdown Clicked Item position: $position || dataCapster: ${dataCapster.fullname}")
-                        binding.acCapsterName.setText(dataCapster.fullname, false)
-                        binding.acCapsterName.setSelection(dataCapster.fullname.length)
-                        uidDropdownPosition = dataCapster.uid
-                        textDropdownCapsterName = dataCapster.fullname
-
-                        Logger.d("DisplayCapsterData", "DropdownClick: ${dataCapster.fullname}")
-                        triggeredDataChange(dataCapster, false)
+                    capsterItemDropdown.forEach {
+                        Logger.d("SetDropdown", "Dropdown Item: ${it.fullname}" )
                     }
-                }
-
-                if (setupDropdown) {
-                    Logger.d("DropdownCheck", "SetupDropdown")
-                    capsterItemDropdown.forEach { it ->
-                        Logger.d("DropdownCheck", it.fullname)
+                    val filteredCapsterNames = capsterItemDropdown.map { it.fullname }
+                    adapter = ArrayAdapter(context, android.R.layout.simple_dropdown_item_1line, filteredCapsterNames)
+                    binding.acCapsterName.setAdapter(adapter)
+                    binding.acCapsterName.threshold = 0
+                    binding.acCapsterName.setOnFocusChangeListener { _, state ->
+                        isCapsterDropdownFocus = state
+                        Log.d("BindingFocus", "A isCapsterDropdownFocus $isCapsterDropdownFocus")
                     }
-                    val dataCapster = capsterItemDropdown.first()
-                    Logger.d("SetDropdown", "Setup Dropdown First Item")
-                    binding.acCapsterName.setText(dataCapster.fullname, false)
-                    uidDropdownPosition = dataCapster.uid
-                    textDropdownCapsterName = dataCapster.fullname
 
-                    Logger.d("DisplayCapsterData", "SetupDropdown: ${dataCapster.fullname}")
-                    triggeredDataChange(dataCapster, false)
-                } else {
-                    if (isSavedInstanceStateNull) {
-                        if (isCompleteSearch) {
-                            Logger.d("DropdownCheck", "DropdownListener")
-                            // selectedIndex == -1 ketika employee sudah tidak lagi terdaftar sebagai listEmployee dari oitlet atau ketika datanya sudah dihapus dari database employee perusahaan
-                            val selectedIndex = capsterItemDropdown.indexOfFirst {
-                                it.uid.equals(uidDropdownPosition, ignoreCase = true)
-                            }.takeIf { it != -1 } ?: -1
-                            val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
-                            Logger.d("SetDropdown", "Dropdown Listener Selected Item, textDropdownCapsterName: $textDropdownCapsterName")
-                            if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                    binding.acCapsterName.setOnItemClickListener { _, _, position, _ ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            // xxxxx y if (blockAllUserClickAction) { gak perlu gak ada loading }
+                            // Dapatkan teks yang dipilih dari dropdown
+                            val selectedName = adapter.getItem(position)
+                            // Cari UserEmployeeData yang sesuai dari capsterItemDropdown
+                            val dataCapster = capsterItemDropdown.find { it.fullname == selectedName } ?: capsterItemDropdown.first()
+
+                            Logger.d("SetDropdown", "Dropdown Clicked Item position: $position || dataCapster: ${dataCapster.fullname}")
+                            binding.acCapsterName.setText(dataCapster.fullname, false)
+                            binding.acCapsterName.setSelection(dataCapster.fullname.length)
                             uidDropdownPosition = dataCapster.uid
                             textDropdownCapsterName = dataCapster.fullname
 
-                            Logger.d("DisplayCapsterData", "DropdownListener: ${dataCapster.fullname}")
-                            triggeredDataChange(dataCapster, true)
+                            Logger.d("DisplayCapsterData", "DropdownClick: ${dataCapster.fullname}")
+                            triggeredDataChange(dataCapster, false)
+                        }
+                    }
+
+                    if (setupDropdown) {
+                        Logger.d("DropdownCheck", "SetupDropdown")
+                        capsterItemDropdown.forEach { it ->
+                            Logger.d("DropdownCheck", it.fullname)
+                        }
+                        val dataCapster = capsterItemDropdown.first()
+                        Logger.d("SetDropdown", "Setup Dropdown First Item")
+                        binding.acCapsterName.setText(dataCapster.fullname, false)
+                        uidDropdownPosition = dataCapster.uid
+                        textDropdownCapsterName = dataCapster.fullname
+
+                        Logger.d("DisplayCapsterData", "SetupDropdown: ${dataCapster.fullname}")
+                        triggeredDataChange(dataCapster, false)
+                    } else {
+                        if (isSavedInstanceStateNull) {
+                            if (isCompleteSearch) {
+                                Logger.d("DropdownCheck", "DropdownListener")
+                                // selectedIndex == -1 ketika employee sudah tidak lagi terdaftar sebagai listEmployee dari oitlet atau ketika datanya sudah dihapus dari database employee perusahaan
+                                val selectedIndex = capsterItemDropdown.indexOfFirst {
+                                    it.uid.equals(uidDropdownPosition, ignoreCase = true)
+                                }.takeIf { it != -1 } ?: -1
+                                val dataCapster = if (selectedIndex != -1) capsterItemDropdown[selectedIndex] else UserEmployeeData(uid = "---", fullname = "---")
+                                Logger.d("SetDropdown", "Dropdown Listener Selected Item, textDropdownCapsterName: $textDropdownCapsterName")
+                                if (textDropdownCapsterName != "---") binding.acCapsterName.setText(dataCapster.fullname, false)
+                                uidDropdownPosition = dataCapster.uid
+                                textDropdownCapsterName = dataCapster.fullname
+
+                                Logger.d("DisplayCapsterData", "DropdownListener: ${dataCapster.fullname}")
+                                triggeredDataChange(dataCapster, true)
+                            }
+                        } else {
+                            Logger.d("DisplayCapsterData", "DropdownOrientation ${switchCapsterViewModel.getCapsterData()?.fullname ?: "NULL"}")
+                        }
+                    }
+
+                    val textDropdownSelected = binding.acCapsterName.text.toString().trim()
+                    if (isFirstLoad) {
+                        // Langsung set nilai "All" di AutoCompleteTextView
+                        if (textDropdownSelected.isEmpty()) {
+                            Logger.d("SetDropdown", "First Load Set Text All, But Not Used in This Case")
+                            binding.acCapsterName.setText(getString(R.string.all_text), false)
                         }
                     } else {
-                        Logger.d("DisplayCapsterData", "DropdownOrientation ${switchCapsterViewModel.getCapsterData()?.fullname ?: "NULL"}")
+                        Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
+                        if (isCompleteSearch || textDropdownSelected.isEmpty()) {
+                            binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
+                        } else {
+                            binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
+                            adapter.filter.filter(textDropdownCapsterName)
+                        }
+                        if (isPopUpDropdownShow) {
+                            Log.d("BindingFocus", "LLL")
+                            binding.acCapsterName.showDropDown()
+                        }
                     }
+
+                    binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
+
+                    Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
+                    if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
+                    startPopupObserver()
                 }
 
-                val textDropdownSelected = binding.acCapsterName.text.toString().trim()
-                if (isFirstLoad) {
-                    // Langsung set nilai "All" di AutoCompleteTextView
-                    if (textDropdownSelected.isEmpty()) {
-                        Logger.d("SetDropdown", "First Load Set Text All, But Not Used in This Case")
-                        binding.acCapsterName.setText(getString(R.string.all_text), false)
-                    }
-                } else {
-                    Log.d("BindingFocus", "textDropdownCapsterName $textDropdownCapsterName || isCompleteSearch $isCompleteSearch || isPopUpDropdownShow $isPopUpDropdownShow")
-                    if (isCompleteSearch || textDropdownSelected.isEmpty()) {
-                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_DROPDOWN_MENU
-                    } else {
-                        binding.tilCapsterName.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
-                        adapter.filter.filter(textDropdownCapsterName)
-                    }
-                    if (isPopUpDropdownShow) {
-                        Log.d("BindingFocus", "LLL")
-                        binding.acCapsterName.showDropDown()
-                    }
-                }
-
-                binding.acCapsterName.setSelection(binding.acCapsterName.text.length)
-
-                Log.d("BindingFocus", "B isCapsterDropdownFocus $isCapsterDropdownFocus")
-                if (isCapsterDropdownFocus) { binding.acCapsterName.requestFocus() }
-                startPopupObserver()
+                isFirstLoad = false
             }
-
-            isFirstLoad = false
         }
 
     }
@@ -931,6 +938,9 @@ class SwitchCapsterFragment : DialogFragment() {
         with (binding) {
             tvRole.text = role
             when (role) {
+                "Supervisor" -> {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_text_wa))
+                }
                 "Capster" -> {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
                 }

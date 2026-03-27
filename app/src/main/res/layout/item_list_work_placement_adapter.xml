@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardBackgroundColor="#FFFFFF"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="17dp"
+        android:paddingTop="13dp"
+        android:paddingEnd="17dp"
+        android:paddingBottom="13dp">
+
+        <!-- Left Container: Number Badge + Text -->
+        <LinearLayout
+            android:id="@+id/left_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Number Badge Background -->
+            <FrameLayout
+                android:id="@+id/badge_background"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:background="@drawable/circle_badge_background"
+                android:layout_marginEnd="12dp">
+
+                <TextView
+                    android:id="@+id/badge_number"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:fontFamily="sans-serif-black"
+                    android:text="1"
+                    android:textColor="#0F172A"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <!-- Outlet Name -->
+            <TextView
+                android:id="@+id/outlet_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="Grand City Mall Outlet"
+                android:textColor="#0F172A"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                tools:text="Grand City Mall Outlet" />
+        </LinearLayout>
+
+        <!-- Right Button: Close Icon -->
+        <ImageButton
+            android:id="@+id/close_button"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/icon_remove_item_desc"
+            android:padding="6dp"
+            android:src="@drawable/ic_cross_eliminate_figma"
+            android:tint="#CBD5E1" />
+
+    </RelativeLayout>
+
+</androidx.cardview.widget.CardView>

@@ -150,8 +150,8 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginBottom="15dp"
                         android:layout_marginTop="1dp"
+                        android:layout_marginBottom="15dp"
                         android:paddingVertical="4dp"
                         android:paddingEnd="5dp"
                         android:paddingStart="0dp"
@@ -276,7 +276,7 @@
                                     android:src="@drawable/placeholder_user_profile" />
 
                                 <TextView
-                                    android:id="@+id/tvUsername"
+                                    android:id="@+id/tvRelatedName"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_toEndOf="@id/ivPhotoProfile"
@@ -294,7 +294,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_toEndOf="@id/ivPhotoProfile"
-                                    android:layout_below="@id/tvUsername"
+                                    android:layout_below="@id/tvRelatedName"
                                     android:singleLine="true"
                                     android:ellipsize="marquee"
                                     android:marqueeRepeatLimit="marquee_forever"
@@ -317,9 +317,6 @@
                         android:layout_marginTop="10dp"
                         android:layout_height="2dp"
                         android:layout_marginHorizontal="10dp"
-                        android:layout_alignStart="@id/wrapperCapitalAmount"
-                        android:layout_alignEnd="@id/wrapperCapitalAmount"
-                        android:layout_below="@id/wrapperCapitalAmount"
                         android:layout_centerHorizontal="true"
                         android:visibility="gone"
                         android:elevation="0dp"
