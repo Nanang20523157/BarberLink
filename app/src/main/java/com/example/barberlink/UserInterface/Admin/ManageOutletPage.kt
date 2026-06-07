@@ -159,11 +159,23 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             val outletsList = args.outletList.toCollection(ArrayList())
             manageOutletViewModel.setOutletList(outletsList)
 
+            val allEmployeeList = args.employeeList.toCollection(ArrayList())
+            manageOutletViewModel.setAllEmployeeList(allEmployeeList)
+
             val employeeList = args.employeeList
                 .filter { employee -> (employee.roleDetail?.permissions?.get("manage_queue") == true) }
                 .toCollection(ArrayList())
 
             manageOutletViewModel.setEmployeeList(employeeList)
+
+            val serviceList = args.serviceList.toCollection(ArrayList())
+            manageOutletViewModel.setServiceList(serviceList)
+
+            val productList = args.productList.toCollection(ArrayList())
+            manageOutletViewModel.setProductList(productList)
+
+            val bundlingList = args.bundlingList.toCollection(ArrayList())
+            manageOutletViewModel.setBundlingList(bundlingList)
 
             // Pastikan untuk menjalankan bagian ini di main thread jika perlu
             val userAdminData = args.userAdminData
@@ -218,7 +230,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             Logger.d("OutletList", "notifyDataSetChanged()")
             if (!isShimmerVisible) outletAdapter.notifyDataSetChanged()
             binding.tvOutletCountTitle.text = getString(R.string.daftar_outlet_title_template, outletList.size)
-            binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
+            if (!isFirstLoad) binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
         }
 
         manageOutletViewModel.employeeList.observe(this) { employeeList ->
@@ -354,55 +366,135 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                 dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
             ) {
                 val itemView = viewHolder.itemView
-                val paint = android.graphics.Paint()
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#FF3B30")
+                    isAntiAlias = true
+                }
+
+                val density = recyclerView.resources.displayMetrics.density
+
+                val cardView = itemView.findViewById<View>(R.id.cvBlueBackground)
+                    ?: itemView.findViewById<View>(R.id.cvMainInfoOutlet)
+                val cardTop: Float
+                val cardBottom: Float
+                val cardLeft: Float
+                val cardRight: Float
+
+                val codeAccessView = itemView.findViewById<View>(R.id.clCodeAccess)
+                val isExpanded = codeAccessView != null && codeAccessView.visibility == View.VISIBLE
+                val cornerRadius = (if (isExpanded) 25f else 20f) * density
+                val overlap = cornerRadius
+
+                if (cardView != null) {
+                    var localTop = cardView.top.toFloat()
+                    var localLeft = cardView.left.toFloat()
+                    var p = cardView.parent as? View
+                    while (p != null && p != itemView) {
+                        localTop += p.top
+                        localLeft += p.left
+                        p = p.parent as? View
+                    }
+                    cardTop = itemView.top.toFloat() + localTop
+                    cardBottom = cardTop + cardView.height.toFloat()
+                    cardLeft = itemView.left.toFloat() + localLeft
+                    cardRight = cardLeft + cardView.width.toFloat()
+                } else {
+                    val paddingTop = itemView.paddingTop.toFloat()
+                    val paddingBottom = itemView.paddingBottom.toFloat()
+                    val paddingLeft = itemView.paddingLeft.toFloat()
+                    val paddingRight = itemView.paddingRight.toFloat()
+
+                    cardTop = itemView.top.toFloat() + paddingTop
+                    cardBottom = itemView.bottom.toFloat() - paddingBottom
+                    cardLeft = itemView.left.toFloat() + paddingLeft
+                    cardRight = itemView.right.toFloat() - paddingRight
+                }
 
                 if (dX < 0) { // swiping left
-                    // Red background
-                    paint.color = android.graphics.Color.parseColor("#FF3B30")
-                    c.drawRect(
-                        itemView.right + dX, itemView.top.toFloat(),
-                        itemView.right.toFloat(), itemView.bottom.toFloat(), paint
-                    )
-                    val icon = androidx.core.content.ContextCompat.getDrawable(
-                        this@ManageOutletPage, R.drawable.ic_swipe_to_left
-                    )
-                    // Trash icon
-                    icon?.let {
-                        val iconSize = 28.dp
-                        val margin = 20.dp
-                        val iconTop = itemView.top + (itemView.height - iconSize) / 2
-                        it.setBounds(
-                            itemView.right - margin - iconSize,
-                            iconTop,
-                            itemView.right - margin,
-                            iconTop + iconSize
+                    val leftBound = maxOf(cardLeft, cardRight + dX)
+                    val rightBound = cardRight
+                    val revealedWidth = rightBound - leftBound
+
+                    if (revealedWidth > 0) {
+                        c.save()
+                        val isFullySwiped = leftBound == cardLeft
+                        val clipLeft = if (isFullySwiped) cardLeft else maxOf(cardLeft, leftBound - overlap)
+                        c.clipRect(clipLeft, cardTop, rightBound, cardBottom)
+                        
+                        // Draw round rect starting at cardLeft if fully swiped, otherwise shift to hide left rounded corners
+                        val drawLeft = if (isFullySwiped) cardLeft else clipLeft - cornerRadius
+                        c.drawRoundRect(drawLeft, cardTop, rightBound, cardBottom, cornerRadius, cornerRadius, paint)
+                        c.restore()
+
+                        c.save()
+                        c.clipRect(leftBound, cardTop, rightBound, cardBottom)
+                        val icon = androidx.core.content.ContextCompat.getDrawable(
+                            this@ManageOutletPage, R.drawable.ic_swipe_to_left
                         )
-                        it.setTint(android.graphics.Color.WHITE)
-                        it.draw(c)
+                        icon?.let {
+                            val iconSize = (28 * density).toInt()
+                            val cardHeight = cardBottom - cardTop
+                            val iconTop = (cardTop + (cardHeight - iconSize) / 2).toInt()
+                            val iconBottom = iconTop + iconSize
+
+                            val centerX = (leftBound + rightBound) / 2
+                            val iconLeft = (centerX - iconSize / 2).toInt()
+                            val iconRight = iconLeft + iconSize
+
+                            val alphaThreshold = iconSize
+                            val alpha = if (revealedWidth > alphaThreshold) {
+                                ((revealedWidth - alphaThreshold) / alphaThreshold).coerceIn(0f, 1f)
+                            } else 0f
+
+                            it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                            it.setTint(android.graphics.Color.WHITE)
+                            it.alpha = (alpha * 255).toInt()
+                            it.draw(c)
+                        }
+                        c.restore()
                     }
                 } else if (dX > 0) { // swiping right
-                    // Red background
-                    paint.color = android.graphics.Color.parseColor("#FF3B30")
-                    c.drawRect(
-                        itemView.left.toFloat(), itemView.top.toFloat(),
-                        itemView.left + dX, itemView.bottom.toFloat(), paint
-                    )
-                    val icon = androidx.core.content.ContextCompat.getDrawable(
-                        this@ManageOutletPage, R.drawable.ic_swipe_to_right
-                    )
-                    // Trash icon
-                    icon?.let {
-                        val iconSize = 28.dp
-                        val margin = 20.dp
-                        val iconTop = itemView.top + (itemView.height - iconSize) / 2
-                        it.setBounds(
-                            itemView.left + margin,
-                            iconTop,
-                            itemView.left + margin + iconSize,
-                            iconTop + iconSize
+                    val leftBound = cardLeft
+                    val rightBound = minOf(cardRight, cardLeft + dX)
+                    val revealedWidth = rightBound - leftBound
+
+                    if (revealedWidth > 0) {
+                        c.save()
+                        val isFullySwiped = rightBound == cardRight
+                        val clipRight = if (isFullySwiped) cardRight else minOf(cardRight, rightBound + overlap)
+                        c.clipRect(leftBound, cardTop, clipRight, cardBottom)
+
+                        // Draw round rect ending at cardRight if fully swiped, otherwise shift to hide right rounded corners
+                        val drawRight = if (isFullySwiped) cardRight else clipRight + cornerRadius
+                        c.drawRoundRect(leftBound, cardTop, drawRight, cardBottom, cornerRadius, cornerRadius, paint)
+                        c.restore()
+
+                        c.save()
+                        c.clipRect(leftBound, cardTop, rightBound, cardBottom)
+                        val icon = androidx.core.content.ContextCompat.getDrawable(
+                            this@ManageOutletPage, R.drawable.ic_swipe_to_right
                         )
-                        it.setTint(android.graphics.Color.WHITE)
-                        it.draw(c)
+                        icon?.let {
+                            val iconSize = (28 * density).toInt()
+                            val cardHeight = cardBottom - cardTop
+                            val iconTop = (cardTop + (cardHeight - iconSize) / 2).toInt()
+                            val iconBottom = iconTop + iconSize
+
+                            val centerX = (leftBound + rightBound) / 2
+                            val iconLeft = (centerX - iconSize / 2).toInt()
+                            val iconRight = iconLeft + iconSize
+
+                            val alphaThreshold = iconSize
+                            val alpha = if (revealedWidth > alphaThreshold) {
+                                ((revealedWidth - alphaThreshold) / alphaThreshold).coerceIn(0f, 1f)
+                            } else 0f
+
+                            it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                            it.setTint(android.graphics.Color.WHITE)
+                            it.alpha = (alpha * 255).toInt()
+                            it.draw(c)
+                        }
+                        c.restore()
                     }
                 }
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
@@ -444,6 +536,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                 Log.d("SwitchAnomali", "XYZ")
                 outletAdapter.setShimmer(false)
                 isShimmerVisible = false
+                binding.tvEmptyOutlet.visibility = if (manageOutletViewModel.outletList.value?.isEmpty() == true) View.VISIBLE else View.GONE
                 if (isFirstLoad) { setupListeners() }
             }
         } else {
@@ -517,7 +610,13 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                                                 roleDetail = manageOutletViewModel.employeeRolesList.value?.find {
                                                     it.roleName == this.role
                                                 }
-                                            }.takeIf { employee -> employee.roleDetail?.permissions?.get("manage_queue") == true }
+                                            }
+                                        }
+
+                                        manageOutletViewModel.setAllEmployeeList(newUserEmployeeListData)
+
+                                        val filteredEmployeeList = newUserEmployeeListData.filter { employee ->
+                                            employee.roleDetail?.permissions?.get("manage_queue") == true
                                         }
 
                                         // Update employeeList dengan data baru
@@ -525,13 +624,13 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                                             val outletOldData = manageOutletViewModel.outletSelected.value
                                             if (!manageOutletViewModel.capsterList.value.isNullOrEmpty() && outletOldData != null && isDisplayQueueBoard) {
                                                 outletOldData.let { outlet ->
-                                                    val capsterList = newUserEmployeeListData.filter { it ->
+                                                    val capsterList = filteredEmployeeList.filter { it ->
                                                         it.uid in outlet.listEmployees && it.attendanceStatus
                                                     }
                                                     manageOutletViewModel.setCapsterList(capsterList)
                                                 }
                                             }
-                                            manageOutletViewModel.setEmployeeList(newUserEmployeeListData)
+                                            manageOutletViewModel.setEmployeeList(filteredEmployeeList)
                                         }
                                     }
                                 }
@@ -805,6 +904,11 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                     putExtra("CURRENT_MODE", mode) // ADD Mode
                     putExtra("OUTLET_DATA_KEY", outlet)
                     putExtra("ADMIN_DATA_KEY", manageOutletViewModel.userAdminData.value)
+                    putParcelableArrayListExtra("OUTLET_LIST_KEY", ArrayList(manageOutletViewModel.outletList.value ?: emptyList()))
+                    putParcelableArrayListExtra("SERVICE_LIST_KEY", ArrayList(manageOutletViewModel.serviceList.value ?: emptyList()))
+                    putParcelableArrayListExtra("PRODUCT_LIST_KEY", ArrayList(manageOutletViewModel.productList.value ?: emptyList()))
+                    putParcelableArrayListExtra("EMPLOYEE_LIST_KEY", ArrayList(manageOutletViewModel.allEmployeeList.value ?: emptyList()))
+                    putParcelableArrayListExtra("BUNDLING_LIST_KEY", ArrayList(manageOutletViewModel.bundlingList.value ?: emptyList()))
                 }
 
                 startActivity(intent)

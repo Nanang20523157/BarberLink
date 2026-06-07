@@ -2,6 +2,16 @@
 
 Log ini mencatat seluruh aktivitas pengembangan dan keputusan teknis penting.
 
+## [2026-05-31] - Konversi dan Ekspor Aset Gambar ke Figma
+### 🛠️ Aktivitas
+- Berhasil mengekspor dan mengonversi aset gambar Android Vector Drawable (`R.drawable.ic_hair_cut`, `R.drawable.ic_face`, dan `R.drawable.ic_content_cut`) ke dalam format standar vector SVG (`.svg`).
+- Menyimpan hasil konversi di direktori baru `c:\Users\Acer\StudioProjects\BarberLink\figma_assets\` untuk mempermudah integrasi atau drag-and-drop langsung ke Figma canvas oleh pengguna/desainer.
+- Memastikan rendering warna (`#000000` untuk black dan `#00E676` untuk `green_role`) dan scaling transform dari file asli XML terjemah dengan sempurna ke SVG.
+
+### 📝 Keputusan Teknis
+- Menggunakan skrip Python kustom untuk melakukan parsing tag XML (`vector`, `group`, `path`) ke SVG standar (`svg`, `g`, `path`) untuk menjamin kepatuhan format Figma tanpa kehilangan detail koordinat atau ketebalan stroke.
+- Dikarenakan integrasi Dev Mode MCP Server bersifat *read-only* dalam hal pengubahan canvas utama, penyediaan aset SVG mandiri di direktori lokal adalah pendekatan yang paling andal bagi alur kerja tim.
+
 ## [2026-05-21] - Penambahan Data Customer & Pembuatan Script Utilitas
 ### 🛠️ Aktivitas
 - Menambahkan 2 data customer baru (Ferry Irwandi & Fajar Ismail) secara langsung ke koleksi Firestore `users` dan `customers`, serta menambahkan username mereka (`Ferry33` dan `GojerHolic`) ke dalam field `username_list` di dokumen `/official/barberlink2024`.

@@ -62,6 +62,10 @@ class AddProductViewModel(
     private val _generatedSku = MutableLiveData<String>()
     val generatedSku: LiveData<String> get() = _generatedSku
 
+    fun setCategories(categoriesList: List<DataCategories>) {
+        _categories.value = categoriesList
+    }
+
     fun getProductCategories(adminUid: String) {
         viewModelScope.launch {
             val result = repository.getProductCategories(adminUid)

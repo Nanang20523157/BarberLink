@@ -59,6 +59,7 @@ import kotlinx.coroutines.withContext
 import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.text.format
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -109,7 +110,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     private var inputManualCheckOne: (() -> Unit)? = null
     private var inputManualCheckTwo: (() -> Unit)? = null
     private var inputManualCheckTri: (() -> Unit)? = null
-    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+    private val format = NumberFormat.getNumberInstance(Locale("id", "ID"))
     private var blockAllUserClickAction: Boolean = false
 
     private lateinit var context: Context
@@ -588,18 +589,8 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             if (userEmployeeData?.photoProfile?.isNotEmpty() == true) {
                 Glide.with(context)
                     .load(userEmployeeData?.photoProfile)
-                    .placeholder(
-                        ContextCompat.getDrawable(
-                            context,
-                            R.drawable.placeholder_user_profile
-                        )
-                    )
-                    .error(
-                        ContextCompat.getDrawable(
-                            context,
-                            R.drawable.placeholder_user_profile
-                        )
-                    )
+                    .placeholder(R.drawable.placeholder_user_profile)
+                    .error(R.drawable.placeholder_user_profile)
                     .into(ivPhotoProfile)
             }
         }
@@ -915,7 +906,8 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 //                            } else {
 //                                formatWithDotsKeepingLeadingZeros(parsed)
 //                            }
-                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val cleanText = originalString.replace(".", "")
+                            val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
 
                             // Set the text

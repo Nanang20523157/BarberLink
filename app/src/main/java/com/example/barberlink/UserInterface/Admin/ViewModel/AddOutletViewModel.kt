@@ -207,6 +207,10 @@ class AddOutletViewModel(
 
                 _isSaving.value = false
                 if (result.isSuccessful) clearPendingImageUri()
+                if (isAddMode && result.isSuccessful) _outletList.value = _outletList.value.orEmpty() + currentOutlet
+                else if (result.isSuccessful) {
+                    _outletList.value = _outletList.value.orEmpty().map { if (it.uid == currentOutlet.uid) currentOutlet else it }
+                }
                 _saveResult.value = result
             } catch (e: Exception) {
                 _isSaving.value = false

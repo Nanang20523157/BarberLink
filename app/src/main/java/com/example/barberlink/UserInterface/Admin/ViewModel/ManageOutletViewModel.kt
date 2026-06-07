@@ -11,6 +11,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.DataClass.Service
+import com.example.barberlink.DataClass.Product
+import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.R
 import com.example.barberlink.UserInterface.Teller.ViewModel.ExitTrackerViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
@@ -71,6 +74,7 @@ class ManageOutletViewModel(
     private val _outletSelected = MutableLiveData<Outlet?>()
     val outletSelected: LiveData<Outlet?> = _outletSelected
 
+    // UNTUK PENGECHECKAN DATA SWITCH ADAPTER
     private val _employeeList = MutableLiveData<List<UserEmployeeData>>().apply { value = mutableListOf() }
     val employeeList: LiveData<List<UserEmployeeData>> = _employeeList
 
@@ -80,11 +84,25 @@ class ManageOutletViewModel(
     private val _extendedStateMap = MutableLiveData<MutableMap<String, Boolean>>(mutableMapOf())
     val extendedStateMap: LiveData<MutableMap<String, Boolean>> = _extendedStateMap
 
+    // UNTUK DATA RESET FRAGMENT
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
 
     private val _updateStateResult = MutableLiveData<ResultState?>()
     val updateStateResult: LiveData<ResultState?> = _updateStateResult
+
+    private val _serviceList = MutableLiveData<List<Service>>().apply { value = emptyList() }
+    val serviceList: LiveData<List<Service>> = _serviceList
+
+    private val _productList = MutableLiveData<List<Product>>().apply { value = emptyList() }
+    val productList: LiveData<List<Product>> = _productList
+
+    private val _bundlingList = MutableLiveData<List<BundlingPackage>>().apply { value = emptyList() }
+    val bundlingList: LiveData<List<BundlingPackage>> = _bundlingList
+
+    // UNTUK DATA ADD OUTLET FORM
+    private val _allEmployeeList = MutableLiveData<List<UserEmployeeData>>().apply { value = emptyList() }
+    val allEmployeeList: LiveData<List<UserEmployeeData>> = _allEmployeeList
 
     private var defaultCode: String = ""
 
@@ -335,6 +353,30 @@ class ManageOutletViewModel(
     fun setEmployeeList(employeeList: List<UserEmployeeData>) {
         viewModelScope.launch {
             _employeeList.value = employeeList
+        }
+    }
+
+    fun setServiceList(list: List<Service>) {
+        viewModelScope.launch {
+            _serviceList.value = list
+        }
+    }
+
+    fun setProductList(list: List<Product>) {
+        viewModelScope.launch {
+            _productList.value = list
+        }
+    }
+
+    fun setBundlingList(list: List<BundlingPackage>) {
+        viewModelScope.launch {
+            _bundlingList.value = list
+        }
+    }
+
+    fun setAllEmployeeList(list: List<UserEmployeeData>) {
+        viewModelScope.launch {
+            _allEmployeeList.value = list
         }
     }
 

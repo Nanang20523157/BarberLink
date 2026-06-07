@@ -187,7 +187,7 @@ data class BundlingPackage(
         get() = 0
 
     // Deep copy function for BundlingPackage
-    fun deepCopy(deepCopyItemsDetails: Boolean): BundlingPackage {
+    fun deepCopy(copyItemsDetails: Boolean, copyServiceCategory: Boolean): BundlingPackage {
         return BundlingPackage(
             accumulatedPrice = this.accumulatedPrice,
             applyToGeneral = this.applyToGeneral,
@@ -206,8 +206,8 @@ data class BundlingPackage(
             rootRef = this.rootRef,
             uid = this.uid,
             priceToDisplay = this.priceToDisplay,
-            listItemDetails = if (deepCopyItemsDetails) {
-                this.listItemDetails?.map { it.deepCopy() } // Deep copy each Service
+            listItemDetails = if (copyItemsDetails) {
+                this.listItemDetails?.map { it.deepCopy(copyCategoryDetail = copyServiceCategory) } // Deep copy each Service
             } else {
                 this.listItemDetails // Copy references
             },
@@ -481,14 +481,15 @@ data class Product(
     @get:Exclude @set:Exclude var isHandmade: Boolean = false,
     @get:Exclude @set:Exclude var dataRef: String = "",
     @get:Exclude @set:Exclude var numberOfSales: Int = 0,
-    @get:Exclude @set:Exclude var seller: @RawValue Seller = Seller()
+    @get:Exclude @set:Exclude var seller: @RawValue Seller = Seller(),
+    @get:Exclude @set:Exclude var categoryDetail: DataCategories? = null
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
     @get:Exclude
     val stability: Int
         get() = 0
 
-    fun deepCopy(copyDataSeller: Boolean): Product {
+    fun deepCopy(copyDataSeller: Boolean, copyCategoryDetail: Boolean): Product {
         return Product(
             applyToGeneral = this.applyToGeneral,
             categoryCode = this.categoryCode,
@@ -513,7 +514,8 @@ data class Product(
             isHandmade = this.isHandmade,
             dataRef = this.dataRef,
             numberOfSales = this.numberOfSales,
-            seller = if (copyDataSeller) this.seller.deepCopy() else this.seller
+            seller = if (copyDataSeller) this.seller.deepCopy() else this.seller,
+            categoryDetail = if (copyCategoryDetail) this.categoryDetail?.copy() else this.categoryDetail
         )
     }
 
@@ -585,8 +587,8 @@ data class Service(
     //@get:PropertyName("category_detail") @set:PropertyName("category_detail") var categoryDetail: String = "",
     @get:PropertyName("default_item") @set:PropertyName("default_item") var defaultItem: Boolean = false,
     @get:PropertyName("free_of_charge") @set:PropertyName("free_of_charge") var freeOfCharge: Boolean = false,
-    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = emptyMap(),
-    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "",
+    @get:PropertyName("results_share_amount") @set:PropertyName("results_share_amount") var resultsShareAmount: @RawValue Map<String, Int>? = mapOf("all" to 0),
+    @get:PropertyName("results_share_format") @set:PropertyName("results_share_format") var resultsShareFormat: String = "fee",
     @get:PropertyName("root_ref") @set:PropertyName("root_ref") var rootRef: String = "",
     @get:PropertyName("service_category") @set:PropertyName("service_category") var serviceCategory: String = "",
     @get:PropertyName("service_counting") @set:PropertyName("service_counting") var serviceCounting: Int = 0,
@@ -600,7 +602,8 @@ data class Service(
     @get:Exclude @set:Exclude var priceToDisplay: Int = 0,
     @get:Exclude @set:Exclude var serviceQuantity: Int = 0,
     @get:Exclude @set:Exclude var itemIndex: Int = 0,
-    @get:Exclude @set:Exclude var dataRef: String = ""
+    @get:Exclude @set:Exclude var dataRef: String = "",
+    @get:Exclude @set:Exclude var categoryDetail: DataCategories? = null,
 ) : Parcelable {
     // Mencegah field stability ikut terserialisasi ke Firestore
     @get:Exclude
@@ -608,7 +611,7 @@ data class Service(
         get() = 0
 
     // Deep copy function for Employee
-    fun deepCopy(): Service {
+    fun deepCopy(copyCategoryDetail: Boolean): Service {
         return Service(
             applyToGeneral = this.applyToGeneral,
             autoSelected = this.autoSelected,
@@ -631,7 +634,8 @@ data class Service(
             priceToDisplay = this.priceToDisplay,
             serviceQuantity = this.serviceQuantity,
             itemIndex = this.itemIndex,
-            dataRef = this.dataRef
+            dataRef = this.dataRef,
+            categoryDetail = if (copyCategoryDetail) this.categoryDetail?.deepCopy() else this.categoryDetail
         )
     }
 }

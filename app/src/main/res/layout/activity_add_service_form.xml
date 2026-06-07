@@ -318,7 +318,7 @@
 
                             <!-- AutoCompleteTextView for Dropdown -->
                             <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/tilRole"
+                                android:id="@+id/tilServiceCategory"
                                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
@@ -340,7 +340,7 @@
                                 app:hintEnabled="false">
 
                                 <AutoCompleteTextView
-                                    android:id="@+id/actvRole"
+                                    android:id="@+id/acServiceCategory"
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
                                     android:cursorVisible="false"
@@ -359,7 +359,7 @@
                             android:layout_height="match_parent" />
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cvRole"
+                            android:id="@+id/cvAddCategory"
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_gravity="center"
@@ -372,7 +372,7 @@
                                 android:background="@drawable/bg_button_select_maps_figma">
 
                                 <ImageView
-                                    android:id="@+id/ivRole"
+                                    android:id="@+id/ivAddCategory"
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
                                     android:layout_marginHorizontal="12dp"
@@ -465,8 +465,10 @@
                         android:layout_marginStart="-16dp"
                         android:layout_marginEnd="-16dp"
                         android:paddingStart="32dp"
-                        android:paddingEnd="0dp"
+                        android:paddingEnd="20dp"
+                        android:paddingVertical="3dp"
                         android:clipToPadding="false"
+                        android:clipChildren="false"
                         android:orientation="horizontal"
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/item_list_service_icon"
@@ -823,7 +825,7 @@
                     </LinearLayout>
 
                     <FrameLayout
-                        android:id="@+id/container_discount"
+                        android:id="@+id/containerServicePrice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:visibility="visible"
@@ -831,7 +833,7 @@
                         android:layout_marginHorizontal="15dp">
 
                         <EditText
-                            android:id="@+id/etSalary"
+                            android:id="@+id/etServicePrice"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:background="@drawable/bg_input_selector_blue"
@@ -887,7 +889,7 @@
                     </LinearLayout>
 
                     <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/cvAdminAccess"
+                        android:id="@+id/cvShareProfit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="19dp"

@@ -1,27 +1,29 @@
 package com.example.barberlink.Adapter
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toColorInt
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.ServiceIcon
 import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListServiceIconBinding
-import androidx.core.graphics.toColorInt
 
 class ItemListServiceIconAdapter(
-    private val serviceIcons: List<ServiceIcon>,
     private val onIconSelected: (ServiceIcon) -> Unit
-) : RecyclerView.Adapter<ItemListServiceIconAdapter.ViewHolder>() {
+) : ListAdapter<ServiceIcon, ItemListServiceIconAdapter.ViewHolder>(ServiceIconDiffCallback()) {
 
-    fun updateSelection(iconUrl: String, iconRes: Int) {
-        serviceIcons.forEach {
-            it.isSelected = (it.iconUrl == iconUrl && iconUrl.isNotEmpty()) || 
-                          (it.iconRes == iconRes && iconRes != 0)
+    var isEditable: Boolean = true
+
+    fun updateSelection(iconUrl: String) {
+        val currentList = currentList
+        val newList = currentList.map {
+            it.copy(isSelected = (it.iconUrl == iconUrl && iconUrl.isNotEmpty()))
         }
-        notifyDataSetChanged()
+        submitList(newList)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -34,10 +36,8 @@ class ItemListServiceIconAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(serviceIcons[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount(): Int = serviceIcons.size
 
     inner class ViewHolder(private val binding: ItemListServiceIconBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -45,16 +45,12 @@ class ItemListServiceIconAdapter(
         fun bind(icon: ServiceIcon) {
             val context = binding.root.context
             
-            // Set icon image
-            if (icon.iconRes != 0) {
-                binding.ivServiceIcon.setImageResource(icon.iconRes)
-            } else {
-                Glide.with(context)
-                    .load(icon.iconUrl)
-                    .centerCrop()
-                    .placeholder(R.drawable.img_service_icon_placeholder)
-                    .into(binding.ivServiceIcon)
-            }
+            // Set icon image via Glide URL only (iconRes is removed from data class)
+            Glide.with(context)
+                .load(icon.iconUrl)
+                .centerCrop()
+                .placeholder(R.drawable.img_service_icon_placeholder)
+                .into(binding.ivServiceIcon)
 
             // Selection indicator
             if (icon.isSelected) {
@@ -64,11 +60,28 @@ class ItemListServiceIconAdapter(
             }
 
             binding.root.setOnClickListener {
-                serviceIcons.forEach { it.isSelected = false }
-                icon.isSelected = true
+                if (!isEditable) return@setOnClickListener
+                
+                // Trigger selection change: update all items in the adapter
+                val currentList = currentList
+                val selectedUrl = icon.iconUrl
+                val newList = currentList.map {
+                    it.copy(isSelected = (it.iconUrl == selectedUrl))
+                }
+                submitList(newList)
+                
                 onIconSelected(icon)
-                notifyDataSetChanged()
             }
+        }
+    }
+
+    class ServiceIconDiffCallback : DiffUtil.ItemCallback<ServiceIcon>() {
+        override fun areItemsTheSame(oldItem: ServiceIcon, newItem: ServiceIcon): Boolean {
+            return oldItem.iconUrl == newItem.iconUrl
+        }
+
+        override fun areContentsTheSame(oldItem: ServiceIcon, newItem: ServiceIcon): Boolean {
+            return oldItem.isSelected == newItem.isSelected
         }
     }
 }

@@ -13,6 +13,7 @@ import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.Manager.ToastQueueManager
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
@@ -74,6 +75,20 @@ class BerandaAdminViewModel(state: SavedStateHandle) : InputFragmentViewModel(st
 
     private val _isSetItemBundling = MutableLiveData<Boolean>().apply { value = false }
     val isSetItemBundling: LiveData<Boolean> = _isSetItemBundling
+
+    private val _serviceCategoryList = MutableLiveData<List<DataCategories>>().apply { value = emptyList() }
+    val serviceCategoryList: LiveData<List<DataCategories>> = _serviceCategoryList
+
+    private val _productCategoryList = MutableLiveData<List<DataCategories>>().apply { value = emptyList() }
+    val productCategoryList: LiveData<List<DataCategories>> = _productCategoryList
+
+    fun setServiceCategoryList(list: List<DataCategories>) {
+        _serviceCategoryList.value = list
+    }
+
+    fun setProductCategoryList(list: List<DataCategories>) {
+        _productCategoryList.value = list
+    }
 
     private var isCapitalDialogShow: Boolean = false
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Service
@@ -13,6 +14,7 @@ import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Repository.ServiceRepository
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.DataClass.ServiceIcon
+import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Logger
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
@@ -22,23 +24,37 @@ class AddServiceViewModel(
     private val repository: ServiceRepository,
     private val storage: FirebaseStorage,
     private val handle: SavedStateHandle
-) : ViewModel() {
+) : InputFragmentViewModel(handle) {
+
+    companion object {
+        private const val SERVICE_PARAMS_KEY = "service_params"
+        private const val PENDING_IMAGE_URI_KEY = "pending_image_uri"
+        private const val CURRENT_MODE_KEY = "current_mode"
+        private const val BARBERSHOP_ID_KEY = "barbershop_id"
+        private const val SERVICE_SELECTED_ID_KEY = "service_selected_id"
+    }
 
     val serviceListMutex = ReentrantCoroutineMutex()
-    val outletListMutex = ReentrantCoroutineMutex()
+    val categoryListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerBarbershopMutex = ReentrantCoroutineMutex()
-    val listenerOutletsMutex = ReentrantCoroutineMutex()
+    val listenerCategoriesMutex = ReentrantCoroutineMutex()
     val listenerServicesMutex = ReentrantCoroutineMutex()
 
     private val _originalService = MutableLiveData<Service>()
     val originalService: LiveData<Service> get() = _originalService
 
-    private val _serviceParams = MutableLiveData<Service>()
+    private val _serviceParams = handle.getLiveData<Service>(SERVICE_PARAMS_KEY)
     val serviceParams: LiveData<Service> get() = _serviceParams
 
-    private val _userAdminData = MutableLiveData<UserAdminData>()
-    val userAdminData: LiveData<UserAdminData> = _userAdminData
+    private val _currentMode = handle.getLiveData<Int>(CURRENT_MODE_KEY, 0)
+    val currentMode: LiveData<Int> get() = _currentMode
+
+    private val _barbershopId = handle.getLiveData<String>(BARBERSHOP_ID_KEY, "")
+    val barbershopId: LiveData<String> get() = _barbershopId
+
+    private val _serviceSelectedId = handle.getLiveData<String>(SERVICE_SELECTED_ID_KEY, "")
+    val serviceSelectedId: LiveData<String> get() = _serviceSelectedId
 
     private val _isSaving = MutableLiveData<Boolean>()
     val isSaving: LiveData<Boolean> get() = _isSaving
@@ -46,30 +62,45 @@ class AddServiceViewModel(
     private val _saveResult = MutableLiveData<FirestoreResult<Unit>?>()
     val saveResult: LiveData<FirestoreResult<Unit>?> get() = _saveResult
 
-    private val _allServices = MutableLiveData<List<Service>>(emptyList())
-    val allServices: LiveData<List<Service>> get() = _allServices
+    private val _serviceList = MutableLiveData<List<Service>>(emptyList())
+    val serviceList: LiveData<List<Service>> get() = _serviceList
 
-    private val _outletList = MutableLiveData<List<Outlet>>(emptyList())
-    val outletList: LiveData<List<Outlet>> get() = _outletList
-
-    private val _pendingImageUri = MutableLiveData<Uri?>()
+    private val _pendingImageUri = handle.getLiveData<Uri?>(PENDING_IMAGE_URI_KEY)
     val pendingImageUri: LiveData<Uri?> get() = _pendingImageUri
 
-    private val _pendingIconUri = MutableLiveData<Uri?>()
-    val pendingIconUri: LiveData<Uri?> get() = _pendingIconUri
+    private val _categoryList = MutableLiveData<List<DataCategories>>()
+    val categoryList: LiveData<List<DataCategories>> = _categoryList
 
-    private val _categories = MutableLiveData<List<String>>()
-    val categories: LiveData<List<String>> = _categories
-
-    private val _serviceIcons = MutableLiveData<List<ServiceIcon>>(emptyList())
+    private val _serviceIcons = MutableLiveData<List<ServiceIcon>>(
+        com.example.barberlink.Helper.ServiceIconCache.cachedIcons ?: emptyList()
+    )
     val serviceIcons: LiveData<List<ServiceIcon>> = _serviceIcons
 
-    fun getServiceCategories(adminUid: String) {
+    init {
+        if (com.example.barberlink.Helper.ServiceIconCache.cachedIcons.isNullOrEmpty()) {
+            fetchStorageIcons()
+        }
+    }
+
+    fun setCategories(categoryListList: List<DataCategories>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
         viewModelScope.launch {
-            val result = repository.getServiceCategories(adminUid)
-            if (result.isSuccessful) {
-                _categories.value = result.data?.map { it.categoryName } ?: emptyList()
-            }
+            _categoryList.value = categoryListList
+            _setupDropdownFilter.value = setupDropdown
+            _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+        }
+    }
+
+    override fun setupDropdownFilterWithNullState() {
+        viewModelScope.launch {
+            _setupDropdownFilter.value = false
+            _setupDropdownFilterWithNullState.value = false
+        }
+    }
+
+    override fun clearDropdownStateValue() {
+        viewModelScope.launch {
+            _setupDropdownFilter.value = null
+            _setupDropdownFilterWithNullState.value = null
         }
     }
 
@@ -91,15 +122,9 @@ class AddServiceViewModel(
         }
     }
 
-    fun setAllServices(services: List<Service>) {
+    fun setServiceList(services: List<Service>) {
         viewModelScope.launch {
-            _allServices.value = services
-        }
-    }
-
-    fun setOutletList(outlets: List<Outlet>) {
-        viewModelScope.launch {
-            _outletList.postValue(outlets)
+            _serviceList.value = services
         }
     }
 
@@ -109,27 +134,34 @@ class AddServiceViewModel(
         }
     }
 
-    fun setPendingIconUri(uri: Uri?) {
-        viewModelScope.launch {
-            _pendingIconUri.value = uri
-        }
-    }
-
     fun clearPendingImageUri() {
         viewModelScope.launch {
             _pendingImageUri.value = null
         }
     }
 
-    fun clearPendingIconUri() {
+    fun setBarbershopId(id: String) {
         viewModelScope.launch {
-            _pendingIconUri.value = null
+            _barbershopId.value = id
         }
     }
 
-    fun saveService(barbershopId: String, isAddMode: Boolean) {
+    fun setServiceSelectedId(id: String) {
+        viewModelScope.launch {
+            _serviceSelectedId.value = id
+        }
+    }
+
+    fun setCurrentMode(mode: Int) {
+        viewModelScope.launch {
+            _currentMode.value = mode
+        }
+    }
+
+    fun saveService(isAddMode: Boolean) {
         viewModelScope.launch {
             val currentService = _serviceParams.value ?: return@launch
+            val bId = _barbershopId.value ?: return@launch
 
             _isSaving.value = true
             try {
@@ -155,38 +187,17 @@ class AddServiceViewModel(
                     currentService.serviceImg = downloadUrl.toString()
                 }
 
-                // 2. Handle Service Icon Upload if needed
-                _pendingIconUri.value?.let { uri ->
-                    val storageRef = storage.reference.child("services/icons/${currentService.uid}.png")
-
-                    // Delete old icon if it exists
-                    if (currentService.serviceIcon.isNotEmpty()) {
-                        try {
-                            val oldReference = FirebaseStorage.getInstance().getReferenceFromUrl(currentService.serviceIcon)
-                            if (oldReference.path != storageRef.path) {
-                                oldReference.delete().await()
-                            }
-                        } catch (e: Exception) {
-                            // Ignore deletion errors
-                        }
-                    }
-
-                    // Upload new icon
-                    storageRef.putFile(uri).await()
-                    val downloadUrl = storageRef.downloadUrl.await()
-                    currentService.serviceIcon = downloadUrl.toString()
-                }
-
                 val result = if (isAddMode) {
-                    repository.createService(barbershopId, currentService)
+                    repository.createService(bId, currentService)
                 } else {
-                    repository.updateService(barbershopId, currentService)
+                    repository.updateService(bId, currentService)
                 }
 
                 _isSaving.value = false
-                if (result.isSuccessful) {
-                    clearPendingImageUri()
-                    clearPendingIconUri()
+                if (result.isSuccessful) clearPendingImageUri()
+                if (isAddMode && result.isSuccessful) _serviceList.value = _serviceList.value.orEmpty() + currentService
+                else if (result.isSuccessful) {
+                    _serviceList.value = _serviceList.value.orEmpty().map { if (it.uid == currentService.uid) currentService else it }
                 }
                 _saveResult.value = result
             } catch (e: Exception) {
@@ -202,22 +213,31 @@ class AddServiceViewModel(
         }
     }
 
+    fun getCachedIcons(): List<ServiceIcon>? {
+        // 1. Immediately emit cached icons if available to avoid waiting
+        return serviceIcons.value
+    }
+
     fun fetchStorageIcons() {
+        // 2. Fetch/update in the background to ensure it is always fresh
         viewModelScope.launch {
             try {
                 // Use default bucket's reference
                 val storageRef = storage.reference.child("services/icons")
                 val result = storageRef.listAll().await()
-                
+
                 val iconList = result.items.map { item ->
                     val url = item.downloadUrl.await().toString()
                     ServiceIcon(iconUrl = url, isSelected = false)
                 }
-                
+
+                com.example.barberlink.Helper.ServiceIconCache.setCachedIcons(iconList)
                 _serviceIcons.value = iconList
             } catch (e: Exception) {
                 Logger.e("AddServiceViewModel", "Error fetching icons from storage", e)
-                _serviceIcons.value = emptyList()
+                if (_serviceIcons.value.isNullOrEmpty()) {
+                    _serviceIcons.value = emptyList()
+                }
             }
         }
     }

@@ -126,7 +126,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     private lateinit var taglineTextWatcher: TextWatcher
     private lateinit var addressTextWatcher: TextWatcher
     private var permissionRequestStartTime: Long = 0
-    private var wasRationaleRequiredBefore: Boolean = false
+    private var wasMapsRationaleRequiredBefore: Boolean = false
     private var wasGalleryRationaleRequiredBefore: Boolean = false
 
     // ─── Activity Result Launchers ────────────────────────────────────────────
@@ -137,11 +137,11 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     ) { uri ->
         uri?.let {
             addOutletViewModel.setPendingImageUri(it)
-            binding.ivOutletCover.alpha = 1.0f
+            binding.ivOutletPhoto.alpha = 1.0f
             binding.tvImagePlaceholderLabel.visibility = View.GONE
             Glide.with(this).load(it)
                 .centerCrop()
-                .into(binding.ivOutletCover)
+                .into(binding.ivOutletPhoto)
         }
     }
 
@@ -189,7 +189,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             val newRationaleState = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) ||
                     shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION)
 
-            val isRationaleStateChanged = wasRationaleRequiredBefore != newRationaleState
+            val isRationaleStateChanged = wasMapsRationaleRequiredBefore != newRationaleState
 
             if (isRationaleStateChanged) {
                 // User melakukan aksi eksplisit (Klik Deny atau Don't ask again)
@@ -245,7 +245,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                     showRationaleDialog(
                         this,
                         "Izin Galeri Dibutuhkan",
-                        "Aplikasi membutuhkan akses galeri untuk memilih foto cover outlet Anda."
+                        "Aplikasi membutuhkan akses galeri untuk memilih foto outlet Anda."
                     ) {
                         requestGalleryPermission()
                     }
@@ -277,7 +277,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
 
     private fun requestMapPermissions() {
         permissionRequestStartTime = System.currentTimeMillis()
-        wasRationaleRequiredBefore = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) ||
+        wasMapsRationaleRequiredBefore = shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) ||
                 shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION)
         requestMapPermissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
@@ -347,15 +347,70 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             intent.getParcelableExtra("ADMIN_DATA_KEY")
         }
 
-        if (savedInstanceState == null) {
-            addOutletViewModel.setCurrentMode(intent.getIntExtra("CURRENT_MODE", 0))
-        }
-
         val outletData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra("OUTLET_DATA_KEY", Outlet::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra("OUTLET_DATA_KEY")
+        }
+
+        val outletList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("OUTLET_LIST_KEY", Outlet::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("OUTLET_LIST_KEY")
+        }
+
+        val serviceList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("SERVICE_LIST_KEY", Service::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("SERVICE_LIST_KEY")
+        }
+
+        val productList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("PRODUCT_LIST_KEY", Product::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("PRODUCT_LIST_KEY")
+        }
+
+        val employeeList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("EMPLOYEE_LIST_KEY", UserEmployeeData::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("EMPLOYEE_LIST_KEY")
+        }
+
+        val bundlingList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("BUNDLING_LIST_KEY", BundlingPackage::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("BUNDLING_LIST_KEY")
+        }
+
+        if (savedInstanceState == null) {
+            addOutletViewModel.setCurrentMode(intent.getIntExtra("CURRENT_MODE", 0))
+            outletData?.let {
+                addOutletViewModel.setOriginalOutlet(it.deepCopy())
+                addOutletViewModel.updateOutletParams(it)
+            }
+        }
+
+        if (addOutletViewModel.outletList.value.isNullOrEmpty()) {
+            addOutletViewModel.setOutletList(outletList ?: emptyList())
+        }
+        if (addOutletViewModel.allServices.value.isNullOrEmpty()) {
+            addOutletViewModel.setAllServices(serviceList ?: emptyList())
+        }
+        if (addOutletViewModel.allProducts.value.isNullOrEmpty()) {
+            addOutletViewModel.setAllProducts(productList ?: emptyList())
+        }
+        if (addOutletViewModel.allStaff.value.isNullOrEmpty()) {
+            addOutletViewModel.setAllStaff(employeeList ?: emptyList())
+        }
+        if (addOutletViewModel.allBundling.value.isNullOrEmpty()) {
+            addOutletViewModel.setAllBundling(bundlingList ?: emptyList())
         }
 
         if (savedInstanceState != null) {
@@ -380,11 +435,11 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             setupBtnListenerShowFragment()
         }
 
-        addOutletViewModel.userAdminData.observe(this) { userAdminData ->
-            if (userAdminData != null && userAdminData.uid.isNotEmpty()) {
-                if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) { getAllData() }
-            }
-        }
+//        addOutletViewModel.userAdminData.observe(this) { userAdminData ->
+//            if (userAdminData != null && userAdminData.uid.isNotEmpty()) {
+//                if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) { getAllData() }
+//            }
+//        }
 
         if (savedInstanceState == null || isShimmerVisible) showShimmer(true)
         if (savedInstanceState == null || (isShimmerVisible && isFirstLoad)) {
@@ -403,12 +458,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun init() {
-        setupUI()
-        setupObservers()
     }
 
     private fun showShimmer(show: Boolean) {
@@ -432,6 +481,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun init() {
+        setupUI()
+        setupObservers()
+    }
+
     // ─── UI Setup ─────────────────────────────────────────────────────────────
     private fun setupUI() {
         applyModeUI()
@@ -439,32 +494,40 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         // Setup initial display for relational sections
         binding.llEmptyListService.visibility = View.VISIBLE
         binding.rvListService.visibility = View.GONE
-        binding.rvListService.layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
 
         binding.llEmptyListBundling.visibility = View.VISIBLE
         binding.rvListBundling.visibility = View.GONE
-        binding.rvListBundling.layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
 
         binding.llEmptyListEmployee.visibility = View.VISIBLE
         binding.rvListEmployee.visibility = View.GONE
-        binding.rvListEmployee.layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
 
         binding.llEmptyListProduct.visibility = View.VISIBLE
         binding.rvListProduct.visibility = View.GONE
-        binding.rvListProduct.layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
 
         // Init Adapters based on the requested premium layouts
         selectedServicesAdapter = ItemListServiceProvideAdapter()
-        binding.rvListService.adapter = selectedServicesAdapter
+        binding.rvListService.apply {
+            layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = selectedServicesAdapter
+        }
 
         selectedBundlingAdapter = ItemListPackageBundlingAdapter(this@AddOutletFormActivity)
-        binding.rvListBundling.adapter = selectedBundlingAdapter
+        binding.rvListBundling.apply {
+            layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = selectedBundlingAdapter
+        }
 
         selectedStaffAdapter = ItemListEmployeeAdapter()
-        binding.rvListEmployee.adapter = selectedStaffAdapter
+        binding.rvListEmployee.apply {
+            layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = selectedStaffAdapter
+        }
 
         selectedProductsAdapter = ItemListProductAdapter()
-        binding.rvListProduct.adapter = selectedProductsAdapter
+        binding.rvListProduct.apply {
+            layoutManager = LinearLayoutManager(this@AddOutletFormActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = selectedProductsAdapter
+        }
     }
 
     /**
@@ -478,31 +541,34 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         when (currentMode) {
             0 -> { // VIEW
                 binding.tvTitle.text = "View Outlet"
-                binding.tvModeBadge.text = "VIEW MODE"
-                disableAllFields()
+                binding.tvModeBadge.text = getString(R.string.form_view_mode)
+
+                setFormEnabled(false)
                 binding.bottomFloatArea.visibility = View.GONE
                 binding.viewSpace.visibility = View.GONE
                 setRelationalAddButtonsVisibility(View.GONE)
             }
             1 -> { // EDIT
                 binding.tvTitle.text = "Edit Outlet"
-                binding.tvModeBadge.text = "EDIT MODE"
-                enableAllFields()
+                binding.tvModeBadge.text = getString(R.string.form_edit_mode)
+
+                setFormEnabled(true)
                 binding.bottomFloatArea.visibility = View.VISIBLE
                 binding.viewSpace.visibility = View.VISIBLE
                 setRelationalAddButtonsVisibility(View.VISIBLE)
             }
             2 -> { // ADD
                 binding.tvTitle.text = "Create Outlet"
-                binding.tvModeBadge.text = "ADD MODE"
-                enableAllFields()
+                binding.tvModeBadge.text = getString(R.string.form_type_mode)
+
+                setFormEnabled(true)
                 binding.bottomFloatArea.visibility = View.VISIBLE
                 binding.viewSpace.visibility = View.VISIBLE
                 setRelationalAddButtonsVisibility(View.VISIBLE)
             }
         }
 
-        binding.etRating.isEnabled = false
+        binding.tvRating.isEnabled = false
         binding.etAccessCode.isEnabled = false
 
         // Toggle interactivity of relational section "Link/Edit" buttons
@@ -522,34 +588,24 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         }
     }
 
-    private fun disableAllFields() {
-        binding.etOutletName.error = null
-        binding.etPhone.error = null
-        binding.etTagline.error = null
-        binding.etAddress.error = null
-        binding.etCoordinate.error = null
+    private fun setFormEnabled(enabled: Boolean) {
+        if (!enabled) {
+            binding.etOutletName.error = null
+            binding.etPhone.error = null
+            binding.etTagline.error = null
+            binding.etAddress.error = null
+            binding.etCoordinate.error = null
+        }
 
-        binding.etOutletName.isEnabled = false
-        binding.etPhone.isEnabled = false
-        binding.etTagline.isEnabled = false
-        binding.etAddress.isEnabled = false
-        binding.etCoordinate.isEnabled = false
-        binding.flImagePicker.isClickable = false
-        binding.flImagePicker.isEnabled = false
-        binding.btnMapPicker.isClickable = false
-        binding.btnMapPicker.isEnabled = false
-    }
-
-    private fun enableAllFields() {
-        binding.etOutletName.isEnabled = true
-        binding.etPhone.isEnabled = true
-        binding.etTagline.isEnabled = true
-        binding.etAddress.isEnabled = true
-        binding.etCoordinate.isEnabled = true
-        binding.flImagePicker.isClickable = true
-        binding.flImagePicker.isEnabled = true
-        binding.btnMapPicker.isClickable = true
-        binding.btnMapPicker.isEnabled = true
+        binding.etOutletName.isEnabled = enabled
+        binding.etPhone.isEnabled = enabled
+        binding.etTagline.isEnabled = enabled
+        binding.etAddress.isEnabled = enabled
+        binding.etCoordinate.isEnabled = enabled
+        binding.flImagePicker.isClickable = enabled
+        binding.flImagePicker.isEnabled = enabled
+        binding.btnMapPicker.isClickable = enabled
+        binding.btnMapPicker.isEnabled = enabled
     }
 
     // ─── Listeners ────────────────────────────────────────────────────────────
@@ -748,26 +804,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                 override fun afterTextChanged(s: Editable?) {}
             }
             etAddress.addTextChangedListener(addressTextWatcher)
-        }
-    }
-
-    private fun setupListeners(skippedProcess: Boolean = false) {
-        this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(6)
-        listenToBarbershopData()
-        listenToOutletList()
-        listenToServicesData()
-        listenToProductsData()
-        listenToBundlingPackagesData()
-        listenToEmployeesData()
-
-        lifecycleScope.launch {
-            while (remainingListeners.get() > 0) {
-                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
-            }
-            this@AddOutletFormActivity.isFirstLoad = false
-            this@AddOutletFormActivity.skippedProcess = false
-            Log.d("FirstLoopEdited", "First Load BAF = false")
         }
     }
 
@@ -1005,44 +1041,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             }
         }
 
-        addOutletViewModel.outletList.observe(this) { outlets ->
-            val mode = currentMode
-            if (mode == 0) { // VIEW mode
-                outlets.find { outlet -> outlet.uid == outletSelectedId }?.let { found ->
-                    Logger.d("UpdateFormData", "VIEW mode: outlet found ::")
-                    addOutletViewModel.setOriginalOutlet(found.deepCopy())
-                    addOutletViewModel.updateOutletParams(found)
-                } ?: run {
-                    Logger.d("UpdateFormData", "VIEW mode: outlet not found ::")
-                    val initialData = Outlet()
-                    addOutletViewModel.setOriginalOutlet(initialData.deepCopy())
-                    addOutletViewModel.updateOutletParams(initialData)
-                }
-            } else if (mode == 1) { // EDIT mode
-                outlets.find { outlet -> outlet.uid == outletSelectedId }?.let { found ->
-                    Logger.d("UpdateFormData", "EDIT mode: outlet found ::")
-                    // Selalu perbarui originalOutlet agar pembanding unsaved changes akurat terhadap Firestore terbaru
-                    addOutletViewModel.setOriginalOutlet(found.deepCopy())
-                    
-                    // Hanya perbarui outletParams jika belum diinisialisasi (null) atau tidak ada perubahan yang belum disimpan
-                    if (addOutletViewModel.outletParams.value == null || !hasUnsavedChanges()) {
-                        addOutletViewModel.updateOutletParams(found)
-                    } else {
-                        Logger.d("UpdateFormData", "EDIT mode: Unsaved changes exist, skipping outletParams update to prevent overwriting edits.")
-                    }
-                }
-            } else if (mode == 2) { // ADD mode
-                // Pada mode ADD, data outlet baru belum ada di Firestore.
-                // Hanya inisialisasi form kosong pada pemuatan pertama (first load)
-                if (isFirstLoad) {
-                    Logger.d("UpdateFormData", "ADD mode: First load initialization")
-                    val initialData = Outlet()
-                    addOutletViewModel.setOriginalOutlet(initialData.deepCopy())
-                    addOutletViewModel.updateOutletParams(initialData)
-                }
-            }
-        }
-
         addOutletViewModel.outletParams.observe(this) { outlet ->
             if (outlet != null) {
                 if (currentMode == 0 || isFirstLoad) {
@@ -1078,21 +1076,62 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             }
         }
 
+        addOutletViewModel.outletList.observe(this) { outlets ->
+            if (!isFirstLoad) {
+                val mode = currentMode
+                if (mode == 0) { // VIEW mode
+                    outlets.find { outlet -> outlet.uid == outletSelectedId }?.let { found ->
+                        Logger.d("UpdateFormData", "VIEW mode: outlet found ::")
+                        addOutletViewModel.setOriginalOutlet(found.deepCopy())
+                        addOutletViewModel.updateOutletParams(found.deepCopy())
+                    }
+                } else if (mode == 1) { // EDIT mode
+                    outlets.find { outlet -> outlet.uid == outletSelectedId }?.let { found ->
+                        Logger.d("UpdateFormData", "EDIT mode: outlet found ::")
+                        // Cek perubahan data sebelum originalOutlet diperbarui
+                        val hasUnsaved = hasUnsavedChanges()
+                        
+                        // Selalu perbarui originalOutlet agar pembanding unsaved changes akurat terhadap Firestore terbaru
+                        addOutletViewModel.setOriginalOutlet(found.deepCopy())
+
+                        // Hanya perbarui outletParams jika belum diinisialisasi (null) atau tidak ada perubahan yang belum disimpan
+                        if (addOutletViewModel.outletParams.value == null || !hasUnsaved) {
+                            addOutletViewModel.updateOutletParams(found.deepCopy())
+                            displayAllData(found.deepCopy())
+                        } else {
+                            Logger.d("UpdateFormData", "EDIT mode: Unsaved changes exist, skipping outletParams update to prevent overwriting edits.")
+                        }
+                    }
+                } else if (mode == 2) { // ADD mode
+                    // Pada mode ADD, data outlet baru belum ada di Firestore.
+                    // Hanya inisialisasi form kosong pada pemuatan pertama (first load)
+                    if (isFirstLoad) {
+                        Logger.d("UpdateFormData", "ADD mode: First load initialization")
+                        val initialData = Outlet()
+                        addOutletViewModel.setOriginalOutlet(initialData.deepCopy())
+                        addOutletViewModel.updateOutletParams(initialData)
+                    }
+                }
+            }
+        }
+
         addOutletViewModel.allServices.observe(this) {
-            updateServicesUI()
-            updateBundlingUI()
+            if (!isFirstLoad) {
+                updateServicesUI()
+                updateBundlingUI()
+            }
         }
 
         addOutletViewModel.allBundling.observe(this) {
-            updateBundlingUI()
+            if (!isFirstLoad) updateBundlingUI()
         }
 
         addOutletViewModel.allStaff.observe(this) {
-            updateStaffUI()
+            if (!isFirstLoad) updateStaffUI()
         }
 
         addOutletViewModel.allProducts.observe(this) {
-            updateProductsUI()
+            if (!isFirstLoad)updateProductsUI()
         }
     }
 
@@ -1114,7 +1153,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             setIfDiff(binding.etPhone.text?.toString(), formattedIncomingPhone) { binding.etPhone.setText(it) }
             setIfDiff(binding.etTagline.text?.toString(), outlet.taglineOrDesc) { binding.etTagline.setText(it) }
             setIfDiff(binding.etAddress.text?.toString(), outlet.outletAddress) { binding.etAddress.setText(it) }
-            setIfDiff(binding.etRating.text?.toString(), outlet.outletRating.toString()) { binding.etRating.text =
+            setIfDiff(binding.tvRating.text?.toString(), outlet.outletRating.toString()) { binding.tvRating.text =
                 it }
             val accessCode = outlet.outletAccessCode.ifEmpty { getString(R.string.default_empty_code_access) }
             setIfDiff(binding.etAccessCode.text?.toString(), accessCode) { binding.etAccessCode.text =
@@ -1127,23 +1166,32 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             }
 
             if (outlet.imgOutlet.isNotEmpty() && addOutletViewModel.pendingImageUri.value == null) {
-                binding.ivOutletCover.alpha = 1.0f
+                binding.ivOutletPhoto.alpha = 1.0f
                 binding.tvImagePlaceholderLabel.visibility = View.GONE
-                Glide.with(this@AddOutletFormActivity).load(outlet.imgOutlet)
-                    .centerCrop()
-                    .placeholder(ContextCompat.getDrawable(this@AddOutletFormActivity, R.drawable.img_outlet_placeholder))
-                    .into(binding.ivOutletCover)
+                val currentUrl = binding.ivOutletPhoto.tag as? String
+                if (currentUrl != outlet.imgOutlet) {
+                    binding.ivOutletPhoto.tag = outlet.imgOutlet
+                    Glide.with(this@AddOutletFormActivity).load(outlet.imgOutlet)
+                        .centerCrop()
+                        .placeholder(R.drawable.img_outlet_placeholder)
+                        .into(binding.ivOutletPhoto)
+                }
             } else if (addOutletViewModel.pendingImageUri.value == null) {
-                binding.ivOutletCover.alpha = 0.6f
+                binding.ivOutletPhoto.alpha = 0.6f
                 binding.tvImagePlaceholderLabel.visibility = View.VISIBLE
-                binding.ivOutletCover.setImageResource(R.drawable.img_outlet_placeholder)
+                binding.ivOutletPhoto.tag = null
+                binding.ivOutletPhoto.setImageResource(R.drawable.img_outlet_placeholder)
             } else {
                 addOutletViewModel.pendingImageUri.value?.let {
-                    binding.ivOutletCover.alpha = 1.0f
+                    binding.ivOutletPhoto.alpha = 1.0f
                     binding.tvImagePlaceholderLabel.visibility = View.GONE
-                    Glide.with(this@AddOutletFormActivity).load(it)
-                        .centerCrop()
-                        .into(binding.ivOutletCover)
+                    val currentUri = binding.ivOutletPhoto.tag as? Uri
+                    if (currentUri != it) {
+                        binding.ivOutletPhoto.tag = it
+                        Glide.with(this@AddOutletFormActivity).load(it)
+                            .centerCrop()
+                            .into(binding.ivOutletPhoto)
+                    }
                 }
             }
 
@@ -1214,86 +1262,78 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun updateServicesUI() {
-        lifecycleScope.launch {
-            val outlet = addOutletViewModel.outletParams.value ?: return@launch
-            val allServices = addOutletViewModel.allServices.value ?: emptyList()
+        val outlet = addOutletViewModel.outletParams.value ?: return
+        val allServices = addOutletViewModel.allServices.value ?: emptyList()
 
-            // Service Section
-            if (outlet.listServices.isEmpty()) {
-                binding.llEmptyListService.visibility = View.VISIBLE
-                binding.rvListService.visibility = View.GONE
-                selectedServicesAdapter.submitList(emptyList())
-            } else {
-                binding.llEmptyListService.visibility = View.GONE
-                binding.rvListService.visibility = View.VISIBLE
-                selectedServicesAdapter.submitList(allServices.filter { outlet.listServices.contains(it.uid) })
-            }
-            Logger.d("RecycleRelation", "service: ${selectedServicesAdapter.currentList.size}")
+        // Service Section
+        if (outlet.listServices.isEmpty()) {
+            binding.llEmptyListService.visibility = View.VISIBLE
+            binding.rvListService.visibility = View.GONE
+            selectedServicesAdapter.submitList(emptyList())
+        } else {
+            binding.llEmptyListService.visibility = View.GONE
+            binding.rvListService.visibility = View.VISIBLE
+            selectedServicesAdapter.submitList(allServices.filter { outlet.listServices.contains(it.uid) })
         }
+        Logger.d("RecycleRelation", "service: ${selectedServicesAdapter.currentList.size}")
     }
 
     private fun updateBundlingUI() {
-        lifecycleScope.launch {
-            val outlet = addOutletViewModel.outletParams.value ?: return@launch
-            val allBundling = addOutletViewModel.allBundling.value ?: emptyList()
-            val allServices = addOutletViewModel.allServices.value ?: emptyList()
+        val outlet = addOutletViewModel.outletParams.value ?: return
+        val allBundling = addOutletViewModel.allBundling.value ?: emptyList()
+        val allServices = addOutletViewModel.allServices.value ?: emptyList()
 
-            // Bundling Section
-            if (outlet.listBundling.isEmpty()) {
-                binding.llEmptyListBundling.visibility = View.VISIBLE
-                binding.rvListBundling.visibility = View.GONE
-                selectedBundlingAdapter.submitList(emptyList())
-            } else {
-                binding.llEmptyListBundling.visibility = View.GONE
-                binding.rvListBundling.visibility = View.VISIBLE
+        // Bundling Section
+        if (outlet.listBundling.isEmpty()) {
+            binding.llEmptyListBundling.visibility = View.VISIBLE
+            binding.rvListBundling.visibility = View.GONE
+            selectedBundlingAdapter.submitList(emptyList())
+        } else {
+            binding.llEmptyListBundling.visibility = View.GONE
+            binding.rvListBundling.visibility = View.VISIBLE
 
-                // Populate listItemDetails for each bundling package using allServices
-                // Use .map { bundle -> bundle.copy(...) } to ensure ListAdapter receives new object instances
-                val selectedBundling = allBundling.filter { outlet.listBundling.contains(it.uid) }.map { bundle ->
-                    bundle.copy(listItemDetails = allServices.filter { bundle.listItems.contains(it.uid) })
-                }
-                selectedBundlingAdapter.submitList(selectedBundling)
+            // Populate listItemDetails for each bundling package using allServices
+            // Use .map { bundle -> bundle.copy(...) } to ensure ListAdapter receives new object instances
+            val selectedBundling = allBundling.filter { outlet.listBundling.contains(it.uid) }.map { bundle ->
+                bundle.copy(listItemDetails = allServices.filter { bundle.listItems.contains(it.uid) })
             }
-            Logger.d("RecycleRelation", "bundling: ${selectedBundlingAdapter.currentList.size}")
+            selectedBundlingAdapter.submitList(selectedBundling)
         }
+        Logger.d("RecycleRelation", "bundling: ${selectedBundlingAdapter.currentList.size}")
     }
 
     private fun updateStaffUI() {
-        lifecycleScope.launch {
-            val outlet = addOutletViewModel.outletParams.value ?: return@launch
-            val allStaff = addOutletViewModel.allStaff.value ?: emptyList()
+        val outlet = addOutletViewModel.outletParams.value ?: return
+        val allStaff = addOutletViewModel.allStaff.value ?: emptyList()
 
-            // Staff Section
-            if (outlet.listEmployees.isEmpty()) {
-                binding.llEmptyListEmployee.visibility = View.VISIBLE
-                binding.rvListEmployee.visibility = View.GONE
-                selectedStaffAdapter.submitList(emptyList())
-            } else {
-                binding.llEmptyListEmployee.visibility = View.GONE
-                binding.rvListEmployee.visibility = View.VISIBLE
-                selectedStaffAdapter.submitList(allStaff.filter { outlet.listEmployees.contains(it.uid) })
-            }
-            Logger.d("RecycleRelation", "staff: ${selectedStaffAdapter.currentList.size}")
+        // Staff Section
+        if (outlet.listEmployees.isEmpty()) {
+            binding.llEmptyListEmployee.visibility = View.VISIBLE
+            binding.rvListEmployee.visibility = View.GONE
+            selectedStaffAdapter.submitList(emptyList())
+        } else {
+            binding.llEmptyListEmployee.visibility = View.GONE
+            binding.rvListEmployee.visibility = View.VISIBLE
+            selectedStaffAdapter.submitList(allStaff.filter { outlet.listEmployees.contains(it.uid) })
         }
+        Logger.d("RecycleRelation", "staff: ${selectedStaffAdapter.currentList.size}")
     }
 
     private fun updateProductsUI() {
-        lifecycleScope.launch {
-            val outlet = addOutletViewModel.outletParams.value ?: return@launch
-            val allProducts = addOutletViewModel.allProducts.value ?: emptyList()
+        val outlet = addOutletViewModel.outletParams.value ?: return
+        val allProducts = addOutletViewModel.allProducts.value ?: emptyList()
 
-            // Product Section
-            if (outlet.listProducts.isEmpty()) {
-                binding.llEmptyListProduct.visibility = View.VISIBLE
-                binding.rvListProduct.visibility = View.GONE
-                selectedProductsAdapter.submitList(emptyList())
-            } else {
-                binding.llEmptyListProduct.visibility = View.GONE
-                binding.rvListProduct.visibility = View.VISIBLE
-                selectedProductsAdapter.submitList(allProducts.filter { outlet.listProducts.contains(it.uid) })
-            }
-            Logger.d("RecycleRelation", "product: ${selectedProductsAdapter.currentList.size}")
+        // Product Section
+        if (outlet.listProducts.isEmpty()) {
+            binding.llEmptyListProduct.visibility = View.VISIBLE
+            binding.rvListProduct.visibility = View.GONE
+            selectedProductsAdapter.submitList(emptyList())
+        } else {
+            binding.llEmptyListProduct.visibility = View.GONE
+            binding.rvListProduct.visibility = View.VISIBLE
+            selectedProductsAdapter.submitList(allProducts.filter { outlet.listProducts.contains(it.uid) })
         }
+        Logger.d("RecycleRelation", "product: ${selectedProductsAdapter.currentList.size}")
     }
 
     private fun setRelationalAddButtonsVisibility(visibility: Int) {
@@ -1301,6 +1341,26 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         binding.ivAddBundlingItem.visibility = visibility
         binding.ivAddEmployeeItem.visibility = visibility
         binding.ivAddProductItem.visibility = visibility
+    }
+
+    private fun setupListeners(skippedProcess: Boolean = false) {
+        this.skippedProcess = skippedProcess
+        if (skippedProcess) remainingListeners.set(6)
+        listenToBarbershopData()
+        listenToOutletList()
+        listenToServicesData()
+        listenToProductsData()
+        listenToBundlingPackagesData()
+        listenToEmployeesData()
+
+        lifecycleScope.launch {
+            while (remainingListeners.get() > 0) {
+                delay(100) // Periksa setiap 100ms apakah semua listener telah selesai
+            }
+            this@AddOutletFormActivity.isFirstLoad = false
+            this@AddOutletFormActivity.skippedProcess = false
+            Log.d("FirstLoopEdited", "First Load BAF = false")
+        }
     }
 
     private fun listenToBarbershopData() {
@@ -1389,9 +1449,9 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                                     withContext(Dispatchers.Default) {
                                         addOutletViewModel.outletListMutex.withStateLock {
                                             val outlets = docs.mapNotNull { document ->
-                                                val outlet = document.toObject(Outlet::class.java)
-                                                outlet.outletReference = document.reference.path
-                                                outlet
+                                                document.toObject(Outlet::class.java).apply {
+                                                    outletReference = document.reference.path
+                                                }
                                             }
 
                                             addOutletViewModel.setOutletList(outlets)
@@ -1590,69 +1650,69 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     // ─── Save / Navigation ────────────────────────────────────────────────────
-    private fun getAllData() {
-        lifecycleScope.launch {
-            addOutletViewModel.allDataMutex.withStateLock {
-                Logger.d("UpdateFormData", "getAllData first line")
-                try {
-                    if (barbershopId.isEmpty()) throw IllegalStateException("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
-
-                    coroutineScope {
-                        awaitAll(
-                            async {
-                                getCollectionData(
-                                    collectionPath = "outlets",
-                                    dataClass = Outlet::class.java,
-                                    isCollectionGroup = false
-                                )
-                            },
-                            async {
-                                getCollectionData(
-                                    collectionPath = "services",
-                                    dataClass = Service::class.java,
-                                    isCollectionGroup = false
-                                )
-                            },
-                            async {
-                                getCollectionData(
-                                    collectionPath = "bundling_packages",
-                                    dataClass = BundlingPackage::class.java,
-                                    isCollectionGroup = false
-                                )
-                            },
-                            async {
-                                getCollectionData(
-                                    collectionPath = "products",
-                                    dataClass = Product::class.java,
-                                    isCollectionGroup = false
-                                )
-                            },
-                            async {
-                                getCollectionData(
-                                    collectionPath = "employees",
-                                    dataClass = UserEmployeeData::class.java,
-                                    isCollectionGroup = false,
-                                    queryField = "root_ref",
-                                    queryValue = "barbershops/$barbershopId"
-                                )
-                            }
-                        )
-                    }
-                } catch (e: Exception) {
-                    Logger.d("UpdateFormData", "getAllData Catch Blok")
-                    toastViewModel.showToast(e.message.toString(), false)
-                    val initialData = Outlet()
-                    addOutletViewModel.setOutletList(emptyList())
-                    addOutletViewModel.setAllServices(emptyList())
-                    addOutletViewModel.setAllBundling(emptyList())
-                    addOutletViewModel.setAllProducts(emptyList())
-                    addOutletViewModel.setAllStaff(emptyList())
-                    addOutletViewModel.setOriginalOutlet(initialData.deepCopy())
-                    addOutletViewModel.updateOutletParams(initialData)
-                }
-            }
-        }
-    }
+//    private fun getAllData() {
+//        lifecycleScope.launch {
+//            addOutletViewModel.allDataMutex.withStateLock {
+//                Logger.d("UpdateFormData", "getAllData first line")
+//                try {
+//                    if (barbershopId.isEmpty()) throw IllegalStateException("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+//
+//                    coroutineScope {
+//                        awaitAll(
+//                            async {
+//                                getCollectionData(
+//                                    collectionPath = "outlets",
+//                                    dataClass = Outlet::class.java,
+//                                    isCollectionGroup = false
+//                                )
+//                            },
+//                            async {
+//                                getCollectionData(
+//                                    collectionPath = "services",
+//                                    dataClass = Service::class.java,
+//                                    isCollectionGroup = false
+//                                )
+//                            },
+//                            async {
+//                                getCollectionData(
+//                                    collectionPath = "bundling_packages",
+//                                    dataClass = BundlingPackage::class.java,
+//                                    isCollectionGroup = false
+//                                )
+//                            },
+//                            async {
+//                                getCollectionData(
+//                                    collectionPath = "products",
+//                                    dataClass = Product::class.java,
+//                                    isCollectionGroup = false
+//                                )
+//                            },
+//                            async {
+//                                getCollectionData(
+//                                    collectionPath = "employees",
+//                                    dataClass = UserEmployeeData::class.java,
+//                                    isCollectionGroup = false,
+//                                    queryField = "root_ref",
+//                                    queryValue = "barbershops/$barbershopId"
+//                                )
+//                            }
+//                        )
+//                    }
+//                } catch (e: Exception) {
+//                    Logger.d("UpdateFormData", "getAllData Catch Blok")
+//                    toastViewModel.showToast(e.message.toString(), false)
+//                    val initialData = Outlet()
+//                    addOutletViewModel.setOutletList(emptyList())
+//                    addOutletViewModel.setAllServices(emptyList())
+//                    addOutletViewModel.setAllBundling(emptyList())
+//                    addOutletViewModel.setAllProducts(emptyList())
+//                    addOutletViewModel.setAllStaff(emptyList())
+//                    addOutletViewModel.setOriginalOutlet(initialData.deepCopy())
+//                    addOutletViewModel.updateOutletParams(initialData)
+//                }
+//            }
+//        }
+//    }
 
     private suspend fun <T> getCollectionData(
         collectionPath: String,
@@ -1795,7 +1855,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         val tagline = binding.etTagline.text.toString().trim()
         val address = binding.etAddress.text.toString().trim()
         val coords = binding.etCoordinate.text.toString().trim()
-        val uidCheck = binding.etOutletName.text.toString().trim().lowercase().replace("\\s".toRegex(), "")
 
         val countryCode = phone.findCountryCode()
         // Nomor telepon setelah kode negara (hanya angka)
@@ -1808,8 +1867,10 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                 setFocus(binding.etOutletName)
                 false
             }
-            addOutletViewModel.outletList.value?.find { it.uid == uidCheck } != null && currentMode == 2 -> {
-                toastViewModel.showToast("Anda sudah menggunakan nama outlet ini, silahkan gunakan nama lain", true)
+            currentMode == 2 && addOutletViewModel.outletList.value?.any { it.outletName.equals(name, ignoreCase = true) } == true -> {
+                binding.etOutletName.error = "Nama outlet sudah digunakan, silahkan gunakan nama lain"
+                binding.etOutletName.setSelection(binding.etOutletName.text?.length ?: 0)
+                setFocus(binding.etOutletName)
                 false
             }
             phone.isEmpty() -> {
@@ -1959,6 +2020,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     @RequiresApi(Build.VERSION_CODES.S)
     fun handleCustomBack(forceFinish: Boolean = false) {
         if (isHandlingBack) return
+        Logger.d("UnsavedChanges", "currentMode: $currentMode")
         if ((currentMode == 1 || currentMode == 2) && hasUnsavedChanges() && !forceFinish) {
             showUnsavedChangesDialog { 
                 finishWithTransition()

@@ -3,6 +3,7 @@ package com.example.barberlink.Adapter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -81,11 +82,11 @@ class ItemListEmployeeSelectAdapter(
                         employee.gender.equals("male", ignoreCase = true) ||
                         employee.gender.equals("pria", ignoreCase = true)
                 if (isMale) {
-                    llGender.background = ContextCompat.getDrawable(root.context, R.drawable.gender_masculine_background)
+                    llGender.background = AppCompatResources.getDrawable(root.context, R.drawable.gender_masculine_background)
                     ivGender.setImageResource(R.drawable.ic_male)
                     tvGender.text = "Laki-laki"
                 } else {
-                    llGender.background = ContextCompat.getDrawable(root.context, R.drawable.gender_feminime_background)
+                    llGender.background = AppCompatResources.getDrawable(root.context, R.drawable.gender_feminime_background)
                     ivGender.setImageResource(R.drawable.ic_female)
                     tvGender.text = "Perempuan"
                 }
@@ -93,7 +94,7 @@ class ItemListEmployeeSelectAdapter(
                 // Profile picture
                 if (employee.photoProfile.isNotEmpty()) {
                     Glide.with(root.context).load(employee.photoProfile)
-                        .placeholder(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
+                        .placeholder(R.drawable.placeholder_user_profile)
                         .centerCrop().into(ivPhotoProfile)
                 } else {
                     ivPhotoProfile.setImageResource(R.drawable.placeholder_user_profile)

@@ -76,7 +76,7 @@ class ItemListProductSelectAdapter(
                 if (product.imgProduct.isNotEmpty()) {
                     tvProdukMenu.visibility = View.INVISIBLE
                     Glide.with(root.context).load(product.imgProduct)
-                        .placeholder(ContextCompat.getDrawable(root.context, R.drawable.banner_1))
+                        .placeholder(R.drawable.banner_1)
                         .centerCrop().into(ivProductImage)
                 } else {
                     tvProdukMenu.visibility = View.VISIBLE

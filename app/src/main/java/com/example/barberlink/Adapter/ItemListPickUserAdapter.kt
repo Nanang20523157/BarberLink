@@ -139,9 +139,8 @@ class ItemListPickUserAdapter(
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(userEmployeeData.photoProfile)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
+                        .placeholder(R.drawable.placeholder_user_profile)
+                        .error( R.drawable.placeholder_user_profile)
                         .into(ivPhotoProfile)
                 } else {
                     // Jika photoProfile kosong atau null, atur gambar default

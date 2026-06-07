@@ -201,8 +201,8 @@ class SignUpCapsterDataStep : AppCompatActivity(), View.OnClickListener {
                             // Lakukan transaksi fragment
                             Glide.with(this)
                                 .load(imageUrl)
-                                .placeholder(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                                .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                .placeholder(R.drawable.placeholder_user_profile)
+                                .error(R.drawable.placeholder_user_profile)
                                 .into(binding.ivProfile)
                         }
                     }
@@ -235,9 +235,8 @@ class SignUpCapsterDataStep : AppCompatActivity(), View.OnClickListener {
                                 // Lakukan transaksi fragment
                                 Glide.with(this)
                                     .load(it.photoProfile)
-                                    .placeholder(
-                                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                    .placeholder(R.drawable.placeholder_user_profile)
+                                    .error(R.drawable.placeholder_user_profile)
                                     .into(binding.ivProfile)
                             }
                         }
@@ -271,9 +270,8 @@ class SignUpCapsterDataStep : AppCompatActivity(), View.OnClickListener {
                                 // Lakukan transaksi fragment
                                 Glide.with(this)
                                     .load(it.photoProfile)
-                                    .placeholder(
-                                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                                    .placeholder(R.drawable.placeholder_user_profile)
+                                    .error( R.drawable.placeholder_user_profile)
                                     .into(binding.ivProfile)
                             }
                         }

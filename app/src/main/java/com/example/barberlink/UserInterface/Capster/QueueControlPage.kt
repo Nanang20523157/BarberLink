@@ -775,9 +775,9 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             currentReservationData?.let {
                 Logger.d("LogOperation", "Open Edit Order Page BY CONFIRM FEE CAPSTER")
                 queueControlViewModel.setCurrentReservationData(currentReservationData)
-                queueControlViewModel.serviceList.value?.map { it.deepCopy() }
+                queueControlViewModel.serviceList.value?.map { it.deepCopy(false) }
                     ?.let { queueControlViewModel.setDuplicateServiceList(it, false) }
-                queueControlViewModel.bundlingPackageList.value?.map { it.deepCopy(false) }
+                queueControlViewModel.bundlingPackageList.value?.map { it.deepCopy(false, false) }
                     ?.let { queueControlViewModel.setDuplicateBundlingPackageList(it, false) }
                 showEditOrderDialog("Edit Pesanan", useUidApplicantCapsterRef, priceText)
             } ?: run {
@@ -3384,9 +3384,8 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                     // Lakukan transaksi fragment
                     Glide.with(this@QueueControlPage)
                         .load(imageUrl)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
+                        .placeholder(R.drawable.placeholder_user_profile)
+                        .error( R.drawable.placeholder_user_profile)
                         .into(view)
                 }
             } else {
@@ -4903,9 +4902,9 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                                                                 dismissSnackbarSafely()
                                                                 val priceText = numberToCurrency(currentReservation.paymentDetail.finalPrice.toDouble())
                                                                 queueControlViewModel.setCurrentReservationData(currentReservation)
-                                                                queueControlViewModel.serviceList.value?.map { it.deepCopy() }
+                                                                queueControlViewModel.serviceList.value?.map { it.deepCopy(false) }
                                                                     ?.let { queueControlViewModel.setDuplicateServiceList(it, false) }
-                                                                queueControlViewModel.bundlingPackageList.value?.map { it.deepCopy(false) }
+                                                                queueControlViewModel.bundlingPackageList.value?.map { it.deepCopy(false, false) }
                                                                     ?.let { queueControlViewModel.setDuplicateBundlingPackageList(it, false) }
                                                                 showEditOrderDialog("Edit Pesanan", false, priceText)
                                                             }

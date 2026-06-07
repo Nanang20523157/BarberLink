@@ -38,6 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.text.format
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -69,7 +70,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
     private var lifecycleListener: DefaultLifecycleObserver? = null
     private lateinit var textWatcher: TextWatcher
     private var inputManualCheckOne: (() -> Unit)? = null
-    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+    private val format = NumberFormat.getNumberInstance(Locale("id", "ID"))
 
     private val binding get() = _binding!!
 //    private lateinit var sessionDelegate: FragmentSessionDelegate
@@ -378,7 +379,8 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
 //                            } else {
 //                                formatWithDotsKeepingLeadingZeros(parsed)
 //                            }
-                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val cleanText = originalString.replace(".", "")
+                            val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
 
                             // Set the text

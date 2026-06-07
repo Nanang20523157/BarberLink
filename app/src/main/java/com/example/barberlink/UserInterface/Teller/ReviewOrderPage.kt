@@ -612,9 +612,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     // Lakukan transaksi fragment
                     Glide.with(this@ReviewOrderPage)
                         .load(customerData.photoProfile)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
+                        .placeholder(R.drawable.placeholder_user_profile)
+                        .error(R.drawable.placeholder_user_profile)
                         .into(realLayoutCustomer.ivCustomerPhotoProfile)
                 }
             } else {
@@ -644,9 +643,8 @@ class ReviewOrderPage : AppCompatActivity(), View.OnClickListener, ItemListPacka
                     // Lakukan transaksi fragment
                     Glide.with(this@ReviewOrderPage)
                         .load(capsterData.photoProfile)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
+                        .placeholder(R.drawable.placeholder_user_profile)
+                        .error(R.drawable.placeholder_user_profile)
                         .into(realLayoutCapster.ivCapsterPhotoProfile)
                 }
             } else {

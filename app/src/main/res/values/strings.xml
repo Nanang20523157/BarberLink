@@ -625,7 +625,7 @@
     <string name="toolbar_new_outlet_form">Outlet Baru</string>
     <string name="form_edit_mode">EDIT MODE</string>
     <string name="form_view_mode">VIEW MODE</string>
-    <string name="form_type_mode">TYPE MODE</string>
+    <string name="form_type_mode">ADD MODE</string>
     <string name="icon_select_mode_desc">Icon formulir outlet select mode</string>
     <string name="image_outlet_placeholder_desc">Image outlet barbershop placeholder</string>
     <string name="icon_select_image_desc">Icon select image ilustration</string>

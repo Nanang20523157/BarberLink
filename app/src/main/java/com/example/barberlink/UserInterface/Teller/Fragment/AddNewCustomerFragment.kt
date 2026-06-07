@@ -290,8 +290,8 @@ class AddNewCustomerFragment : DialogFragment() {
                     addCustomerViewModel.getUserCustomerData().photoProfile.takeIf { it.isNotEmpty() }.let {
                         Glide.with(context)
                             .load(it)
-                            .placeholder(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                            .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                            .placeholder(R.drawable.placeholder_user_profile)
+                            .error(R.drawable.placeholder_user_profile)
                             .into(binding.ivPhotoProfile)
                     }
 
@@ -1229,8 +1229,8 @@ class AddNewCustomerFragment : DialogFragment() {
             addCustomerViewModel.getUserCustomerData().photoProfile.takeIf { it.isNotEmpty() }.let {
                 Glide.with(context)
                     .load(it)
-                    .placeholder(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                    .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                    .placeholder(R.drawable.placeholder_user_profile)
+                    .error(R.drawable.placeholder_user_profile)
                     .into(binding.ivPhotoProfile)
             }
 

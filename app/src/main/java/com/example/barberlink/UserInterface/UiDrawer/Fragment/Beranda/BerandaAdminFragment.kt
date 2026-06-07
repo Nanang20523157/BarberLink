@@ -43,6 +43,9 @@ import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.DataClass.DataCategories
+import com.example.barberlink.UserInterface.Admin.AddProductFormActivity
+import com.example.barberlink.UserInterface.Admin.AddBundlingFormActivity
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Contract.DrawerController
 import com.example.barberlink.DataClass.EmployeeRolesData
@@ -52,6 +55,7 @@ import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Admin.Fragment.DetailServiceListFragment
+import com.example.barberlink.UserInterface.Admin.AddServiceFormActivity
 import com.example.barberlink.UserInterface.Admin.ManageEmployeePage
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
 import com.example.barberlink.UserInterface.MainActivity
@@ -1001,6 +1005,37 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                             queryValue = "barbershops/$uid"
                                         )
                                     }
+                                },
+                                async {
+                                    runCatching {
+                                        val snapshot = db.collection("service_categories")
+                                            .whereIn("barbershop_ref", listOf(uid, "All"))
+                                            .awaitGetWithOfflineFallback(tag = "GetServiceCategories")
+                                        if (snapshot.isSuccessful) {
+                                            val categories = snapshot.data?.documents?.mapNotNull { it.toObject(DataCategories::class.java) } ?: emptyList()
+                                            berandaAdminViewModel.setServiceCategoryList(categories)
+                                        } else {
+                                            throw Exception("Gagal memuat kategori layanan!")
+                                        }
+                                    }
+                                },
+                                async {
+                                    runCatching {
+                                        val snapshot = db.collection("product_categories")
+                                            .whereIn("barbershop_ref", listOf(uid, "All"))
+                                            .awaitGetWithOfflineFallback(tag = "GetProductCategories")
+                                        if (snapshot.isSuccessful) {
+                                            val categories = snapshot.data?.documents?.mapNotNull { it.toObject(DataCategories::class.java) } ?: emptyList()
+                                            berandaAdminViewModel.setProductCategoryList(categories)
+                                        } else {
+                                            throw Exception("Gagal memuat kategori produk!")
+                                        }
+                                    }
+                                },
+                                async {
+                                    runCatching {
+                                        com.example.barberlink.Helper.ServiceIconCache.preloadIcons()
+                                    }
                                 }
                             )
 
@@ -1290,6 +1325,9 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
                                         putParcelableArray("employeeList", (berandaAdminViewModel.employeeList.value ?: emptyList()).toTypedArray())
                                         putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putParcelableArray("serviceList", (berandaAdminViewModel.servicesList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("productList", (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("bundlingList", (berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()).toTypedArray())
                                     }
                                     navController.navigate(R.id.action_nav_beranda_to_manageOutletPage, bundle)
                                 }
@@ -1333,7 +1371,19 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.seeAllLayanan -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val bundle = Bundle().apply {
+                                        putParcelableArray("serviceList", (berandaAdminViewModel.servicesList.value ?: emptyList()).toTypedArray())
+                                        putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putParcelableArray("categoryList", (berandaAdminViewModel.serviceCategoryList.value ?: emptyList()).toTypedArray())
+                                    }
+                                    navController.navigate(R.id.action_nav_beranda_to_manageServicePage, bundle)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.seeAllProduk -> {
@@ -1353,12 +1403,44 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.ivAddNewLayanan -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val intent = Intent(requireContext(), AddServiceFormActivity::class.java).apply {
+                                        putExtra("CURRENT_MODE", 2) // ADD
+                                        putExtra("IS_DIRECT_ADD", true)
+                                        putExtra("ADMIN_DATA_KEY", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putExtra("SERVICE_DATA_KEY", Service())
+                                        putParcelableArrayListExtra("SERVICE_CATEGORIES_KEY", ArrayList(berandaAdminViewModel.serviceCategoryList.value ?: emptyList()))
+                                        putParcelableArrayListExtra("SERVICE_LIST_KEY", ArrayList(berandaAdminViewModel.servicesList.value ?: emptyList()))
+                                    }
+                                    startActivity(intent)
+                                    (requireActivity() as MainActivity).overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.ivAddNewProduk -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val intent = Intent(requireContext(), AddProductFormActivity::class.java).apply {
+                                        putExtra("CURRENT_MODE", 2) // ADD
+                                        putExtra("IS_DIRECT_ADD", true)
+                                        putExtra("ADMIN_DATA_KEY", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putExtra("PRODUCT_DATA_KEY", Product())
+                                        putParcelableArrayListExtra("PRODUCT_CATEGORIES_KEY", ArrayList(berandaAdminViewModel.productCategoryList.value ?: emptyList()))
+                                        putParcelableArrayListExtra("PRODUCT_LIST_KEY", ArrayList(berandaAdminViewModel.productList.value ?: emptyList()))
+                                    }
+                                    startActivity(intent)
+                                    (requireActivity() as MainActivity).overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.ivAddNewPegawai -> {
@@ -1368,7 +1450,23 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.ivAddNewPaketBundling -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val intent = Intent(requireContext(), AddBundlingFormActivity::class.java).apply {
+                                        putExtra("CURRENT_MODE", 2) // ADD
+                                        putExtra("IS_DIRECT_ADD", true)
+                                        putExtra("ADMIN_DATA_KEY", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putExtra("BUNDLING_DATA_KEY", BundlingPackage())
+                                        putParcelableArrayListExtra("SERVICE_LIST_KEY", ArrayList(berandaAdminViewModel.servicesList.value ?: emptyList()))
+                                        putParcelableArrayListExtra("BUNDLING_LIST_KEY", ArrayList(berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()))
+                                    }
+                                    startActivity(intent)
+                                    (requireActivity() as MainActivity).overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
             }

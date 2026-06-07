@@ -22,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.PermissionHelper.showRationaleDialog
 import com.example.barberlink.Helper.PermissionHelper.showSettingsDialog
@@ -146,6 +147,9 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
+        val productCategories = intent.getParcelableArrayListExtra<DataCategories>("PRODUCT_CATEGORIES_KEY")
+        val productList = intent.getParcelableArrayListExtra<Product>("PRODUCT_LIST_KEY")
+
         if (savedInstanceState != null) {
             barbershopId = savedInstanceState.getString("barbershop_id") ?: ""
             productSelectedId = savedInstanceState.getString("product_selected_id") ?: ""
@@ -160,16 +164,24 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             }
             currentMode = intent.getIntExtra("CURRENT_MODE", 2)
             val productData = intent.getParcelableExtra<Product>("PRODUCT_DATA_KEY")
-            if (productData != null && currentMode != 2) {
+
+            if (productCategories != null) {
+                addProductViewModel.setCategories(productCategories)
+            }
+            if (productList != null) {
+                addProductViewModel.setAllProducts(productList)
+            }
+
+            if (productData != null && productData.uid.isNotEmpty()) {
                 productSelectedId = productData.uid
-                addProductViewModel.setOriginalProduct(productData.deepCopy(false))
+                addProductViewModel.setOriginalProduct(productData.deepCopy(false, false))
                 addProductViewModel.updateProductParams(productData)
             } else {
-                val newProduct = Product().apply {
-                    uid = UUID.randomUUID().toString().replace("-", "").take(20)
-                    rootRef = "barbershops/$barbershopId"
+                val newProduct = (productData ?: Product()).apply {
+                    if (uid.isEmpty()) uid = UUID.randomUUID().toString().replace("-", "").take(20)
+                    if (rootRef.isEmpty()) rootRef = "barbershops/$barbershopId"
                 }
-                addProductViewModel.setOriginalProduct(newProduct.deepCopy(false))
+                addProductViewModel.setOriginalProduct(newProduct.deepCopy(false, false))
                 addProductViewModel.updateProductParams(newProduct)
             }
         }
@@ -396,7 +408,8 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             }
         }
 
-        if (barbershopId.isNotEmpty()) {
+        val productCategories = intent.getParcelableArrayListExtra<DataCategories>("PRODUCT_CATEGORIES_KEY")
+        if (productCategories == null && barbershopId.isNotEmpty()) {
             addProductViewModel.getProductCategories(barbershopId)
         }
     }

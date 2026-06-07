@@ -613,7 +613,7 @@
                             android:layout_height="match_parent"/>
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cvRole"
+                            android:id="@+id/cvAddRole"
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_gravity="center"
@@ -626,7 +626,7 @@
                                 android:background="@drawable/bg_button_select_maps_figma">
 
                                 <ImageView
-                                    android:id="@+id/ivRole"
+                                    android:id="@+id/ivAddRole"
                                     android:layout_width="20dp"
                                     android:layout_height="20dp"
                                     android:scaleX="1.1"

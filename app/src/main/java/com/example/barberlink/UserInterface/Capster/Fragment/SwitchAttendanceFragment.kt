@@ -228,10 +228,8 @@ class SwitchAttendanceFragment : BottomSheetDialogFragment() {
         if (imageUrl.isNotEmpty() && isAdded && view != null) {
             Glide.with(this)
                 .load(imageUrl)
-                .placeholder(
-                    ContextCompat.getDrawable(requireContext(), R.drawable.placeholder_user_profile)
-                )
-                .error(ContextCompat.getDrawable(requireContext(), R.drawable.placeholder_user_profile))
+                .placeholder(R.drawable.placeholder_user_profile)
+                .error(R.drawable.placeholder_user_profile)
                 .into(binding.ivPhotoProfile)
         }
     }

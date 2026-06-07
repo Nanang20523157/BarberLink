@@ -469,6 +469,7 @@ class AdminDataStepViewModel(
             defaultItem = true,
             freeOfCharge = true,
             resultsShareAmount = mapOf("all" to 0),
+            resultsShareFormat = "fee",
             rootRef = "barbershops/${userAdminData.uid}",
             serviceCategory = "Conversation",
             serviceCounting = 0,

@@ -156,9 +156,8 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
                 if (product.imgProduct.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(product.imgProduct)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.mystery_box))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.mystery_box))
+                        .placeholder(R.drawable.mystery_box)
+                        .error(R.drawable.mystery_box)
                         .into(ivProduct)
                 } else {
                     // Jika photoProfile kosong atau null, atur gambar default

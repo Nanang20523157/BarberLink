@@ -162,7 +162,7 @@
                             android:layout_height="match_parent">
 
                             <ImageView
-                                android:id="@+id/ivOutletCover"
+                                android:id="@+id/ivOutletPhoto"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 android:contentDescription="@string/image_outlet_placeholder_desc"
@@ -471,7 +471,7 @@
                             android:outlineSpotShadowColor="@color/black">
 
                             <TextView
-                                android:id="@+id/etRating"
+                                android:id="@+id/tvRating"
                                 android:layout_width="96dp"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_input_disabled_figma"

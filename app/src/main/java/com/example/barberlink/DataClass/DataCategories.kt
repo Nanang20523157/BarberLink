@@ -19,4 +19,14 @@ data class DataCategories(
     @get:Exclude
     val stability: Int
         get() = 0
+
+    fun deepCopy(): DataCategories {
+        return DataCategories(
+            barbershopRef = this.barbershopRef,
+            categoryCode = this.categoryCode,
+            categoryName = this.categoryName,
+            intendedFor = this.intendedFor,
+            uid = this.uid
+        )
+    }
 }

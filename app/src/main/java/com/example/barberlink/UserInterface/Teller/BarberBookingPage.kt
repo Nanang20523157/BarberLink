@@ -798,9 +798,8 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
                     // Lakukan transaksi fragment
                     Glide.with(this@BarberBookingPage)
                         .load(capsterSelected.photoProfile)
-                        .placeholder(
-                            ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(root.context, R.drawable.placeholder_user_profile))
+                        .placeholder(R.drawable.placeholder_user_profile)
+                        .error(R.drawable.placeholder_user_profile)
                         .into(realLayout.ivPhotoProfile)
                 }
             } else {

@@ -18,6 +18,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.barberlink.Adapter.ItemManageServiceAdapter
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -44,8 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class ManageServicePage : BaseActivity(), View.OnClickListener,
     ItemManageServiceAdapter.OnItemClicked,
     ItemManageServiceAdapter.OnNavigationPage,
-    ItemManageServiceAdapter.DisplayThisToastMessage,
-    ItemManageServiceAdapter.OnStatusToggled {
+    ItemManageServiceAdapter.DisplayThisToastMessage{
 
     private lateinit var binding: ActivityManageServicePageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
@@ -55,7 +55,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     }
     private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var serviceAdapter: ItemManageServiceAdapter
-    private lateinit var vegaLayoutManager: VegaLayoutManager
+    private lateinit var gridLayoutManager: androidx.recyclerview.widget.GridLayoutManager
     private val debounce by lazy { ScopedUniversalDebounce() }
 
     // ARGS
@@ -121,12 +121,18 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
-            // Get data from intent extras
-            val userAdminData = intent.getParcelableExtra<UserAdminData>("ADMIN_DATA_KEY")
-            if (userAdminData != null) {
-                manageServiceViewModel.setUserAdminData(userAdminData)
-                barbershopId = userAdminData.uid
-            }
+            // Mendapatkan argumen dari SafeArgs
+            val args = ManageServicePageArgs.fromBundle(intent.extras ?: Bundle())
+
+            val servicesList = args.serviceList.toCollection(ArrayList())
+            manageServiceViewModel.setServiceList(servicesList)
+
+            val userAdminData = args.userAdminData
+            manageServiceViewModel.setUserAdminData(userAdminData)
+            barbershopId = userAdminData.uid
+
+            val serviceCategoryList = args.categoryList.toCollection(ArrayList())
+            manageServiceViewModel.setCategoryList(serviceCategoryList)
         }
 
         init(savedInstanceState)
@@ -156,9 +162,9 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             val list = serviceList ?: mutableListOf()
             serviceAdapter.submitList(list.toList())
             Logger.d("ServiceList", "notifyDataSetChanged()")
-            serviceAdapter.notifyDataSetChanged()
+            if (!isShimmerVisible) serviceAdapter.notifyDataSetChanged()
             binding.tvServiceCountTitle.text = getString(R.string.daftar_layanan_title_template, list.size)
-            binding.tvEmptyService.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            if (!isFirstLoad) binding.tvEmptyService.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
         }
 
         onBackPressedDispatcher.addCallback(this) {
@@ -188,16 +194,126 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
+    private fun applyVegaScrollEffect(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        val childCount = recyclerView.childCount
+        if (childCount <= 0) return
+
+        val firstChild = recyclerView.getChildAt(0)
+        // In a 2-column grid, Row 1 consists of indices 0 & 1, Row 2 starts at index 2
+        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+
+        for (i in 0 until childCount) {
+            val child = recyclerView.getChildAt(i)
+            val itemHeight = child.height
+            if (itemHeight <= 0) continue
+
+            val rowSpacing = if (firstChild != null && secondRowChild != null) {
+                secondRowChild.top - firstChild.top
+            } else {
+                val density = recyclerView.context.resources.displayMetrics.density
+                itemHeight + (10f * density).toInt()
+            }
+
+            val transitionRange = rowSpacing.toFloat()
+            val topDistance = -child.top
+            val topDistanceFloat = topDistance.toFloat()
+
+            if (topDistanceFloat in 0f..transitionRange) {
+                val rate1 = topDistanceFloat / transitionRange
+                val rate2 = 1f - (rate1 * rate1) / 3f
+                val rate3 = 1f - (rate1 * rate1)
+                child.scaleX = rate2
+                child.scaleY = rate2
+                child.alpha = rate3
+                child.translationY = topDistanceFloat
+            } else if (child.top < 0) {
+                child.scaleX = 0.67f
+                child.scaleY = 0.67f
+                child.alpha = 0f
+                child.translationY = 0f
+            } else {
+                child.scaleX = 1f
+                child.scaleY = 1f
+                child.alpha = 1f
+                child.translationY = 0f
+            }
+        }
+    }
+
+    private fun snapToPosition(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        val childCount = recyclerView.childCount
+        if (childCount <= 0) return
+
+        var topChild: View? = null
+        var minTop = Int.MIN_VALUE
+
+        for (i in 0 until childCount) {
+            val child = recyclerView.getChildAt(i)
+            if (child.top <= 0 && child.top > minTop) {
+                minTop = child.top
+                topChild = child
+            }
+        }
+
+        if (topChild == null) return
+
+        val itemHeight = topChild.height
+        if (itemHeight <= 0) return
+
+        val firstChild = recyclerView.getChildAt(0)
+        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+        val rowSpacing = if (firstChild != null && secondRowChild != null) {
+            secondRowChild.top - firstChild.top
+        } else {
+            val density = recyclerView.context.resources.displayMetrics.density
+            itemHeight + (10f * density).toInt()
+        }
+
+        val topDistance = -topChild.top
+        if (topDistance <= 5 || rowSpacing - topDistance <= 5) return // Already snapped
+
+        val fraction = topDistance.toFloat() / rowSpacing.toFloat()
+        val scrollNeeded = if (fraction > 0.5f) {
+            rowSpacing - topDistance
+        } else {
+            -topDistance
+        }
+
+        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) return
+        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) return
+
+        if (scrollNeeded != 0) {
+            recyclerView.smoothScrollBy(0, scrollNeeded)
+        }
+    }
+
     private fun init(savedInstanceState: Bundle?) {
-        vegaLayoutManager = VegaLayoutManager()
-        serviceAdapter = ItemManageServiceAdapter(this, this, this, this)
-        binding.rvServiceList.layoutManager = vegaLayoutManager
+        gridLayoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+        serviceAdapter = ItemManageServiceAdapter(this, this, this)
+        binding.rvServiceList.layoutManager = gridLayoutManager
         binding.rvServiceList.adapter = serviceAdapter
+
+        // Apply Vega-Grid Scroll Effect
+        binding.rvServiceList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                applyVegaScrollEffect(recyclerView)
+            }
+
+            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) {
+                    snapToPosition(recyclerView)
+                }
+            }
+        })
+        binding.rvServiceList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyVegaScrollEffect(binding.rvServiceList)
+        }
 
         // ── Swipe to delete ──────────────────────────────────────────────────
         val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
             0, // no drag directions
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT
+            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
         ) {
             override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
                                 vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
@@ -239,37 +355,136 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                 dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
             ) {
                 val itemView = viewHolder.itemView
-                val paint = android.graphics.Paint()
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#FF3B30")
+                    isAntiAlias = true
+                }
+
+                val density = recyclerView.resources.displayMetrics.density
+
+                val cardView = itemView.findViewById<View>(R.id.cvCardService)
+                val cardTop: Float
+                val cardBottom: Float
+                val cardLeft: Float
+                val cardRight: Float
+
+                val cornerRadius = 20f * density
+                val overlap = cornerRadius
+
+                if (cardView != null) {
+                    var localTop = cardView.top.toFloat()
+                    var localLeft = cardView.left.toFloat()
+                    var p = cardView.parent as? View
+                    while (p != null && p != itemView) {
+                        localTop += p.top
+                        localLeft += p.left
+                        p = p.parent as? View
+                    }
+                    cardTop = itemView.top.toFloat() + localTop
+                    cardBottom = cardTop + cardView.height.toFloat()
+                    cardLeft = itemView.left.toFloat() + localLeft
+                    cardRight = cardLeft + cardView.width.toFloat()
+                } else {
+                    val paddingTop = itemView.paddingTop.toFloat()
+                    val paddingBottom = itemView.paddingBottom.toFloat()
+                    val paddingLeft = itemView.paddingLeft.toFloat()
+                    val paddingRight = itemView.paddingRight.toFloat()
+
+                    cardTop = itemView.top.toFloat() + paddingTop
+                    cardBottom = itemView.bottom.toFloat() - paddingBottom
+                    cardLeft = itemView.left.toFloat() + paddingLeft
+                    cardRight = itemView.right.toFloat() - paddingRight
+                }
 
                 if (dX < 0) { // swiping left
-                    // Red background
-                    paint.color = android.graphics.Color.parseColor("#FF3B30")
-                    c.drawRect(
-                        itemView.right + dX, itemView.top.toFloat(),
-                        itemView.right.toFloat(), itemView.bottom.toFloat(), paint
-                    )
-                    // Trash icon
-                    val icon = androidx.core.content.ContextCompat.getDrawable(
-                        this@ManageServicePage, R.drawable.ic_swipe_to_left
-                    )
-                    icon?.let {
-                        val iconSize = 28.dp
-                        val margin = 20.dp
-                        val iconTop = itemView.top + (itemView.height - iconSize) / 2
-                        it.setBounds(
-                            itemView.right - margin - iconSize,
-                            iconTop,
-                            itemView.right - margin,
-                            iconTop + iconSize
+                    val leftBound = maxOf(cardLeft, cardRight + dX)
+                    val rightBound = cardRight
+                    val revealedWidth = rightBound - leftBound
+
+                    if (revealedWidth > 0) {
+                        c.save()
+                        val isFullySwiped = leftBound == cardLeft
+                        val clipLeft = if (isFullySwiped) cardLeft else maxOf(cardLeft, leftBound - overlap)
+                        c.clipRect(clipLeft, cardTop, rightBound, cardBottom)
+                        
+                        // Draw round rect starting at cardLeft if fully swiped, otherwise shift to hide left rounded corners
+                        val drawLeft = if (isFullySwiped) cardLeft else clipLeft - cornerRadius
+                        c.drawRoundRect(drawLeft, cardTop, rightBound, cardBottom, cornerRadius, cornerRadius, paint)
+                        c.restore()
+
+                        c.save()
+                        c.clipRect(leftBound, cardTop, rightBound, cardBottom)
+                        val icon = androidx.core.content.ContextCompat.getDrawable(
+                            this@ManageServicePage, R.drawable.ic_swipe_to_left
                         )
-                        it.setTint(android.graphics.Color.WHITE)
-                        it.draw(c)
+                        icon?.let {
+                            val iconSize = (28 * density).toInt()
+                            val cardHeight = cardBottom - cardTop
+                            val iconTop = (cardTop + (cardHeight - iconSize) / 2).toInt()
+                            val iconBottom = iconTop + iconSize
+
+                            val centerX = (leftBound + rightBound) / 2
+                            val iconLeft = (centerX - iconSize / 2).toInt()
+                            val iconRight = iconLeft + iconSize
+
+                            val alphaThreshold = iconSize
+                            val alpha = if (revealedWidth > alphaThreshold) {
+                                ((revealedWidth - alphaThreshold) / alphaThreshold).coerceIn(0f, 1f)
+                            } else 0f
+
+                            it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                            it.setTint(android.graphics.Color.WHITE)
+                            it.alpha = (alpha * 255).toInt()
+                            it.draw(c)
+                        }
+                        c.restore()
+                    }
+                } else if (dX > 0) { // swiping right
+                    val leftBound = cardLeft
+                    val rightBound = minOf(cardRight, cardLeft + dX)
+                    val revealedWidth = rightBound - leftBound
+
+                    if (revealedWidth > 0) {
+                        c.save()
+                        val isFullySwiped = rightBound == cardRight
+                        val clipRight = if (isFullySwiped) cardRight else minOf(cardRight, rightBound + overlap)
+                        c.clipRect(leftBound, cardTop, clipRight, cardBottom)
+
+                        // Draw round rect ending at cardRight if fully swiped, otherwise shift to hide right rounded corners
+                        val drawRight = if (isFullySwiped) cardRight else clipRight + cornerRadius
+                        c.drawRoundRect(leftBound, cardTop, drawRight, cardBottom, cornerRadius, cornerRadius, paint)
+                        c.restore()
+
+                        c.save()
+                        c.clipRect(leftBound, cardTop, rightBound, cardBottom)
+                        val icon = androidx.core.content.ContextCompat.getDrawable(
+                            this@ManageServicePage, R.drawable.ic_swipe_to_right
+                        )
+                        icon?.let {
+                            val iconSize = (28 * density).toInt()
+                            val cardHeight = cardBottom - cardTop
+                            val iconTop = (cardTop + (cardHeight - iconSize) / 2).toInt()
+                            val iconBottom = iconTop + iconSize
+
+                            val centerX = (leftBound + rightBound) / 2
+                            val iconLeft = (centerX - iconSize / 2).toInt()
+                            val iconRight = iconLeft + iconSize
+
+                            val alphaThreshold = iconSize
+                            val alpha = if (revealedWidth > alphaThreshold) {
+                                ((revealedWidth - alphaThreshold) / alphaThreshold).coerceIn(0f, 1f)
+                            } else 0f
+
+                            it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                            it.setTint(android.graphics.Color.WHITE)
+                            it.alpha = (alpha * 255).toInt()
+                            it.draw(c)
+                        }
+                        c.restore()
                     }
                 }
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
             }
-
-            private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
         }
         androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvServiceList)
         // ─────────────────────────────────────────────────────────────────────
@@ -284,8 +499,10 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                 delay(600)
                 if (isDestroyed) return@launch
 
+                Log.d("SwitchAnomali", "XYZ")
                 serviceAdapter.setShimmer(false)
                 isShimmerVisible = false
+                binding.tvEmptyService.visibility = if (manageServiceViewModel.serviceList.value?.isEmpty() == true) View.VISIBLE else View.GONE
                 if (isFirstLoad) { setupListeners() }
             }
         } else {
@@ -405,25 +622,6 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         toastViewModel.showToast(message, isImportant)
     }
 
-    override fun onStatusToggled(service: Service, isChecked: Boolean) {
-        updateServiceStatus(service, isChecked)
-    }
-
-    private fun updateServiceStatus(service: Service, isChecked: Boolean) {
-        val uid = barbershopId
-        if (uid.isEmpty()) return
-
-        // Update database
-        db.collection("barbershops")
-            .document(uid)
-            .collection("services")
-            .document(service.uid)
-            .update("service_status", isChecked)
-            .addOnFailureListener { e ->
-                toastViewModel.showToast("Gagal memperbarui status: ${e.message}", true)
-            }
-    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(mode: Int, service: Service) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
@@ -433,6 +631,8 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                     putExtra("CURRENT_MODE", mode)
                     putExtra("SERVICE_DATA_KEY", service)
                     putExtra("ADMIN_DATA_KEY", manageServiceViewModel.userAdminData.value)
+                    putParcelableArrayListExtra("SERVICE_CATEGORIES_KEY", ArrayList(manageServiceViewModel.categoryList.value ?: emptyList()))
+                    putParcelableArrayListExtra("SERVICE_LIST_KEY", ArrayList(manageServiceViewModel.serviceList.value ?: emptyList()))
                 }
 
                 startActivity(intent)
@@ -495,4 +695,5 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         // Remove listener to avoid memory leak
         if (::serviceListener.isInitialized) serviceListener.remove()
     }
+
 }

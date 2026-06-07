@@ -1501,9 +1501,8 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
                 // Lakukan transaksi fragment
                 Glide.with(this)
                     .load(imageUrl)
-                    .placeholder(
-                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
+                    .placeholder(R.drawable.placeholder_user_profile)
+                    .error(R.drawable.placeholder_user_profile)
                     .into(binding.realLayout.ivProfile)
             }
         }

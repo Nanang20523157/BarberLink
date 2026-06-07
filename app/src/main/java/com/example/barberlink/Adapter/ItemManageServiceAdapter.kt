@@ -24,8 +24,7 @@ import com.facebook.shimmer.ShimmerFrameLayout
 class ItemManageServiceAdapter(
     private val onItemClicked: OnItemClicked,
     private val onNavigationPage: OnNavigationPage,
-    private val displayThisToastMessage: DisplayThisToastMessage,
-    private val onStatusToggled: OnStatusToggled? = null
+    private val displayThisToastMessage: DisplayThisToastMessage
 ) : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val debounce by lazy { ScopedUniversalDebounce() }
@@ -47,10 +46,6 @@ class ItemManageServiceAdapter(
 
     interface DisplayThisToastMessage {
         fun displayThisToast(message: String, isImportant: Boolean)
-    }
-
-    interface OnStatusToggled {
-        fun onStatusToggled(service: Service, isChecked: Boolean)
     }
 
     fun stopAllShimmerEffects() {
@@ -102,6 +97,16 @@ class ItemManageServiceAdapter(
         }
     }
 
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        val view = holder.itemView
+        view.translationX = 0f
+        view.translationY = 0f
+        view.scaleX = 1f
+        view.scaleY = 1f
+        view.alpha = 1f
+    }
+
     override fun getItemCount(): Int {
         return if (isShimmer) shimmerItemCount else super.getItemCount()
     }
@@ -150,6 +155,11 @@ class ItemManageServiceAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(service: Service) {
+            itemView.translationX = 0f
+            itemView.translationY = 0f
+            itemView.scaleX = 1f
+            itemView.scaleY = 1f
+            itemView.alpha = 1f
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
@@ -157,8 +167,8 @@ class ItemManageServiceAdapter(
                 tvServiceName.text = service.serviceName
                 tvServiceName.isSelected = true
 
-                // Service description (if exists in layout, assuming tvServiceDescription)
-                // tvServiceDescription.text = service.serviceDesc
+                // Service description
+                tvServiceDescription.text = service.serviceDesc
 
                 // Service price
                 if (service.freeOfCharge) {
@@ -187,15 +197,16 @@ class ItemManageServiceAdapter(
                     onItemClicked.onItemClickListener(service)
                 }
 
-                // Card click (navigate to edit)
-                cvMainInfoOutlet.setOnClickListener {
+                // Card click (navigate to view)
+                root.setOnClickListener {
                     if (blockAllUserClickAction) {
                         displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
-                    onNavigationPage.onNavigationRequest(1, service) // mode 1 = edit
+                    onNavigationPage.onNavigationRequest(0, service) // mode 0 = view
                 }
+
             }
         }
     }

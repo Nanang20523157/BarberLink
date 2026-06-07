@@ -5,6 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
@@ -51,6 +52,9 @@ class ManageServiceViewModel(
     private val _serviceList = MutableLiveData<MutableList<Service>>().apply { value = mutableListOf() }
     val serviceList: LiveData<MutableList<Service>> = _serviceList
 
+    private val _categoryList = MutableLiveData<MutableList<DataCategories>>().apply { value = mutableListOf() }
+    val categoryList: LiveData<MutableList<DataCategories>> = _categoryList
+
     private val _userAdminData = MutableLiveData<UserAdminData>()
     val userAdminData: LiveData<UserAdminData> = _userAdminData
 
@@ -66,6 +70,12 @@ class ManageServiceViewModel(
     fun setServiceList(serviceList: MutableList<Service>) {
         viewModelScope.launch {
             _serviceList.value = serviceList
+        }
+    }
+
+    fun setCategoryList(categoryList: MutableList<DataCategories>) {
+        viewModelScope.launch {
+            _categoryList.value = categoryList
         }
     }
 
@@ -93,17 +103,6 @@ class ManageServiceViewModel(
                     } catch (e: Exception) {
                         Logger.e("DeleteService", "Failed to delete image: ${e.message}")
                         // Continue deleting the document even if image deletion fails
-                    }
-                }
-
-                // 2. Delete service icon from Storage if it exists
-                if (service.serviceIcon.isNotEmpty()) {
-                    try {
-                        val iconRef = storage.getReferenceFromUrl(service.serviceIcon)
-                        iconRef.delete().await()
-                        Logger.d("DeleteService", "Icon deleted successfully: ${service.serviceIcon}")
-                    } catch (e: Exception) {
-                        Logger.e("DeleteService", "Failed to delete icon: ${e.message}")
                     }
                 }
 

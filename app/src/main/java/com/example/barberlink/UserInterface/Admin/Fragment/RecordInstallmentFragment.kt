@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.text.format
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -92,7 +93,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
     private lateinit var employeeBonListener: ListenerRegistration
     private lateinit var textWatcher: TextWatcher
     private var textErrorForInstallment = "undefined"
-    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+    private val format = NumberFormat.getNumberInstance(Locale("id", "ID"))
     private var blockAllUserClickAction: Boolean = false
 
     // This property is only valid between onCreateView and
@@ -471,18 +472,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
             if (userEmployeeData?.photoProfile?.isNotEmpty() == true) {
                 Glide.with(context)
                     .load(userEmployeeData?.photoProfile)
-                    .placeholder(
-                        ContextCompat.getDrawable(
-                            context,
-                            R.drawable.placeholder_user_profile
-                        )
-                    )
-                    .error(
-                        ContextCompat.getDrawable(
-                            context,
-                            R.drawable.placeholder_user_profile
-                        )
-                    )
+                    .placeholder(R.drawable.placeholder_user_profile)
+                    .error(R.drawable.placeholder_user_profile)
                     .into(ivPhotoProfile)
             }
         }
@@ -614,7 +605,8 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
 //                            } else {
 //                                formatWithDotsKeepingLeadingZeros(parsed)
 //                            }
-                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val cleanText = originalString.replace(".", "")
+                            val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
 
                             // Set the text
@@ -634,7 +626,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
                             etNominalInstallment.setSelection(boundedCursorPosition)
 
                             val userBon = bonEmployeeData.bonDetails.nominalBon
-                            userRemainingBon = userBon - parsed
+                            userRemainingBon = (userBon - parsed).toInt()
                             if (userRemainingBon >= 0) {
                                 etNominalRemainingBon.setText(format.format(userRemainingBon))
                                 etNominalRemainingBon.setTextColor(

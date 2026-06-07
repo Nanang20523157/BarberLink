@@ -81,6 +81,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.text.format
 
 
 // TNODO: Rename parameter arguments, choose names that match
@@ -137,7 +138,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
     private lateinit var startOfNextDay: Timestamp
     private var lifecycleListener: DefaultLifecycleObserver? = null
     private lateinit var textWatcher1: TextWatcher
-    private val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
+    private val format = NumberFormat.getNumberInstance(Locale("id", "ID"))
     private var blockAllUserClickAction: Boolean = false
 
     private lateinit var context: Context
@@ -486,9 +487,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                 if (dailyCapital.dataCreator?.userPhoto?.isNotEmpty() == true) {
                     Glide.with(context)
                         .load(dailyCapital.dataCreator?.userPhoto)
-                        .placeholder(
-                            ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                        .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                        .placeholder( R.drawable.placeholder_user_profile)
+                        .error(R.drawable.placeholder_user_profile)
                         .into(ivPhotoProfile)
                 }
                 // previousCapitalAmount = dailyCapital.outletCapital
@@ -500,9 +500,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     if (userAdminData.imageCompanyProfile.isNotEmpty()) {
                         Glide.with(context)
                             .load(userAdminData.imageCompanyProfile)
-                            .placeholder(
-                                ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                            .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                            .placeholder(R.drawable.placeholder_user_profile)
+                            .error(R.drawable.placeholder_user_profile)
                             .into(ivPhotoProfile)
                     }
                 } else if (::userPegawaiData.isInitialized) {
@@ -511,9 +510,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     if (userPegawaiData.photoProfile.isNotEmpty()) {
                         Glide.with(context)
                             .load(userPegawaiData.photoProfile)
-                            .placeholder(
-                                ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
-                            .error(ContextCompat.getDrawable(context, R.drawable.placeholder_user_profile))
+                            .placeholder(R.drawable.placeholder_user_profile)
+                            .error(R.drawable.placeholder_user_profile)
                             .into(ivPhotoProfile)
                     }
                 }
@@ -1111,7 +1109,8 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 //                            } else {
 //                                formatWithDotsKeepingLeadingZeros(parsed)
 //                            }
-                            val parsed = format.parse(originalString)?.toInt() ?: 0
+                            val cleanText = originalString.replace(".", "")
+                            val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
 
                             // Set the text
