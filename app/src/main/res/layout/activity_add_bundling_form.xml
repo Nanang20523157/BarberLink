@@ -9,7 +9,8 @@
     android:clipChildren="false"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    tools:context=".UserInterface.Admin.AddBundlingFormActivity">
+    tools:context=".UserInterface.Admin.AddBundlingFormActivity"
+    tools:ignore="HardcodedText,ContentDescription,Autofill,LabelFor,UseCompoundDrawables,RtlHardcoded,UselessParent">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -144,15 +145,13 @@
 
                     <!-- Package Insight Card Component -->
                     <androidx.cardview.widget.CardView
-                        xmlns:android="http://schemas.android.com/apk/res/android"
-                        xmlns:app="http://schemas.android.com/apk/res-auto"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="5dp"
-                        android:layout_marginStart="16dp"
-                        android:layout_marginEnd="16dp"
+                        android:layout_marginStart="14.5dp"
+                        android:layout_marginEnd="14.5dp"
                         app:cardBackgroundColor="#1A1C1E"
-                        app:cardCornerRadius="32dp"
+                        app:cardCornerRadius="25dp"
                         app:cardElevation="8dp">
 
                         <androidx.constraintlayout.widget.ConstraintLayout
@@ -169,7 +168,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="PACKAGE INSIGHT"
                                 android:textColor="@color/white"
-                                android:textSize="24sp"
+                                android:textSize="21.5sp"
                                 android:fontFamily="sans-serif-black"
                                 android:letterSpacing="-0.025"
                                 android:lineSpacingExtra="0dp"
@@ -204,9 +203,9 @@
                                 android:layout_marginTop="20dp"
                                 android:text="Optimalkan pendapatan melalui strategi paket bundling, Anda dapat menyesuaikan harga agar lebih bersahabat dibandingkan dengan harga wajarnya."
                                 android:textColor="#B3FFFFFF"
-                                android:textSize="14sp"
+                                android:textSize="12.8sp"
                                 android:fontFamily="sans-serif"
-                                android:lineSpacingExtra="8.75dp"
+                                android:lineSpacingExtra="8dp"
                                 android:maxWidth="280dp"
                                 app:layout_constraintStart_toStartOf="parent"
                                 app:layout_constraintTop_toBottomOf="@id/tv_package_insight_title"
@@ -215,10 +214,10 @@
                             <!-- Background Decoration Icon -->
                             <ImageView
                                 android:id="@+id/iv_background_decoration"
-                                android:layout_width="120dp"
-                                android:layout_height="120dp"
-                                android:layout_marginEnd="-50dp"
-                                android:layout_marginBottom="-53dp"
+                                android:layout_width="100dp"
+                                android:layout_height="100dp"
+                                android:layout_marginEnd="-40dp"
+                                android:layout_marginBottom="-45dp"
                                 android:src="@drawable/ic_chart_background"
                                 android:contentDescription="Icon decoration background chart"
                                 app:layout_constraintEnd_toEndOf="parent"
@@ -712,6 +711,7 @@
 
                     <!-- Price Card -->
                     <LinearLayout
+                        android:id="@+id/containerBundlingPrice"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_card_white"
@@ -821,7 +821,7 @@
                             android:layout_marginBottom="8dp">
 
                             <EditText
-                                android:id="@+id/et_accumulated_price"
+                                android:id="@+id/etAccumulatedPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_input_disabled_figma"
@@ -847,13 +847,14 @@
 
                         <!-- Discount Amount -->
                         <LinearLayout
+                            android:id="@+id/llLabelDiscount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
                             android:visibility="visible">
 
                             <TextView
-                                android:id="@+id/label_discount"
+                                android:id="@+id/tvLabelDiscount"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="Potongan Harga"
@@ -864,7 +865,6 @@
                                 android:fontFamily="sans-serif-medium"
                                 android:letterSpacing="0"
                                 android:textAllCaps="true"
-                                android:visibility="visible"
                                 android:layout_marginBottom="12dp"/>
 
                             <TextView
@@ -886,7 +886,7 @@
                             android:layout_marginBottom="8dp">
 
                             <EditText
-                                android:id="@+id/etSalary"
+                                android:id="@+id/etDiscountAmount"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_input_selector_white"
@@ -948,7 +948,7 @@
                             android:layout_height="wrap_content">
 
                             <EditText
-                                android:id="@+id/et_final_price"
+                                android:id="@+id/etFinalPrice"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:background="@drawable/bg_input_blue_figma"

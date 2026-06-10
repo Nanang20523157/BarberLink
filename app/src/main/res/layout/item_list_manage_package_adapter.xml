@@ -1,223 +1,232 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginTop="5dp"
-    android:layout_marginBottom="3dp"
-    android:layout_marginStart="16dp"
-    android:layout_marginEnd="16dp"
-    app:cardCornerRadius="25dp"
-    android:backgroundTint="@color/light_grey_horizons_background"
-    app:cardElevation="2dp">
+    android:paddingTop="5dp"
+    android:paddingBottom="3dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:clipToPadding="false"
+    android:clipChildren="false">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cvCardPackage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="10dp">
+        app:cardCornerRadius="25dp"
+        android:backgroundTint="@color/light_grey_horizons_background"
+        app:cardElevation="2dp">
 
-        <TextView
-            android:id="@+id/tvPackageTitle"
-            android:layout_width="wrap_content"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            tools:text="Paket Spesialis"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
-            android:textColor="@android:color/black"
-            android:textSize="13sp"
-            android:layout_marginTop="8dp"
-            android:textStyle="bold"
-            android:layout_marginStart="15dp"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
-
-        <TextView
-            android:id="@+id/tvDescription"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor..."
-            android:textSize="11sp"
-            android:maxLines="3"
-            android:ellipsize="end"
-            android:textColor="@android:color/black"
-            android:layout_marginTop="2dp"
-            android:layout_marginEnd="30dp"
-            app:layout_constraintStart_toStartOf="@id/tvPackageTitle"
-            app:layout_constraintTop_toBottomOf="@id/tvPackageTitle"
-            app:layout_constraintEnd_toStartOf="@id/tvHargaPaket"/>
-
-        <LinearLayout
-            android:id="@+id/llRating"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginEnd="17dp"
-            android:layout_marginStart="20dp"
-            app:layout_constraintTop_toTopOf="@id/tvPackageTitle"
-            app:layout_constraintBottom_toBottomOf="@id/tvPackageTitle"
-            app:layout_constraintEnd_toEndOf="parent">
-
-            <ImageView
-                android:layout_width="11dp"
-                android:layout_height="11dp"
-                android:layout_marginStart="4dp"
-                android:src="@drawable/full_star"
-                android:contentDescription="@string/star_image_desc" />
+            android:orientation="vertical"
+            android:padding="10dp">
 
             <TextView
-                android:id="@+id/tvRating"
+                android:id="@+id/tvPackageTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                tools:text="4.5"
-                android:layout_marginStart="2.7dp"
-                android:layout_marginTop="0.8dp"
-                android:textSize="11sp"
-                android:fontFamily="@font/arial_bold"
-                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                android:textColor="@android:color/black" />
-
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvHargaPaket"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            tools:text="Rp 30.000"
-            android:layout_marginStart="25dp"
-            android:textSize="11.2sp"
-            android:textStyle="bold"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-            android:textColor="@color/black_font_color"
-            app:layout_constraintTop_toTopOf="@id/tvDescription"
-            app:layout_constraintEnd_toEndOf="@id/llRating" />
-
-
-        <androidx.appcompat.widget.LinearLayoutCompat
-            android:id="@+id/llFeeCapsterInfo"
-            android:layout_width="180dp"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:background="@drawable/background_grey_fee_capster"
-            app:layout_constraintTop_toBottomOf="@id/tvPackageTitle"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginHorizontal="9.5dp"
-            android:layout_marginTop="47dp">
+                tools:text="Paket Spesialis"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body1"
+                android:textColor="@android:color/black"
+                android:textSize="13sp"
+                android:layout_marginTop="8dp"
+                android:textStyle="bold"
+                android:layout_marginStart="15dp"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
 
             <TextView
-                android:id="@+id/tvFeeCapsterInfo"
+                android:id="@+id/tvDescription"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/price_not_including_fee"
-                android:textSize="10dp"
-                android:paddingBottom="0.3dp"
-                android:singleLine="true"
-                android:ellipsize="marquee"
-                android:layout_gravity="center_vertical"
-                android:textColor="@color/magenta"
-                android:paddingHorizontal="8dp"
-                android:marqueeRepeatLimit="marquee_forever"/>
+                tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor..."
+                android:textSize="11sp"
+                android:lines="3"
+                android:ellipsize="end"
+                android:textColor="@android:color/black"
+                android:layout_marginTop="2dp"
+                android:layout_marginEnd="30dp"
+                app:layout_constraintStart_toStartOf="@id/tvPackageTitle"
+                app:layout_constraintTop_toBottomOf="@id/tvPackageTitle"
+                app:layout_constraintEnd_toStartOf="@id/tvHargaPaket"/>
 
-            <ImageView
-                android:id="@+id/ivFeeCapsterInfo"
-                android:layout_width="12.5dp"
-                android:layout_height="12.5dp"
-                android:layout_marginEnd="2dp"
-                android:layout_marginBottom="-0.5dp"
-                android:padding="0.5dp"
-                android:layout_gravity="center_vertical"
-                android:contentDescription="@string/image_info_icon_desc"
-                android:src="@drawable/ic_info" />
+            <LinearLayout
+                android:id="@+id/llRating"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginEnd="17dp"
+                android:layout_marginStart="20dp"
+                app:layout_constraintTop_toTopOf="@id/tvPackageTitle"
+                app:layout_constraintBottom_toBottomOf="@id/tvPackageTitle"
+                app:layout_constraintEnd_toEndOf="parent">
 
-        </androidx.appcompat.widget.LinearLayoutCompat>
+                <ImageView
+                    android:layout_width="11dp"
+                    android:layout_height="11dp"
+                    android:layout_marginStart="4dp"
+                    android:src="@drawable/full_star"
+                    android:contentDescription="@string/star_image_desc" />
 
-        <LinearLayout
-            android:id="@+id/linearLayout"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="7dp"
-            android:layout_marginBottom="15dp"
-            android:layout_marginStart="-0.5dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="@id/tvDescription"
-            app:layout_constraintTop_toBottomOf="@id/llFeeCapsterInfo">
+                <TextView
+                    android:id="@+id/tvRating"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    tools:text="4.5"
+                    android:layout_marginStart="2.7dp"
+                    android:layout_marginTop="0.8dp"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/arial_bold"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                    android:textColor="@android:color/black" />
 
-            <ImageView
-                android:id="@+id/ivImageOne"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_marginEnd="9dp"
-                android:visibility="invisible"
-                android:background="@drawable/background_service_icon_small"
-                android:scaleType="fitXY"
-                tools:src="@drawable/service_icon_example" />
-
-            <ImageView
-                android:id="@+id/ivImageTwo"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_marginEnd="9dp"
-                android:visibility="gone"
-                android:background="@drawable/background_service_icon_small"
-                android:scaleType="fitXY"
-                tools:src="@drawable/service_icon_example"  />
-
-            <ImageView
-                android:id="@+id/ivImageThree"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_marginEnd="9dp"
-                android:visibility="gone"
-                android:background="@drawable/background_service_icon_small"
-                android:scaleType="fitXY"
-                tools:src="@drawable/service_icon_example"  />
-
-            <ImageView
-                android:id="@+id/ivImageFour"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_marginEnd="9dp"
-                android:visibility="gone"
-                android:background="@drawable/background_service_icon_small"
-                android:scaleType="fitXY"
-                tools:src="@drawable/service_icon_example"  />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/tvMoreItem"
-                android:layout_width="23dp"
-                android:layout_height="23dp"
-                android:visibility="gone"
-                android:gravity="center"
-                tools:text="+1"
-                android:textSize="10sp"
+                android:id="@+id/tvHargaPaket"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                tools:text="Rp 30.000"
+                android:layout_marginStart="25dp"
+                android:textSize="11.2sp"
                 android:textStyle="bold"
-                android:background="@drawable/background_dot_service"/>
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:textColor="@color/black_font_color"
+                app:layout_constraintTop_toTopOf="@id/tvDescription"
+                app:layout_constraintEnd_toEndOf="@id/llRating" />
 
-        </LinearLayout>
 
-        <!-- Daftar Service -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnShowServiceDetail"
-            android:layout_width="80dp"
-            android:layout_height="33dp"
-            android:layout_marginStart="15dp"
-            android:layout_marginEnd="-5dp"
-            android:backgroundTint="@color/black_font_color"
-            android:gravity="center"
-            android:text="Daftar"
-            android:textColor="@color/magenta"
-            android:textSize="9sp"
-            android:textStyle="bold"
-            app:strokeColor="@color/black_font_color"
-            app:strokeWidth="1.5dp"
-            app:layout_constraintBottom_toBottomOf="@+id/linearLayout"
-            app:layout_constraintEnd_toEndOf="@id/tvHargaPaket"
-            app:layout_constraintTop_toTopOf="@id/linearLayout" />
+            <androidx.appcompat.widget.LinearLayoutCompat
+                android:id="@+id/llFeeCapsterInfo"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/background_grey_fee_capster"
+                app:layout_constraintTop_toBottomOf="@id/tvPackageTitle"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginHorizontal="9.5dp"
+                android:layout_marginTop="47dp">
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+                <TextView
+                    android:id="@+id/tvFeeCapsterInfo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/price_not_including_fee"
+                    android:textSize="10dp"
+                    android:paddingBottom="0.3dp"
+                    android:singleLine="true"
+                    android:ellipsize="marquee"
+                    android:layout_gravity="center_vertical"
+                    android:textColor="@color/magenta"
+                    android:paddingHorizontal="8dp"
+                    android:marqueeRepeatLimit="marquee_forever"/>
 
-</com.google.android.material.card.MaterialCardView>
+                <ImageView
+                    android:id="@+id/ivFeeCapsterInfo"
+                    android:layout_width="12.5dp"
+                    android:layout_height="12.5dp"
+                    android:layout_marginEnd="2dp"
+                    android:layout_marginBottom="-0.5dp"
+                    android:padding="0.5dp"
+                    android:layout_gravity="center_vertical"
+                    android:contentDescription="@string/image_info_icon_desc"
+                    android:src="@drawable/ic_info" />
+
+            </androidx.appcompat.widget.LinearLayoutCompat>
+
+            <LinearLayout
+                android:id="@+id/linearLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="7dp"
+                android:layout_marginBottom="15dp"
+                android:layout_marginStart="-0.5dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="@id/tvDescription"
+                app:layout_constraintTop_toBottomOf="@id/llFeeCapsterInfo">
+
+                <ImageView
+                    android:id="@+id/ivImageOne"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="9dp"
+                    android:visibility="invisible"
+                    android:background="@drawable/background_service_icon_small"
+                    android:scaleType="fitXY"
+                    tools:src="@drawable/service_icon_example" />
+
+                <ImageView
+                    android:id="@+id/ivImageTwo"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="9dp"
+                    android:visibility="gone"
+                    android:background="@drawable/background_service_icon_small"
+                    android:scaleType="fitXY"
+                    tools:src="@drawable/service_icon_example"  />
+
+                <ImageView
+                    android:id="@+id/ivImageThree"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="9dp"
+                    android:visibility="gone"
+                    android:background="@drawable/background_service_icon_small"
+                    android:scaleType="fitXY"
+                    tools:src="@drawable/service_icon_example"  />
+
+                <ImageView
+                    android:id="@+id/ivImageFour"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginEnd="9dp"
+                    android:visibility="gone"
+                    android:background="@drawable/background_service_icon_small"
+                    android:scaleType="fitXY"
+                    tools:src="@drawable/service_icon_example"  />
+
+                <TextView
+                    android:id="@+id/tvMoreItem"
+                    android:layout_width="23dp"
+                    android:layout_height="23dp"
+                    android:visibility="gone"
+                    android:gravity="center"
+                    tools:text="+1"
+                    android:textSize="10sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/background_dot_service"/>
+
+            </LinearLayout>
+
+            <!-- Daftar Service -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShowServiceDetail"
+                android:layout_width="80dp"
+                android:layout_height="33dp"
+                android:layout_marginStart="15dp"
+                android:layout_marginEnd="-5dp"
+                android:backgroundTint="@color/black_font_color"
+                android:gravity="center"
+                android:text="Daftar"
+                android:textColor="@color/magenta"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                app:strokeColor="@color/black_font_color"
+                app:strokeWidth="1.5dp"
+                app:layout_constraintBottom_toBottomOf="@+id/linearLayout"
+                app:layout_constraintEnd_toEndOf="@id/tvHargaPaket"
+                app:layout_constraintTop_toTopOf="@id/linearLayout" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</FrameLayout>

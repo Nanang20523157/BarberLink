@@ -5,84 +5,39 @@ import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 class BundlingRepository(private val db: FirebaseFirestore) {
 
-    suspend fun getBundling(barbershopId: String): FirestoreResult<List<BundlingPackage>> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val snapshot = db.collection("barbershops")
-                    .document(barbershopId)
-                    .collection("bundling")
-                    .awaitGetWithOfflineFallback(tag = "GetBundling")
+    fun getBundlingCollection(barbershopId: String) = db.collection("barbershops").document(barbershopId).collection("bundling_packages")
 
-                val bundlingList = snapshot.data?.mapNotNull { doc ->
-                    doc.toObject(BundlingPackage::class.java).apply {
-                        uid = doc.id
-                    }
+    suspend fun getBundling(barbershopId: String): FirestoreResult<List<BundlingPackage>> {
+        val result = getBundlingCollection(barbershopId).awaitGetWithOfflineFallback(tag = "GetBundling")
+        return if (result.isSuccessful) {
+            val bundlingList = result.data?.documents?.mapNotNull { doc ->
+                doc.toObject(BundlingPackage::class.java)?.apply {
+                    uid = doc.id
+                    dataRef = doc.reference.path
                 }
-                FirestoreResult.Success(bundlingList)
-            } catch (e: Exception) {
-                FirestoreResult.Failure(e.message ?: "Failed to fetch bundling")
-            } as FirestoreResult<List<BundlingPackage>>
+            } ?: emptyList()
+            FirestoreResult(data = bundlingList, isSuccessful = true, displayMessage = result.displayMessage, errorMessage = result.errorMessage)
+        } else {
+            FirestoreResult(data = emptyList(), isSuccessful = false, displayMessage = result.displayMessage, errorMessage = result.errorMessage)
         }
     }
 
     suspend fun createBundling(barbershopId: String, bundling: BundlingPackage): FirestoreResult<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val ref = db.collection("barbershops")
-                    .document(barbershopId)
-                    .collection("bundling")
-                    .document()
-                
-                bundling.uid = ref.id
-                val task = ref.set(bundling).awaitWriteWithOfflineFallback(tag = "CreateBundling")
-                
-                if (task.isSuccessful) FirestoreResult.Success(Unit)
-                else FirestoreResult.Failure(task.errorMessage ?: "Failed to create bundling")
-            } catch (e: Exception) {
-                FirestoreResult.Failure(e.message ?: "Error creating bundling")
-            }
-        }
+        val documentRef = getBundlingCollection(barbershopId).document(bundling.uid)
+        bundling.rootRef = "barbershops/$barbershopId"
+
+        return documentRef.set(bundling).awaitWriteWithOfflineFallback(tag = "CreateBundling")
     }
 
     suspend fun updateBundling(barbershopId: String, bundling: BundlingPackage): FirestoreResult<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val ref = db.collection("barbershops")
-                    .document(barbershopId)
-                    .collection("bundling")
-                    .document(bundling.uid)
-                
-                val task = ref.set(bundling).awaitWriteWithOfflineFallback(tag = "UpdateBundling")
-                
-                if (task.isSuccessful) FirestoreResult.Success(Unit)
-                else FirestoreResult.Failure(task.errorMessage ?: "Failed to update bundling")
-            } catch (e: Exception) {
-                FirestoreResult.Failure(e.message ?: "Error updating bundling")
-            }
-        }
+        val documentRef = getBundlingCollection(barbershopId).document(bundling.uid)
+        return documentRef.set(bundling).awaitWriteWithOfflineFallback(tag = "UpdateBundling")
     }
 
     suspend fun deleteBundling(barbershopId: String, bundlingId: String): FirestoreResult<Unit> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val ref = db.collection("barbershops")
-                    .document(barbershopId)
-                    .collection("bundling")
-                    .document(bundlingId)
-                
-                val task = ref.delete().awaitWriteWithOfflineFallback(tag = "DeleteBundling")
-                
-                if (task.isSuccessful) FirestoreResult.Success(Unit)
-                else FirestoreResult.Failure(task.errorMessage ?: "Failed to delete bundling")
-            } catch (e: Exception) {
-                FirestoreResult.Failure(e.message ?: "Error deleting bundling")
-            }
-        }
+        return getBundlingCollection(barbershopId).document(bundlingId).delete().awaitWriteWithOfflineFallback(tag = "DeleteBundling")
     }
 }

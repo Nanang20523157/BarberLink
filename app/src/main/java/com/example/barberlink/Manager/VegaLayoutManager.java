@@ -23,6 +23,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
     private SparseBooleanArray attachedItems = new SparseBooleanArray();
     private ArrayMap<String, Boolean> expandedStateItems = new ArrayMap<>();
     private List<String> itemUID = new ArrayList<>();
+    private int mItemCount = 0;
 
     private int expandedHeight = -1;
     private int collapseHeight = -1;
@@ -65,9 +66,11 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         this.itemUID = new ArrayList<>(itemUID);
         this.expandedStateItems = new ArrayMap<>();
         this.expandedStateItems.putAll(expandedState);
+        this.expandedHeight = -1;
+        this.collapseHeight = -1;
 
         if (requestLayoutNow) {
-//            requestLayout();
+            requestLayout();
         }
     }
 
@@ -83,6 +86,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         if (state.isPreLayout()) {
             return;
         }
+        mItemCount = state.getItemCount();
 
         buildLocationRects();
 
@@ -97,7 +101,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
 
         Log.d("VegaManage", "456");
         int tempPosition = getPaddingTop();
-        int itemCount = itemUID.size();
+        int itemCount = Math.min(itemUID.size(), mItemCount);
         Log.d("VegaManage", "count: " + itemCount + " size: " + itemUID.size());
         for (int i = 0; i < itemCount; i++) {
             // 1. 先计算出itemWidth和itemHeight
@@ -174,7 +178,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
             return;
         }
 
-        int itemCount = itemUID.size();
+        int itemCount = Math.min(itemUID.size(), mItemCount);
         int screenFilledHeight = 0;
         for (int i = itemCount - 1; i >= 0; i--) {
             Rect rect = locationRects.get(i);
@@ -197,11 +201,11 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
      * 初始化的时候，layout子View
      */
     private void layoutItemsOnCreate(RecyclerView.Recycler recycler) {
-        int itemCount = itemUID.size();
+        int itemCount = Math.min(itemUID.size(), mItemCount);
         Rect displayRect = new Rect(0, scroll, getWidth(), getHeight() + scroll);
         for (int i = 0; i < itemCount; i++) {
             Rect thisRect = locationRects.get(i);
-            if (Rect.intersects(displayRect, thisRect)) {
+            if (thisRect != null && Rect.intersects(displayRect, thisRect)) {
                 View childView = recycler.getViewForPosition(i);
                 addView(childView);
                 measureChildWithMargins(childView, View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
@@ -223,7 +227,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
     private void layoutItemsOnScroll() {
         int childCount = getChildCount();
         // 1. 已经在屏幕上显示的child
-        int itemCount = itemUID.size();
+        int itemCount = Math.min(itemUID.size(), mItemCount);
         Rect displayRect = new Rect(0, scroll, getWidth(), getHeight() + scroll);
         int firstVisiblePosition = -1;
         int lastVisiblePosition = -1;
@@ -233,7 +237,8 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
                 continue;
             }
             int position = getPosition(child);
-            if (!Rect.intersects(displayRect, locationRects.get(position))) {
+            Rect rect = locationRects.get(position);
+            if (rect == null || !Rect.intersects(displayRect, rect)) {
                 // 回收滑出屏幕的View
                 removeAndRecycleView(child, recycler);
                 attachedItems.put(position, false);
@@ -249,7 +254,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
                     firstVisiblePosition = Math.min(firstVisiblePosition, position);
                 }
 
-                layoutItem(child, locationRects.get(position)); //更新Item位置
+                layoutItem(child, rect); //更新Item位置
             }
         }
 
@@ -257,7 +262,8 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         if (firstVisiblePosition > 0) {
             // 往前搜索复用
             for (int i = firstVisiblePosition - 1; i >= 0; i--) {
-                if (Rect.intersects(displayRect, locationRects.get(i)) &&
+                Rect rect = locationRects.get(i);
+                if (rect != null && Rect.intersects(displayRect, rect) &&
                         !attachedItems.get(i)) {
                     reuseItemOnSroll(i, true);
                 } else {
@@ -267,7 +273,8 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         }
         // 往后搜索复用
         for (int i = lastVisiblePosition + 1; i < itemCount; i++) {
-            if (Rect.intersects(displayRect, locationRects.get(i)) &&
+            Rect rect = locationRects.get(i);
+            if (rect != null && Rect.intersects(displayRect, rect) &&
                     !attachedItems.get(i)) {
                 reuseItemOnSroll(i, false);
             } else {
@@ -332,6 +339,7 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         if (itemUID.size() == 0 || dy == 0) {
             return 0;
         }
+        mItemCount = state.getItemCount();
         int travel = dy;
         if (dy + scroll < 0) {
             travel = -scroll;
@@ -368,16 +376,18 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         needSnap = false;
 
         Rect displayRect = new Rect(0, scroll, getWidth(), getHeight() + scroll);
-        int itemCount = itemUID.size();
+        int itemCount = Math.min(itemUID.size(), mItemCount);
         for (int i = 0; i < itemCount; i++) {
             Rect itemRect = locationRects.get(i);
-            if (displayRect.intersect(itemRect)) {
+            if (itemRect != null && displayRect.intersect(itemRect)) {
 
                 if (lastDy > 0) {
                     // scroll变大，属于列表往下走，往下找下一个为snapView
                     if (i < itemCount - 1) {
                         Rect nextRect = locationRects.get(i + 1);
-                        return nextRect.top - displayRect.top;
+                        if (nextRect != null) {
+                            return nextRect.top - displayRect.top;
+                        }
                     }
                 }
                 return itemRect.top - displayRect.top;

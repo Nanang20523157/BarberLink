@@ -18,7 +18,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.UserAdminData
@@ -26,20 +25,15 @@ import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.PermissionHelper.showRationaleDialog
 import com.example.barberlink.Helper.PermissionHelper.showSettingsDialog
-import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
-import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.AddProductViewModel
 import com.example.barberlink.UserInterface.BaseActivity
-import com.example.barberlink.Utils.Logger
 import com.example.barberlink.databinding.ActivityAddProductFormBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
 import java.util.UUID
@@ -53,13 +47,11 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
         DatabaseViewModelFactory(db, storage)
     }
     private val toastViewModel: ToastViewModel by viewModels()
-    private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var barbershopId: String = ""
     private var productSelectedId: String = ""
     private var currentMode: Int = 2 // 0: VIEW, 1: EDIT, 2: ADD
     private var isFirstLoad: Boolean = true
-    private var isNavigating = false
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
     private var blockAllUserClickAction: Boolean = false
@@ -147,8 +139,18 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        val productCategories = intent.getParcelableArrayListExtra<DataCategories>("PRODUCT_CATEGORIES_KEY")
-        val productList = intent.getParcelableArrayListExtra<Product>("PRODUCT_LIST_KEY")
+        val productCategories = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("PRODUCT_CATEGORIES_KEY", DataCategories::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("PRODUCT_CATEGORIES_KEY")
+        }
+        val productList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableArrayListExtra("PRODUCT_LIST_KEY", Product::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableArrayListExtra("PRODUCT_LIST_KEY")
+        }
 
         if (savedInstanceState != null) {
             barbershopId = savedInstanceState.getString("barbershop_id") ?: ""
@@ -157,13 +159,23 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
-            val userAdminData = intent.getParcelableExtra<UserAdminData>("ADMIN_DATA_KEY")
+            val userAdminData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra("ADMIN_DATA_KEY", UserAdminData::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra("ADMIN_DATA_KEY")
+            }
             if (userAdminData != null) {
                 addProductViewModel.setUserAdminData(userAdminData)
                 barbershopId = userAdminData.uid
             }
             currentMode = intent.getIntExtra("CURRENT_MODE", 2)
-            val productData = intent.getParcelableExtra<Product>("PRODUCT_DATA_KEY")
+            val productData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra("PRODUCT_DATA_KEY", Product::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra("PRODUCT_DATA_KEY")
+            }
 
             if (productCategories != null) {
                 addProductViewModel.setCategories(productCategories)
@@ -261,11 +273,11 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             etProductJenis.isEnabled = enabled
             flImagePicker.isEnabled = enabled
             cvAddCategory.isEnabled = enabled
-            etSoldQuantity.isEnabled = enabled
+            etLimitQuantity.isEnabled = enabled
             btnIncrementStock.isEnabled = enabled
             btnDecrementStock.isEnabled = enabled
-            btnIncrementSold.isEnabled = enabled
-            btnDecrementSold.isEnabled = enabled
+            btnIncrementLimit.isEnabled = enabled
+            btnDecrementLimit.isEnabled = enabled
         }
     }
 
@@ -290,13 +302,13 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             val current = binding.etStockQuantity.text.toString().toIntOrNull() ?: 0
             if (current > 0) binding.etStockQuantity.setText((current - 1).toString())
         }
-        binding.btnIncrementSold.setOnClickListener {
-            val current = binding.etSoldQuantity.text.toString().toIntOrNull() ?: 0
-            binding.etSoldQuantity.setText((current + 1).toString())
+        binding.btnIncrementLimit.setOnClickListener {
+            val current = binding.etLimitQuantity.text.toString().toIntOrNull() ?: 0
+            binding.etLimitQuantity.setText((current + 1).toString())
         }
-        binding.btnDecrementSold.setOnClickListener {
-            val current = binding.etSoldQuantity.text.toString().toIntOrNull() ?: 0
-            if (current > 0) binding.etSoldQuantity.setText((current - 1).toString())
+        binding.btnDecrementLimit.setOnClickListener {
+            val current = binding.etLimitQuantity.text.toString().toIntOrNull() ?: 0
+            if (current > 0) binding.etLimitQuantity.setText((current - 1).toString())
         }
 
         binding.etStockQuantity.addTextChangedListener(object : TextWatcher {
@@ -311,7 +323,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             override fun afterTextChanged(s: Editable?) {}
         })
 
-        binding.etSoldQuantity.addTextChangedListener(object : TextWatcher {
+        binding.etLimitQuantity.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 if (currentMode == 0) return
@@ -419,7 +431,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
         binding.etProductDescription.setText(product.productDescription)
         binding.acProductCategory.setText(product.productCategory, false)
         binding.etStockQuantity.setText(product.stockQuantity.toString())
-        binding.etSoldQuantity.setText(product.productCounting.toString())
+        binding.etLimitQuantity.setText(product.productCounting.toString())
         binding.etProductSKU.setText(product.stockKeepingUnit)
         binding.etProductCode.setText(product.productBarcode)
         binding.etProductJenis.setText(product.productType)
@@ -520,6 +532,9 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString("barbershop_id", barbershopId)
+        outState.putString("product_selected_id", productSelectedId)
         outState.putInt("current_mode", currentMode)
+        outState.putBoolean("is_first_load", isFirstLoad)
+        outState.putBoolean("is_handling_back", isHandlingBack)
     }
 }

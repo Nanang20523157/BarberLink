@@ -284,12 +284,12 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
     }
 
     private fun listenToProductList() {
-        barbershopId.let { uid ->
+        barbershopId.let { bId ->
             if (::productListener.isInitialized) {
                 productListener.remove()
             }
 
-            if (uid.isEmpty()) {
+            if (bId.isEmpty()) {
                 productListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let

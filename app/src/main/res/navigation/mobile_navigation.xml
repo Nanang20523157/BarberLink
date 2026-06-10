@@ -41,6 +41,14 @@
             app:launchSingleTop="true"
             app:popEnterAnim="@anim/slide_maximize_in_left"
             app:popExitAnim="@anim/slide_minimize_out_right" />
+        <action
+            android:id="@+id/action_nav_beranda_to_manageBundlingPage"
+            app:destination="@id/manageBundlingPage"
+            app:enterAnim="@anim/slide_maximize_in_right"
+            app:exitAnim="@anim/slide_minimize_out_left"
+            app:launchSingleTop="true"
+            app:popEnterAnim="@anim/slide_maximize_in_left"
+            app:popExitAnim="@anim/slide_minimize_out_right" />
     </fragment>
 
     <activity
@@ -110,6 +118,22 @@
         <argument
             android:name="categoryList"
             app:argType="com.example.barberlink.DataClass.DataCategories[]" />
+    </activity>
+
+    <activity
+        android:id="@+id/manageBundlingPage"
+        android:name="com.example.barberlink.UserInterface.Admin.ManageBundlingPage"
+        android:label="ManageBundlingPage"
+        tools:layout="@layout/activity_manage_bundling_page">
+        <argument
+            android:name="bundlingList"
+            app:argType="com.example.barberlink.DataClass.BundlingPackage[]" />
+        <argument
+            android:name="userAdminData"
+            app:argType="com.example.barberlink.DataClass.UserAdminData" />
+        <argument
+            android:name="serviceList"
+            app:argType="com.example.barberlink.DataClass.Service[]" />
     </activity>
 
 </navigation>

@@ -573,13 +573,13 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
     }
 
     private fun listenToEmployeeData() {
-        barbershopId.let { uid ->
+        barbershopId.let { bId ->
             // pemberitahuan untuk belum adanya daftar pegawai (employeeUidList) harusnya ditampilkan saat akan menampilkan dialog
             if (::employeeListener.isInitialized) {
                 employeeListener.remove()
             }
 
-            if (uid.isEmpty()) {
+            if (bId.isEmpty()) {
                 employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -649,12 +649,12 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
     }
 
     private fun listenToOutletList() {
-        barbershopId.let { uid ->
+        barbershopId.let { bId ->
             if (::outletListener.isInitialized) {
                 outletListener.remove()
             }
 
-            if (uid.isEmpty()) {
+            if (bId.isEmpty()) {
                 outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -723,12 +723,12 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
     }
 
     private fun listenToEmployeesRoles() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             if (::rolesListener.isInitialized) {
                 rolesListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 rolesListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let

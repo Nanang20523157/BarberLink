@@ -9,7 +9,8 @@
     android:clipChildren="false"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    tools:context=".UserInterface.Admin.AddProductFormActivity">
+    tools:context=".UserInterface.Admin.AddProductFormActivity"
+    tools:ignore="HardcodedText,ContentDescription,Autofill,LabelFor,UseCompoundDrawables,RtlHardcoded,UselessParent">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -564,7 +565,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:gravity="center"
-                                    android:text="Produk Buatan Sendiri"
+                                    android:text="Gunakan Sebagai Barcode"
                                     android:layout_marginTop="-0.5dp"
                                     android:fontFamily="@font/arial_medium"
                                     android:textSize="12sp"
@@ -575,7 +576,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="-0.5dp"
-                                    android:layout_marginStart="-8dp"
+                                    android:layout_marginStart="-10dp"
                                     android:textSize="12sp"
                                     android:scaleY="0.8"
                                     android:scaleX="0.8"
@@ -879,6 +880,7 @@
                         android:paddingHorizontal="17dp"
                         android:paddingTop="15dp"
                         android:paddingBottom="11dp" />
+
                     <!-- Sold Quantity and Stock -->
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -900,83 +902,10 @@
                             android:clipToPadding="false">
                             <TextView
                                 style="@style/FormLabel"
-                                android:text="Jumlah Terjual"
+                                android:text="Stock Produk"
                                 android:textColor="@color/form_label_color"
                                 android:textSize="14sp"
                                 android:layout_marginStart="2dp"
-                                android:textStyle="bold" />
-                            <LinearLayout
-                                android:layout_width="match_parent"
-                                android:layout_height="52.5dp"
-                                android:layout_marginTop="10dp"
-                                android:layout_marginStart="-0.5dp"
-                                android:layout_marginEnd="-0.5dp"
-                                android:background="@drawable/bg_counter_product"
-                                android:gravity="center_vertical"
-                                android:orientation="horizontal"
-                                android:clipToPadding="false"
-                                android:clipChildren="false">
-                                <androidx.cardview.widget.CardView
-                                    android:id="@+id/cvMinusSold"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="match_parent"
-                                    android:layout_gravity="center"
-                                    app:cardElevation="8dp"
-                                    app:cardCornerRadius="10dp">
-                                    <ImageButton
-                                        android:id="@+id/btnDecrementSold"
-                                        android:layout_width="52.5dp"
-                                        android:layout_height="match_parent"
-                                        android:background="@drawable/bg_button_select_maps_figma"
-                                        android:contentDescription="Kurangi"
-                                        android:src="@drawable/ic_minus"
-                                        app:tint="@color/white"/>
-                                </androidx.cardview.widget.CardView>
-                                <EditText
-                                    android:id="@+id/etSoldQuantity"
-                                    android:layout_width="0dp"
-                                    android:layout_height="match_parent"
-                                    android:layout_weight="1"
-                                    android:background="@android:color/transparent"
-                                    android:fontFamily="sans-serif-medium"
-                                    android:gravity="center"
-                                    android:inputType="number"
-                                    android:text="0"
-                                    android:textColor="#191C1D"
-                                    android:textSize="16sp" />
-                                <androidx.cardview.widget.CardView
-                                    android:id="@+id/cvPlusSold"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="match_parent"
-                                    android:layout_gravity="center"
-                                    app:cardElevation="8dp"
-                                    app:cardCornerRadius="10dp">
-                                    <ImageButton
-                                        android:id="@+id/btnIncrementSold"
-                                        android:layout_width="52.5dp"
-                                        android:layout_height="match_parent"
-                                        android:background="@drawable/bg_button_select_maps_figma"
-                                        android:contentDescription="Tambah"
-                                        android:src="@drawable/ic_plus"
-                                        app:tint="@color/white"/>
-                                </androidx.cardview.widget.CardView>
-                            </LinearLayout>
-                        </LinearLayout>
-                        <!-- Stock -->
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
-                            android:layout_weight="1"
-                            android:orientation="vertical"
-                            android:clipChildren="false"
-                            android:clipToPadding="false">
-                            <TextView
-                                style="@style/FormLabel"
-                                android:text="Stok Produk"
-                                android:textColor="@color/form_label_color"
-                                android:textSize="14sp"
-                                android:layout_marginStart="1dp"
                                 android:textStyle="bold" />
                             <LinearLayout
                                 android:layout_width="match_parent"
@@ -1026,6 +955,80 @@
                                     app:cardCornerRadius="10dp">
                                     <ImageButton
                                         android:id="@+id/btnIncrementStock"
+                                        android:layout_width="52.5dp"
+                                        android:layout_height="match_parent"
+                                        android:background="@drawable/bg_button_select_maps_figma"
+                                        android:contentDescription="Tambah"
+                                        android:src="@drawable/ic_plus"
+                                        app:tint="@color/white"/>
+                                </androidx.cardview.widget.CardView>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Stock -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:clipChildren="false"
+                            android:clipToPadding="false">
+                            <TextView
+                                style="@style/FormLabel"
+                                android:text="Batas Restock"
+                                android:textColor="@color/form_label_color"
+                                android:textSize="14sp"
+                                android:layout_marginStart="1dp"
+                                android:textStyle="bold" />
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="52.5dp"
+                                android:layout_marginTop="10dp"
+                                android:layout_marginStart="-0.5dp"
+                                android:layout_marginEnd="-0.5dp"
+                                android:background="@drawable/bg_counter_product"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:clipToPadding="false"
+                                android:clipChildren="false">
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvMinusLimit"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_gravity="center"
+                                    app:cardElevation="8dp"
+                                    app:cardCornerRadius="10dp">
+                                    <ImageButton
+                                        android:id="@+id/btnDecrementLimit"
+                                        android:layout_width="52.5dp"
+                                        android:layout_height="match_parent"
+                                        android:background="@drawable/bg_button_select_maps_figma"
+                                        android:contentDescription="Kurangi"
+                                        android:src="@drawable/ic_minus"
+                                        app:tint="@color/white"/>
+                                </androidx.cardview.widget.CardView>
+                                <EditText
+                                    android:id="@+id/etLimitQuantity"
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:background="@android:color/transparent"
+                                    android:fontFamily="sans-serif-medium"
+                                    android:gravity="center"
+                                    android:inputType="number"
+                                    android:text="0"
+                                    android:textColor="#191C1D"
+                                    android:textSize="16sp" />
+                                <androidx.cardview.widget.CardView
+                                    android:id="@+id/cvPlusLimit"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="match_parent"
+                                    android:layout_gravity="center"
+                                    app:cardElevation="8dp"
+                                    app:cardCornerRadius="10dp">
+                                    <ImageButton
+                                        android:id="@+id/btnIncrementLimit"
                                         android:layout_width="52.5dp"
                                         android:layout_height="match_parent"
                                         android:background="@drawable/bg_button_select_maps_figma"
@@ -1310,7 +1313,7 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:fontFamily="sans-serif-medium"
-                                    android:text="Informasi Penyedia Poduk"
+                                    android:text="Informasi Penyedia Produk"
                                     android:textColor="@color/white"
                                     android:textSize="16sp"
                                     android:textStyle="bold" />

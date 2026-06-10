@@ -7,10 +7,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
 import android.net.Uri
-import android.view.ViewTreeObserver
 import android.os.Build
 import android.os.Bundle
-import android.os.Parcelable
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -27,7 +25,6 @@ import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.example.barberlink.Adapter.ItemListServiceIconAdapter
@@ -53,7 +50,6 @@ import com.example.barberlink.databinding.ActivityAddServiceFormBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
-import com.example.barberlink.Utils.awaitGetWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -61,7 +57,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.NumberFormat
-import java.util.ArrayList
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
@@ -137,7 +132,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 
     // ─── TextWatcher references for cleanup ───────────────────────────────────
     private lateinit var serviceNameTextWatcher: TextWatcher
-
     private lateinit var descriptionTextWatcher: TextWatcher
     private lateinit var priceTextWatcher: TextWatcher
     private var permissionRequestStartTime: Long = 0
@@ -316,8 +310,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         }
 
         if (savedInstanceState != null) {
-            previousText = savedInstanceState.getString("previous_text", "")
-            previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
             uidDropdownPosition = savedInstanceState.getString("uid_dropdown_position", "")
             textDropdownCategoryName = savedInstanceState.getString("text_dropdown_category_name", "")
@@ -325,6 +317,8 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
+            previousText = savedInstanceState.getString("previous_text", "")
+            previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
 
             addServiceViewModel.setupDropdownFilterWithNullState()
         } else {
@@ -388,8 +382,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 
         setupEditTextListeners()
 
-        setupSwitchListeners()
-
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
         }
@@ -397,7 +389,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 
     private fun showShimmer(show: Boolean) {
         isShimmerVisible = show
-        //binding.flLoadingOverlay.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -423,6 +414,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         setupObservers()
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun setupUI() {
         applyModeUI()
 
@@ -574,6 +566,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun setFormEnabled(enabled: Boolean) {
         binding.apply {
             if (!enabled) {
@@ -1156,12 +1149,12 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun listenToBarbershopData() {
-        barbershopId.let { uid ->
+        barbershopId.let { bId ->
             if (::barbershopListener.isInitialized) {
                 barbershopListener.remove()
             }
 
-            if (uid.isEmpty()) {
+            if (bId.isEmpty()) {
                 barbershopListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1208,12 +1201,12 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun listenToServiceList() {
-        barbershopId.let { uid ->
+        barbershopId.let { bId ->
             if (::serviceListener.isInitialized) {
                 serviceListener.remove()
             }
 
-            if (uid.isEmpty()) {
+            if (bId.isEmpty()) {
                 serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1261,19 +1254,19 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun listenToCategoriesData() {
-        barbershopId.let { uid ->
+        barbershopId.let { bId ->
             if (::categoryListener.isInitialized) {
                 categoryListener.remove()
             }
 
-            if (uid.isEmpty()) {
+            if (bId.isEmpty()) {
                 categoryListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
 
             categoryListener = db.collection("service_categories")
-                .whereIn("barbershop_ref", listOf(uid, "All"))
+                .whereIn("barbershop_ref", listOf(bId, "All"))
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
                         addServiceViewModel.listenerCategoriesMutex.withStateLock {

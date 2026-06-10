@@ -15,10 +15,10 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.example.barberlink.Adapter.ItemManageServiceAdapter
+import com.example.barberlink.Adapter.ItemManageBundlingAdapter
+import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
-import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -27,35 +27,35 @@ import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
-import com.example.barberlink.UserInterface.Admin.ViewModel.ManageServiceViewModel
+import com.example.barberlink.UserInterface.Admin.Fragment.DetailServiceListFragment
+import com.example.barberlink.UserInterface.Admin.ViewModel.ManageBundlingViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
-import com.example.barberlink.databinding.ActivityManageServicePageBinding
+import com.example.barberlink.databinding.ActivityManageBundlingPageBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
-class ManageServicePage : BaseActivity(), View.OnClickListener,
-    ItemManageServiceAdapter.OnItemClicked,
-    ItemManageServiceAdapter.OnNavigationPage,
-    ItemManageServiceAdapter.DisplayThisToastMessage{
+class ManageBundlingPage : BaseActivity(), View.OnClickListener,
+    ItemManageBundlingAdapter.OnShowDetailClickListener,
+    ItemManageBundlingAdapter.OnNavigationPage,
+    ItemManageBundlingAdapter.DisplayThisToastMessage {
 
-    private lateinit var binding: ActivityManageServicePageBinding
+    private lateinit var binding: ActivityManageBundlingPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
-    private val manageServiceViewModel: ManageServiceViewModel by viewModels {
+    private val manageBundlingViewModel: ManageBundlingViewModel by viewModels {
         DatabaseViewModelFactory(db, storage)
     }
     private val toastViewModel: ToastViewModel by viewModels()
-    private lateinit var serviceAdapter: ItemManageServiceAdapter
-    private lateinit var gridLayoutManager: androidx.recyclerview.widget.GridLayoutManager
+    private lateinit var bundlingAdapter: ItemManageBundlingAdapter
+    private lateinit var vegaLayoutManager: VegaLayoutManager
     private val debounce by lazy { ScopedUniversalDebounce() }
 
     // ARGS
@@ -67,7 +67,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
 
-    private lateinit var serviceListener: ListenerRegistration
+    private lateinit var bundlingListener: ListenerRegistration
     private var remainingListeners = AtomicInteger(1)
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -75,7 +75,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
 
         super.onCreate(savedInstanceState)
-        binding = ActivityManageServicePageBinding.inflate(layoutInflater)
+        binding = ActivityManageBundlingPageBinding.inflate(layoutInflater)
 
         // Set window background and edge-to-edge
         WindowInsetsHandler.setCanvasBackground(resources, binding.root)
@@ -111,7 +111,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             binding.mainContent.startAnimation(fadeIn)
         }
 
-        manageServiceViewModel
+        manageBundlingViewModel
         toastViewModel
 
         if (savedInstanceState != null) {
@@ -121,50 +121,64 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
-            // Mendapatkan argumen dari SafeArgs
-            val args = ManageServicePageArgs.fromBundle(intent.extras ?: Bundle())
+            val args = ManageBundlingPageArgs.fromBundle(intent.extras ?: Bundle())
 
-            val servicesList = args.serviceList.toCollection(ArrayList())
-            manageServiceViewModel.setServiceList(servicesList)
+            val serviceList = args.serviceList.toList()
+            manageBundlingViewModel.setAllServices(serviceList)
 
             val userAdminData = args.userAdminData
-            manageServiceViewModel.setUserAdminData(userAdminData)
+            manageBundlingViewModel.setUserAdminData(userAdminData)
             barbershopId = userAdminData.uid
 
-            val serviceCategoryList = args.categoryList.toCollection(ArrayList())
-            manageServiceViewModel.setCategoryList(serviceCategoryList)
+            val bundlingList = args.bundlingList.toCollection(ArrayList())
+            // Pre-map the initial list before setting it
+            bundlingList.forEach { bundling ->
+                bundling.listItemDetails = bundling.listItems.mapNotNull { serviceId ->
+                    serviceList.find { it.uid == serviceId }
+                }
+            }
+            manageBundlingViewModel.setBundlingList(bundlingList)
         }
 
         init(savedInstanceState)
         binding.ivBack.setOnClickListener(this)
-        binding.btnCreateNewService.setOnClickListener(this)
+        binding.btnCreateNewBundling.setOnClickListener(this)
 
-        manageServiceViewModel.updateStateResult.observe(this) { result ->
+        manageBundlingViewModel.updateStateResult.observe(this) { result ->
             when (result) {
-                is ManageServiceViewModel.ResultState.Loading -> {
-                    serviceAdapter.setBlockStatusUI(true)
+                is ManageBundlingViewModel.ResultState.Loading -> {
+                    bundlingAdapter.setBlockStatusUI(true)
                 }
-                is ManageServiceViewModel.ResultState.Success -> {
-                    serviceAdapter.setBlockStatusUI(false)
+                is ManageBundlingViewModel.ResultState.Success -> {
+                    bundlingAdapter.setBlockStatusUI(false)
                     toastViewModel.showToast(result.message, true)
-                    manageServiceViewModel.setUpdateStateResult(null)
+                    manageBundlingViewModel.setUpdateStateResult(null)
                 }
-                is ManageServiceViewModel.ResultState.Failure -> {
-                    serviceAdapter.setBlockStatusUI(false)
+                is ManageBundlingViewModel.ResultState.Failure -> {
+                    bundlingAdapter.setBlockStatusUI(false)
                     toastViewModel.showToast(result.message, true)
-                    manageServiceViewModel.setUpdateStateResult(null)
+                    manageBundlingViewModel.setUpdateStateResult(null)
                 }
                 null -> {}
             }
         }
 
-        manageServiceViewModel.serviceList.observe(this) { serviceList ->
-            val list = serviceList ?: mutableListOf()
-            serviceAdapter.submitList(list.toList())
-            Logger.d("ServiceList", "notifyDataSetChanged()")
-            if (!isShimmerVisible) serviceAdapter.notifyDataSetChanged()
-            binding.tvServiceCountTitle.text = getString(R.string.daftar_layanan_title_template, list.size)
-            if (!isFirstLoad) binding.tvEmptyService.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+        manageBundlingViewModel.bundlingList.observe(this) { bundlingList ->
+            val list = bundlingList ?: mutableListOf()
+            val itemUID = list.map { it.uid }
+            val expandedMap = list.associate { bundling ->
+                bundling.uid to false
+            }
+            vegaLayoutManager.setExpandedState(
+                itemUID,
+                expandedMap,
+                true
+            )
+
+            bundlingAdapter.submitList(list.toList())
+            if (!isShimmerVisible) bundlingAdapter.notifyDataSetChanged()
+            binding.tvBundlingCountTitle.text = getString(R.string.daftar_bundling_title_template, list.size)
+            if (!isFirstLoad) binding.tvEmptyBundling.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
         }
 
         onBackPressedDispatcher.addCallback(this) {
@@ -178,7 +192,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 NetworkMonitor.isOnline.collect { status ->
-                    serviceAdapter.updateNetworkStatus(status)
+                    bundlingAdapter.updateNetworkStatus(status)
                 }
             }
         }
@@ -194,125 +208,15 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
-    private fun applyVegaScrollEffect(recyclerView: androidx.recyclerview.widget.RecyclerView) {
-        val childCount = recyclerView.childCount
-        if (childCount <= 0) return
-
-        val firstChild = recyclerView.getChildAt(0)
-        // In a 2-column grid, Row 1 consists of indices 0 & 1, Row 2 starts at index 2
-        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
-
-        for (i in 0 until childCount) {
-            val child = recyclerView.getChildAt(i)
-            val itemHeight = child.height
-            if (itemHeight <= 0) continue
-
-            val rowSpacing = if (firstChild != null && secondRowChild != null) {
-                secondRowChild.top - firstChild.top
-            } else {
-                val density = recyclerView.context.resources.displayMetrics.density
-                itemHeight + (10f * density).toInt()
-            }
-
-            val transitionRange = rowSpacing.toFloat()
-            val topDistance = -child.top
-            val topDistanceFloat = topDistance.toFloat()
-
-            if (topDistanceFloat in 0f..transitionRange) {
-                val rate1 = topDistanceFloat / transitionRange
-                val rate2 = 1f - (rate1 * rate1) / 3f
-                val rate3 = 1f - (rate1 * rate1)
-                child.scaleX = rate2
-                child.scaleY = rate2
-                child.alpha = rate3
-                child.translationY = topDistanceFloat
-            } else if (child.top < 0) {
-                child.scaleX = 0.67f
-                child.scaleY = 0.67f
-                child.alpha = 0f
-                child.translationY = 0f
-            } else {
-                child.scaleX = 1f
-                child.scaleY = 1f
-                child.alpha = 1f
-                child.translationY = 0f
-            }
-        }
-    }
-
-    private fun snapToPosition(recyclerView: androidx.recyclerview.widget.RecyclerView) {
-        val childCount = recyclerView.childCount
-        if (childCount <= 0) return
-
-        var topChild: View? = null
-        var minTop = Int.MIN_VALUE
-
-        for (i in 0 until childCount) {
-            val child = recyclerView.getChildAt(i)
-            if (child.top <= 0 && child.top > minTop) {
-                minTop = child.top
-                topChild = child
-            }
-        }
-
-        if (topChild == null) return
-
-        val itemHeight = topChild.height
-        if (itemHeight <= 0) return
-
-        val firstChild = recyclerView.getChildAt(0)
-        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
-        val rowSpacing = if (firstChild != null && secondRowChild != null) {
-            secondRowChild.top - firstChild.top
-        } else {
-            val density = recyclerView.context.resources.displayMetrics.density
-            itemHeight + (10f * density).toInt()
-        }
-
-        val topDistance = -topChild.top
-        if (topDistance <= 5 || rowSpacing - topDistance <= 5) return // Already snapped
-
-        val fraction = topDistance.toFloat() / rowSpacing.toFloat()
-        val scrollNeeded = if (fraction > 0.5f) {
-            rowSpacing - topDistance
-        } else {
-            -topDistance
-        }
-
-        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) return
-        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) return
-
-        if (scrollNeeded != 0) {
-            recyclerView.smoothScrollBy(0, scrollNeeded)
-        }
-    }
-
     private fun init(savedInstanceState: Bundle?) {
-        gridLayoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
-        serviceAdapter = ItemManageServiceAdapter(this, this, this)
-        binding.rvServiceList.layoutManager = gridLayoutManager
-        binding.rvServiceList.adapter = serviceAdapter
+        vegaLayoutManager = VegaLayoutManager()
+        bundlingAdapter = ItemManageBundlingAdapter(this, this, this)
+        binding.rvBundlingList.layoutManager = vegaLayoutManager
+        binding.rvBundlingList.adapter = bundlingAdapter
 
-        // Apply Vega-Grid Scroll Effect
-        binding.rvServiceList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
-                applyVegaScrollEffect(recyclerView)
-            }
-
-            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
-                super.onScrollStateChanged(recyclerView, newState)
-                if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) {
-                    snapToPosition(recyclerView)
-                }
-            }
-        })
-        binding.rvServiceList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            applyVegaScrollEffect(binding.rvServiceList)
-        }
-
-        // ── Swipe to delete ──────────────────────────────────────────────────
+        // Swipe to delete
         val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
-            0, // no drag directions
+            0,
             androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
         ) {
             override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
@@ -321,28 +225,26 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
 
             override fun getSwipeThreshold(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder) = 0.4f
 
-            override fun isItemViewSwipeEnabled(): Boolean = !serviceAdapter.isShimmerMode()
+            override fun isItemViewSwipeEnabled(): Boolean = !bundlingAdapter.isShimmerMode()
 
             override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
-                Log.d("SwipeDelete", "onSwiped triggered at position: ${viewHolder.bindingAdapterPosition}")
                 val pos = viewHolder.bindingAdapterPosition
                 if (pos == androidx.recyclerview.widget.RecyclerView.NO_ID.toInt()) return
-                val service = serviceAdapter.currentList.getOrNull(pos) ?: run {
-                    Log.e("SwipeDelete", "Service not found at position $pos")
-                    serviceAdapter.notifyItemChanged(pos)
+                val bundling = bundlingAdapter.currentList.getOrNull(pos) ?: run {
+                    bundlingAdapter.notifyItemChanged(pos)
                     return
                 }
 
-                // Snap back after a tiny delay
+                // Snap back item immediately
                 (viewHolder.itemView.parent as? androidx.recyclerview.widget.RecyclerView)?.post {
-                    serviceAdapter.notifyItemChanged(pos)
+                    bundlingAdapter.notifyItemChanged(pos)
                 }
 
-                android.app.AlertDialog.Builder(this@ManageServicePage)
-                    .setTitle("Hapus Layanan")
-                    .setMessage("Apakah Anda yakin ingin menghapus layanan \"${service.serviceName}\"? Tindakan ini tidak dapat dibatalkan.")
+                android.app.AlertDialog.Builder(this@ManageBundlingPage)
+                    .setTitle("Hapus Paket Bundling")
+                    .setMessage("Apakah Anda yakin ingin menghapus paket bundling \"${bundling.packageName}\"? Tindakan ini tidak dapat dibatalkan.")
                     .setPositiveButton("Hapus") { _, _ ->
-                        manageServiceViewModel.deleteService(service)
+                        manageBundlingViewModel.deleteBundling(bundling)
                     }
                     .setNegativeButton("Batal", null)
                     .show()
@@ -361,14 +263,13 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                 }
 
                 val density = recyclerView.resources.displayMetrics.density
-
-                val cardView = itemView.findViewById<View>(R.id.cvCardService)
+                val cardView = itemView.findViewById<View>(R.id.cvCardPackage)
                 val cardTop: Float
                 val cardBottom: Float
                 val cardLeft: Float
                 val cardRight: Float
 
-                val cornerRadius = 20f * density
+                val cornerRadius = 25f * density
                 val overlap = cornerRadius
 
                 if (cardView != null) {
@@ -407,7 +308,6 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                         val clipLeft = if (isFullySwiped) cardLeft else maxOf(cardLeft, leftBound - overlap)
                         c.clipRect(clipLeft, cardTop, rightBound, cardBottom)
                         
-                        // Draw round rect starting at cardLeft if fully swiped, otherwise shift to hide left rounded corners
                         val drawLeft = if (isFullySwiped) cardLeft else clipLeft - cornerRadius
                         c.drawRoundRect(drawLeft, cardTop, rightBound, cardBottom, cornerRadius, cornerRadius, paint)
                         c.restore()
@@ -415,7 +315,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                         c.save()
                         c.clipRect(leftBound, cardTop, rightBound, cardBottom)
                         val icon = androidx.core.content.ContextCompat.getDrawable(
-                            this@ManageServicePage, R.drawable.ic_swipe_to_left
+                            this@ManageBundlingPage, R.drawable.ic_swipe_to_left
                         )
                         icon?.let {
                             val iconSize = (28 * density).toInt()
@@ -450,7 +350,6 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                         val clipRight = if (isFullySwiped) cardRight else minOf(cardRight, rightBound + overlap)
                         c.clipRect(leftBound, cardTop, clipRight, cardBottom)
 
-                        // Draw round rect ending at cardRight if fully swiped, otherwise shift to hide right rounded corners
                         val drawRight = if (isFullySwiped) cardRight else clipRight + cornerRadius
                         c.drawRoundRect(leftBound, cardTop, drawRight, cardBottom, cornerRadius, cornerRadius, paint)
                         c.restore()
@@ -458,7 +357,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                         c.save()
                         c.clipRect(leftBound, cardTop, rightBound, cardBottom)
                         val icon = androidx.core.content.ContextCompat.getDrawable(
-                            this@ManageServicePage, R.drawable.ic_swipe_to_right
+                            this@ManageBundlingPage, R.drawable.ic_swipe_to_right
                         )
                         icon?.let {
                             val iconSize = (28 * density).toInt()
@@ -486,27 +385,24 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
             }
         }
-        androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvServiceList)
-        // ─────────────────────────────────────────────────────────────────────
+        androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvBundlingList)
 
+        // Shimmer logic
         if (savedInstanceState == null || isShimmerVisible) {
-            serviceAdapter.setShimmer(true)
+            bundlingAdapter.setShimmer(true)
             isShimmerVisible = true
-        }
 
-        if (savedInstanceState == null || isShimmerVisible) {
             lifecycleScope.launch {
                 delay(600)
                 if (isDestroyed) return@launch
 
-                Log.d("SwitchAnomali", "XYZ")
-                serviceAdapter.setShimmer(false)
+                bundlingAdapter.setShimmer(false)
                 isShimmerVisible = false
-                binding.tvEmptyService.visibility = if (manageServiceViewModel.serviceList.value?.isEmpty() == true) View.VISIBLE else View.GONE
+                binding.tvEmptyBundling.visibility = if (manageBundlingViewModel.bundlingList.value?.isEmpty() == true) View.VISIBLE else View.GONE
                 if (isFirstLoad) { setupListeners() }
             }
         } else {
-            serviceAdapter.setShimmer(false)
+            bundlingAdapter.setShimmer(false)
             isShimmerVisible = false
 
             if (!isFirstLoad) {
@@ -518,39 +414,38 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
         if (skippedProcess) remainingListeners.set(1)
-        listenToServiceList()
+        listenToBundlingList()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
-                delay(100) // Check every 100ms if all listeners have finished
+                delay(100)
             }
-            this@ManageServicePage.isFirstLoad = false
-            this@ManageServicePage.skippedProcess = false
-            Logger.d("FirstLoopEdited", "First Load Service = false")
+            this@ManageBundlingPage.isFirstLoad = false
+            this@ManageBundlingPage.skippedProcess = false
         }
     }
 
-    private fun listenToServiceList() {
+    private fun listenToBundlingList() {
         barbershopId.let { bId ->
-            if (::serviceListener.isInitialized) {
-                serviceListener.remove()
+            if (::bundlingListener.isInitialized) {
+                bundlingListener.remove()
             }
 
             if (bId.isEmpty()) {
-                serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
             }
             var decrementGlobalListener = false
 
-            serviceListener = db.collection("barbershops")
+            bundlingListener = db.collection("barbershops")
                 .document(barbershopId)
-                .collection("services")
+                .collection("bundling_packages")
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
-                        manageServiceViewModel.listenerServiceListMutex.withStateLock {
+                        manageBundlingViewModel.listenerBundlingListMutex.withStateLock {
                             exception?.let {
-                                toastViewModel.showToast("Error listening to services data: ${exception.message}", false)
+                                toastViewModel.showToast("Error listening to bundling data: ${exception.message}", false)
                                 if (!decrementGlobalListener) {
                                     if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                     decrementGlobalListener = true
@@ -558,24 +453,21 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                                 return@withStateLock
                             }
                             documents?.let { docs ->
-                                // Process data on background thread
                                 if (!isFirstLoad && !skippedProcess) {
                                     lifecycleScope.launch(Dispatchers.Default) {
-                                        val newServiceList = docs.mapNotNull { document ->
-                                            document.toObject(Service::class.java).apply {
-                                                dataRef = document.reference.path
+                                        val newBundlingList = docs.mapNotNull { document ->
+                                            document.toObject(BundlingPackage::class.java).apply {
+                                                uid = document.id
                                             }
                                         }
 
-                                        manageServiceViewModel.servicesMutex.withStateLock {
-                                            Logger.d("ServiceList", "Service List Updated")
-                                            manageServiceViewModel.updateServiceList(newServiceList.toMutableList())
+                                        manageBundlingViewModel.bundlingMutex.withStateLock {
+                                            manageBundlingViewModel.updateBundlingList(newBundlingList.toMutableList())
                                         }
                                     }
                                 }
                             }
 
-                            // Decrement counter on the first snapshot
                             if (!decrementGlobalListener) {
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 decrementGlobalListener = true
@@ -593,29 +485,21 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                 if (!debounce.run { v.isSafeClick() }) return
                 onBackPressedDispatcher.onBackPressed()
             }
-            R.id.btnCreateNewService -> {
+            R.id.btnCreateNewBundling -> {
                 if (!debounce.run { v.isSafeClick() }) return
-                navigatePage(2, Service()) // mode 2 = ADD
+                navigatePage(2, BundlingPackage())
             }
         }
     }
 
-    // ItemManageServiceAdapter.OnItemClicked — delete confirmation already handled by swipe,
-    // this is for the delete button within the card
-    override fun onItemClickListener(service: Service) {
-        android.app.AlertDialog.Builder(this@ManageServicePage)
-            .setTitle("Hapus Layanan")
-            .setMessage("Apakah Anda yakin ingin menghapus layanan \"${service.serviceName}\"? Tindakan ini tidak dapat dibatalkan.")
-            .setPositiveButton("Hapus") { _, _ ->
-                manageServiceViewModel.deleteService(service)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
+    override fun onShowDetailClick(bundling: BundlingPackage) {
+        val bottomSheet = DetailServiceListFragment.newInstance(bundling.listItemDetails ?: emptyList())
+        bottomSheet.show(supportFragmentManager, "DetailServiceListBottomSheet")
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    override fun onNavigationRequest(mode: Int, service: Service) {
-        navigatePage(mode, service)
+    override fun onNavigationRequest(mode: Int, bundling: BundlingPackage) {
+        navigatePage(mode, bundling)
     }
 
     override fun displayThisToast(message: String, isImportant: Boolean) {
@@ -623,16 +507,16 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
-    private fun navigatePage(mode: Int, service: Service) {
+    private fun navigatePage(mode: Int, bundling: BundlingPackage) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
             if (!isNavigating) {
                 isNavigating = true
-                val intent = Intent(this, AddServiceFormActivity::class.java).apply {
+                val intent = Intent(this, AddBundlingFormActivity::class.java).apply {
                     putExtra("CURRENT_MODE", mode)
-                    putExtra("SERVICE_DATA_KEY", service)
-                    putExtra("ADMIN_DATA_KEY", manageServiceViewModel.userAdminData.value)
-                    putParcelableArrayListExtra("SERVICE_CATEGORIES_KEY", ArrayList(manageServiceViewModel.categoryList.value ?: emptyList()))
-                    putParcelableArrayListExtra("SERVICE_LIST_KEY", ArrayList(manageServiceViewModel.serviceList.value ?: emptyList()))
+                    putExtra("BUNDLING_DATA_KEY", bundling)
+                    putExtra("ADMIN_DATA_KEY", manageBundlingViewModel.userAdminData.value)
+                    putParcelableArrayListExtra("SERVICE_LIST_KEY", ArrayList(manageBundlingViewModel.allServices.value ?: emptyList()))
+                    putParcelableArrayListExtra("BUNDLING_LIST_KEY", ArrayList(manageBundlingViewModel.bundlingList.value ?: emptyList()))
                 }
 
                 startActivity(intent)
@@ -643,15 +527,13 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
 
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onResume() {
-        Log.d("CheckLifecycle", "==================== ON RESUME MANAGE-SERVICE =====================")
         super.onResume()
         if (isNavigating) {
-            Log.d("NavigationCorner", "Navigating Service 2")
             WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         }
         isNavigating = false
         if (!isRecreated) {
-            if (!::serviceListener.isInitialized && !isFirstLoad) {
+            if (!::bundlingListener.isInitialized && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -664,11 +546,9 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
 
     @RequiresApi(Build.VERSION_CODES.S)
     fun handleCustomBack() {
-        // 🚫 BLOCK DOUBLE BACK
         if (isHandlingBack) return
         isHandlingBack = true
 
-        // ACTIVITY FINISH (no fragment stack in ManageServicePage)
         WindowInsetsHandler.setDynamicWindowAllCorner(
             binding.root,
             this,
@@ -682,18 +562,9 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        if (isChangingConfigurations) {
-            return // Don't clear data if only orientation changes
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        serviceAdapter.stopAllShimmerEffects()
-        // Remove listener to avoid memory leak
-        if (::serviceListener.isInitialized) serviceListener.remove()
+        bundlingAdapter.stopAllShimmerEffects()
+        if (::bundlingListener.isInitialized) bundlingListener.remove()
     }
-
 }

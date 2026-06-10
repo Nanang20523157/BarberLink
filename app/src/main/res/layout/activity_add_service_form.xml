@@ -9,7 +9,8 @@
     android:clipChildren="false"
     android:focusable="true"
     android:focusableInTouchMode="true"
-    tools:context=".UserInterface.Admin.AddServiceFormActivity">
+    tools:context=".UserInterface.Admin.AddServiceFormActivity"
+    tools:ignore="HardcodedText,ContentDescription,Autofill,LabelFor,UseCompoundDrawables,RtlHardcoded,UselessParent">
 
     <LinearLayout
         android:layout_width="match_parent"

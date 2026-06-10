@@ -1398,7 +1398,19 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.seeAllPaketBundling -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val bundle = Bundle().apply {
+                                        putParcelableArray("bundlingList", (berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()).toTypedArray())
+                                        putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putParcelableArray("serviceList", (berandaAdminViewModel.servicesList.value ?: emptyList()).toTypedArray())
+                                    }
+                                    navController.navigate(R.id.action_nav_beranda_to_manageBundlingPage, bundle)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.ivAddNewLayanan -> {

@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
+import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Logger
@@ -44,6 +45,15 @@ class ManageBundlingViewModel(
     private val _updateStateResult = MutableLiveData<ResultState?>()
     val updateStateResult: LiveData<ResultState?> = _updateStateResult
 
+    private val _allServices = MutableLiveData<List<Service>>(emptyList())
+    val allServices: LiveData<List<Service>> get() = _allServices
+
+    fun setAllServices(services: List<Service>) {
+        viewModelScope.launch {
+            _allServices.value = services
+        }
+    }
+
     fun setUpdateStateResult(value: ResultState?) {
         viewModelScope.launch {
             _updateStateResult.value = value
@@ -68,10 +78,8 @@ class ManageBundlingViewModel(
                 _updateStateResult.value = ResultState.Loading
 
                 // Delete from Firestore
-                val barbershopId = bundling.rootRef.split("/").last()
-                val result = db.collection("barbershops")
-                    .document(barbershopId)
-                    .collection("bundling")
+                val result = db.document(bundling.rootRef)
+                    .collection("bundling_packages")
                     .document(bundling.uid)
                     .delete()
                     .awaitWriteWithOfflineFallback(tag = "DeleteBundling")
@@ -91,6 +99,14 @@ class ManageBundlingViewModel(
     fun updateBundlingList(newBundlingList: MutableList<BundlingPackage>) {
         viewModelScope.launch(Dispatchers.Default) {
             val currentList = _bundlingList.value ?: mutableListOf()
+            val services = _allServices.value ?: emptyList()
+
+            // Map listItems to listItemDetails for new entries
+            newBundlingList.forEach { newItem ->
+                newItem.listItemDetails = newItem.listItems.mapNotNull { serviceId ->
+                    services.find { it.uid == serviceId }
+                }
+            }
 
             // Build list of items to remove
             val itemsToRemove = currentList.filter { current ->
@@ -102,16 +118,23 @@ class ManageBundlingViewModel(
                 val existingItem = currentList.find { it.uid == newItem.uid }
                 if (existingItem != null) {
                     existingItem.apply {
-                        packageName = newItem.packageName
-                        packageDesc = newItem.packageDesc
-                        packagePrice = newItem.packagePrice
-                        packageDiscount = newItem.packageDiscount
                         accumulatedPrice = newItem.accumulatedPrice
-                        listItems = newItem.listItems
                         applyToGeneral = newItem.applyToGeneral
                         autoSelected = newItem.autoSelected
                         defaultItem = newItem.defaultItem
+                        listItems = newItem.listItems
+                        packageCounting = newItem.packageCounting
+                        packageDesc = newItem.packageDesc
+                        packageDiscount = newItem.packageDiscount
+                        packageName = newItem.packageName
+                        packagePrice = newItem.packagePrice
                         packageRating = newItem.packageRating
+                        resultsShareAmount = newItem.resultsShareAmount
+                        resultsShareFormat = newItem.resultsShareFormat
+                        rootRef = newItem.rootRef
+                        uid = newItem.uid
+
+                        listItemDetails = newItem.listItemDetails
                     }
                 } else {
                     currentList.add(newItem)

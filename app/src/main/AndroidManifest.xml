@@ -138,6 +138,10 @@
             android:exported="false"
             android:theme="@style/Theme.BarberLink.DarkWindow" />
         <activity
+            android:name=".UserInterface.Admin.ManageBundlingPage"
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow" />
+        <activity
             android:name=".UserInterface.Admin.AddEmployeeFormActivity"
             android:exported="false"
             android:theme="@style/Theme.BarberLink.DarkWindow" />

@@ -14,6 +14,8 @@ import com.example.barberlink.Adapter.ItemListPackageSelectAdapter
 import com.example.barberlink.Adapter.ItemListProductSelectAdapter
 import com.example.barberlink.Adapter.ItemListServiceSelectAdapter
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Admin.AddBundlingFormActivity
+import com.example.barberlink.UserInterface.Admin.ViewModel.AddBundlingViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.AddOutletViewModel
 import com.example.barberlink.databinding.FragmentRelationalSelectionBinding
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -33,6 +35,7 @@ class RelationalSelectionFragment : BottomSheetDialogFragment() {
     private val binding get() = _binding!!
     
     private val addOutletViewModel: AddOutletViewModel by activityViewModels()
+    private val addBundlingViewModel: AddBundlingViewModel by activityViewModels()
 
     var selectionType: String = ""       // "SERVICES" | "BUNDLING" | "STAFF" | "PRODUCTS"
     var selectedIds: MutableSet<String> = mutableSetOf()
@@ -181,34 +184,60 @@ class RelationalSelectionFragment : BottomSheetDialogFragment() {
     }
 
     private fun setupObservers() {
+        val isBundlingActivity = activity is AddBundlingFormActivity
         when (selectionType) {
             "SERVICES" -> {
                 serviceAdapter?.setShimmer(true)
-                addOutletViewModel.allServices.observe(viewLifecycleOwner) { list ->
-                    serviceAdapter?.setShimmer(false)
-                    serviceAdapter?.submitList(list)
+                if (isBundlingActivity) {
+                    addBundlingViewModel.allServices.observe(viewLifecycleOwner) { list ->
+                        serviceAdapter?.setShimmer(false)
+                        serviceAdapter?.submitList(list)
+                    }
+                } else {
+                    addOutletViewModel.allServices.observe(viewLifecycleOwner) { list ->
+                        serviceAdapter?.setShimmer(false)
+                        serviceAdapter?.submitList(list)
+                    }
                 }
             }
             "BUNDLING" -> {
                 packageAdapter?.setShimmer(true)
-                addOutletViewModel.allBundling.observe(viewLifecycleOwner) { list ->
-                    packageAdapter?.setAllServices(addOutletViewModel.allServices.value ?: emptyList())
-                    packageAdapter?.setShimmer(false)
-                    packageAdapter?.submitList(list)
+                if (isBundlingActivity) {
+                    addBundlingViewModel.allBundling.observe(viewLifecycleOwner) { list ->
+                        packageAdapter?.setAllServices(addBundlingViewModel.allServices.value ?: emptyList())
+                        packageAdapter?.setShimmer(false)
+                        packageAdapter?.submitList(list)
+                    }
+                } else {
+                    addOutletViewModel.allBundling.observe(viewLifecycleOwner) { list ->
+                        packageAdapter?.setAllServices(addOutletViewModel.allServices.value ?: emptyList())
+                        packageAdapter?.setShimmer(false)
+                        packageAdapter?.submitList(list)
+                    }
                 }
             }
             "STAFF" -> {
                 staffAdapter?.setShimmer(true)
-                addOutletViewModel.allStaff.observe(viewLifecycleOwner) { list ->
+                if (isBundlingActivity) {
+                    // Bundling activity doesn't currently select staff, but keep safe just in case
                     staffAdapter?.setShimmer(false)
-                    staffAdapter?.submitList(list)
+                } else {
+                    addOutletViewModel.allStaff.observe(viewLifecycleOwner) { list ->
+                        staffAdapter?.setShimmer(false)
+                        staffAdapter?.submitList(list)
+                    }
                 }
             }
             "PRODUCTS" -> {
                 productAdapter?.setShimmer(true)
-                addOutletViewModel.allProducts.observe(viewLifecycleOwner) { list ->
+                if (isBundlingActivity) {
+                    // Bundling activity doesn't currently select products, but keep safe just in case
                     productAdapter?.setShimmer(false)
-                    productAdapter?.submitList(list)
+                } else {
+                    addOutletViewModel.allProducts.observe(viewLifecycleOwner) { list ->
+                        productAdapter?.setShimmer(false)
+                        productAdapter?.submitList(list)
+                    }
                 }
             }
         }

@@ -8,7 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.FirestoreResult
 import com.example.barberlink.DataClass.Service
+import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Repository.BundlingRepository
+import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import kotlinx.coroutines.launch
 
 class AddBundlingViewModel(
@@ -16,83 +18,130 @@ class AddBundlingViewModel(
     private val handle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _selectedServices = MutableLiveData<List<Service>>(emptyList())
-    val selectedServices: LiveData<List<Service>> get() = _selectedServices
-
-    private val _accumulatedPrice = MutableLiveData<Int>(0)
-    val accumulatedPrice: LiveData<Int> get() = _accumulatedPrice
-
-    private val _finalPrice = MutableLiveData<Int>(0)
-    val finalPrice: LiveData<Int> get() = _finalPrice
-
-    private val _discount = MutableLiveData<Int>(0)
-    val discount: LiveData<Int> get() = _discount
-
-    fun addService(service: Service) {
-        val currentList = _selectedServices.value?.toMutableList() ?: mutableListOf()
-        if (!currentList.any { it.uid == service.uid }) {
-            currentList.add(service)
-            _selectedServices.value = currentList
-            recalculatePrices()
-        }
+    companion object {
+        private const val BUNDLING_PARAMS_KEY = "bundling_params"
+        private const val CURRENT_MODE_KEY = "current_mode"
+        private const val BARBERSHOP_ID_KEY = "barbershop_id"
+        private const val BUNDLING_SELECTED_ID_KEY = "bundling_selected_id"
     }
 
-    fun setServices(services: List<Service>) {
-        _selectedServices.value = services
-        recalculatePrices()
-    }
-    
-    fun removeService(service: Service) {
-        val currentList = _selectedServices.value?.toMutableList() ?: mutableListOf()
-        currentList.removeIf { it.uid == service.uid }
-        _selectedServices.value = currentList
-        recalculatePrices()
-    }
+    val serviceListMutex = ReentrantCoroutineMutex()
+    val bundlingListMutex = ReentrantCoroutineMutex()
+    val allDataMutex = ReentrantCoroutineMutex()
+    val listenerBarbershopMutex = ReentrantCoroutineMutex()
+    val listenerServicesMutex = ReentrantCoroutineMutex()
+    val listenerBundlingsMutex = ReentrantCoroutineMutex()
 
-    fun setDiscount(amount: Int) {
-        _discount.value = amount
-        recalculatePrices()
-    }
+    private val _originalBundling = MutableLiveData<BundlingPackage>()
+    val originalBundling: LiveData<BundlingPackage> get() = _originalBundling
+
+    private val _bundlingParams = handle.getLiveData<BundlingPackage>(BUNDLING_PARAMS_KEY)
+    val bundlingParams: LiveData<BundlingPackage> get() = _bundlingParams
+
+    private val _currentMode = handle.getLiveData<Int>(CURRENT_MODE_KEY, 0)
+    val currentMode: LiveData<Int> get() = _currentMode
+
+    private val _barbershopId = handle.getLiveData<String>(BARBERSHOP_ID_KEY, "")
+    val barbershopId: LiveData<String> get() = _barbershopId
+
+    private val _bundlingSelectedId = handle.getLiveData<String>(BUNDLING_SELECTED_ID_KEY, "")
+    val bundlingSelectedId: LiveData<String> get() = _bundlingSelectedId
+
+    private val _userAdminData = MutableLiveData<UserAdminData>()
+    val userAdminData: LiveData<UserAdminData> = _userAdminData
+
+    private val _isSaving = MutableLiveData<Boolean>()
+    val isSaving: LiveData<Boolean> get() = _isSaving
 
     private val _saveResult = MutableLiveData<FirestoreResult<Unit>?>()
     val saveResult: LiveData<FirestoreResult<Unit>?> get() = _saveResult
 
-    fun saveBundling(barbershopId: String, packageName: String, packageDesc: String, applyToGeneral: Boolean) {
+    private val _allServices = MutableLiveData<List<Service>>(emptyList())
+    val allServices: LiveData<List<Service>> get() = _allServices
+
+    private val _allBundling = MutableLiveData<List<BundlingPackage>>(emptyList())
+    val allBundling: LiveData<List<BundlingPackage>> get() = _allBundling
+
+    fun setUserAdminData(userAdminData: UserAdminData) {
         viewModelScope.launch {
-            _saveResult.value = null // Reset
-            
-            val services = _selectedServices.value ?: emptyList()
-            val bundling = BundlingPackage(
-                packageName = packageName,
-                packageDesc = packageDesc,
-                packagePrice = _finalPrice.value ?: 0,
-                packageDiscount = _discount.value ?: 0,
-                accumulatedPrice = _accumulatedPrice.value ?: 0,
-                listItems = services.map { it.uid },
-                applyToGeneral = applyToGeneral,
-                packageRating = 5.0
-            )
-            
-            val result = repository.createBundling(barbershopId, bundling)
-            _saveResult.value = result
+            _userAdminData.value = userAdminData
         }
     }
-    
-    fun updateBundling(barbershopId: String, bundling: BundlingPackage) {
+
+    fun setOriginalBundling(bundling: BundlingPackage) {
+        viewModelScope.launch {
+            _originalBundling.value = bundling
+        }
+    }
+
+    fun updateBundlingParams(bundling: BundlingPackage) {
+        viewModelScope.launch {
+            _bundlingParams.value = bundling
+        }
+    }
+
+    fun setAllServices(services: List<Service>) {
+        viewModelScope.launch {
+            _allServices.value = services
+        }
+    }
+
+    fun setAllBundling(bundling: List<BundlingPackage>) {
+        viewModelScope.launch {
+            _allBundling.value = bundling
+        }
+    }
+
+    fun setBarbershopId(id: String) {
+        viewModelScope.launch {
+            _barbershopId.value = id
+        }
+    }
+
+    fun setBundlingSelectedId(id: String) {
+        viewModelScope.launch {
+            _bundlingSelectedId.value = id
+        }
+    }
+
+    fun setCurrentMode(mode: Int) {
+        viewModelScope.launch {
+            _currentMode.value = mode
+        }
+    }
+
+    fun saveBundling(isAddMode: Boolean) {
+        viewModelScope.launch {
+            val currentBundling = _bundlingParams.value ?: return@launch
+            val bId = _barbershopId.value ?: return@launch
+
+            _isSaving.value = true
+            try {
+                val result = if (isAddMode) {
+                    repository.createBundling(bId, currentBundling)
+                } else {
+                    repository.updateBundling(bId, currentBundling)
+                }
+
+                _isSaving.value = false
+                if (result.isSuccessful) {
+                    if (isAddMode) {
+                        _allBundling.value = _allBundling.value.orEmpty() + currentBundling
+                    } else {
+                        _allBundling.value = _allBundling.value.orEmpty().map { if (it.uid == currentBundling.uid) currentBundling else it }
+                    }
+                }
+                _saveResult.value = result
+            } catch (e: Exception) {
+                _isSaving.value = false
+                _saveResult.value = FirestoreResult(isSuccessful = false, errorMessage = e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    fun clearSaveResult() {
         viewModelScope.launch {
             _saveResult.value = null
-            val result = repository.updateBundling(barbershopId, bundling)
-            _saveResult.value = result
         }
-    }
-
-    private fun recalculatePrices() {
-        val services = _selectedServices.value ?: emptyList()
-        val accumulated = services.sumOf { it.servicePrice }
-        _accumulatedPrice.value = accumulated
-
-        val disc = _discount.value ?: 0
-        val final = if (accumulated - disc < 0) 0 else accumulated - disc
-        _finalPrice.value = final
     }
 }

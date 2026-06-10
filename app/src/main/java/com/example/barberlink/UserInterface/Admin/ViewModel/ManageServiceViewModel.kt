@@ -155,6 +155,7 @@ class ManageServiceViewModel(
                         servicePrice = newService.servicePrice
                         serviceRating = newService.serviceRating
                         dataRef = newService.dataRef
+                        uid = newService.uid
                     }
                 } else {
                     // Add new service

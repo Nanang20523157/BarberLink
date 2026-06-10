@@ -831,4 +831,8 @@
         <item>Laki-laki</item>
         <item>Perempuan</item>
     </string-array>
+    <string name="toolbar_manage_bundling_page">Kelola Paket Bundling</string>
+    <string name="daftar_bundling_title_template">Daftar Bundling (%1$d)</string>
+    <string name="empty_state_bundling_title">Belum Ada Paket Bundling</string>
+    <string name="empty_state_bundling_subtitle">Segera tambahkan paket bundling baru untuk menarik minat pelanggan.</string>
 </resources>

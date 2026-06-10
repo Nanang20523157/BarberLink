@@ -1202,58 +1202,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         }
     }
 
-    // ─── Relational bottom-sheets ─────────────────────────────────────────────
-
-    private fun showRelationalBottomSheet(type: String) {
-        val tag = "RelationalSheet_$type"
-        if (supportFragmentManager.findFragmentByTag(tag) != null) return
-
-        val currentOutlet = addOutletViewModel.outletParams.value ?: Outlet()
-        val currentSelection = when(type) {
-            "SERVICES" -> currentOutlet.listServices.toSet()
-            "BUNDLING" -> currentOutlet.listBundling.toSet()
-            "STAFF" -> currentOutlet.listEmployees.toSet()
-            "PRODUCTS" -> currentOutlet.listProducts.toSet()
-            else -> emptySet()
-        }
-
-        val bottomSheet = RelationalSelectionFragment.newInstance(type, currentSelection, addOutletViewModel.userAdminData.value)
-        attachRelationalSheetListener(bottomSheet, type)
-        bottomSheet.show(supportFragmentManager, tag)
-    }
-
-    private fun reAttachRelationalSheetListeners() {
-        val types = listOf("SERVICES", "BUNDLING", "STAFF", "PRODUCTS")
-        for (type in types) {
-            val tag = "RelationalSheet_$type"
-            val fragment = supportFragmentManager.findFragmentByTag(tag) as? RelationalSelectionFragment
-            fragment?.let { attachRelationalSheetListener(it, type) }
-        }
-    }
-
-    private fun attachRelationalSheetListener(fragment: RelationalSelectionFragment, type: String) {
-        fragment.onSelectionSaved = { selected ->
-            val currentOutlet = addOutletViewModel.outletParams.value ?: Outlet()
-            when(type) {
-                "SERVICES" -> currentOutlet.listServices = selected.toList()
-                "BUNDLING" -> currentOutlet.listBundling = selected.toList()
-                "STAFF" -> currentOutlet.listEmployees = selected.toList()
-                "PRODUCTS" -> currentOutlet.listProducts = selected.toList()
-            }
-            addOutletViewModel.updateOutletParams(currentOutlet)
-            updateRecycleViewData()
-        }
-    }
-
-    override fun onShowDetailClick(bundling: BundlingPackage) {
-        val tag = "BundlingServiceListBottomSheet"
-        // Ternyata Jika ButtomSheet Tidak Perlu Set  StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
-        if (supportFragmentManager.findFragmentByTag(tag) != null) return
-
-        val bottomSheet = DetailServiceListFragment.newInstance(bundling.listItemDetails ?: emptyList())
-        bottomSheet.show(supportFragmentManager, tag)
-    }
-
     private fun updateRecycleViewData() {
         updateServicesUI()
         updateBundlingUI()
@@ -1343,6 +1291,56 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         binding.ivAddProductItem.visibility = visibility
     }
 
+    // ─── Relational bottom-sheets ─────────────────────────────────────────────
+    private fun showRelationalBottomSheet(type: String) {
+        val tag = "RelationalSheet_$type"
+        if (supportFragmentManager.findFragmentByTag(tag) != null) return
+
+        val currentOutlet = addOutletViewModel.outletParams.value ?: Outlet()
+        val currentSelection = when(type) {
+            "SERVICES" -> currentOutlet.listServices.toSet()
+            "BUNDLING" -> currentOutlet.listBundling.toSet()
+            "STAFF" -> currentOutlet.listEmployees.toSet()
+            "PRODUCTS" -> currentOutlet.listProducts.toSet()
+            else -> emptySet()
+        }
+
+        val bottomSheet = RelationalSelectionFragment.newInstance(type, currentSelection, addOutletViewModel.userAdminData.value)
+        attachRelationalSheetListener(bottomSheet, type)
+        bottomSheet.show(supportFragmentManager, tag)
+    }
+
+    private fun reAttachRelationalSheetListeners() {
+        val types = listOf("SERVICES", "BUNDLING", "STAFF", "PRODUCTS")
+        for (type in types) {
+            val tag = "RelationalSheet_$type"
+            val fragment = supportFragmentManager.findFragmentByTag(tag) as? RelationalSelectionFragment
+            fragment?.let { attachRelationalSheetListener(it, type) }
+        }
+    }
+
+    private fun attachRelationalSheetListener(fragment: RelationalSelectionFragment, type: String) {
+        fragment.onSelectionSaved = { selected ->
+            val currentOutlet = addOutletViewModel.outletParams.value ?: Outlet()
+            when(type) {
+                "SERVICES" -> currentOutlet.listServices = selected.toList()
+                "BUNDLING" -> currentOutlet.listBundling = selected.toList()
+                "STAFF" -> currentOutlet.listEmployees = selected.toList()
+                "PRODUCTS" -> currentOutlet.listProducts = selected.toList()
+            }
+            addOutletViewModel.updateOutletParams(currentOutlet)
+        }
+    }
+
+    override fun onShowDetailClick(bundling: BundlingPackage) {
+        val tag = "BundlingServiceListBottomSheet"
+        // Ternyata Jika ButtomSheet Tidak Perlu Set  StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        if (supportFragmentManager.findFragmentByTag(tag) != null) return
+
+        val bottomSheet = DetailServiceListFragment.newInstance(bundling.listItemDetails ?: emptyList())
+        bottomSheet.show(supportFragmentManager, tag)
+    }
+
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
         if (skippedProcess) remainingListeners.set(6)
@@ -1364,12 +1362,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun listenToBarbershopData() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             if (::barbershopListener.isInitialized) {
                 barbershopListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 barbershopListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1418,12 +1416,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
 
     // Example of adding mutex to listenToOutletList
     private fun listenToOutletList() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             if (::outletListener.isInitialized) {
                 outletListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1554,12 +1552,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun listenToServicesData() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             if (::serviceListener.isInitialized) {
                 serviceListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1577,12 +1575,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun listenToProductsData() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             if (::productListener.isInitialized) {
                 productListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 productListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1600,12 +1598,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun listenToBundlingPackagesData() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             if (::bundlingListener.isInitialized) {
                 bundlingListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
@@ -1623,13 +1621,13 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun listenToEmployeesData() {
-        barbershopId.let {
+        barbershopId.let { bId ->
             // jika listener maka tidak perlu ada pemberitahuan untuk (employeeUidList) kosong
             if (::employeeListener.isInitialized) {
                 employeeListener.remove()
             }
 
-            if (it.isEmpty()) {
+            if (bId.isEmpty()) {
                 employeeListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return@let
