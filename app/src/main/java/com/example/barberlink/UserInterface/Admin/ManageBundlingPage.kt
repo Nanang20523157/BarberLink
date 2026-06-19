@@ -164,9 +164,8 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
         }
 
         manageBundlingViewModel.bundlingList.observe(this) { bundlingList ->
-            val list = bundlingList ?: mutableListOf()
-            val itemUID = list.map { it.uid }
-            val expandedMap = list.associate { bundling ->
+            val itemUID = bundlingList.map { it.uid }
+            val expandedMap = bundlingList.associate { bundling ->
                 bundling.uid to false
             }
             vegaLayoutManager.setExpandedState(
@@ -175,10 +174,10 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
                 true
             )
 
-            bundlingAdapter.submitList(list.toList())
+            bundlingAdapter.submitList(bundlingList)
             if (!isShimmerVisible) bundlingAdapter.notifyDataSetChanged()
-            binding.tvBundlingCountTitle.text = getString(R.string.daftar_bundling_title_template, list.size)
-            if (!isFirstLoad) binding.tvEmptyBundling.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            binding.tvBundlingCountTitle.text = getString(R.string.daftar_bundling_title_template, bundlingList.size)
+            if (!isFirstLoad) binding.tvEmptyBundling.visibility = if (bundlingList.isEmpty()) View.VISIBLE else View.GONE
         }
 
         onBackPressedDispatcher.addCallback(this) {
@@ -213,6 +212,10 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
         bundlingAdapter = ItemManageBundlingAdapter(this, this, this)
         binding.rvBundlingList.layoutManager = vegaLayoutManager
         binding.rvBundlingList.adapter = bundlingAdapter
+        adjustRecyclerViewPadding(false)
+        binding.rvBundlingList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            adjustRecyclerViewPadding(false)
+        }
 
         // Swipe to delete
         val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
@@ -263,7 +266,7 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
                 }
 
                 val density = recyclerView.resources.displayMetrics.density
-                val cardView = itemView.findViewById<View>(R.id.cvCardPackage)
+                val cardView = itemView.findViewById<View>(R.id.cvMainInfoBundling)
                 val cardTop: Float
                 val cardBottom: Float
                 val cardLeft: Float
@@ -559,6 +562,57 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
                 R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
+        }
+    }
+
+    private fun adjustRecyclerViewPadding(isGrid: Boolean) {
+        val density = resources.displayMetrics.density
+        val startPadding = if (isGrid) (1 * density).toInt() else 0
+        val endPadding = if (isGrid) (8.5 * density).toInt() else 0
+        
+        binding.bottomFloatArea.post {
+            val child = binding.rvBundlingList.getChildAt(0)
+            val itemHeightWithMargins = if (child != null) {
+                val lp = child.layoutParams as ViewGroup.MarginLayoutParams
+                child.height + lp.topMargin + lp.bottomMargin
+            } else {
+                val heightDp = if (isGrid) 220 else 180
+                (heightDp * density).toInt()
+            }
+            
+            val itemCount = bundlingAdapter.itemCount
+            val rowCount = if (isGrid) (itemCount + 1) / 2 else itemCount
+            val totalItemsHeight = rowCount * itemHeightWithMargins
+            
+            val floatAreaHeight = binding.bottomFloatArea.height
+            val layoutParams = binding.rvBundlingList.layoutParams as ViewGroup.MarginLayoutParams
+            val marginBottom = layoutParams.bottomMargin
+            val rvHeight = binding.rvBundlingList.height
+            
+            val initialPaddingBottom = if (floatAreaHeight > marginBottom) {
+                floatAreaHeight - marginBottom
+            } else {
+                0
+            }
+            
+            val realHeightRecycleView = rvHeight - initialPaddingBottom
+            val modulo = if (itemHeightWithMargins > 0) realHeightRecycleView % itemHeightWithMargins else 0
+            
+            val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
+            
+            val bottomPadding = if (doesItemsExceedRecycleView) {
+                initialPaddingBottom + modulo
+            } else {
+                initialPaddingBottom
+            }
+            
+            val currentPaddingBottom = binding.rvBundlingList.paddingBottom
+            val currentPaddingStart = binding.rvBundlingList.paddingStart
+            val currentPaddingEnd = binding.rvBundlingList.paddingEnd
+            
+            if (currentPaddingBottom != bottomPadding || currentPaddingStart != startPadding || currentPaddingEnd != endPadding) {
+                binding.rvBundlingList.setPaddingRelative(startPadding, 0, endPadding, bottomPadding)
+            }
         }
     }
 

@@ -98,11 +98,12 @@ class ItemListPackageSelectAdapter(
                         iv.visibility = View.GONE
                     }
                 }
+
                 if (serviceIcons.size > 4) {
                     tvMoreItem.visibility = View.VISIBLE
                     tvMoreItem.text = "+${serviceIcons.size - 4}"
                 } else {
-                    tvMoreItem.visibility = View.GONE
+                    tvMoreItem.visibility = View.INVISIBLE
                 }
 
                 val isSelected = selectedIds.contains(pkg.uid)

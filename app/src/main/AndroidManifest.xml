@@ -142,6 +142,10 @@
             android:exported="false"
             android:theme="@style/Theme.BarberLink.DarkWindow" />
         <activity
+            android:name=".UserInterface.Admin.ManageProductPage"
+            android:exported="false"
+            android:theme="@style/Theme.BarberLink.DarkWindow" />
+        <activity
             android:name=".UserInterface.Admin.AddEmployeeFormActivity"
             android:exported="false"
             android:theme="@style/Theme.BarberLink.DarkWindow" />
@@ -152,15 +156,18 @@
         <activity
             android:name=".UserInterface.Admin.AddServiceFormActivity"
             android:exported="false"
-            android:theme="@style/Theme.BarberLink.DarkWindow" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".UserInterface.Admin.AddProductFormActivity"
             android:exported="false"
-            android:theme="@style/Theme.BarberLink.DarkWindow" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".UserInterface.Admin.AddBundlingFormActivity"
             android:exported="false"
-            android:theme="@style/Theme.BarberLink.DarkWindow" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".UserInterface.Admin.MapsPickerOutletActivity"
             android:exported="false"

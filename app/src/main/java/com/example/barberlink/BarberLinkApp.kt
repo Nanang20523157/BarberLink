@@ -12,6 +12,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.example.barberlink.Network.NetworkMonitor
+import com.example.barberlink.Helper.ServiceIconCache
 import com.example.barberlink.Services.SessionCleanupService
 import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.Intro.Splash.SplashScreen
@@ -45,6 +46,7 @@ class BarberLinkApp : Application(), DefaultLifecycleObserver {
         // Memulai CleanupService saat aplikasi dimulai
         Log.d("UserInteraction", "Application started")
         NetworkMonitor.init(this)
+        ServiceIconCache.init(this)
         setupActivityLifecycle()
         setupRemoteVersionChecker()
 

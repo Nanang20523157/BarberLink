@@ -12,34 +12,52 @@ import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Repository.ProductRepository
+import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlin.collections.map
+import kotlin.collections.orEmpty
+import kotlin.collections.plus
 
 class AddProductViewModel(
     private val repository: ProductRepository,
     private val storage: FirebaseStorage,
     private val handle: SavedStateHandle
-) : ViewModel() {
+) : InputFragmentViewModel(handle) {
+
+    companion object {
+        private const val PRODUCT_PARAMS_KEY = "product_params"
+        private const val PENDING_IMAGE_URI_KEY = "pending_image_uri"
+        private const val CURRENT_MODE_KEY = "current_mode"
+        private const val BARBERSHOP_ID_KEY = "barbershop_id"
+        private const val PRODUCT_SELECTED_ID_KEY = "product_selected_id"
+    }
 
     val productListMutex = ReentrantCoroutineMutex()
-    val outletListMutex = ReentrantCoroutineMutex()
+    val categoryListMutex = ReentrantCoroutineMutex()
     val allDataMutex = ReentrantCoroutineMutex()
     val listenerBarbershopMutex = ReentrantCoroutineMutex()
-    val listenerOutletsMutex = ReentrantCoroutineMutex()
+    val listenerCategoriesMutex = ReentrantCoroutineMutex()
     val listenerProductsMutex = ReentrantCoroutineMutex()
 
     private val _originalProduct = MutableLiveData<Product>()
     val originalProduct: LiveData<Product> get() = _originalProduct
 
-    private val _productParams = MutableLiveData<Product>()
+    private val _productParams = handle.getLiveData<Product>(PRODUCT_PARAMS_KEY)
     val productParams: LiveData<Product> get() = _productParams
 
-    private val _userAdminData = MutableLiveData<UserAdminData>()
-    val userAdminData: LiveData<UserAdminData> = _userAdminData
+    private val _currentMode = handle.getLiveData<Int>(CURRENT_MODE_KEY, 0)
+    val currentMode: LiveData<Int> get() = _currentMode
+
+    private val _barbershopId = handle.getLiveData<String>(BARBERSHOP_ID_KEY, "")
+    val barbershopId: LiveData<String> get() = _barbershopId
+
+    private val _productSelectedId = handle.getLiveData<String>(PRODUCT_SELECTED_ID_KEY, "")
+    val productSelectedId: LiveData<String> get() = _productSelectedId
 
     private val _isSaving = MutableLiveData<Boolean>()
     val isSaving: LiveData<Boolean> get() = _isSaving
@@ -47,57 +65,63 @@ class AddProductViewModel(
     private val _saveResult = MutableLiveData<FirestoreResult<Unit>?>()
     val saveResult: LiveData<FirestoreResult<Unit>?> get() = _saveResult
 
-    private val _allProducts = MutableLiveData<List<Product>>(emptyList())
-    val allProducts: LiveData<List<Product>> get() = _allProducts
+    private val _productList = MutableLiveData<List<Product>>(emptyList())
+    val productList: LiveData<List<Product>> get() = _productList
 
-    private val _outletList = MutableLiveData<List<Outlet>>(emptyList())
-    val outletList: LiveData<List<Outlet>> get() = _outletList
-
-    private val _pendingImageUri = MutableLiveData<Uri?>()
+    private val _pendingImageUri = handle.getLiveData<Uri?>(PENDING_IMAGE_URI_KEY)
     val pendingImageUri: LiveData<Uri?> get() = _pendingImageUri
 
-    private val _categories = MutableLiveData<List<DataCategories>>()
-    val categories: LiveData<List<DataCategories>> = _categories
+    private val _categoryList = MutableLiveData<List<DataCategories>>()
+    val categoryList: LiveData<List<DataCategories>> = _categoryList
 
     private val _generatedSku = MutableLiveData<String>()
     val generatedSku: LiveData<String> get() = _generatedSku
 
-    fun setCategories(categoriesList: List<DataCategories>) {
-        _categories.value = categoriesList
+    fun setCategories(categoryListList: List<DataCategories>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
+        viewModelScope.launch {
+            _categoryList.value = categoryListList
+            _setupDropdownFilter.value = setupDropdown
+            _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
+        }
     }
 
-    fun getProductCategories(adminUid: String) {
+    override fun setupDropdownFilterWithNullState() {
         viewModelScope.launch {
-            val result = repository.getProductCategories(adminUid)
-            if (result.isSuccessful) {
-                _categories.value = result.data ?: emptyList()
-            }
+            _setupDropdownFilter.value = false
+            _setupDropdownFilterWithNullState.value = false
+        }
+    }
+
+    override fun clearDropdownStateValue() {
+        viewModelScope.launch {
+            _setupDropdownFilter.value = null
+            _setupDropdownFilterWithNullState.value = null
         }
     }
 
     fun addProductCategory(barbershopId: String, category: String) {
         viewModelScope.launch {
-            val currentCategories = _categories.value?.toMutableList() ?: mutableListOf()
+            val currentCategories = _categoryList.value?.toMutableList() ?: mutableListOf()
             if (!currentCategories.any { it.categoryName == category }) {
                 currentCategories.add(com.example.barberlink.DataClass.DataCategories(categoryName = category))
-                val result = repository.updateProductCategories(barbershopId, currentCategories.map { it.categoryName })
-                if (result.isSuccessful) {
-                    _categories.value = currentCategories
-                }
+//                val result = repository.updateProductCategories(barbershopId, currentCategories.map { it.categoryName })
+//                if (result.isSuccessful) {
+//                    _categoryList.value = currentCategories
+//                }
             }
         }
     }
 
     fun deleteProductCategory(barbershopId: String, category: String) {
         viewModelScope.launch {
-            val currentCategories = _categories.value?.toMutableList() ?: mutableListOf()
+            val currentCategories = _categoryList.value?.toMutableList() ?: mutableListOf()
             val toRemove = currentCategories.find { it.categoryName == category }
             if (toRemove != null) {
                 currentCategories.remove(toRemove)
-                val result = repository.updateProductCategories(barbershopId, currentCategories.map { it.categoryName })
-                if (result.isSuccessful) {
-                    _categories.value = currentCategories
-                }
+//                val result = repository.updateProductCategories(barbershopId, currentCategories.map { it.categoryName })
+//                if (result.isSuccessful) {
+//                    _categoryList.value = currentCategories
+//                }
             }
         }
     }
@@ -120,78 +144,43 @@ class AddProductViewModel(
         }
     }
 
-    private fun generateInitials(text: String, targetLength: Int): String {
-        val words = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        if (words.isEmpty()) return "X".repeat(targetLength)
-
-        return if (words.size == 1) {
-            val word = words[0].filter { it.isLetterOrDigit() }.uppercase()
-            word.take(targetLength).padEnd(targetLength, 'X')
-        } else {
-            val charsPerWord = targetLength / words.size
-            val remainder = targetLength % words.size
-            var result = ""
-            
-            for (i in words.indices) {
-                val takeCount = if (i == words.size - 1) charsPerWord + remainder else charsPerWord
-                result += words[i].filter { it.isLetterOrDigit() }.uppercase().take(takeCount).padEnd(takeCount, 'X')
-            }
-            result.take(targetLength)
-        }
-    }
-
     fun onProductDataChanged(
         productName: String,
-        category: String,
+        categoryCode: String,
         productType: String,
-        size: String,
-        isHandmade: Boolean
+        size: String
     ) {
         val nameCode = if (productName.isNotBlank()) {
             productName.replace(Regex("[^A-Za-z0-9]"), "").uppercase().take(6)
-        } else "PRD"
-        
-        val categoryCode = if (category.isNotBlank()) {
-            category.replace(Regex("[^A-Za-z0-9]"), "").uppercase().take(3)
+        } else "XXXXXX"
+
+//        val categoryCode = if (category.isNotBlank()) {
+//            category.replace(Regex("[^A-Za-z0-9]"), "").uppercase().take(3)
+//        } else "XXX"
+
+        val productTypeCode = if (productType.isNotBlank()) {
+            productType.replace(Regex("[^A-Za-z0-9]"), "").uppercase().take(4)
         } else ""
 
-        val productTypeCode = productType.replace(Regex("[^A-Za-z0-9]"), "").uppercase().take(4)
-        
         val digits = size.filter { it.isDigit() }
         val letters = size.filter { it.isLetter() }.uppercase()
-        val sizeCode = (digits + letters).take(5)
+        val sizeCode = if (size.isNotBlank()) {
+            (digits + letters).take(5)
+        } else "XXXXX"
 
         val sku = buildString {
+            append(nameCode).append("-")
             if (categoryCode.isNotBlank()) append(categoryCode).append("-")
-            append(nameCode)
-            if (productTypeCode.isNotBlank()) append("-").append(productTypeCode)
-            if (sizeCode.isNotBlank()) append("-").append(sizeCode)
+            if (productTypeCode.isNotBlank()) append(productTypeCode).append("-")
+            if (sizeCode.isNotBlank()) append(sizeCode)
         }
         
         _generatedSku.value = sku
-        
-        _productParams.value?.let { product ->
-            product.stockKeepingUnit = sku
-            product.productCategory = category
-            product.categoryCode = categoryCode
-            if (isHandmade) {
-                product.productBarcode = sku.replace("-", "")
-            }
-            _productParams.postValue(product)
-        }
     }
 
-
-
-    fun setAllProducts(products: List<Product>) {
+    fun setProductList(products: List<Product>) {
         viewModelScope.launch {
-            _allProducts.value = products
-        }
-    }
-
-    fun setOutletList(outlets: List<Outlet>) {
-        viewModelScope.launch {
-            _outletList.postValue(outlets)
+            _productList.value = products
         }
     }
 
@@ -207,42 +196,31 @@ class AddProductViewModel(
         }
     }
 
-    fun saveProduct(adminUid: String, barbershopId: String, isAddMode: Boolean) {
+    fun setBarbershopId(id: String) {
+        viewModelScope.launch {
+            _barbershopId.value = id
+        }
+    }
+
+    fun setProductSelectedId(id: String) {
+        viewModelScope.launch {
+            _productSelectedId.value = id
+        }
+    }
+
+    fun setCurrentMode(mode: Int) {
+        viewModelScope.launch {
+            _currentMode.value = mode
+        }
+    }
+
+    fun saveProduct(isAddMode: Boolean) {
         viewModelScope.launch {
             val currentProduct = _productParams.value ?: return@launch
+            val bId = _barbershopId.value ?: return@launch
 
             _isSaving.value = true
             try {
-                // Ensure we have a UID for storage path
-                if (currentProduct.uid.isEmpty()) {
-                    currentProduct.uid = repository.generateProductId(barbershopId)
-                }
-
-                // Fill additional fields
-                currentProduct.rootRef = "barbershops/$barbershopId"
-
-                // Handle New Category persistence
-                val currentCategoryName = currentProduct.productCategory.trim()
-                if (currentCategoryName.isNotEmpty()) {
-                    val existingCategory = _categories.value?.find { 
-                        it.categoryName.equals(currentCategoryName, ignoreCase = true) 
-                    }
-                    
-                    if (existingCategory == null) {
-                        val newCategory = DataCategories(
-                            categoryName = currentCategoryName,
-                            categoryCode = currentCategoryName.take(3).uppercase(),
-                            barbershopRef = adminUid,
-                            intendedFor = "Product" // Assuming default
-                        )
-                        repository.saveProductCategory(newCategory)
-                        // Optional: Refresh local categories list
-                        val updatedList = (_categories.value ?: emptyList()).toMutableList()
-                        updatedList.add(newCategory)
-                        _categories.postValue(updatedList)
-                    }
-                }
-
                 // Handle Product Image Upload
                 _pendingImageUri.value?.let { uri ->
                     val storageRef = storage.reference.child("products/images/${currentProduct.uid}.png")
@@ -266,19 +244,21 @@ class AddProductViewModel(
                 }
 
                 val result = if (isAddMode) {
-                    repository.createProduct(barbershopId, currentProduct)
+                    repository.createProduct(bId, currentProduct)
                 } else {
-                    repository.updateProduct(barbershopId, currentProduct)
+                    repository.updateProduct(bId, currentProduct)
                 }
 
-                if (result.isSuccessful) {
-                    clearPendingImageUri()
+                _isSaving.value = false
+                if (result.isSuccessful) clearPendingImageUri()
+                if (isAddMode && result.isSuccessful) _productList.value = _productList.value.orEmpty() + currentProduct
+                else if (result.isSuccessful) {
+                    _productList.value = _productList.value.orEmpty().map { if (it.uid == currentProduct.uid) currentProduct else it }
                 }
                 _saveResult.postValue(result)
             } catch (e: Exception) {
+                _isSaving.value = false
                 _saveResult.postValue(FirestoreResult(isSuccessful = false, errorMessage = e.message ?: "Unknown error"))
-            } finally {
-                _isSaving.postValue(false)
             }
         }
     }
@@ -288,22 +268,5 @@ class AddProductViewModel(
             _saveResult.value = null
         }
     }
-    fun checkSkuUniqueness(barbershopId: String, sku: String): LiveData<Boolean?> {
-        val resultLiveData = MutableLiveData<Boolean?>()
-        viewModelScope.launch {
-            // If SKU is unchanged from the original product, it's considered unique for this context
-            if (_originalProduct.value?.stockKeepingUnit == sku) {
-                resultLiveData.postValue(true)
-                return@launch
-            }
-            
-            val result = repository.checkSkuUniqueness(barbershopId, sku)
-            if (result.isSuccessful) {
-                resultLiveData.postValue(result.data)
-            } else {
-                resultLiveData.postValue(null) // Error case
-            }
-        }
-        return resultLiveData
-    }
+
 }

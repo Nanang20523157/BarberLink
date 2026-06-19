@@ -267,8 +267,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
                     cvDateFilterLabel.setOnClickListener(this@CapitalInputFragment)
                     val dailyCapitalData = parentFragmentViewModel.dailyCapital.value
-                    Logger.d("CheckShimmer", "dailyCapitalString: ${(dailyCapitalString.toIntOrNull() ?: 0)} || outletCapital: ${dailyCapitalData?.outletCapital}")
-                    if (dailyCapitalData != null && (dailyCapitalString.replace(".", "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) setUserIdentity(dailyCapitalData)
+                    if (dailyCapitalData != null && (dailyCapitalString.replace(Regex("\\D"), "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) setUserIdentity(dailyCapitalData)
                     else setUserIdentity(null)
                 }
             }
@@ -290,8 +289,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                     // Setel warna teks ke warna default
                     binding.tvDateFilterLabel.setTextColor(binding.tvDateFilterValue.textColors.defaultColor)
                     val dailyCapitalData = parentFragmentViewModel.dailyCapital.value
-                    Logger.d("CheckShimmer", "dailyCapitalString: ${(dailyCapitalString.toIntOrNull() ?: 0)} || outletCapital: ${dailyCapitalData?.outletCapital}")
-                    if (dailyCapitalData != null && (dailyCapitalString.replace(".", "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) setUserIdentity(dailyCapitalData)
+                    if (dailyCapitalData != null && (dailyCapitalString.replace(Regex("\\D"), "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) setUserIdentity(dailyCapitalData)
                     else setUserIdentity(null)
                 }
             }
@@ -327,7 +325,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             // Consume click to prevent dismissal when clicking inside the form
         }
 
-        with (binding) {
+        binding.apply {
             btnSave.setOnClickListener(this@CapitalInputFragment)
             cd100000.setOnClickListener(this@CapitalInputFragment)
             cd150000.setOnClickListener(this@CapitalInputFragment)
@@ -375,8 +373,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
         outState.putBoolean("is_pop_up_dropdown_show", isPopUpDropdownShow)
         outState.putString("text_error_for_capital_amount", textErrorForCapitalAmount)
     }
-
-
 
     private fun updateMargins() {
         val params = binding.cdCapitalForm.layoutParams as ViewGroup.MarginLayoutParams
@@ -442,10 +438,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
             }
         }
 
-//        val input = binding.etDailyCapital.text.toString().ifEmpty { "0" }
-//        format.parse(input)?.toInt()?.let { number ->
-//            setupCapitalInputValue(number)
-//        }
         setupEditTextListeners()
 
         Log.d("SnapshotUID", "INIT")
@@ -943,7 +935,7 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                             val formattedAmount = format.parse(dailyCapitalString)?.toInt()
                             if (formattedAmount != null) {
                                 val dailyCapitalData = parentFragmentViewModel.dailyCapital.value
-                                val dataCreator = if (dailyCapitalData != null && (dailyCapitalString.replace(".", "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) dailyCapitalData.dataCreator
+                                val dataCreator = if (dailyCapitalData != null && (dailyCapitalString.replace(Regex("\\D"), "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) dailyCapitalData.dataCreator
                                 else null
                                 capitalInputViewModel.saveDailyCapital(formattedAmount, parentFragmentViewModel.outletSelected.value, uidDailyCapital, timeStampFilter, dataCreator)
                             } else {
@@ -951,14 +943,6 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                                 setFocus(binding.etDailyCapital)
                             }
                         }
-//                        var originalString = dailyCapitalString
-//                        if (dailyCapitalString.contains(".")) {
-//                            originalString = originalString.replace(".", "")
-//                        }
-//                        val formattedAmount = originalString.toInt()
-//                        if (originalString[0] == '0' && originalString.length > 1) {
-//                            isCapitalAmountValid = validateCapitalInput(true)
-//                        } else { }
                     } else {
                         toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
                         setFocus(binding.etDailyCapital)
@@ -1086,13 +1070,23 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                         try {
                             var originalString = s.toString().ifEmpty { "0" }
 
-                            // Check if the string is empty
-                            if (originalString.isEmpty()) {
-                                etDailyCapital.setText("0")
-                                etDailyCapital.setSelection(1)
-                                throw IllegalArgumentException("The original string is empty")
-                            } else if (originalString == "-") {
-                                throw IllegalArgumentException("The original string is a single dash")
+                            if (originalString == "-") {
+                                throw IllegalArgumentException("Input is not a number but no problem")
+                            } else if (originalString.replace(".", "").toLongOrNull() == null) {
+                                // ROLLBACK: Kembalikan teks ke angka valid terakhir yang diketik user
+                                val savedFilters = s.filters
+                                s.filters = arrayOf()
+                                s.replace(0, s.length, previousText)
+                                s.filters = savedFilters
+
+                                // Kembalikan posisi kursor dengan aman
+                                val safeCursor = previousCursorPosition.coerceIn(0, previousText.length)
+                                etDailyCapital.setSelection(safeCursor) // Ganti etDailyCapital dengan etMoneyAmount di fragment kedua
+
+                                // Hentikan fungsi agar tidak memanggil validasi (menghindari text merah berkedip)
+                                inputManualCheckOne = null
+                                etDailyCapital.addTextChangedListener(this)
+                                return
                             }
 
                             /// Remove the dots and update the original string
@@ -1103,24 +1097,23 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
                                 originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                             }
 
-//                            val parsed = originalString.replace(".", "")
-//                            val formatted = if (previousText == "0") {
-//                                format.format(parsed.toIntOrNull() ?: 0L)
-//                            } else {
-//                                formatWithDotsKeepingLeadingZeros(parsed)
-//                            }
-                            val cleanText = originalString.replace(".", "")
+                            val cleanText = originalString.replace(Regex("\\D"), "")
                             val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
-
-                            // Set the text
-                            etDailyCapital.setText(formatted)
-                            dailyCapitalString = formatted
 
                             // Calculate the new cursor position
                             val newCursorPosition = if (formatted == previousText) {
                                 previousCursorPosition
                             } else cursorPosition + (formatted.length - s.length)
+
+                            // Set the text
+                            if (formatted != s.toString()) {
+                                val savedFilters = s.filters     // 1. Simpan semua filter yang aktif (termasuk keyListener sistem)
+                                s.filters = arrayOf()            // 2. Bersihkan semua filter agar penggantian lancar tanpa hambatan
+                                s.replace(0, s.length, formatted) // 3. Lakukan replace teks
+                                s.filters = savedFilters         // 4. Kembalikan semua filter semula
+                            }
+                            dailyCapitalString = formatted
 
                             // Ensure the new cursor position is within the bounds of the new text
                             val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
@@ -1138,12 +1131,11 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 //                            isCapitalAmountValid = validateCapitalInput(false)
                             if (dailyCapitalString == "100.000" || dailyCapitalString == "150.000" || dailyCapitalString == "200.000") {
                                 skippedUpdateText = true
-                                setupCapitalInputValue(dailyCapitalString.replace(".", "").toIntOrNull() ?: 0)
+                                setupCapitalInputValue(dailyCapitalString.replace(Regex("\\D"), "").toIntOrNull() ?: 0)
                             }
                             isCapitalAmountValid = validateCapitalInput(true)
                             val dailyCapitalData = parentFragmentViewModel.dailyCapital.value
-                            Logger.d("CheckShimmer", "dailyCapitalString: ${(dailyCapitalString.toIntOrNull() ?: 0)} || outletCapital: ${dailyCapitalData?.outletCapital}")
-                            if (dailyCapitalData != null && (dailyCapitalString.replace(".", "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) setUserIdentity(dailyCapitalData)
+                            if (dailyCapitalData != null && (dailyCapitalString.replace(Regex("\\D"), "").toIntOrNull() ?: 0) == dailyCapitalData.outletCapital) setUserIdentity(dailyCapitalData)
                             else setUserIdentity(null)
                         }
                         inputManualCheckOne = null
@@ -1165,48 +1157,53 @@ class CapitalInputFragment : DialogFragment(), View.OnClickListener {
 
     private fun validateCapitalInput(checkLeadingZeros: Boolean): Boolean {
         with (binding) {
-            val capitalAmount = dailyCapitalString
-            val clearText = capitalAmount.replace(".", "")
-            val formattedAmount = clearText.toIntOrNull()
+            val rawCapitalText = etDailyCapital.text.toString().trim()
+            val clearCapitalText = rawCapitalText.replace(Regex("\\D"), "")
+            val capitalAmountLong = clearCapitalText.toLongOrNull()
 
-            if (capitalAmount != "100.000"
-                && capitalAmount != "150.000"
-                && capitalAmount != "200.000") {
+            if (rawCapitalText != "100.000"
+                && rawCapitalText != "150.000"
+                && rawCapitalText != "200.000") {
                 //selectCardView(null, null, null)
                 parentFragmentViewModel.saveSelectedCard(null, null, null)
             }
-            return if (textDropdownOutletName == "---" || capitalAmount == "-") {
+            return if (textDropdownOutletName == "---") {
                 textErrorForCapitalAmount = getString(R.string.there_was_a_problem_with_the_selected_outlet)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
                 clearFocus(etDailyCapital)
                 false
-            } else if (capitalAmount.isEmpty()) {
-                // gak pakek  || capitalAmount == "0"
+            } else if (rawCapitalText.isEmpty()) {
                 textErrorForCapitalAmount = getString(R.string.daily_capital_cannot_be_empty)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
                 setFocus(etDailyCapital)
                 false
-            } else if (formattedAmount == null) {
+            } else if (capitalAmountLong == null) {
                 textErrorForCapitalAmount = getString(R.string.daily_capital_must_be_a_number)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
                 setFocus(etDailyCapital)
                 false
-            } else if (capitalAmount[0] == '0' && capitalAmount.length > 1 && checkLeadingZeros) {
+            } // gak pakek capitalAmount <= 0
+            else if (rawCapitalText.isNotEmpty() && rawCapitalText[0] == '0' && rawCapitalText.length > 1 && checkLeadingZeros) {
                 textErrorForCapitalAmount = getString(R.string.your_value_entered_not_valid)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForCapitalAmount
-                val nominal = format.format(formattedAmount)
+                val nominal = format.format(capitalAmountLong)
                 parentFragmentViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
                 )
                 setFocus(etDailyCapital)
                 false
-            }
-            else {
+            } else if (capitalAmountLong > 2000000000L) {
+                textErrorForCapitalAmount = "Besaran modal tidak boleh melebihi 2 Milliar"
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForCapitalAmount
+                setFocus(etDailyCapital)
+                false
+            } else {
                 textErrorForCapitalAmount = ""
                 llInfo.visibility = View.GONE
                 tvInfo.text = textErrorForCapitalAmount

@@ -270,6 +270,12 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
         } else { Log.d("CheckShimmer", "Orientation Change BAF >>> savedInstanceState != null") }
 
         init()
+        // Mulai preload icon di background tanpa await, jadi tidak ikut menahan proses data lain.
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                com.example.barberlink.Helper.ServiceIconCache.preloadIcons()
+            }
+        }
         binding.apply {
             ivSettings.setOnClickListener(this@BerandaAdminFragment)
             fabManageCodeAccess.setOnClickListener(this@BerandaAdminFragment)
@@ -1032,11 +1038,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         }
                                     }
                                 },
-                                async {
-                                    runCatching {
-                                        com.example.barberlink.Helper.ServiceIconCache.preloadIcons()
-                                    }
-                                }
+                                // preload icons in background separately (do NOT await here because image
+                                // fetching may be slow). See startPreloadIcons invocation in onViewCreated.
                             )
 
                             jobs.awaitAll()
@@ -1388,7 +1391,19 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.seeAllProduk -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val bundle = Bundle().apply {
+                                        putParcelableArray("productList", (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray())
+                                        putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putParcelableArray("categoryList", (berandaAdminViewModel.productCategoryList.value ?: emptyList()).toTypedArray())
+                                    }
+                                    navController.navigate(R.id.action_nav_beranda_to_manageProductPage, bundle)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.seeAllPegawai -> {

@@ -435,7 +435,7 @@
     <string name="request_completed">Permintaan Selesai</string>
     <string name="amount_of_monay_label">Nominal Uang</string>
     <string name="amount_of_money_cannot_be_empty">Nominal uang tidak boleh kosong.</string>
-    <string name="amount_capital_must_be_a_number">Nominal uang harus berupa angka nominal.</string>
+    <string name="your_input_must_be_a_number">Nominal uang harus berupa angka.</string>
     <string name="amount_of_money_must_not_be_less_than">Nominal uang tidak boleh kurang dari %1$s</string>
     <string name="waiting_list">Daftar Tunggu:</string>
 

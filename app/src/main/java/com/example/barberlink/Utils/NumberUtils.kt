@@ -64,4 +64,48 @@ object NumberUtils {
         val numberFormat = NumberFormat.getInstance(localeID)
         return numberFormat.format(number)
     }
+
+    /**
+     * Format product sales count (productCounting) into a marketplace style representation.
+     * Ex:
+     * - 0 -> "0 terjual"
+     * - 5 -> "5 terjual"
+     * - 99 -> "99 terjual"
+     * - 100 -> "100+ terjual"
+     * - 599 -> "500+ terjual"
+     * - 1200 -> "1,2Rb+ terjual"
+     * - 19999 -> "19Rb+ terjual"
+     */
+    fun formatProductSold(soldCount: Int): String {
+        return when {
+            soldCount <= 0 -> "0 terjual"
+            soldCount < 100 -> "$soldCount terjual"
+            soldCount < 1000 -> {
+                val hundreds = (soldCount / 100) * 100
+                "$hundreds+ terjual"
+            }
+            soldCount < 10000 -> {
+                val thousands = soldCount / 1000
+                val remainder = (soldCount % 1000) / 100
+                if (remainder > 0) {
+                    "$thousands,$remainder" + "Rb+ terjual"
+                } else {
+                    "$thousands" + "Rb+ terjual"
+                }
+            }
+            soldCount < 1000000 -> {
+                val thousands = soldCount / 1000
+                "$thousands" + "Rb+ terjual"
+            }
+            else -> {
+                val millions = soldCount / 1000000
+                val remainder = (soldCount % 1000000) / 100000
+                if (remainder > 0) {
+                    "$millions,$remainder" + "Jt+ terjual"
+                } else {
+                    "$millions" + "Jt+ terjual"
+                }
+            }
+        }
+    }
 }

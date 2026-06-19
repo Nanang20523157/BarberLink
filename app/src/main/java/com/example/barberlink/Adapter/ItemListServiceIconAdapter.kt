@@ -45,12 +45,20 @@ class ItemListServiceIconAdapter(
         fun bind(icon: ServiceIcon) {
             val context = binding.root.context
             
-            // Set icon image via Glide URL only (iconRes is removed from data class)
-            Glide.with(context)
-                .load(icon.iconUrl)
-                .centerCrop()
-                .placeholder(R.drawable.img_service_icon_placeholder)
-                .into(binding.ivServiceIcon)
+            if (icon.iconRes != 0) {
+                Glide.with(context)
+                    .load(icon.iconRes)
+                    .centerCrop()
+                    .placeholder(R.drawable.img_service_icon_placeholder)
+                    .into(binding.ivServiceIcon)
+            } else {
+                Glide.with(context)
+                    .load(icon.iconUrl)
+                    .centerCrop()
+                    .placeholder(R.drawable.img_service_icon_placeholder)
+                    .error(R.drawable.img_service_icon_placeholder)
+                    .into(binding.ivServiceIcon)
+            }
 
             // Selection indicator
             if (icon.isSelected) {

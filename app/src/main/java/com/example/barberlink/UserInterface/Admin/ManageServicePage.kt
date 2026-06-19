@@ -66,6 +66,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     private var isNavigating = false
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
+    private var lastScrollDirectionY: Int = 0
 
     private lateinit var serviceListener: ListenerRegistration
     private var remainingListeners = AtomicInteger(1)
@@ -159,12 +160,11 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         }
 
         manageServiceViewModel.serviceList.observe(this) { serviceList ->
-            val list = serviceList ?: mutableListOf()
-            serviceAdapter.submitList(list.toList())
+            serviceAdapter.submitList(serviceList)
             Logger.d("ServiceList", "notifyDataSetChanged()")
             if (!isShimmerVisible) serviceAdapter.notifyDataSetChanged()
-            binding.tvServiceCountTitle.text = getString(R.string.daftar_layanan_title_template, list.size)
-            if (!isFirstLoad) binding.tvEmptyService.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            binding.tvServiceCountTitle.text = getString(R.string.daftar_layanan_title_template, serviceList.size)
+            if (!isFirstLoad) binding.tvEmptyService.visibility = if (serviceList.isEmpty()) View.VISIBLE else View.GONE
         }
 
         onBackPressedDispatcher.addCallback(this) {
@@ -194,109 +194,20 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         outState.putBoolean("is_handling_back", isHandlingBack)
     }
 
-    private fun applyVegaScrollEffect(recyclerView: androidx.recyclerview.widget.RecyclerView) {
-        val childCount = recyclerView.childCount
-        if (childCount <= 0) return
-
-        val firstChild = recyclerView.getChildAt(0)
-        // In a 2-column grid, Row 1 consists of indices 0 & 1, Row 2 starts at index 2
-        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
-
-        for (i in 0 until childCount) {
-            val child = recyclerView.getChildAt(i)
-            val itemHeight = child.height
-            if (itemHeight <= 0) continue
-
-            val rowSpacing = if (firstChild != null && secondRowChild != null) {
-                secondRowChild.top - firstChild.top
-            } else {
-                val density = recyclerView.context.resources.displayMetrics.density
-                itemHeight + (10f * density).toInt()
-            }
-
-            val transitionRange = rowSpacing.toFloat()
-            val topDistance = -child.top
-            val topDistanceFloat = topDistance.toFloat()
-
-            if (topDistanceFloat in 0f..transitionRange) {
-                val rate1 = topDistanceFloat / transitionRange
-                val rate2 = 1f - (rate1 * rate1) / 3f
-                val rate3 = 1f - (rate1 * rate1)
-                child.scaleX = rate2
-                child.scaleY = rate2
-                child.alpha = rate3
-                child.translationY = topDistanceFloat
-            } else if (child.top < 0) {
-                child.scaleX = 0.67f
-                child.scaleY = 0.67f
-                child.alpha = 0f
-                child.translationY = 0f
-            } else {
-                child.scaleX = 1f
-                child.scaleY = 1f
-                child.alpha = 1f
-                child.translationY = 0f
-            }
-        }
-    }
-
-    private fun snapToPosition(recyclerView: androidx.recyclerview.widget.RecyclerView) {
-        val childCount = recyclerView.childCount
-        if (childCount <= 0) return
-
-        var topChild: View? = null
-        var minTop = Int.MIN_VALUE
-
-        for (i in 0 until childCount) {
-            val child = recyclerView.getChildAt(i)
-            if (child.top <= 0 && child.top > minTop) {
-                minTop = child.top
-                topChild = child
-            }
-        }
-
-        if (topChild == null) return
-
-        val itemHeight = topChild.height
-        if (itemHeight <= 0) return
-
-        val firstChild = recyclerView.getChildAt(0)
-        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
-        val rowSpacing = if (firstChild != null && secondRowChild != null) {
-            secondRowChild.top - firstChild.top
-        } else {
-            val density = recyclerView.context.resources.displayMetrics.density
-            itemHeight + (10f * density).toInt()
-        }
-
-        val topDistance = -topChild.top
-        if (topDistance <= 5 || rowSpacing - topDistance <= 5) return // Already snapped
-
-        val fraction = topDistance.toFloat() / rowSpacing.toFloat()
-        val scrollNeeded = if (fraction > 0.5f) {
-            rowSpacing - topDistance
-        } else {
-            -topDistance
-        }
-
-        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) return
-        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) return
-
-        if (scrollNeeded != 0) {
-            recyclerView.smoothScrollBy(0, scrollNeeded)
-        }
-    }
-
     private fun init(savedInstanceState: Bundle?) {
         gridLayoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
         serviceAdapter = ItemManageServiceAdapter(this, this, this)
         binding.rvServiceList.layoutManager = gridLayoutManager
         binding.rvServiceList.adapter = serviceAdapter
+        adjustRecyclerViewPadding(true)
 
         // Apply Vega-Grid Scroll Effect
         binding.rvServiceList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
                 applyVegaScrollEffect(recyclerView)
+                if (dy != 0) {
+                    lastScrollDirectionY = dy
+                }
             }
 
             override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
@@ -307,6 +218,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             }
         })
         binding.rvServiceList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            adjustRecyclerViewPadding(true)
             applyVegaScrollEffect(binding.rvServiceList)
         }
 
@@ -362,7 +274,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
 
                 val density = recyclerView.resources.displayMetrics.density
 
-                val cardView = itemView.findViewById<View>(R.id.cvCardService)
+                val cardView = itemView.findViewById<View>(R.id.cvMainInfoService)
                 val cardTop: Float
                 val cardBottom: Float
                 val cardLeft: Float
@@ -682,10 +594,156 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         }
     }
 
+    private fun applyVegaScrollEffect(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        val childCount = recyclerView.childCount
+        if (childCount <= 0) return
+
+        val firstChild = recyclerView.getChildAt(0)
+        // In a 2-column grid, Row 1 consists of indices 0 & 1, Row 2 starts at index 2
+        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+
+        for (i in 0 until childCount) {
+            val child = recyclerView.getChildAt(i)
+            val itemHeight = child.height
+            if (itemHeight <= 0) continue
+
+            val rowSpacing = if (firstChild != null && secondRowChild != null) {
+                secondRowChild.top - firstChild.top
+            } else {
+                val density = recyclerView.context.resources.displayMetrics.density
+                itemHeight + (10f * density).toInt()
+            }
+
+            val transitionRange = rowSpacing.toFloat()
+            val topDistance = -child.top
+            val topDistanceFloat = topDistance.toFloat()
+
+            if (topDistanceFloat in 0f..transitionRange) {
+                val rate1 = topDistanceFloat / transitionRange
+                val rate2 = 1f - (rate1 * rate1) / 3f
+                val rate3 = 1f - (rate1 * rate1)
+                child.scaleX = rate2
+                child.scaleY = rate2
+                child.alpha = rate3
+                child.translationY = topDistanceFloat
+            } else if (child.top < 0) {
+                child.scaleX = 0.67f
+                child.scaleY = 0.67f
+                child.alpha = 0f
+                child.translationY = 0f
+            } else {
+                child.scaleX = 1f
+                child.scaleY = 1f
+                child.alpha = 1f
+                child.translationY = 0f
+            }
+        }
+    }
+
+    private fun snapToPosition(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        val childCount = recyclerView.childCount
+        if (childCount <= 0) return
+
+        var topChild: View? = null
+        var minTop = Int.MIN_VALUE
+
+        for (i in 0 until childCount) {
+            val child = recyclerView.getChildAt(i)
+            if (child.top <= 0 && child.top > minTop) {
+                minTop = child.top
+                topChild = child
+            }
+        }
+
+        if (topChild == null) return
+
+        val itemHeight = topChild.height
+        if (itemHeight <= 0) return
+
+        val firstChild = recyclerView.getChildAt(0)
+        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+        val rowSpacing = if (firstChild != null && secondRowChild != null) {
+            secondRowChild.top - firstChild.top
+        } else {
+            val density = recyclerView.context.resources.displayMetrics.density
+            itemHeight + (10f * density).toInt()
+        }
+
+        val topDistance = -topChild.top
+        if (topDistance <= 5 || rowSpacing - topDistance <= 5) return // Already snapped
+
+        val scrollNeeded = if (lastScrollDirectionY > 0) {
+            rowSpacing - topDistance
+        } else if (lastScrollDirectionY < 0) {
+            -topDistance
+        } else {
+            val fraction = topDistance.toFloat() / rowSpacing.toFloat()
+            if (fraction > 0.5f) rowSpacing - topDistance else -topDistance
+        }
+
+        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) return
+        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) return
+
+        if (scrollNeeded != 0) {
+            recyclerView.smoothScrollBy(0, scrollNeeded)
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         if (isChangingConfigurations) {
             return // Don't clear data if only orientation changes
+        }
+    }
+
+    private fun adjustRecyclerViewPadding(isGrid: Boolean) {
+        val density = resources.displayMetrics.density
+        val startPadding = if (isGrid) (1 * density).toInt() else 0
+        val endPadding = if (isGrid) (8.5 * density).toInt() else 0
+        
+        binding.bottomFloatArea.post {
+            val child = binding.rvServiceList.getChildAt(0)
+            val itemHeightWithMargins = if (child != null) {
+                val lp = child.layoutParams as ViewGroup.MarginLayoutParams
+                child.height + lp.topMargin + lp.bottomMargin
+            } else {
+                val heightDp = if (isGrid) 220 else 180
+                (heightDp * density).toInt()
+            }
+            
+            val itemCount = serviceAdapter.itemCount
+            val rowCount = if (isGrid) (itemCount + 1) / 2 else itemCount
+            val totalItemsHeight = rowCount * itemHeightWithMargins
+            
+            val floatAreaHeight = binding.bottomFloatArea.height
+            val layoutParams = binding.rvServiceList.layoutParams as ViewGroup.MarginLayoutParams
+            val marginBottom = layoutParams.bottomMargin
+            val rvHeight = binding.rvServiceList.height
+            
+            val initialPaddingBottom = if (floatAreaHeight > marginBottom) {
+                floatAreaHeight - marginBottom
+            } else {
+                0
+            }
+            
+            val realHeightRecycleView = rvHeight - initialPaddingBottom
+            val modulo = if (itemHeightWithMargins > 0) realHeightRecycleView % itemHeightWithMargins else 0
+            
+            val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
+            
+            val bottomPadding = if (doesItemsExceedRecycleView) {
+                initialPaddingBottom + modulo
+            } else {
+                initialPaddingBottom
+            }
+            
+            val currentPaddingBottom = binding.rvServiceList.paddingBottom
+            val currentPaddingStart = binding.rvServiceList.paddingStart
+            val currentPaddingEnd = binding.rvServiceList.paddingEnd
+            
+            if (currentPaddingBottom != bottomPadding || currentPaddingStart != startPadding || currentPaddingEnd != endPadding) {
+                binding.rvServiceList.setPaddingRelative(startPadding, 0, endPadding, bottomPadding)
+            }
         }
     }
 

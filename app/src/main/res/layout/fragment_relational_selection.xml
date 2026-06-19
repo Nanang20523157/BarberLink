@@ -84,9 +84,9 @@
                     android:nestedScrollingEnabled="false"
                     android:orientation="vertical"
                     app:layoutManager="androidx.recyclerview.widget.GridLayoutManager"
-                    app:spanCount="1"
+                    app:spanCount="2"
                     tools:itemCount="4"
-                    tools:listitem="@layout/item_employee_select_adapter"
+                    tools:listitem="@layout/item_product_select_adapter"
                     android:clipToPadding="false"
                     android:clipChildren="false"/>
 

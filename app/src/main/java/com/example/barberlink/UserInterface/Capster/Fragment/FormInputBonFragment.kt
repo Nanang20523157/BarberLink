@@ -286,12 +286,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                 Log.d("CheckPion", "Z >> isOrientationChanged = $isOrientationChanged")
                 if (!isOrientationChanged) {
                     val previousNominalBon = binding.etBonAmount.text.toString().ifEmpty { "0" }
-                    returnTypeSelected = bonEmployeeData.returnType
-                    userReasonNotes = bonEmployeeData.reasonNoted
                     setInitialInputForm()
                     if (isFirstLoad) init(view)
                     else { if (!formInputBonViewModel.getIsSaveProcess()) toastViewModel.showToast("Mendeteksi perubahan pada data Bon pegawai.", false) }
-                    if (bonEmployeeData.reasonNoted.isNotEmpty()) binding.etUserReason.setText(bonEmployeeData.reasonNoted)
                     bonAmountString = binding.etBonAmount.text.toString()
                     // Seng marakke Edit ora Auto Focus sedangkan New malah Auto Focus >> bonAmountString != "0"
                     if (bonAmountString != "0") {
@@ -311,8 +308,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                     }
                 } else {
                     init(view)
-                    //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(binding.etBonAmount.text.toString().ifEmpty { "0" }))
-                    //binding.etUserReason.setText(binding.etUserReason.text.toString())
                 }
 
                 Log.d("ChangeOriented", "Line 1: $isOrientationChanged")
@@ -366,7 +361,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             }
         }
 
-        with (binding) {
+        binding.apply {
             btnSave.setOnClickListener(this@FormInputBonFragment)
             cd100000.setOnClickListener(this@FormInputBonFragment)
             cd150000.setOnClickListener(this@FormInputBonFragment)
@@ -378,15 +373,18 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
     }
 
     private fun setInitialInputForm() {
+        returnTypeSelected = bonEmployeeData.returnType
+        userReasonNotes = bonEmployeeData.reasonNoted
+        binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
+        binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
+        setupBonInputValue(bonEmployeeData.bonDetails.nominalBon)
+
         if (returnTypeSelected == "From Salary") {
             binding.acTypeOfReturn.setText(getString(R.string.pay_from_salary_text), false)
         } else if (returnTypeSelected == "From Installment") {
             binding.acTypeOfReturn.setText(getString(R.string.pay_from_installment_text), false)
         }
-        //binding.etBonAmount.setText(formatWithDotsKeepingLeadingZeros(bonEmployeeData.bonDetails.nominalBon.toString()))
-        binding.etBonAmount.setText(format.format(bonEmployeeData.bonDetails.nominalBon))
-        binding.etBonAmount.text?.let { binding.etBonAmount.setSelection(it.length) }
-        setupBonInputValue(bonEmployeeData.bonDetails.nominalBon)
+        if (bonEmployeeData.reasonNoted.isNotEmpty()) binding.etUserReason.setText(bonEmployeeData.reasonNoted)
         if (binding.etBonAmount.isFocused) {
             binding.etBonAmount.clearFocus()
 
@@ -731,15 +729,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                             toastViewModel.showToast("Data yang dimasukkan pengguna tidak valid!", true)
                             setFocus(binding.etBonAmount)
                         }
-//                        var originalString = bonAmountString
-//                        if (bonAmountString.contains(".")) {
-//                            originalString = originalString.replace(".", "")
-//                        }
-//                        val formattedAmount = originalString.toInt()
-//                        if (originalString[0] == '0' && originalString.length > 1) {
-//                            Log.d("FormulirBon", "originalString: $originalString")
-//                            isBonAmountValid = validateBonAmountInput(true)
-//                        } else { }
                     } else {
                         toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan!", true)
                         Log.d("FormulirBon", "isReturnTypeValid: $isReturnTypeValid || isBonAmountValid: $isBonAmountValid || isEmployeeReasonValid: $isEmployeeReasonValid")
@@ -865,6 +854,7 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                     }
                 }
             }
+            etUserReason.addTextChangedListener(textWatcher1)
 
             textWatcher2 = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -880,15 +870,24 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
                         try {
                             var originalString = s.toString().ifEmpty { "0" }
-                            Log.d("TextBonAmount", "previousText: $previousText || originalString: $originalString")
 
-                            // Check if the string is empty
-                            if (originalString.isEmpty()) {
-                                etBonAmount.setText("0")
-                                etBonAmount.setSelection(1)
-                                throw IllegalArgumentException("The original string is empty")
-                            } else if (originalString == "-") {
-                                throw IllegalArgumentException("The original string is a single dash")
+                            if (originalString == "-") {
+                                throw IllegalArgumentException("Input is not a number but no problem")
+                            } else if (originalString.replace(".", "").toLongOrNull() == null) {
+                                // ROLLBACK: Kembalikan teks ke angka valid terakhir yang diketik user
+                                val savedFilters = s.filters
+                                s.filters = arrayOf()
+                                s.replace(0, s.length, previousText)
+                                s.filters = savedFilters
+
+                                // Kembalikan posisi kursor dengan aman
+                                val safeCursor = previousCursorPosition.coerceIn(0, previousText.length)
+                                etBonAmount.setSelection(safeCursor) // Ganti etDailyCapital dengan etMoneyAmount di fragment kedua
+
+                                // Hentikan fungsi agar tidak memanggil validasi (menghindari text merah berkedip)
+                                inputManualCheckOne = null
+                                etBonAmount.addTextChangedListener(this)
+                                return
                             }
 
                             /// Remove the dots and update the original string
@@ -899,27 +898,23 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                                 originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                             }
 
-//                            val parsed = originalString.replace(".", "")
-//                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-//                            val formatted = if (previousText == "0") {
-//                                format.format(parsed.toIntOrNull() ?: 0L)
-//                            } else {
-//                                formatWithDotsKeepingLeadingZeros(parsed)
-//                            }
-                            val cleanText = originalString.replace(".", "")
+                            val cleanText = originalString.replace(Regex("\\D"), "")
                             val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
 
-                            // Set the text
-                            etBonAmount.setText(formatted)
-                            bonAmountString = formatted
-                            Log.d("TextBonAmount", "bonAmountString: $bonAmountString")
-
                             // Calculate the new cursor position
-                            //val newCursorPosition = cursorPosition + (formatted.length - s.length)
                             val newCursorPosition = if (formatted == previousText) {
                                 previousCursorPosition
                             } else cursorPosition + (formatted.length - s.length)
+
+                            // Set the text
+                            if (formatted != s.toString()) {
+                                val savedFilters = s.filters     // 1. Simpan semua filter yang aktif (termasuk keyListener sistem)
+                                s.filters = arrayOf()            // 2. Bersihkan semua filter agar penggantian lancar tanpa hambatan
+                                s.replace(0, s.length, formatted) // 3. Lakukan replace teks
+                                s.filters = savedFilters         // 4. Kembalikan semua filter semula
+                            }
+                            bonAmountString = formatted
 
                             // Ensure the new cursor position is within the bounds of the new text
                             val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
@@ -936,10 +931,9 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
                         inputManualCheckTri?.invoke() ?: run {
                             if (bonAmountString == "100.000" || bonAmountString == "150.000" || bonAmountString == "200.000") {
                                 skippedUpdateText = true
-                                setupBonInputValue(bonAmountString.replace(".", "").toIntOrNull() ?: 0)
+                                setupBonInputValue(bonAmountString.replace(Regex("\\D"), "").toIntOrNull() ?: 0)
                             }
                             isBonAmountValid = validateBonAmountInput(true)
-//                            isBonAmountValid = validateBonAmountInput(false)
                         }
                         inputManualCheckTri = null
                         etBonAmount.addTextChangedListener(this)
@@ -948,7 +942,6 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
             }
 
             Logger.d("UserInputCheck", "=== FormInputBonFragment ===")
-            etUserReason.addTextChangedListener(textWatcher1)
             etBonAmount.addTextChangedListener(textWatcher2)
         }
     }
@@ -1000,38 +993,49 @@ class FormInputBonFragment : DialogFragment(), View.OnClickListener {
 
     private fun validateBonAmountInput(checkLeadingZeros: Boolean): Boolean {
         with (binding) {
-            val bonAmount = bonAmountString
-            val clearText = bonAmount.replace(".", "")
-            val formattedAmount = clearText.toIntOrNull()
+            val rawBonText = etBonAmount.text.toString().trim()
+            val clearBonText = rawBonText.replace(Regex("\\D"), "")
+            val bonAmountLong = clearBonText.toLongOrNull()
 
-            if ( bonAmount != "100.000"
-                && bonAmount != "150.000"
-                && bonAmount != "200.000") {
+            if (rawBonText != "100.000"
+                && rawBonText != "150.000"
+                && rawBonText != "200.000") {
                 //selectCardView(null, null, null)
                 bonEmployeeViewModel.saveSelectedCard(null, null, null)
             }
-            return if (bonAmount.isEmpty() || bonAmount == "0") {
+            return if (rawBonText.isEmpty()) {
                 textErrorForBonAmount = getString(R.string.bon_amount_cannot_be_empty)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForBonAmount
                 setFocus(etBonAmount)
                 false
-            } else if (formattedAmount == null) {
+            } else if (bonAmountLong == null) {
                 textErrorForBonAmount = getString(R.string.bon_amount_must_be_a_number)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForBonAmount
                 setFocus(etBonAmount)
                 false
-            } else if (bonAmount[0] == '0' && bonAmount.length > 1 && checkLeadingZeros) {
+            } else if (bonAmountLong <= 0) {
+                textErrorForBonAmount = "Nominal pinjaman harus lebih besar dari 0"
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForBonAmount
+                setFocus(etBonAmount)
+                false
+            } else if (rawBonText.isNotEmpty() && rawBonText[0] == '0' && rawBonText.length > 1 && checkLeadingZeros) {
                 textErrorForBonAmount = getString(R.string.your_value_entered_not_valid)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForBonAmount
-                //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
-                val nominal = format.format(formattedAmount)
+                val nominal = format.format(bonAmountLong)
                 bonEmployeeViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
                 )
+                setFocus(etBonAmount)
+                false
+            } else if (bonAmountLong > 2000000000L) {
+                textErrorForBonAmount = "Nominal pinjaman tidak boleh melebihi 2 Milliar"
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForBonAmount
                 setFocus(etBonAmount)
                 false
             } else {

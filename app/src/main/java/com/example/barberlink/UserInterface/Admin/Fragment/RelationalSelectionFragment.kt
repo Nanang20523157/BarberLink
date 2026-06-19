@@ -203,11 +203,8 @@ class RelationalSelectionFragment : BottomSheetDialogFragment() {
             "BUNDLING" -> {
                 packageAdapter?.setShimmer(true)
                 if (isBundlingActivity) {
-                    addBundlingViewModel.allBundling.observe(viewLifecycleOwner) { list ->
-                        packageAdapter?.setAllServices(addBundlingViewModel.allServices.value ?: emptyList())
-                        packageAdapter?.setShimmer(false)
-                        packageAdapter?.submitList(list)
-                    }
+                    // Bundling activity doesn't currently select bundling, but keep safe just in case
+                    staffAdapter?.setShimmer(false)
                 } else {
                     addOutletViewModel.allBundling.observe(viewLifecycleOwner) { list ->
                         packageAdapter?.setAllServices(addOutletViewModel.allServices.value ?: emptyList())

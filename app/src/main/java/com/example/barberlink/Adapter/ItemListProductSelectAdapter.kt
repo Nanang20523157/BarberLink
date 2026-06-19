@@ -7,9 +7,17 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
+import android.os.Build
+import android.widget.ImageView
+import androidx.annotation.RequiresApi
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.R
+import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemProductSelectAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutProductSelectBinding
 import com.facebook.shimmer.ShimmerFrameLayout
@@ -68,18 +76,34 @@ class ItemListProductSelectAdapter(
         fun bind(product: Product) {
             with(binding) {
                 tvProductName.text = product.productName
+                tvProductName.isSelected = true
                 tvProdukMenu.text = product.productName
                 tvRating.text = product.productRating.toString()
-                tvProductSold.text = product.productCounting.toString()
-                tvPrice.text = formatPrice(product.productPrice)
+                tvProductSold.text = NumberUtils.formatProductSold(product.productCounting)
+                tvPrice.text = NumberUtils.numberToCurrency(product.productPrice.toDouble())
 
+                // Product Image
                 if (product.imgProduct.isNotEmpty()) {
-                    tvProdukMenu.visibility = View.INVISIBLE
-                    Glide.with(root.context).load(product.imgProduct)
-                        .placeholder(R.drawable.banner_1)
-                        .centerCrop().into(ivProductImage)
+                    Glide.with(root.context)
+                        .asBitmap()
+                        .load(product.imgProduct)
+                        .placeholder(R.drawable.mystery_box2)
+                        .error(R.drawable.mystery_box2)
+                        .into(object : CustomTarget<Bitmap>() {
+                            @RequiresApi(Build.VERSION_CODES.O)
+                            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                val isTransparent = resource.hasTransparentCorners()
+                                ivProductImage.adjustPadding(isTransparent)
+                                ivProductImage.setImageBitmap(resource)
+                            }
+
+                            override fun onLoadCleared(placeholder: Drawable?) {
+                                ivProductImage.setImageDrawable(placeholder)
+                            }
+                        })
                 } else {
-                    tvProdukMenu.visibility = View.VISIBLE
+                    ivProductImage.adjustPadding(true)
+                    ivProductImage.setImageResource(R.drawable.mystery_box2)
                 }
 
                 val isSelected = selectedIds.contains(product.uid)
@@ -112,5 +136,43 @@ class ItemListProductSelectAdapter(
     class ProductDiffCallback : DiffUtil.ItemCallback<Product>() {
         override fun areItemsTheSame(o: Product, n: Product) = o.uid == n.uid
         override fun areContentsTheSame(o: Product, n: Product) = o == n
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+private fun Bitmap.hasTransparentCorners(): Boolean {
+    if (this.config != Bitmap.Config.ARGB_8888 && this.config != Bitmap.Config.RGBA_F16) {
+        return false
+    }
+
+    val w = this.width
+    val h = this.height
+
+    val topLeft = this.getPixel(0, 0)
+    val topRight = this.getPixel(w - 1, 0)
+    val bottomLeft = this.getPixel(0, h - 1)
+    val bottomRight = this.getPixel(w - 1, h - 1)
+
+    fun isPixelTransparent(pixelColor: Int): Boolean {
+        val alpha = (pixelColor shr 24) and 0xff
+        return alpha < 255
+    }
+
+    return isPixelTransparent(topLeft) || 
+           isPixelTransparent(topRight) || 
+           isPixelTransparent(bottomLeft) || 
+           isPixelTransparent(bottomRight)
+}
+
+private fun ImageView.adjustPadding(isTransparent: Boolean) {
+    if (isTransparent) {
+        val paddingInDp = 0
+        val scale = this.context.resources.displayMetrics.density
+        val paddingInPx = (paddingInDp * scale + 0.5f).toInt()
+        this.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
+        this.scaleType = ImageView.ScaleType.CENTER_INSIDE
+    } else {
+        this.setPadding(0, 0, 0, 0)
+        this.scaleType = ImageView.ScaleType.CENTER_CROP
     }
 }

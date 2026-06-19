@@ -215,11 +215,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
 
         manageOutletViewModel.outletList.observe(this) { outletList ->
             val itemUID = outletList.map { it.uid }
-
             val expandedMap = outletList.associate { outlet ->
                 outlet.uid to !outlet.isCollapseCard
             }
-
             vegaLayoutManager.setExpandedState(
                 itemUID,
                 expandedMap,
@@ -318,6 +316,10 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
         outletAdapter = ItemManageOutletAdapter(this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage, this@ManageOutletPage)
         binding.rvOutletList.layoutManager = vegaLayoutManager
         binding.rvOutletList.adapter = outletAdapter
+        adjustRecyclerViewPadding(false)
+        binding.rvOutletList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            adjustRecyclerViewPadding(false)
+        }
 
         // ── Swipe to delete ──────────────────────────────────────────────────
         val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
@@ -510,23 +512,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             isShimmerVisible = true
         }
         manageOutletViewModel.setDefaultCode(getString(R.string.default_empty_code_access))
-//        val outletList = manageOutletViewModel.outletList.value ?: mutableListOf()
-//        outletList.forEach {
-//            Log.d("TestCLickMore", "outletName ${it.outletName} || isCollapseCard: ${it.isCollapseCard}")
-//        }
-//        val itemUID = outletList.map { it.uid }
-//        vegaLayoutManager.setItemUID(itemUID)
-//        vegaLayoutManager.setExpandedState(outletList)
-//        outletAdapter.submitList(outletList)
-
-        // Ubah tinggi layout root
-//        val layoutParams = binding.root.layoutParams
-//        layoutParams.height = if (outletsList.isEmpty())
-//            ViewGroup.LayoutParams.MATCH_PARENT
-//        else
-//            ViewGroup.LayoutParams.WRAP_CONTENT
-//        binding.root.layoutParams = layoutParams
-//        binding.tvEmptyOutlet.visibility = if (outletList.isEmpty()) View.VISIBLE else View.GONE
 
         if (savedInstanceState == null || isShimmerVisible) {
             lifecycleScope.launch {
@@ -1012,6 +997,57 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
     private fun clearBackStack() {
         while (fragmentManager.backStackEntryCount > 0) {
             fragmentManager.popBackStackImmediate()
+        }
+    }
+
+    private fun adjustRecyclerViewPadding(isGrid: Boolean) {
+        val density = resources.displayMetrics.density
+        val startPadding = if (isGrid) (1 * density).toInt() else 0
+        val endPadding = if (isGrid) (8.5 * density).toInt() else 0
+        
+        binding.bottomFloatArea.post {
+            val child = binding.rvOutletList.getChildAt(0)
+            val itemHeightWithMargins = if (child != null) {
+                val lp = child.layoutParams as ViewGroup.MarginLayoutParams
+                child.height + lp.topMargin + lp.bottomMargin
+            } else {
+                val heightDp = if (isGrid) 220 else 180
+                (heightDp * density).toInt()
+            }
+            
+            val itemCount = outletAdapter.itemCount
+            val rowCount = if (isGrid) (itemCount + 1) / 2 else itemCount
+            val totalItemsHeight = rowCount * itemHeightWithMargins
+            
+            val floatAreaHeight = binding.bottomFloatArea.height
+            val layoutParams = binding.rvOutletList.layoutParams as ViewGroup.MarginLayoutParams
+            val marginBottom = layoutParams.bottomMargin
+            val rvHeight = binding.rvOutletList.height
+            
+            val initialPaddingBottom = if (floatAreaHeight > marginBottom) {
+                floatAreaHeight - marginBottom
+            } else {
+                0
+            }
+            
+            val realHeightRecycleView = rvHeight - initialPaddingBottom
+            val modulo = if (itemHeightWithMargins > 0) realHeightRecycleView % itemHeightWithMargins else 0
+            
+            val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
+            
+            val bottomPadding = if (doesItemsExceedRecycleView) {
+                initialPaddingBottom + modulo
+            } else {
+                initialPaddingBottom
+            }
+            
+            val currentPaddingBottom = binding.rvOutletList.paddingBottom
+            val currentPaddingStart = binding.rvOutletList.paddingStart
+            val currentPaddingEnd = binding.rvOutletList.paddingEnd
+            
+            if (currentPaddingBottom != bottomPadding || currentPaddingStart != startPadding || currentPaddingEnd != endPadding) {
+                binding.rvOutletList.setPaddingRelative(startPadding, 0, endPadding, bottomPadding)
+            }
         }
     }
 

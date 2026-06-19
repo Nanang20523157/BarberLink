@@ -198,7 +198,7 @@ class ItemManageServiceAdapter(
                 }
 
                 // Card click (navigate to view)
-                root.setOnClickListener {
+                cvMainInfoService.setOnClickListener {
                     if (blockAllUserClickAction) {
                         displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
@@ -223,14 +223,6 @@ class ServiceDiffCallback : DiffUtil.ItemCallback<Service>() {
     }
 
     override fun areContentsTheSame(oldItem: Service, newItem: Service): Boolean {
-        return oldItem.serviceName == newItem.serviceName &&
-                oldItem.serviceDesc == newItem.serviceDesc &&
-                oldItem.servicePrice == newItem.servicePrice &&
-                oldItem.serviceRating == newItem.serviceRating &&
-                oldItem.serviceIcon == newItem.serviceIcon &&
-                oldItem.serviceImg == newItem.serviceImg &&
-                oldItem.freeOfCharge == newItem.freeOfCharge &&
-                oldItem.resultsShareFormat == newItem.resultsShareFormat &&
-                oldItem.serviceCategory == newItem.serviceCategory
+        return oldItem == newItem
     }
 }

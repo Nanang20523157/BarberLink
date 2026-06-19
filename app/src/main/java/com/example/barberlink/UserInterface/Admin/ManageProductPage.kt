@@ -18,11 +18,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.example.barberlink.Adapter.ItemManageProductAdapter
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.DataCategories
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
 import com.example.barberlink.Helper.ScopedUniversalDebounce
-import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
@@ -53,7 +53,7 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
     }
     private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var productAdapter: ItemManageProductAdapter
-    private lateinit var vegaLayoutManager: VegaLayoutManager
+    private lateinit var gridLayoutManager: androidx.recyclerview.widget.GridLayoutManager
     private val debounce by lazy { ScopedUniversalDebounce() }
 
     // ARGS
@@ -64,6 +64,7 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
     private var isNavigating = false
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
+    private var lastScrollDirectionY: Int = 0
 
     private lateinit var productListener: ListenerRegistration
     private var remainingListeners = AtomicInteger(1)
@@ -116,11 +117,16 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
         } else {
-            val userAdminData = intent.getParcelableExtra<UserAdminData>("ADMIN_DATA_KEY")
-            if (userAdminData != null) {
-                manageProductViewModel.setUserAdminData(userAdminData)
-                barbershopId = userAdminData.uid
-            }
+            val args = ManageProductPageArgs.fromBundle(intent.extras ?: Bundle())
+            val productsList = args.productList.toCollection(ArrayList())
+            manageProductViewModel.setProductList(productsList)
+
+            val userAdminData = args.userAdminData
+            manageProductViewModel.setUserAdminData(userAdminData)
+            barbershopId = userAdminData.uid
+
+            val productCategoryList = args.categoryList.toCollection(ArrayList())
+            manageProductViewModel.setCategoryList(productCategoryList)
         }
 
         init(savedInstanceState)
@@ -147,11 +153,10 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
         }
 
         manageProductViewModel.productList.observe(this) { productList ->
-            val list = productList ?: mutableListOf()
-            productAdapter.submitList(list.toList())
-            productAdapter.notifyDataSetChanged()
-            binding.tvProductCountTitle.text = getString(R.string.daftar_produk_title_template, list.size)
-            binding.tvEmptyProduct.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            productAdapter.submitList(productList)
+            if (!isShimmerVisible) productAdapter.notifyDataSetChanged()
+            binding.tvProductCountTitle.text = getString(R.string.daftar_produk_title_template, productList.size)
+            if (!isFirstLoad) binding.tvEmptyProduct.visibility = if (productList.isEmpty()) View.VISIBLE else View.GONE
         }
 
         onBackPressedDispatcher.addCallback(this) {
@@ -182,15 +187,37 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
     }
 
     private fun init(savedInstanceState: Bundle?) {
-        vegaLayoutManager = VegaLayoutManager()
+        gridLayoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
         productAdapter = ItemManageProductAdapter(this, this, this)
-        binding.rvProductList.layoutManager = vegaLayoutManager
+        binding.rvProductList.layoutManager = gridLayoutManager
         binding.rvProductList.adapter = productAdapter
+        adjustRecyclerViewPadding(true)
+
+        // Apply Vega-Grid Scroll Effect
+        binding.rvProductList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+                applyVegaScrollEffect(recyclerView)
+                if (dy != 0) {
+                    lastScrollDirectionY = dy
+                }
+            }
+
+            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
+                if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) {
+                    snapToPosition(recyclerView)
+                }
+            }
+        })
+        binding.rvProductList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            adjustRecyclerViewPadding(true)
+            applyVegaScrollEffect(binding.rvProductList)
+        }
 
         // Swipe to delete
         val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
             0,
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT
+            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
         ) {
             override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
                                 vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
@@ -228,24 +255,136 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
                 dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
             ) {
                 val itemView = viewHolder.itemView
-                val paint = android.graphics.Paint()
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.parseColor("#FF3B30")
+                    isAntiAlias = true
+                }
 
-                if (dX < 0) {
-                    paint.color = android.graphics.Color.parseColor("#FF3B30")
-                    c.drawRect(itemView.right + dX, itemView.top.toFloat(), itemView.right.toFloat(), itemView.bottom.toFloat(), paint)
-                    val icon = androidx.core.content.ContextCompat.getDrawable(this@ManageProductPage, R.drawable.ic_swipe_to_left)
-                    icon?.let {
-                        val iconSize = 28.dp
-                        val margin = 20.dp
-                        val iconTop = itemView.top + (itemView.height - iconSize) / 2
-                        it.setBounds(itemView.right - margin - iconSize, iconTop, itemView.right - margin, iconTop + iconSize)
-                        it.setTint(android.graphics.Color.WHITE)
-                        it.draw(c)
+                val density = recyclerView.resources.displayMetrics.density
+
+                val cardView = itemView.findViewById<View>(R.id.cvMainInfoProduct)
+                val cardTop: Float
+                val cardBottom: Float
+                val cardLeft: Float
+                val cardRight: Float
+
+                val cornerRadius = 13f * density
+                val overlap = cornerRadius
+
+                if (cardView != null) {
+                    var localTop = cardView.top.toFloat()
+                    var localLeft = cardView.left.toFloat()
+                    var p = cardView.parent as? View
+                    while (p != null && p != itemView) {
+                        localTop += p.top
+                        localLeft += p.left
+                        p = p.parent as? View
+                    }
+                    cardTop = itemView.top.toFloat() + localTop
+                    cardBottom = cardTop + cardView.height.toFloat()
+                    cardLeft = itemView.left.toFloat() + localLeft
+                    cardRight = cardLeft + cardView.width.toFloat()
+                } else {
+                    val paddingTop = itemView.paddingTop.toFloat()
+                    val paddingBottom = itemView.paddingBottom.toFloat()
+                    val paddingLeft = itemView.paddingLeft.toFloat()
+                    val paddingRight = itemView.paddingRight.toFloat()
+
+                    cardTop = itemView.top.toFloat() + paddingTop
+                    cardBottom = itemView.bottom.toFloat() - paddingBottom
+                    cardLeft = itemView.left.toFloat() + paddingLeft
+                    cardRight = itemView.right.toFloat() - paddingRight
+                }
+
+                if (dX < 0) { // swiping left
+                    val leftBound = maxOf(cardLeft, cardRight + dX)
+                    val rightBound = cardRight
+                    val revealedWidth = rightBound - leftBound
+
+                    if (revealedWidth > 0) {
+                        c.save()
+                        val isFullySwiped = leftBound == cardLeft
+                        val clipLeft = if (isFullySwiped) cardLeft else maxOf(cardLeft, leftBound - overlap)
+                        c.clipRect(clipLeft, cardTop, rightBound, cardBottom)
+                        
+                        // Draw round rect starting at cardLeft if fully swiped, otherwise shift to hide left rounded corners
+                        val drawLeft = if (isFullySwiped) cardLeft else clipLeft - cornerRadius
+                        c.drawRoundRect(drawLeft, cardTop, rightBound, cardBottom, cornerRadius, cornerRadius, paint)
+                        c.restore()
+
+                        c.save()
+                        c.clipRect(leftBound, cardTop, rightBound, cardBottom)
+                        val icon = androidx.core.content.ContextCompat.getDrawable(
+                            this@ManageProductPage, R.drawable.ic_swipe_to_left
+                        )
+                        icon?.let {
+                            val iconSize = (28 * density).toInt()
+                            val cardHeight = cardBottom - cardTop
+                            val iconTop = (cardTop + (cardHeight - iconSize) / 2).toInt()
+                            val iconBottom = iconTop + iconSize
+
+                            val centerX = (leftBound + rightBound) / 2
+                            val iconLeft = (centerX - iconSize / 2).toInt()
+                            val iconRight = iconLeft + iconSize
+
+                            val alphaThreshold = iconSize
+                            val alpha = if (revealedWidth > alphaThreshold) {
+                                ((revealedWidth - alphaThreshold) / alphaThreshold).coerceIn(0f, 1f)
+                            } else 0f
+
+                            it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                            it.setTint(android.graphics.Color.WHITE)
+                            it.alpha = (alpha * 255).toInt()
+                            it.draw(c)
+                        }
+                        c.restore()
+                    }
+                } else if (dX > 0) { // swiping right
+                    val leftBound = cardLeft
+                    val rightBound = minOf(cardRight, cardLeft + dX)
+                    val revealedWidth = rightBound - leftBound
+
+                    if (revealedWidth > 0) {
+                        c.save()
+                        val isFullySwiped = rightBound == cardRight
+                        val clipRight = if (isFullySwiped) cardRight else minOf(cardRight, rightBound + overlap)
+                        c.clipRect(leftBound, cardTop, clipRight, cardBottom)
+
+                        // Draw round rect ending at cardRight if fully swiped, otherwise shift to hide right rounded corners
+                        val drawRight = if (isFullySwiped) cardRight else clipRight + cornerRadius
+                        c.drawRoundRect(leftBound, cardTop, drawRight, cardBottom, cornerRadius, cornerRadius, paint)
+                        c.restore()
+
+                        c.save()
+                        c.clipRect(leftBound, cardTop, rightBound, cardBottom)
+                        val icon = androidx.core.content.ContextCompat.getDrawable(
+                            this@ManageProductPage, R.drawable.ic_swipe_to_right
+                        )
+                        icon?.let {
+                            val iconSize = (28 * density).toInt()
+                            val cardHeight = cardBottom - cardTop
+                            val iconTop = (cardTop + (cardHeight - iconSize) / 2).toInt()
+                            val iconBottom = iconTop + iconSize
+
+                            val centerX = (leftBound + rightBound) / 2
+                            val iconLeft = (centerX - iconSize / 2).toInt()
+                            val iconRight = iconLeft + iconSize
+
+                            val alphaThreshold = iconSize
+                            val alpha = if (revealedWidth > alphaThreshold) {
+                                ((revealedWidth - alphaThreshold) / alphaThreshold).coerceIn(0f, 1f)
+                            } else 0f
+
+                            it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                            it.setTint(android.graphics.Color.WHITE)
+                            it.alpha = (alpha * 255).toInt()
+                            it.draw(c)
+                        }
+                        c.restore()
                     }
                 }
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
             }
-            private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
         }
         androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvProductList)
 
@@ -258,14 +397,19 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
             lifecycleScope.launch {
                 delay(600)
                 if (isDestroyed) return@launch
+
                 productAdapter.setShimmer(false)
                 isShimmerVisible = false
+                binding.tvEmptyProduct.visibility = if (manageProductViewModel.productList.value?.isEmpty() == true) View.VISIBLE else View.GONE
                 if (isFirstLoad) { setupListeners() }
             }
         } else {
             productAdapter.setShimmer(false)
             isShimmerVisible = false
-            if (!isFirstLoad) { setupListeners(skippedProcess = true) }
+
+            if (!isFirstLoad) {
+                setupListeners(skippedProcess = true)
+            }
         }
     }
 
@@ -380,6 +524,8 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
                     putExtra("CURRENT_MODE", mode)
                     putExtra("PRODUCT_DATA_KEY", product)
                     putExtra("ADMIN_DATA_KEY", manageProductViewModel.userAdminData.value)
+                    putParcelableArrayListExtra("PRODUCT_CATEGORIES_KEY", ArrayList(manageProductViewModel.categoryList.value ?: emptyList()))
+                    putParcelableArrayListExtra("PRODUCT_LIST_KEY", ArrayList(manageProductViewModel.productList.value ?: emptyList()))
                 }
 
                 startActivity(intent)
@@ -412,15 +558,177 @@ class ManageProductPage : BaseActivity(), View.OnClickListener,
         if (isHandlingBack) return
         isHandlingBack = true
 
-        WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
+        // ACTIVITY FINISH (no fragment stack in ManageServicePage)
+        WindowInsetsHandler.setDynamicWindowAllCorner(
+            binding.root,
+            this,
+            false
+        ) {
             finish()
-            overridePendingTransition(R.anim.slide_maximize_in_left, R.anim.slide_minimize_out_right)
+            overridePendingTransition(
+                R.anim.slide_maximize_in_left,
+                R.anim.slide_minimize_out_right
+            )
+        }
+    }
+
+    private fun applyVegaScrollEffect(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        val childCount = recyclerView.childCount
+        if (childCount <= 0) return
+
+        val firstChild = recyclerView.getChildAt(0)
+        // In a 2-column grid, Row 1 consists of indices 0 & 1, Row 2 starts at index 2
+        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+
+        for (i in 0 until childCount) {
+            val child = recyclerView.getChildAt(i)
+            val itemHeight = child.height
+            if (itemHeight <= 0) continue
+
+            val rowSpacing = if (firstChild != null && secondRowChild != null) {
+                secondRowChild.top - firstChild.top
+            } else {
+                val density = recyclerView.context.resources.displayMetrics.density
+                itemHeight + (10f * density).toInt()
+            }
+
+            val transitionRange = rowSpacing.toFloat()
+            val topDistance = -child.top
+            val topDistanceFloat = topDistance.toFloat()
+
+            if (topDistanceFloat in 0f..transitionRange) {
+                val rate1 = topDistanceFloat / transitionRange
+                val rate2 = 1f - (rate1 * rate1) / 3f
+                val rate3 = 1f - (rate1 * rate1)
+                child.scaleX = rate2
+                child.scaleY = rate2
+                child.alpha = rate3
+                child.translationY = topDistanceFloat
+            } else if (child.top < 0) {
+                child.scaleX = 0.67f
+                child.scaleY = 0.67f
+                child.alpha = 0f
+                child.translationY = 0f
+            } else {
+                child.scaleX = 1f
+                child.scaleY = 1f
+                child.alpha = 1f
+                child.translationY = 0f
+            }
+        }
+    }
+
+    private fun snapToPosition(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+        val childCount = recyclerView.childCount
+        if (childCount <= 0) return
+
+        var topChild: View? = null
+        var minTop = Int.MIN_VALUE
+
+        for (i in 0 until childCount) {
+            val child = recyclerView.getChildAt(i)
+            if (child.top <= 0 && child.top > minTop) {
+                minTop = child.top
+                topChild = child
+            }
+        }
+
+        if (topChild == null) return
+
+        val itemHeight = topChild.height
+        if (itemHeight <= 0) return
+
+        val firstChild = recyclerView.getChildAt(0)
+        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+        val rowSpacing = if (firstChild != null && secondRowChild != null) {
+            secondRowChild.top - firstChild.top
+        } else {
+            val density = recyclerView.context.resources.displayMetrics.density
+            itemHeight + (10f * density).toInt()
+        }
+
+        val topDistance = -topChild.top
+        if (topDistance <= 5 || rowSpacing - topDistance <= 5) return // Already snapped
+
+        val scrollNeeded = if (lastScrollDirectionY > 0) {
+            rowSpacing - topDistance
+        } else if (lastScrollDirectionY < 0) {
+            -topDistance
+        } else {
+            val fraction = topDistance.toFloat() / rowSpacing.toFloat()
+            if (fraction > 0.5f) rowSpacing - topDistance else -topDistance
+        }
+
+        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) return
+        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) return
+
+        if (scrollNeeded != 0) {
+            recyclerView.smoothScrollBy(0, scrollNeeded)
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (isChangingConfigurations) {
+            return // Don't clear data if only orientation changes
+        }
+    }
+
+    private fun adjustRecyclerViewPadding(isGrid: Boolean) {
+        val density = resources.displayMetrics.density
+        val startPadding = if (isGrid) (1 * density).toInt() else 0
+        val endPadding = if (isGrid) (8.5 * density).toInt() else 0
+        
+        binding.bottomFloatArea.post {
+            val child = binding.rvProductList.getChildAt(0)
+            val itemHeightWithMargins = if (child != null) {
+                val lp = child.layoutParams as ViewGroup.MarginLayoutParams
+                child.height + lp.topMargin + lp.bottomMargin
+            } else {
+                val heightDp = if (isGrid) 220 else 180
+                (heightDp * density).toInt()
+            }
+            
+            val itemCount = productAdapter.itemCount
+            val rowCount = if (isGrid) (itemCount + 1) / 2 else itemCount
+            val totalItemsHeight = rowCount * itemHeightWithMargins
+            
+            val floatAreaHeight = binding.bottomFloatArea.height
+            val layoutParams = binding.rvProductList.layoutParams as ViewGroup.MarginLayoutParams
+            val marginBottom = layoutParams.bottomMargin
+            val rvHeight = binding.rvProductList.height
+            
+            val initialPaddingBottom = if (floatAreaHeight > marginBottom) {
+                floatAreaHeight - marginBottom
+            } else {
+                0
+            }
+            
+            val realHeightRecycleView = rvHeight - initialPaddingBottom
+            val modulo = if (itemHeightWithMargins > 0) realHeightRecycleView % itemHeightWithMargins else 0
+            
+            val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
+            
+            val bottomPadding = if (doesItemsExceedRecycleView) {
+                initialPaddingBottom + modulo
+            } else {
+                initialPaddingBottom
+            }
+            
+            val currentPaddingBottom = binding.rvProductList.paddingBottom
+            val currentPaddingStart = binding.rvProductList.paddingStart
+            val currentPaddingEnd = binding.rvProductList.paddingEnd
+            
+            if (currentPaddingBottom != bottomPadding || currentPaddingStart != startPadding || currentPaddingEnd != endPadding) {
+                binding.rvProductList.setPaddingRelative(startPadding, 0, endPadding, bottomPadding)
+            }
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::productAdapter.isInitialized) productAdapter.stopAllShimmerEffects()
+        productAdapter.stopAllShimmerEffects()
+        // Remove listener to avoid memory leak
         if (::productListener.isInitialized) productListener.remove()
     }
 }

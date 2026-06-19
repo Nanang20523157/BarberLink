@@ -22,8 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:clipChildren="false"
-            android:clipToPadding="false"
-            android:visibility="visible">
+            android:clipToPadding="false">
 
             <TextView
                 android:id="@+id/tvProdukMenu"
@@ -47,31 +46,33 @@
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/ivProductImage"
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
-                android:layout_marginTop="10dp"
-                android:scaleType="centerCrop"
-                app:srcCompat="@drawable/banner_1"
+                android:layout_height="100dp"
                 android:layout_marginHorizontal="10dp"
+                android:layout_marginTop="8dp"
+                android:scaleType="centerCrop"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:shapeAppearanceOverlay="@style/RoundedSquare" />
+                app:shapeAppearanceOverlay="@style/RoundedSquare"
+                app:srcCompat="@drawable/banner_1" />
 
             <TextView
                 android:id="@+id/tvProductName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:layout_marginHorizontal="15.5dp"
-                android:maxLines="2"
+                android:layout_marginHorizontal="15dp"
+                android:layout_marginTop="4dp"
                 android:ellipsize="marquee"
-                android:marqueeRepeatLimit="marquee_forever"
                 android:fontFamily="@font/arial_regular"
-                android:textSize="13sp"
-                tools:text="Parfum Sauvage Dior - Parfum Sauvage Dior - Parfum Sauvage Dior"
-                app:layout_constraintTop_toBottomOf="@id/ivProductImage"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
+                android:textSize="13.5sp"
+                android:lineSpacingExtra="2.5dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0.516"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"/>
+                app:layout_constraintTop_toBottomOf="@id/ivProductImage"
+                tools:text="Parfum Sauvage Dior - Parfum Sauvage Dior - Parfum Sauvage Dior" />
 
             <LinearLayout
                 android:id="@+id/llPrice"
@@ -86,8 +87,8 @@
                 <!-- Star Icons -->
                 <ImageView
                     android:id="@+id/ivPromo"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
                     android:layout_marginEnd="1dp"
                     android:layout_marginStart="-2.85dp"
                     android:src="@drawable/ic_barbershop_promo_fill"
@@ -102,7 +103,7 @@
                     android:layout_height="wrap_content"
                     tools:text="Rp 15.000"
                     android:textStyle="bold"
-                    android:textSize="14.5sp"
+                    android:textSize="14sp"
                     android:textAlignment="textStart"
                     android:singleLine="true"
                     android:ellipsize="marquee"
@@ -115,10 +116,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     tools:text="@string/original_price_template"
-                    android:textSize="12sp"
+                    android:textSize="11.5sp"
                     android:visibility="gone"
                     android:textAlignment="textStart"
-                    android:layout_marginTop="-1dp"
+                    android:layout_marginTop="-1.3dp"
                     android:layout_marginStart="4dp"
                     android:singleLine="true"
                     android:ellipsize="marquee"
@@ -129,41 +130,39 @@
 
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/tvCOD"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                tools:text="BISA COD"
-                android:textStyle="bold"
-                android:textSize="13.3sp"
-                android:visibility="gone"
-                android:textAlignment="textStart"
-                android:singleLine="true"
-                android:ellipsize="marquee"
-                android:layout_marginTop="1.8dp"
-                android:layout_marginStart="-0.76dp"
-                android:marqueeRepeatLimit="marquee_forever"
-                android:textColor="@color/green_lime_wf"
-                app:layout_constraintStart_toStartOf="@id/tvProductName"
-                app:layout_constraintTop_toBottomOf="@id/llPrice"/>
-
             <LinearLayout
                 android:id="@+id/llRating"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="5.5dp"
-                android:layout_marginStart="-1.5dp"
+                android:layout_marginTop="3.5dp"
                 app:layout_constraintStart_toStartOf="@id/tvProductName"
-                app:layout_constraintTop_toBottomOf="@id/tvCOD">
+                app:layout_constraintTop_toBottomOf="@id/llPrice">
+
+                <TextView
+                    android:id="@+id/tvCOD"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    tools:text="COD"
+                    android:textStyle="bold"
+                    android:textSize="13.1sp"
+                    android:visibility="gone"
+                    android:textAlignment="textStart"
+                    android:singleLine="true"
+                    android:layout_marginStart="-0.45dp"
+                    android:layout_marginTop="-1.35dp"
+                    android:layout_marginEnd="4dp"
+                    android:textColor="@color/green_lime_wf" />
 
                 <!-- Star Icons -->
                 <ImageView
                     android:id="@+id/ivStar"
-                    android:layout_width="13dp"
-                    android:layout_height="13dp"
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
                     android:layout_marginEnd="2dp"
                     android:src="@drawable/full_star"
+                    android:layout_marginTop="1.5dp"
+                    android:layout_marginStart="-0.9dp"
                     android:contentDescription="@string/star_image_desc"/>
 
                 <TextView
@@ -172,8 +171,8 @@
                     android:layout_height="wrap_content"
                     android:text="@string/five_star_rating"
                     android:textSize="12.5sp"
-                    android:layout_marginTop="-1.8dp"
-                    android:layout_marginStart="1dp"
+                    android:layout_marginTop="-2dp"
+                    android:layout_marginStart="1.45dp"
                     android:textAppearance="@style/TextAppearance.AppCompat.Small"/>
 
                 <View
@@ -181,18 +180,17 @@
                     android:layout_height="5dp"
                     android:background="@drawable/background_dot_decoration"
                     android:layout_gravity="center_vertical"
-                    android:layout_marginHorizontal="4dp"/>
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_marginTop="-0.5dp"/>
 
                 <TextView
                     android:id="@+id/tvProductSold"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:ellipsize="end"
                     tools:text="500+ terjual"
-                    android:layout_marginTop="-1.8dp"
-                    android:textSize="12.5sp"
-                    app:layout_constraintStart_toStartOf="@id/tvEmployeeName"
-                    app:layout_constraintTop_toBottomOf="@id/llRating" />
+                    android:layout_marginTop="-2dp"
+                    android:textSize="12.5sp" />
 
             </LinearLayout>
 
@@ -202,8 +200,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:visibility="gone"
-                android:layout_marginTop="5dp"
-                android:layout_marginStart="-0.8dp"
+                android:layout_marginTop="3dp"
+                android:layout_marginStart="-1.6dp"
                 android:layout_marginBottom="15dp"
                 app:layout_constraintStart_toStartOf="@id/llRating"
                 app:layout_constraintTop_toBottomOf="@id/llRating">
@@ -241,14 +239,14 @@
                 android:clipChildren="false"
                 android:clipToPadding="false"
                 android:layout_marginHorizontal="13dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="15dp">
+                android:layout_marginTop="3.5dp"
+                android:layout_marginBottom="14dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSelectItem"
                     android:layout_width="match_parent"
                     android:layout_height="33dp"
-                    android:visibility="visible"
+                    android:visibility="gone"
                     android:gravity="center"
                     android:paddingTop="6dp"
                     android:text="@string/btn_select"
@@ -264,7 +262,7 @@
                     android:id="@+id/btnUnselectItem"
                     android:layout_width="match_parent"
                     android:layout_height="33dp"
-                    android:visibility="gone"
+                    android:visibility="visible"
                     android:gravity="center"
                     android:paddingTop="5.5dp"
                     android:text="@string/btn_cancel"

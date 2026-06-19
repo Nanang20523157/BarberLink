@@ -13,7 +13,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
@@ -34,11 +33,9 @@ import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.FragmentConfirmCompleteQueueBinding
 import com.google.android.material.snackbar.Snackbar
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 import java.util.Locale
-import kotlin.text.format
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -205,10 +202,6 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
             // hmmmmm
             if (isPaymentAmountValid) {
                 checkNetworkConnection {
-//                    val moneyAmount = userInputAmount
-//                    val clearText = moneyAmount.replace(".", "")
-//                    val formattedAmount = clearText.toIntOrNull()
-
                     val formattedAmount = format.parse(userInputAmount)?.toInt()
                     if (formattedAmount != null) {
                         setFragmentResult(
@@ -232,15 +225,6 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                 toastViewModel.showToast("Mohon periksa kembali data yang dimasukkan", true)
                 setFocus(binding.etMoneyAmount)
             }
-//            var originalString = userInputAmount
-//            if (userInputAmount.contains(".")) {
-//                originalString = originalString.replace(".", "")
-//            }
-//            if (originalString[0] == '0' && originalString.length > 1 || originalString == "0") {
-//                isPaymentAmountValid = validateMoneyInput(true)
-//            } else {
-//                // Tambahkan nilai finalCashBackAmount ke dalam hasil fragment
-//            }
         }
 
         binding.btnNo.setOnClickListener {
@@ -355,13 +339,23 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                         try {
                             var originalString = s.toString().ifEmpty { "0" }
 
-                            // Check if the string is empty
-                            if (originalString.isEmpty()) {
-                                etMoneyAmount.setText("0")
-                                etMoneyAmount.setSelection(1)
-                                throw IllegalArgumentException("The original string is empty")
-                            } else if (originalString == "-") {
-                                throw IllegalArgumentException("The original string is a single dash")
+                            if (originalString == "-") {
+                                throw IllegalArgumentException("Input is not a number but no problem")
+                            } else if (originalString.replace(".", "").toLongOrNull() == null) {
+                                // ROLLBACK: Kembalikan teks ke angka valid terakhir yang diketik user
+                                val savedFilters = s.filters
+                                s.filters = arrayOf()
+                                s.replace(0, s.length, previousText)
+                                s.filters = savedFilters
+
+                                // Kembalikan posisi kursor dengan aman
+                                val safeCursor = previousCursorPosition.coerceIn(0, previousText.length)
+                                etMoneyAmount.setSelection(safeCursor) // Ganti etDailyCapital dengan etMoneyAmount di fragment kedua
+
+                                // Hentikan fungsi agar tidak memanggil validasi (menghindari text merah berkedip)
+                                inputManualCheckOne = null
+                                etMoneyAmount.addTextChangedListener(this)
+                                return
                             }
 
                             /// Remove the dots and update the original string
@@ -372,26 +366,23 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
                                 originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                             }
 
-//                            val parsed = originalString.replace(".", "")
-//                            val format = NumberFormat.getNumberInstance(Locale("in", "ID"))
-//                            val formatted = if (previousText == "0") {
-//                                format.format(parsed.toIntOrNull() ?: 0L)
-//                            } else {
-//                                formatWithDotsKeepingLeadingZeros(parsed)
-//                            }
-                            val cleanText = originalString.replace(".", "")
+                            val cleanText = originalString.replace(Regex("\\D"), "")
                             val parsed = cleanText.toLongOrNull() ?: 0L
                             val formatted = format.format(parsed)
 
-                            // Set the text
-                            etMoneyAmount.setText(formatted)
-                            userInputAmount = formatted
-
                             // Calculate the new cursor position
-                            //val newCursorPosition = cursorPosition + (formatted.length - s.length)
                             val newCursorPosition = if (formatted == previousText) {
                                 previousCursorPosition
                             } else cursorPosition + (formatted.length - s.length)
+
+                            // Set the text
+                            if (formatted != s.toString()) {
+                                val savedFilters = s.filters     // 1. Simpan semua filter yang aktif (termasuk keyListener sistem)
+                                s.filters = arrayOf()            // 2. Bersihkan semua filter agar penggantian lancar tanpa hambatan
+                                s.replace(0, s.length, formatted) // 3. Lakukan replace teks
+                                s.filters = savedFilters         // 4. Kembalikan semua filter semula
+                            }
+                            userInputAmount = formatted
 
                             // Ensure the new cursor position is within the bounds of the new text
                             val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
@@ -420,52 +411,57 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         }
     }
 
-//    private fun formatWithDotsKeepingLeadingZeros(number: String): String {
-//        val reversed = number.reversed()
-//        val grouped = reversed.chunked(3).joinToString(".")
-//        return grouped.reversed()
-//    }
-
     private fun validateMoneyInput(checkLeadingZeros: Boolean): Boolean {
         with (binding) {
-            val moneyAmount = userInputAmount
-            val clearText = moneyAmount.replace(".", "")
-            val formattedAmount = clearText.toIntOrNull()
+            val rawMoneyText = etMoneyAmount.text.toString().trim()
+            val clearMoneyText = rawMoneyText.replace(Regex("\\D"), "")
+            val moneyAmountlong = clearMoneyText.toLongOrNull()
             val finalPrice = currentReservationData?.paymentDetail?.finalPrice ?: 0
 
-            return if (moneyAmount.isEmpty() || moneyAmount == "0") {
+            return if (rawMoneyText.isEmpty()) {
                 textErrorForPayment = getString(R.string.amount_of_money_cannot_be_empty)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForPayment
                 setFocus(etMoneyAmount)
                 false
-            } else if (formattedAmount == null) {
-                textErrorForPayment = getString(R.string.amount_capital_must_be_a_number)
+            } else if (moneyAmountlong == null) {
+                textErrorForPayment = getString(R.string.your_input_must_be_a_number)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForPayment
                 setFocus(etMoneyAmount)
                 false
-            } else if (moneyAmount[0] == '0' && moneyAmount.length > 1 && checkLeadingZeros) {
+            } else if (moneyAmountlong <= 0) {
+                textErrorForPayment = "Nominal uang harus lebih besar dari 0"
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForPayment
+                setFocus(etMoneyAmount)
+                false
+            } else if (rawMoneyText.isNotEmpty() && rawMoneyText[0] == '0' && rawMoneyText.length > 1 && checkLeadingZeros) {
                 textErrorForPayment = getString(R.string.your_value_entered_not_valid)
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForPayment
-                //val nominal = formatWithDotsKeepingLeadingZeros(formattedAmount.toString())
-                val nominal = format.format(formattedAmount)
+                val nominal = format.format(moneyAmountlong)
                 confirmQueueViewModel.showInputSnackBar(
                     nominal,
                     context.getString(R.string.re_format_text, nominal)
                 )
                 setFocus(etMoneyAmount)
                 false
-            } else if (formattedAmount < finalPrice) {
+            } else if (moneyAmountlong.toInt() < finalPrice) {
                 textErrorForPayment = getString(R.string.amount_of_money_must_not_be_less_than, NumberUtils.numberToCurrency(finalPrice.toDouble()))
+                llInfo.visibility = View.VISIBLE
+                tvInfo.text = textErrorForPayment
+                setFocus(etMoneyAmount)
+                false
+            } else if (moneyAmountlong > 2000000000L) {
+                textErrorForPayment = "Nominal uang tidak boleh melebihi 2 Milliar"
                 llInfo.visibility = View.VISIBLE
                 tvInfo.text = textErrorForPayment
                 setFocus(etMoneyAmount)
                 false
             } else {
                 // Input valid, hitung uang kembalian
-                val cashBackAmount = formattedAmount - finalPrice
+                val cashBackAmount = moneyAmountlong.toInt() - finalPrice
                 finalCashBackAmount = NumberUtils.numberToCurrency(cashBackAmount.toDouble())
 
                 // Update UI jika diperlukan

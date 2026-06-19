@@ -10,12 +10,18 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
+import android.widget.ImageView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemListManageProductAdapterBinding
+import com.example.barberlink.databinding.ShimmerLayoutManageProductCardBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageServiceCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
@@ -82,7 +88,7 @@ class ItemManageProductAdapter(
             recyclerView = parent as RecyclerView
         }
         return if (viewType == VIEW_TYPE_SHIMMER) {
-            val shimmerBinding = ShimmerLayoutManageServiceCardBinding.inflate(inflater, parent, false)
+            val shimmerBinding = ShimmerLayoutManageProductCardBinding.inflate(inflater, parent, false)
             ShimmerViewHolder(shimmerBinding)
         } else {
             val binding = ItemListManageProductAdapterBinding.inflate(inflater, parent, false)
@@ -98,6 +104,16 @@ class ItemManageProductAdapter(
         } else if (getItemViewType(position) == VIEW_TYPE_SHIMMER) {
             (holder as ShimmerViewHolder).bind()
         }
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        val view = holder.itemView
+        view.translationX = 0f
+        view.translationY = 0f
+        view.scaleX = 1f
+        view.scaleY = 1f
+        view.alpha = 1f
     }
 
     override fun getItemCount(): Int {
@@ -134,7 +150,7 @@ class ItemManageProductAdapter(
         }
     }
 
-    inner class ShimmerViewHolder(private val binding: ShimmerLayoutManageServiceCardBinding) :
+    inner class ShimmerViewHolder(private val binding: ShimmerLayoutManageProductCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind() {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -148,25 +164,43 @@ class ItemManageProductAdapter(
         RecyclerView.ViewHolder(binding.root) {
 
         fun bind(product: Product) {
+            itemView.translationX = 0f
+            itemView.translationY = 0f
+            itemView.scaleX = 1f
+            itemView.scaleY = 1f
+            itemView.alpha = 1f
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
             with(binding) {
-                // Product name
                 tvProductName.text = product.productName
                 tvProductName.isSelected = true
-
-                // Product price
+                tvProdukMenu.text = product.productName
+                tvRating.text = product.productRating.toString()
+                tvProductSold.text = NumberUtils.formatProductSold(product.productCounting)
                 tvPrice.text = NumberUtils.numberToCurrency(product.productPrice.toDouble())
 
                 // Product Image
                 if (product.imgProduct.isNotEmpty()) {
                     Glide.with(root.context)
+                        .asBitmap()
                         .load(product.imgProduct)
-                        .placeholder(R.drawable.img_service_icon_placeholder)
-                        .error(R.drawable.img_service_icon_placeholder)
-                        .into(ivProductImage)
+                        .placeholder(R.drawable.mystery_box2)
+                        .error(R.drawable.mystery_box2)
+                        .into(object : CustomTarget<Bitmap>() {
+                            @RequiresApi(Build.VERSION_CODES.O)
+                            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                val isTransparent = resource.hasTransparentCorners()
+                                ivProductImage.adjustPadding(isTransparent)
+                                ivProductImage.setImageBitmap(resource)
+                            }
+
+                            override fun onLoadCleared(placeholder: Drawable?) {
+                                ivProductImage.setImageDrawable(placeholder)
+                            }
+                        })
                 } else {
-                    ivProductImage.setImageResource(R.drawable.img_service_icon_placeholder)
+                    ivProductImage.adjustPadding(true)
+                    ivProductImage.setImageResource(R.drawable.mystery_box2)
                 }
 
                 // Delete button click
@@ -204,12 +238,44 @@ class ProductDiffCallback : DiffUtil.ItemCallback<Product>() {
     }
 
     override fun areContentsTheSame(oldItem: Product, newItem: Product): Boolean {
-        return oldItem.productName == newItem.productName &&
-                oldItem.productDescription == newItem.productDescription &&
-                oldItem.productPrice == newItem.productPrice &&
-                oldItem.productRating == newItem.productRating &&
-                oldItem.imgProduct == newItem.imgProduct &&
-                oldItem.stockQuantity == newItem.stockQuantity &&
-                oldItem.productCategory == newItem.productCategory
+        return oldItem == newItem
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+private fun Bitmap.hasTransparentCorners(): Boolean {
+    if (this.config != Bitmap.Config.ARGB_8888 && this.config != Bitmap.Config.RGBA_F16) {
+        return false
+    }
+
+    val w = this.width
+    val h = this.height
+
+    val topLeft = this.getPixel(0, 0)
+    val topRight = this.getPixel(w - 1, 0)
+    val bottomLeft = this.getPixel(0, h - 1)
+    val bottomRight = this.getPixel(w - 1, h - 1)
+
+    fun isPixelTransparent(pixelColor: Int): Boolean {
+        val alpha = (pixelColor shr 24) and 0xff
+        return alpha < 255
+    }
+
+    return isPixelTransparent(topLeft) || 
+           isPixelTransparent(topRight) || 
+           isPixelTransparent(bottomLeft) || 
+           isPixelTransparent(bottomRight)
+}
+
+private fun ImageView.adjustPadding(isTransparent: Boolean) {
+    if (isTransparent) {
+        val paddingInDp = 0
+        val scale = this.context.resources.displayMetrics.density
+        val paddingInPx = (paddingInDp * scale + 0.5f).toInt()
+        this.setPadding(paddingInPx, paddingInPx, paddingInPx, paddingInPx)
+        this.scaleType = ImageView.ScaleType.CENTER_INSIDE
+    } else {
+        this.setPadding(0, 0, 0, 0)
+        this.scaleType = ImageView.ScaleType.CENTER_CROP
     }
 }

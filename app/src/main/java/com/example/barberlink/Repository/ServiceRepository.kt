@@ -39,17 +39,4 @@ class ServiceRepository(private val db: FirebaseFirestore) {
     suspend fun deleteService(barbershopId: String, serviceId: String): FirestoreResult<Unit> {
         return getServiceCollection(barbershopId).document(serviceId).delete().awaitWriteWithOfflineFallback(tag = "DeleteService")
     }
-
-    suspend fun getServiceCategories(adminUid: String): FirestoreResult<List<DataCategories>> {
-        val result = db.collection("service_categories")
-            .whereIn("barbershop_ref", listOf(adminUid, "All"))
-            .awaitGetWithOfflineFallback(tag = "GetServiceCategories")
-
-        return if (result.isSuccessful) {
-            val categories = result.data?.documents?.mapNotNull { it.toObject(DataCategories::class.java) } ?: emptyList()
-            FirestoreResult(data = categories, isSuccessful = true, displayMessage = result.displayMessage, errorMessage = result.errorMessage)
-        } else {
-            FirestoreResult(data = emptyList(), isSuccessful = false, displayMessage = result.displayMessage, errorMessage = result.errorMessage)
-        }
-    }
 }

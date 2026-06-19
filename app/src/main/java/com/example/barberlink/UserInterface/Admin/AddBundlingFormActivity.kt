@@ -41,6 +41,7 @@ import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.NumberUtils
+import com.example.barberlink.Utils.forceClearFocus
 import com.example.barberlink.databinding.ActivityAddBundlingFormBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -87,6 +88,9 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
     private var isFirstLoad = true
     private var previousDiscountText: String = ""
     private var previousDiscountCursorPosition: Int = 0
+    private var restoredDiscountRawText: String? = null
+    private var restoredDiscountCursorPosition: Int = 0
+    private var restoredDiscountErrorMsg: CharSequence? = null
 
     // ─── TextWatcher references for cleanup ───────────────────────────────────
     private lateinit var packageNameTextWatcher: TextWatcher
@@ -183,7 +187,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
         if (addBundlingViewModel.allServices.value.isNullOrEmpty()) {
             addBundlingViewModel.setAllServices(serviceList ?: emptyList())
         }
-        if (addBundlingViewModel.allBundling.value.isNullOrEmpty()) {
+        if (addBundlingViewModel.bundlingList.value.isNullOrEmpty()) {
             addBundlingViewModel.setAllBundling(bundlingList ?: emptyList())
         }
 
@@ -192,8 +196,12 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             isShimmerVisible = savedInstanceState.getBoolean("is_shimmer_visible", false)
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
+            isDiscountFormatting = savedInstanceState.getBoolean("is_discount_formatting", false)
             previousDiscountText = savedInstanceState.getString("previous_discount_text", "")
             previousDiscountCursorPosition = savedInstanceState.getInt("previous_discount_cursor_position", 0)
+            restoredDiscountRawText = savedInstanceState.getString("discount_raw_text")
+            restoredDiscountCursorPosition = savedInstanceState.getInt("discount_cursor_position", 0)
+            restoredDiscountErrorMsg = savedInstanceState.getCharSequence("discount_error_msg")
         } else {
             addBundlingViewModel.setBarbershopId(adminData?.uid ?: "")
             addBundlingViewModel.setBundlingSelectedId(bundlingData?.uid ?: "")
@@ -227,13 +235,14 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
 
             val isKeyboardOpen = keypadHeight > screenHeight * 0.15
             if (isKeyboardOpen) {
+                // Keyboard is opened
                 if (currentMode == 1 || currentMode == 2) {
                     binding.viewSpace.visibility = View.GONE
                 }
                 binding.nestedScrollView.setPadding(0, 0, 0, keypadHeight)
                 if (binding.etDiscountAmount.hasFocus()) {
                     binding.nestedScrollView.post {
-                        binding.nestedScrollView.smoothScrollTo(0, binding.containerBundlingPrice.bottom)
+                        binding.nestedScrollView.smoothScrollTo(0, binding.bottomPageLayout.bottom)
                     }
                 }
             } else {
@@ -268,6 +277,10 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
         outState.putBoolean("is_recreated", true)
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+        outState.putBoolean("is_discount_formatting", isDiscountFormatting)
+        outState.putString("discount_raw_text", binding.etDiscountAmount.text.toString())
+        outState.putInt("discount_cursor_position", binding.etDiscountAmount.selectionStart)
+        outState.putCharSequence("discount_error_msg", binding.etDiscountAmount.error)
 
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_handling_back", isHandlingBack)
@@ -361,87 +374,111 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun setupEditTextListeners() {
-        packageNameTextWatcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                if (currentMode == 0) return
-                addBundlingViewModel.bundlingParams.value?.let { bundling ->
-                    bundling.packageName = s?.toString() ?: ""
-                    addBundlingViewModel.updateBundlingParams(bundling)
+        with (binding) {
+            packageNameTextWatcher = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    if (currentMode == 0) return
+                    addBundlingViewModel.bundlingParams.value?.let { bundling ->
+                        bundling.packageName = s?.toString() ?: ""
+                        addBundlingViewModel.updateBundlingParams(bundling)
+                    }
                 }
             }
-        }
-        binding.etPackageName.addTextChangedListener(packageNameTextWatcher)
+            etPackageName.addTextChangedListener(packageNameTextWatcher)
 
-        packageDescriptionTextWatcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                if (currentMode == 0) return
-                addBundlingViewModel.bundlingParams.value?.let { bundling ->
-                    bundling.packageDesc = s?.toString() ?: ""
-                    addBundlingViewModel.updateBundlingParams(bundling)
+            packageDescriptionTextWatcher = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    if (currentMode == 0) return
+                    addBundlingViewModel.bundlingParams.value?.let { bundling ->
+                        bundling.packageDesc = s?.toString() ?: ""
+                        addBundlingViewModel.updateBundlingParams(bundling)
+                    }
                 }
             }
-        }
-        binding.etPackageDescription.addTextChangedListener(packageDescriptionTextWatcher)
+            etPackageDescription.addTextChangedListener(packageDescriptionTextWatcher)
 
-        discountAmountTextWatcher = object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-                previousDiscountText = s.toString()
-                previousDiscountCursorPosition = binding.etDiscountAmount.selectionStart
-            }
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                if (currentMode == 0 || isDiscountFormatting || s == null) return
-                isDiscountFormatting = true
+            discountAmountTextWatcher = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                    previousDiscountText = s.toString()
+                    previousDiscountCursorPosition = etDiscountAmount.selectionStart
+                }
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    if (currentMode == 0 || isDiscountFormatting || s == null) return
+                    isDiscountFormatting = true
 
-                try {
-                    var originalString = s.toString()
-                    if (originalString.isNotEmpty()) {
-                        val cursorPosition = binding.etDiscountAmount.selectionStart
+                    try {
+                        var originalString = s.toString().ifEmpty { "0" }
+
+                        if (originalString == "-") {
+                            throw IllegalArgumentException("Input is not a number but no problem")
+                        } else if (originalString.replace(".", "").toLongOrNull() == null) {
+                            // ROLLBACK: Kembalikan teks ke angka valid terakhir yang diketik user
+                            val savedFilters = s.filters
+                            s.filters = arrayOf()
+                            s.replace(0, s.length, previousDiscountText)
+                            s.filters = savedFilters
+
+                            // Kembalikan posisi kursor dengan aman
+                            val safeCursor = previousDiscountCursorPosition.coerceIn(0, previousDiscountText.length)
+                            etDiscountAmount.setSelection(safeCursor) // Ganti etDailyCapital dengan etMoneyAmount di fragment kedua
+
+                            // Hentikan fungsi agar tidak memanggil validasi (menghindari text merah berkedip)
+                            etDiscountAmount.addTextChangedListener(this)
+                            return
+                        }
+
+                        /// Remove the dots and update the original string
+                        val cursorPosition = etDiscountAmount.selectionStart
                         val cursorChar = previousDiscountText.getOrNull(cursorPosition)
                         if (cursorChar == '.' && originalString.length < previousDiscountText.length) {
+                            // If the cursor is at a dot, move it to the previous position to remove the number instead
                             originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
                         }
 
-                        val cleanText = originalString.replace(".", "")
+                        val cleanText = originalString.replace(Regex("\\D"), "")
                         val parsed = cleanText.toLongOrNull() ?: 0L
                         val formatted = format.format(parsed)
 
-                        binding.etDiscountAmount.setText(formatted)
-                        binding.etDiscountAmount.error = null
-
+                        // Calculate the new cursor position
                         val newCursorPosition = if (formatted == previousDiscountText) {
                             previousDiscountCursorPosition
-                        } else {
-                            cursorPosition + (formatted.length - s.length)
+                        } else cursorPosition + (formatted.length - s.length)
+
+                        // Set the text
+                        if (formatted != s.toString()) {
+                            val savedFilters = s.filters     // 1. Simpan semua filter yang aktif (termasuk keyListener sistem)
+                            s.filters = arrayOf()            // 2. Bersihkan semua filter agar penggantian lancar tanpa hambatan
+                            s.replace(0, s.length, formatted) // 3. Lakukan replace teks
+                            s.filters = savedFilters         // 4. Kembalikan semua filter semula
                         }
+                        etDiscountAmount.error = null
 
                         val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
-                        binding.etDiscountAmount.setSelection(boundedCursorPosition)
+
+                        etDiscountAmount.setSelection(boundedCursorPosition)
 
                         addBundlingViewModel.bundlingParams.value?.let { bundling ->
-                            bundling.packageDiscount = parsed.toInt()
-                            bundling.packagePrice = maxOf(0, bundling.accumulatedPrice - parsed.toInt())
+                            val coercedDiscount = parsed.coerceAtMost(2000000000L).toInt()
+                            bundling.packageDiscount = coercedDiscount
+                            bundling.packagePrice = maxOf(0, bundling.accumulatedPrice - coercedDiscount)
                             addBundlingViewModel.updateBundlingParams(bundling)
                         }
-                    } else {
-                        addBundlingViewModel.bundlingParams.value?.let { bundling ->
-                            bundling.packageDiscount = 0
-                            bundling.packagePrice = bundling.accumulatedPrice
-                            addBundlingViewModel.updateBundlingParams(bundling)
-                        }
+                    } catch (e: IllegalArgumentException) {
+                        e.printStackTrace()
+                    } catch (nfe: NumberFormatException) {
+                        nfe.printStackTrace()
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
 
-                isDiscountFormatting = false
+                    isDiscountFormatting = false
+                }
             }
+            etDiscountAmount.addTextChangedListener(discountAmountTextWatcher)
         }
-        binding.etDiscountAmount.addTextChangedListener(discountAmountTextWatcher)
     }
 
     private fun setupSwitchListeners() {
@@ -472,7 +509,13 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
                 if (isChecked) {
                     llLabelDiscount.visibility = View.VISIBLE
                     containerDiscount.visibility = View.VISIBLE
-                    setFocus(etDiscountAmount)
+                    containerBundlingPrice.post {
+                        if (binding.etDiscountAmount.text.isNullOrEmpty() || binding.etDiscountAmount.text.toString() == "0") {
+                            binding.etDiscountAmount.setText("0")
+                        }
+                        setFocus(etDiscountAmount)
+                        etDiscountAmount.setSelection(etDiscountAmount.text.length)
+                    }
                 } else {
                     llLabelDiscount.visibility = View.GONE
                     containerDiscount.visibility = View.GONE
@@ -669,7 +712,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             }
         }
 
-        addBundlingViewModel.allBundling.observe(this) { bundlings ->
+        addBundlingViewModel.bundlingList.observe(this) { bundlings ->
             if (!isFirstLoad) {
                 val mode = currentMode
                 if (mode == 0) { // VIEW mode
@@ -708,12 +751,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
 
     private fun displayAllData(bundling: BundlingPackage) {
         lifecycleScope.launch {
-            fun setIfDiff(current: String?, newVal: String, set: (String) -> Unit) {
-                if (current != newVal) {
-                    set(newVal)
-                }
-            }
-
+            // Only update if value differs to avoid TextWatcher loop
             setIfDiff(binding.etPackageName.text?.toString(), bundling.packageName) { binding.etPackageName.setText(it) }
             setIfDiff(binding.etPackageDescription.text?.toString(), bundling.packageDesc) { binding.etPackageDescription.setText(it) }
             setIfDiff(binding.tvRating.text?.toString(), bundling.packageRating.toString()) { binding.tvRating.text =
@@ -728,20 +766,39 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             binding.switchAuto.isChecked = bundling.autoSelected
 
             val hasDiscount = bundling.packageDiscount > 0
-            binding.switchDiscount.isChecked = hasDiscount
-            if (hasDiscount) {
+            val tempDiscountRawText = restoredDiscountRawText
+            if (tempDiscountRawText != null) {
+                binding.switchDiscount.isChecked = true
                 isDiscountFormatting = true
-                val formatted = format.format(bundling.packageDiscount.toLong())
-                setIfDiff(binding.etDiscountAmount.text?.toString(), formatted) { binding.etDiscountAmount.setText(it) }
+                setIfDiff(binding.etDiscountAmount.text?.toString(), tempDiscountRawText) { binding.etDiscountAmount.setText(it) }
                 isDiscountFormatting = false
+                binding.etDiscountAmount.setSelection(restoredDiscountCursorPosition.coerceIn(0, tempDiscountRawText.length))
+                binding.etDiscountAmount.post {
+                    restoredDiscountErrorMsg?.let {
+                        binding.etDiscountAmount.error = it
+                    }
+                    // Bersihkan state restorasi setelah benar-benar diterapkan di layar
+                    restoredDiscountRawText = null
+                    restoredDiscountErrorMsg = null
+                }
                 binding.llLabelDiscount.visibility = View.VISIBLE
                 binding.containerDiscount.visibility = View.VISIBLE
             } else {
-                isDiscountFormatting = true
-                setIfDiff(binding.etDiscountAmount.text?.toString(), "") { binding.etDiscountAmount.setText(it) }
-                isDiscountFormatting = false
-                binding.llLabelDiscount.visibility = View.GONE
-                binding.containerDiscount.visibility = View.GONE
+                binding.switchDiscount.isChecked = hasDiscount
+                if (hasDiscount) {
+                    isDiscountFormatting = true
+                    val formatted = format.format(bundling.packageDiscount)
+                    setIfDiff(binding.etDiscountAmount.text?.toString(), formatted) { binding.etDiscountAmount.setText(it) }
+                    isDiscountFormatting = false
+                    binding.llLabelDiscount.visibility = View.VISIBLE
+                    binding.containerDiscount.visibility = View.VISIBLE
+                } else {
+                    isDiscountFormatting = true
+                    setIfDiff(binding.etDiscountAmount.text?.toString(), "0") { binding.etDiscountAmount.setText(it) }
+                    isDiscountFormatting = false
+                    binding.llLabelDiscount.visibility = View.GONE
+                    binding.containerDiscount.visibility = View.GONE
+                }
             }
 
             updateSwitchesInteractivity(bundling.defaultItem)
@@ -772,8 +829,8 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             }
 
             // Price Details Updating
-            etAccumulatedPrice.setText(NumberUtils.numberToCurrency(bundling.accumulatedPrice.toDouble()).replace("Rp", "").trim())
-            etFinalPrice.setText(NumberUtils.numberToCurrency(bundling.packagePrice.toDouble()).replace("Rp", "").trim())
+            etAccumulatedPrice.setText(NumberUtils.numberToCurrency(bundling.accumulatedPrice.toDouble()).replace(Regex("\\D"), "").trim())
+            etFinalPrice.setText(NumberUtils.numberToCurrency(bundling.packagePrice.toDouble()).replace(Regex("\\D"), "").trim())
         }
     }
 
@@ -1022,69 +1079,103 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
     private fun attemptSave() {
         if (!validateInputs()) return
 
-        val currentBundling = addBundlingViewModel.bundlingParams.value ?: return
+        forceClearFocus()
+        lifecycleScope.launch {
+            delay(300)
+            val currentBundling = addBundlingViewModel.bundlingParams.value ?: return@launch
 
-        if (currentMode == 2) {
-            val newDocRef = db.collection("barbershops")
-                .document(barbershopId)
-                .collection("bundling_packages")
-                .document()
-            currentBundling.uid = newDocRef.id
+            if (currentMode == 2) {
+                val newDocRef = db.collection("barbershops")
+                    .document(barbershopId)
+                    .collection("bundling_packages")
+                    .document()
+                currentBundling.uid = newDocRef.id
+            }
+
+            addBundlingViewModel.updateBundlingParams(currentBundling)
+            addBundlingViewModel.saveBundling(currentMode == 2)
         }
-
-        addBundlingViewModel.updateBundlingParams(currentBundling)
-        addBundlingViewModel.saveBundling(currentMode == 2)
     }
 
     private fun validateInputs(): Boolean {
-        val name = binding.etPackageName.text.toString().trim()
-        val description = binding.etPackageDescription.text.toString().trim()
-        val selectedServices = addBundlingViewModel.bundlingParams.value?.listItems ?: emptyList()
-        val isDiscountEnabled = binding.switchDiscount.isChecked
-        val discountText = binding.etDiscountAmount.text.toString().trim()
-        val discount = discountText.replace(Regex("\\D"), "").toIntOrNull() ?: 0
-        val accumulatedPrice = addBundlingViewModel.bundlingParams.value?.accumulatedPrice ?: 0
+        with (binding) {
+            val name = etPackageName.text.toString().trim()
+            val description = etPackageDescription.text.toString().trim()
+            val selectedServices = addBundlingViewModel.bundlingParams.value?.listItems ?: emptyList()
+            val isDiscountEnabled = switchDiscount.isChecked
+            val rawDiscountText = etDiscountAmount.text.toString().trim()
+            val clearDiscountText = rawDiscountText.replace(Regex("\\D"), "")
+            val discountPriceLong = clearDiscountText.toLongOrNull()
+            val accumulatedPrice = addBundlingViewModel.bundlingParams.value?.accumulatedPrice ?: 0
+            val bundlingList = addBundlingViewModel.bundlingList.value ?: emptyList()
+            val currentBundlingUid = addBundlingViewModel.bundlingParams.value?.uid.orEmpty()
+            val resultEliminateData = bundlingList.filter { it.uid != currentBundlingUid }
 
-        return when {
-            name.isEmpty() -> {
-                binding.etPackageName.error = "Nama paket tidak boleh kosong"
-                setFocus(binding.etPackageName)
-                false
-            }
-            currentMode == 2 && addBundlingViewModel.allBundling.value?.any { it.packageName.equals(name, ignoreCase = true) } == true -> {
-                binding.etPackageName.error = "Nama paket sudah digunakan, silakan gunakan nama lain"
-                setFocus(binding.etPackageName)
-                false
-            }
-            description.isEmpty() -> {
-                binding.etPackageDescription.error = "Deskripsi paket tidak boleh kosong"
-                setFocus(binding.etPackageDescription)
-                false
-            }
-            selectedServices.isEmpty() -> {
-                toastViewModel.showToast("Silahkan pilih daftar layanan yang tersedia", false)
-                false
-            }
-            isDiscountEnabled && discountText.isEmpty() -> {
-                binding.etDiscountAmount.error = "Potongan harga tidak boleh kosong"
-                setFocus(binding.etDiscountAmount)
-                false
-            }
-            isDiscountEnabled && discount <= 0 -> {
-                binding.etDiscountAmount.error = "Potongan harga harus lebih dari 0"
-                setFocus(binding.etDiscountAmount)
-                false
-            }
-            isDiscountEnabled && discount > accumulatedPrice -> {
-                binding.etDiscountAmount.error = "Potongan harga tidak boleh melebihi akumulasi harga item"
-                setFocus(binding.etDiscountAmount)
-                false
-            }
-            else -> {
-                binding.etPackageName.error = null
-                binding.etPackageDescription.error = null
-                binding.etDiscountAmount.error = null
-                true
+            return when {
+                name.isEmpty() -> {
+                    etPackageName.error = "Nama paket tidak boleh kosong"
+                    etPackageName.setSelection(etPackageName.text?.length ?: 0)
+                    setFocus(etPackageName)
+                    false
+                }
+                resultEliminateData.any { it.packageName.equals(name, ignoreCase = true) } -> {
+                    etPackageName.error = "Nama paket sudah digunakan, silahkan gunakan nama lain"
+                    etPackageName.setSelection(etPackageName.text?.length ?: 0)
+                    setFocus(etPackageName)
+                    false
+                }
+                description.isEmpty() -> {
+                    etPackageDescription.error = "Deskripsi paket tidak boleh kosong"
+                    etPackageDescription.setSelection(etPackageDescription.text?.length ?: 0)
+                    setFocus(etPackageDescription)
+                    false
+                }
+                selectedServices.isEmpty() -> {
+                    toastViewModel.showToast("Silahkan pilih daftar layanan yang tersedia", false)
+                    false
+                }
+                rawDiscountText.isEmpty() -> {
+                    etDiscountAmount.error = "Potongan harga tidak boleh kosong"
+                    etDiscountAmount.setSelection(etDiscountAmount.text?.length ?: 0)
+                    setFocus(etDiscountAmount)
+                    false
+                }
+                discountPriceLong == null -> {
+                    etDiscountAmount.error = "Potongan harga harus berupa angka"
+                    etDiscountAmount.setSelection(etDiscountAmount.text?.length ?: 0)
+                    setFocus(etDiscountAmount)
+                    false
+                }
+                isDiscountEnabled && discountPriceLong <= 0 -> {
+                    etDiscountAmount.error = "Potongan harga harus lebih dari 0"
+                    etDiscountAmount.setSelection(etDiscountAmount.text?.length ?: 0)
+                    setFocus(etDiscountAmount)
+                    false
+                }
+                isDiscountEnabled && rawDiscountText.isNotEmpty() && rawDiscountText[0] == '0' && rawDiscountText.length > 1 -> {
+                    etDiscountAmount.error = getString(R.string.your_value_entered_not_valid)
+                    etDiscountAmount.setSelection(etDiscountAmount.text?.length ?: 0)
+                    setFocus(etDiscountAmount)
+                    false
+                }
+                isDiscountEnabled && discountPriceLong > accumulatedPrice -> {
+                    etDiscountAmount.error = "Potongan harga tidak boleh melebihi akumulasi harga item"
+                    etDiscountAmount.setSelection(etDiscountAmount.text?.length ?: 0)
+                    setFocus(binding.etDiscountAmount)
+                    false
+                }
+                isDiscountEnabled && discountPriceLong > 2000000000L -> {
+                    etDiscountAmount.error = "Potongan harga tidak boleh melebihi 2 Milliar"
+                    etDiscountAmount.setSelection(etDiscountAmount.text?.length ?: 0)
+                    setFocus(etDiscountAmount)
+                    false
+                }
+                else -> {
+                    etPackageName.error = null
+                    etPackageDescription.error = null
+                    etDiscountAmount.error = null
+                    true
+                }
             }
         }
     }
@@ -1188,4 +1279,10 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             .show()
     }
 
+    private fun setIfDiff(current: String?, newVal: String, set: (String) -> Unit) {
+        if (current != newVal) {
+            Logger.d("UpdateFormData", "Updating field from '$current' to '$newVal'")
+            set(newVal)
+        }
+    }
 }

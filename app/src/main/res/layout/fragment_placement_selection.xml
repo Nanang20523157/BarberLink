@@ -158,10 +158,10 @@
                 android:id="@+id/rvOutlets"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
                 android:layout_marginBottom="125dp"
-                android:clipToPadding="false"
                 android:clipChildren="false"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
                 tools:itemCount="4"
                 tools:listitem="@layout/item_list_select_placement_adapter" />
 

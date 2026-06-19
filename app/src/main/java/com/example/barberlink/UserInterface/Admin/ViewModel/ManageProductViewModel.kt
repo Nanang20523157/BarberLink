@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import com.example.barberlink.DataClass.DataCategories
 
 class ManageProductViewModel(
     private val db: FirebaseFirestore,
@@ -39,6 +40,9 @@ class ManageProductViewModel(
     private val _productList = MutableLiveData<MutableList<Product>>().apply { value = mutableListOf() }
     val productList: LiveData<MutableList<Product>> = _productList
 
+    private val _categoryList = MutableLiveData<MutableList<DataCategories>>().apply { value = mutableListOf() }
+    val categoryList: LiveData<MutableList<DataCategories>> = _categoryList
+
     private val _userAdminData = MutableLiveData<UserAdminData>()
     val userAdminData: LiveData<UserAdminData> = _userAdminData
 
@@ -48,6 +52,24 @@ class ManageProductViewModel(
     fun setUpdateStateResult(value: ResultState?) {
         viewModelScope.launch {
             _updateStateResult.value = value
+        }
+    }
+
+    fun setProductList(productList: MutableList<Product>) {
+        viewModelScope.launch {
+            _productList.value = productList
+        }
+    }
+
+    fun setCategoryList(categoryList: MutableList<DataCategories>) {
+        viewModelScope.launch {
+            _categoryList.value = categoryList
+        }
+    }
+
+    fun clearAllDataProduct() {
+        viewModelScope.launch {
+            _productList.clearList()
         }
     }
 
@@ -113,6 +135,7 @@ class ManageProductViewModel(
                         applyToGeneral = newProduct.applyToGeneral
                         categoryCode = newProduct.categoryCode
                         imgProduct = newProduct.imgProduct
+                        minimumQuantity = newProduct.minimumQuantity
                         productBarcode = newProduct.productBarcode
                         productCategory = newProduct.productCategory
                         productCounting = newProduct.productCounting
@@ -130,6 +153,7 @@ class ManageProductViewModel(
                         stockQuantity = newProduct.stockQuantity
                         tag = newProduct.tag
                         dataRef = newProduct.dataRef
+                        uid = newProduct.uid
                     }
                 } else {
                     currentList.add(newProduct)

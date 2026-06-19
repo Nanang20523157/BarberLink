@@ -59,8 +59,8 @@ class AddBundlingViewModel(
     private val _allServices = MutableLiveData<List<Service>>(emptyList())
     val allServices: LiveData<List<Service>> get() = _allServices
 
-    private val _allBundling = MutableLiveData<List<BundlingPackage>>(emptyList())
-    val allBundling: LiveData<List<BundlingPackage>> get() = _allBundling
+    private val _bundlingList = MutableLiveData<List<BundlingPackage>>(emptyList())
+    val bundlingList: LiveData<List<BundlingPackage>> get() = _bundlingList
 
     fun setUserAdminData(userAdminData: UserAdminData) {
         viewModelScope.launch {
@@ -88,7 +88,7 @@ class AddBundlingViewModel(
 
     fun setAllBundling(bundling: List<BundlingPackage>) {
         viewModelScope.launch {
-            _allBundling.value = bundling
+            _bundlingList.value = bundling
         }
     }
 
@@ -126,9 +126,9 @@ class AddBundlingViewModel(
                 _isSaving.value = false
                 if (result.isSuccessful) {
                     if (isAddMode) {
-                        _allBundling.value = _allBundling.value.orEmpty() + currentBundling
+                        _bundlingList.value = _bundlingList.value.orEmpty() + currentBundling
                     } else {
-                        _allBundling.value = _allBundling.value.orEmpty().map { if (it.uid == currentBundling.uid) currentBundling else it }
+                        _bundlingList.value = _bundlingList.value.orEmpty().map { if (it.uid == currentBundling.uid) currentBundling else it }
                     }
                 }
                 _saveResult.value = result

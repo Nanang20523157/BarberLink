@@ -173,7 +173,7 @@ class ItemManageBundlingAdapter(
                 }
 
                 // Card click (navigate to view mode = 0)
-                root.setOnClickListener {
+                cvMainInfoBundling.setOnClickListener {
                     if (blockAllUserClickAction) {
                         displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
@@ -244,16 +244,6 @@ class PackageDiffCallback : DiffUtil.ItemCallback<BundlingPackage>() {
 
     @SuppressLint("DiffUtilEquals")
     override fun areContentsTheSame(oldItem: BundlingPackage, newItem: BundlingPackage): Boolean {
-        return oldItem.packageName == newItem.packageName &&
-                oldItem.packageDesc == newItem.packageDesc &&
-                oldItem.packagePrice == newItem.packagePrice &&
-                oldItem.packageDiscount == newItem.packageDiscount &&
-                oldItem.accumulatedPrice == newItem.accumulatedPrice &&
-                oldItem.listItems == newItem.listItems &&
-                oldItem.applyToGeneral == newItem.applyToGeneral &&
-                oldItem.autoSelected == newItem.autoSelected &&
-                oldItem.defaultItem == newItem.defaultItem &&
-                oldItem.packageRating == newItem.packageRating &&
-                oldItem.listItemDetails == newItem.listItemDetails
+        return oldItem == newItem
     }
 }

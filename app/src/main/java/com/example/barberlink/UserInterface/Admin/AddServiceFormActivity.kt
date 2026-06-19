@@ -46,6 +46,7 @@ import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.example.barberlink.Utils.Logger
+import com.example.barberlink.Utils.forceClearFocus
 import com.example.barberlink.databinding.ActivityAddServiceFormBinding
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
@@ -128,6 +129,9 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     private var textDropdownCategoryName: String = ""
     private var previousText: String = ""
     private var previousCursorPosition: Int = 0
+    private var restoredPriceRawText: String? = null
+    private var restoredPriceCursorPosition: Int = 0
+    private var restoredPriceErrorMsg: CharSequence? = null
     private var defaultCategoryTouchListener: android.view.View.OnTouchListener? = null
 
     // ─── TextWatcher references for cleanup ───────────────────────────────────
@@ -317,8 +321,12 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
             skippedProcess = savedInstanceState.getBoolean("skipped_process", false)
             isHandlingBack = savedInstanceState.getBoolean("is_handling_back", false)
             isPopUpDropdownShow = savedInstanceState.getBoolean("is_pop_up_dropdown_show", false)
+            isPriceFormatting = savedInstanceState.getBoolean("is_price_formatting", false)
             previousText = savedInstanceState.getString("previous_text", "")
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
+            restoredPriceRawText = savedInstanceState.getString("price_raw_text")
+            restoredPriceCursorPosition = savedInstanceState.getInt("price_cursor_position", 0)
+            restoredPriceErrorMsg = savedInstanceState.getCharSequence("price_error_msg")
 
             addServiceViewModel.setupDropdownFilterWithNullState()
         } else {
@@ -358,7 +366,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
             binding.root.getWindowVisibleDisplayFrame(rect)
             val screenHeight = binding.root.rootView.height
             val keypadHeight = screenHeight - rect.bottom
-            
+
             val isKeyboardOpen = keypadHeight > screenHeight * 0.15
             if (isKeyboardOpen) {
                 // Keyboard is opened
@@ -368,7 +376,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                 binding.nestedScrollView.setPadding(0, 0, 0, keypadHeight)
                 if (binding.etServicePrice.hasFocus()) {
                     binding.nestedScrollView.post {
-                        binding.nestedScrollView.smoothScrollTo(0, binding.containerServicePrice.bottom)
+                        binding.nestedScrollView.smoothScrollTo(0, binding.bottomPageLayout.bottom)
                     }
                 }
             } else {
@@ -402,6 +410,10 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         outState.putString("text_dropdown_category_name", textDropdownCategoryName)
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+        outState.putBoolean("is_price_formatting", isPriceFormatting)
+        outState.putString("price_raw_text", binding.etServicePrice.text.toString())
+        outState.putInt("price_cursor_position", binding.etServicePrice.selectionStart)
+        outState.putCharSequence("price_error_msg", binding.etServicePrice.error)
 
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_handling_back", isHandlingBack)
@@ -617,7 +629,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 
     // ─── TextWatchers ─────────────────────────────────────────────────────────
     private fun setupEditTextListeners() {
-        binding.apply {
+        with (binding) {
             serviceNameTextWatcher = object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
@@ -649,59 +661,70 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                     previousText = s.toString()
                     previousCursorPosition = etServicePrice.selectionStart
                 }
-
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-
                 override fun afterTextChanged(s: Editable?) {
                     if (currentMode == 0 || isPriceFormatting || s == null) return
                     isPriceFormatting = true
 
                     try {
-                        var originalString = s.toString()
-                        if (originalString.isNotEmpty()) {
-                            if (originalString != "-") {
-                                // Remove the dots and update the original string
-                                val cursorPosition = etServicePrice.selectionStart
-                                val cursorChar = previousText.getOrNull(cursorPosition)
-                                if (cursorChar == '.' && originalString.length < previousText.length) {
-                                    // If the cursor is at a dot, remove the character before it instead
-                                    originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
-                                }
+                        var originalString = s.toString().ifEmpty { "0" }
 
-                                val cleanText = originalString.replace(".", "")
-                                val parsed = cleanText.toLongOrNull() ?: 0L
-                                val formatted = format.format(parsed)
+                        if (originalString == "-") {
+                            throw IllegalArgumentException("Input is not a number but no problem")
+                        } else if (originalString.replace(".", "").toLongOrNull() == null) {
+                            // ROLLBACK: Kembalikan teks ke angka valid terakhir yang diketik user
+                            val savedFilters = s.filters
+                            s.filters = arrayOf()
+                            s.replace(0, s.length, previousText)
+                            s.filters = savedFilters
 
-                                // Set the text
-                                etServicePrice.setText(formatted)
-                                etServicePrice.error = null
+                            // Kembalikan posisi kursor dengan aman
+                            val safeCursor = previousCursorPosition.coerceIn(0, previousText.length)
+                            etServicePrice.setSelection(safeCursor) // Ganti etDailyCapital dengan etMoneyAmount di fragment kedua
 
-                                // Calculate the new cursor position
-                                val newCursorPosition = if (formatted == previousText) {
-                                    previousCursorPosition
-                                } else {
-                                    cursorPosition + (formatted.length - s.length)
-                                }
-
-                                // Ensure the new cursor position is within the bounds of the new text
-                                val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
-
-                                // Set the cursor position
-                                etServicePrice.setSelection(boundedCursorPosition)
-
-                                addServiceViewModel.serviceParams.value?.let { service ->
-                                    service.servicePrice = parsed.toInt()
-                                    addServiceViewModel.updateServiceParams(service)
-                                }
-                            }
-                        } else {
-                            addServiceViewModel.serviceParams.value?.let { service ->
-                                service.servicePrice = 0
-                                addServiceViewModel.updateServiceParams(service)
-                            }
+                            // Hentikan fungsi agar tidak memanggil validasi (menghindari text merah berkedip)
+                            etServicePrice.addTextChangedListener(this)
+                            return
                         }
-                    } catch (e: Exception) {
+
+                        /// Remove the dots and update the original string
+                        val cursorPosition = etServicePrice.selectionStart
+                        val cursorChar = previousText.getOrNull(cursorPosition)
+                        if (cursorChar == '.' && originalString.length < previousText.length) {
+                            // If the cursor is at a dot, move it to the previous position to remove the number instead
+                            originalString = originalString.removeRange(cursorPosition - 1, cursorPosition)
+                        }
+
+                        val cleanText = originalString.replace(Regex("\\D"), "")
+                        val parsed = cleanText.toLongOrNull() ?: 0L
+                        val formatted = format.format(parsed)
+
+                        // Calculate the new cursor position
+                        val newCursorPosition = if (formatted == previousText) {
+                            previousCursorPosition
+                        } else cursorPosition + (formatted.length - s.length)
+
+                        // Set the text
+                        if (formatted != s.toString()) {
+                            val savedFilters = s.filters     // 1. Simpan semua filter yang aktif (termasuk keyListener sistem)
+                            s.filters = arrayOf()            // 2. Bersihkan semua filter agar penggantian lancar tanpa hambatan
+                            s.replace(0, s.length, formatted) // 3. Lakukan replace teks
+                            s.filters = savedFilters         // 4. Kembalikan semua filter semula
+                        }
+                        etServicePrice.error = null
+
+                        val boundedCursorPosition = newCursorPosition.coerceIn(0, formatted.length)
+
+                        etServicePrice.setSelection(boundedCursorPosition)
+
+                        addServiceViewModel.serviceParams.value?.let { service ->
+                            service.servicePrice = parsed.coerceAtMost(2000000000L).toInt()
+                            addServiceViewModel.updateServiceParams(service)
+                        }
+                    } catch (e: IllegalArgumentException) {
                         e.printStackTrace()
+                    } catch (nfe: NumberFormatException) {
+                        nfe.printStackTrace()
                     }
 
                     isPriceFormatting = false
@@ -712,7 +735,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     }
 
     // ─── Switch listeners ─────────────────────────────────────────────────────
-
     private fun setupSwitchListeners() {
         binding.switchFree.setOnCheckedChangeListener { _, isChecked ->
             if (currentMode == 0) return@setOnCheckedChangeListener
@@ -720,7 +742,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                 service.freeOfCharge = isChecked
                 if (isChecked) {
                     service.servicePrice = 0
-                    binding.etServicePrice.setText("")
+                    binding.etServicePrice.setText("0")
                 }
                 addServiceViewModel.updateServiceParams(service)
             }
@@ -1028,14 +1050,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     @SuppressLint("ClickableViewAccessibility")
     private fun displayAllData(service: Service) {
         lifecycleScope.launch {
-            // Only update if value differs to avoid TextWatcher loop
-            fun setIfDiff(current: String?, newVal: String, set: (String) -> Unit) {
-                if (current != newVal) {
-                    Logger.d("UpdateFormData", "Updating field from '$current' to '$newVal'")
-                    set(newVal)
-                }
-            }
-
+            // Only update if value differs to avoid TextWatcher loo
             setIfDiff(binding.etServiceName.text?.toString(), service.serviceName) { binding.etServiceName.setText(it) }
             setIfDiff(binding.etServiceDescription.text?.toString(), service.serviceDesc) { binding.etServiceDescription.setText(it) }
             setIfDiff(binding.acServiceCategory.text?.toString(), service.serviceCategory) { binding.acServiceCategory.setText(it, false) }
@@ -1057,17 +1072,29 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 
             // Price field
             updatePriceFieldState(service.freeOfCharge)
-            if (!service.freeOfCharge && service.servicePrice > 0) {
+            val tempRawText = restoredPriceRawText
+            Logger.d("PriceFormatting", "tempRawText: $tempRawText || restoredPriceErrorMsg: $restoredPriceErrorMsg || restoredPriceCursorPosition: $restoredPriceCursorPosition")
+            if (tempRawText != null) {
                 isPriceFormatting = true
-                val formatted = NumberFormat.getNumberInstance(Locale("id", "ID"))
-                    .format(service.servicePrice.toLong())
-                setIfDiff(binding.etServicePrice.text?.toString(), formatted) {
-                    binding.etServicePrice.setText(it)
-                }
+                setIfDiff(binding.etServicePrice.text?.toString(), tempRawText) { binding.etServicePrice.setText(it) }
                 isPriceFormatting = false
-            } else if (service.freeOfCharge) {
+                binding.etServicePrice.setSelection(restoredPriceCursorPosition.coerceIn(0, tempRawText.length))
+                binding.etServicePrice.post {
+                    restoredPriceErrorMsg?.let {
+                        binding.etServicePrice.error = it
+                    }
+                    // Bersihkan state restorasi setelah benar-benar diterapkan di layar
+                    restoredPriceRawText = null
+                    restoredPriceErrorMsg = null
+                }
+            } else if (!service.freeOfCharge && service.servicePrice > 0) {
                 isPriceFormatting = true
-                binding.etServicePrice.setText("")
+                val formatted = format.format(service.servicePrice)
+                setIfDiff(binding.etServicePrice.text?.toString(), formatted) { binding.etServicePrice.setText(it) }
+                isPriceFormatting = false
+            } else if (service.freeOfCharge || isFirstLoad) {
+                isPriceFormatting = true
+                setIfDiff(binding.etServicePrice.text?.toString(), "0") { binding.etServicePrice.setText(it) }
                 isPriceFormatting = false
             }
 
@@ -1112,7 +1139,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 
             showShimmer(false)
             if (isFirstLoad) setupListeners()
-            //addServiceViewModel.fetchStorageIcons()
         }
     }
 
@@ -1298,87 +1324,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         }
     }
 
-//    private fun getAllData() {
-//        lifecycleScope.launch {
-//            addServiceViewModel.allDataMutex.withStateLock {
-//                if (barbershopId.isEmpty()) {
-//                    //qwerty
-//                    showShimmer(false)
-//                    return@withStateLock
-//                }
-//
-//                var hasError = false
-//
-//                try {
-//                    // Preload icons using ServiceIconCache in background
-//                    withContext(Dispatchers.IO) {
-//                        try {
-//                            com.example.barberlink.Helper.ServiceIconCache.preloadIcons()
-//                        } catch (e: Exception) {
-//                            Logger.e("AddServiceFormActivity", "Error preloading icons", e)
-//                            throw e
-//                        }
-//                    }
-//
-//                    // Only fetch services list in ADD mode (for duplicate name checking)
-//                    if (currentMode == 2) {
-//                        val snapshotServices = withContext(Dispatchers.IO) {
-//                            db.collection("barbershops/$barbershopId/services")
-//                                .awaitGetWithOfflineFallback(tag = "GetAllServicesSvc")
-//                        }
-//
-//                        if (snapshotServices.isSuccessful) {
-//                            val allServices = snapshotServices.data?.documents?.mapNotNull { doc ->
-//                                doc.toObject(Service::class.java)?.apply {
-//                                    dataRef = doc.reference.path
-//                                }
-//                            } ?: emptyList()
-//                            addServiceViewModel.setAllServices(allServices)
-//                        } else {
-//                            handleFetchError(snapshotServices, "layanan")
-//                            hasError = true
-//                        }
-//                    }
-//                } catch (e: Exception) {
-//                    hasError = true
-//                } finally {
-//                    showShimmer(false)
-//                    if (hasError) {
-//                        toastViewModel.showToast("Gagal memuat data yang dibutuhkan!", false)
-//                    }
-//
-//                    // Always fetch initial/current service params
-//                    val original = addServiceViewModel.originalService.value
-//                    val currentService = original ?: Service().apply {
-//                        uid = UUID.randomUUID().toString().replace("-", "").take(20)
-//                        rootRef = "barbershops/$barbershopId"
-//                    }
-//
-//                    selectedIconUrl = currentService.serviceIcon
-//
-//                    if (::iconAdapter.isInitialized) {
-//                        iconAdapter.updateSelection(selectedIconUrl)
-//                    }
-//
-//                    addServiceViewModel.updateServiceParams(currentService)
-//                }
-//            }
-//        }
-//    }
-
-    private fun <T> handleFetchError(snapshot: com.example.barberlink.DataClass.FirestoreResult<T>, type: String) {
-        if (snapshot.displayMessage) {
-            val errMsg = snapshot.errorMessage.toString()
-            if (errMsg == NetworkMonitor.errorMessage.value ||
-                errMsg == "Koneksi internet tidak tersedia. Periksa koneksi Anda."
-            ) {
-                NetworkMonitor.showToast(errMsg, true)
-            } else toastViewModel.showToast(errMsg, false)
-        } else {
-            toastViewModel.showToast("Gagal memuat data $type!", false)
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         binding.etServiceName.removeTextChangedListener(serviceNameTextWatcher)
@@ -1393,80 +1338,107 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     private fun attemptSave() {
         if (!validateInputs()) return
 
-        val currentService = addServiceViewModel.serviceParams.value ?: Service()
-        // Update icon selection
-        currentService.serviceIcon = selectedIconUrl
+        forceClearFocus()
+        lifecycleScope.launch {
+            delay(300)
+            val currentService = addServiceViewModel.serviceParams.value ?: Service()
+            // Update icon selection
+            currentService.serviceIcon = selectedIconUrl
 
-        // Ensure rootRef is set
-        if (currentMode == 2) {
-            val newDocRef = db.collection("barbershops").document(barbershopId).collection("services").document()
-            val autoGeneratedId = newDocRef.id
-            currentService.uid = autoGeneratedId
+            // Ensure rootRef is set
+            if (currentMode == 2) {
+                val newDocRef = db.collection("barbershops")
+                    .document(barbershopId)
+                    .collection("services")
+                    .document()
+                val autoGeneratedId = newDocRef.id
+                currentService.uid = autoGeneratedId
+            }
+
+            addServiceViewModel.updateServiceParams(currentService)
+            addServiceViewModel.saveService(currentMode == 2)
         }
-
-        addServiceViewModel.updateServiceParams(currentService)
-        addServiceViewModel.saveService(currentMode == 2)
     }
 
     private fun validateInputs(): Boolean {
-        val name = binding.etServiceName.text.toString().trim()
-        val category = binding.acServiceCategory.text.toString().trim()
-        val description = binding.etServiceDescription.text.toString().trim()
-        val isFree = binding.switchFree.isChecked
-        val rawPriceText = binding.etServicePrice.text.toString().trim()
-        val priceTextCleaned = rawPriceText.replace(".", "")
-        val price = priceTextCleaned.toIntOrNull() ?: 0
+        with (binding) {
+            val name = etServiceName.text.toString().trim()
+            val category = acServiceCategory.text.toString().trim()
+            val description = etServiceDescription.text.toString().trim()
+            val isFree = switchFree.isChecked
+            val rawPriceText = etServicePrice.text.toString().trim()
+            val clearPriceText = rawPriceText.replace(Regex("\\D"), "")
+            val servicePriceLong = clearPriceText.toLongOrNull()
+            val serviceList = addServiceViewModel.serviceList.value ?: emptyList()
+            val currentServiceUid = addServiceViewModel.serviceParams.value?.uid.orEmpty()
+            val resultEliminateData = serviceList.filter { it.uid != currentServiceUid }
 
-        return when {
-            name.isEmpty() -> {
-                binding.etServiceName.error = "Nama layanan tidak boleh kosong"
-                binding.etServiceName.setSelection(binding.etServiceName.text?.length ?: 0)
-                setFocus(binding.etServiceName)
-                false
-            }
-            // Check for duplicate service name in ADD mode
-            currentMode == 2 && addServiceViewModel.serviceList.value?.any { it.serviceName.equals(name, ignoreCase = true) } == true -> {
-                binding.etServiceName.error = "Nama layanan sudah digunakan, silahkan gunakan nama lain"
-                binding.etServiceName.setSelection(binding.etServiceName.text?.length ?: 0)
-                setFocus(binding.etServiceName)
-                false
-            }
-            category.isEmpty() -> {
-                binding.acServiceCategory.error = "Silahkan pilih atau tambah kategori layanan"
-                setFocus(binding.acServiceCategory)
-                false
-            }
-            description.isEmpty() -> {
-                binding.etServiceDescription.error = "Deskripsi layanan tidak boleh kosong"
-                binding.etServiceDescription.setSelection(binding.etServiceDescription.text?.length ?: 0)
-                setFocus(binding.etServiceDescription)
-                false
-            }
-            selectedIconUrl.isEmpty() -> {
-                toastViewModel.showToast("Silahkan pilih icon layanan yang tersedia", false)
-                false
-            }
-            !isFree && rawPriceText.isEmpty() -> {
-                binding.etServicePrice.error = "Harga layanan tidak boleh kosong"
-                setFocus(binding.etServicePrice)
-                false
-            }
-            !isFree && rawPriceText.isNotEmpty() && rawPriceText[0] == '0' && priceTextCleaned.length > 1 -> {
-                binding.etServicePrice.error = "Format harga tidak valid (tidak boleh diawali angka nol)"
-                setFocus(binding.etServicePrice)
-                false
-            }
-            !isFree && price <= 0 -> {
-                binding.etServicePrice.error = "Harga layanan harus lebih dari 0"
-                setFocus(binding.etServicePrice)
-                false
-            }
-            else -> {
-                binding.etServiceName.error = null
-                binding.acServiceCategory.error = null
-                binding.etServiceDescription.error = null
-                binding.etServicePrice.error = null
-                true
+            return when {
+                name.isEmpty() -> {
+                    etServiceName.error = "Nama layanan tidak boleh kosong"
+                    binding.etServiceName.setSelection(etServiceName.text?.length ?: 0)
+                    setFocus(etServiceName)
+                    false
+                }
+                // Check for duplicate service name in ADD mode
+                resultEliminateData.any { it.serviceName.equals(name, ignoreCase = true) } -> {
+                    etServiceName.error = "Nama layanan sudah digunakan, silahkan gunakan nama lain"
+                    etServiceName.setSelection(etServiceName.text?.length ?: 0)
+                    setFocus(etServiceName)
+                    false
+                }
+                category.isEmpty() -> {
+                    acServiceCategory.error = "Silahkan pilih atau tambah kategori layanan"
+                    acServiceCategory.requestFocus()
+                    false
+                }
+                description.isEmpty() -> {
+                    etServiceDescription.error = "Deskripsi layanan tidak boleh kosong"
+                    etServiceDescription.setSelection(etServiceDescription.text?.length ?: 0)
+                    setFocus(etServiceDescription)
+                    false
+                }
+                selectedIconUrl.isEmpty() -> {
+                    toastViewModel.showToast("Silahkan pilih icon layanan yang tersedia", false)
+                    false
+                }
+                rawPriceText.isEmpty() -> {
+                    etServicePrice.error = "Harga layanan tidak boleh kosong"
+                    etServicePrice.setSelection(etServicePrice.text?.length ?: 0)
+                    setFocus(etServicePrice)
+                    false
+                }
+                servicePriceLong == null -> {
+                    etServicePrice.error = "Harga layanan harus berupa angka"
+                    etServicePrice.setSelection(etServicePrice.text?.length ?: 0)
+                    setFocus(etServicePrice)
+                    false
+                }
+                !isFree && servicePriceLong <= 0 -> {
+                    etServicePrice.error = "Harga layanan harus lebih dari 0"
+                    etServicePrice.setSelection(etServicePrice.text?.length ?: 0)
+                    setFocus(etServicePrice)
+                    false
+                }
+                !isFree && rawPriceText.isNotEmpty() && rawPriceText[0] == '0' && rawPriceText.length > 1 -> {
+                    etServicePrice.error = getString(R.string.your_value_entered_not_valid)
+                    etServicePrice.setSelection(etServicePrice.text?.length ?: 0)
+                    setFocus(etServicePrice)
+                    false
+                }
+                !isFree && servicePriceLong > 2000000000L -> {
+                    etServicePrice.error = "Harga layanan tidak boleh melebihi 2 Milliar"
+                    etServicePrice.setSelection(etServicePrice.text?.length ?: 0)
+                    setFocus(etServicePrice)
+                    false
+                }
+                else -> {
+                    etServiceName.error = null
+                    acServiceCategory.error = null
+                    etServiceDescription.error = null
+                    etServicePrice.error = null
+                    true
+                }
             }
         }
     }
@@ -1574,12 +1546,15 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
 //        if (binding.switchStatus.isChecked != original.serviceStatus) return true
 
         // Compare price
-        val currentPrice = binding.etServicePrice.text.toString().replace(Regex("\\D"), "")
-            .toIntOrNull() ?: 0
+        val currentPrice = binding.etServicePrice.text.toString().replace(Regex("\\D"), "").toIntOrNull() ?: 0
         Logger.d("UnsavedChanges", "Price mismatch: $currentPrice != ${original.servicePrice}")
         if (currentPrice != original.servicePrice) return true
 
         // Image change
+        if (original.serviceImg != current.serviceImg) {
+            Logger.d("UnsavedChanges", "Service image URL has changed")
+            return true
+        }
         if (addServiceViewModel.pendingImageUri.value != null) {
             Logger.d("UnsavedChanges", "Pending image change exists")
             return true
@@ -1614,4 +1589,10 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
             .show()
     }
 
+    private fun setIfDiff(current: String?, newVal: String, set: (String) -> Unit) {
+        if (current != newVal) {
+            Logger.d("UpdateFormData", "Updating field from '$current' to '$newVal'")
+            set(newVal)
+        }
+    }
 }

@@ -169,7 +169,7 @@
                                 android:alpha="0.6"
                                 android:contentDescription="@string/image_outlet_placeholder_desc"
                                 android:scaleType="centerCrop"
-                                android:src="@drawable/img_product_placeholder" />
+                                android:src="@drawable/img_product_placeholder2" />
 
                             <LinearLayout
                                 android:layout_width="wrap_content"
@@ -321,7 +321,7 @@
 
                             <!-- AutoCompleteTextView for Dropdown -->
                             <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/tilCategory"
+                                android:id="@+id/tilProductCategory"
                                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
@@ -403,7 +403,7 @@
                         android:textStyle="bold" />
 
                     <EditText
-                        android:id="@+id/etProductJenis"
+                        android:id="@+id/etProductType"
                         style="@style/FormInputText"
                         android:layout_marginHorizontal="16dp"
                         android:layout_marginTop="7dp"
@@ -518,38 +518,35 @@
                                 android:layout_marginStart="4.2dp" />
 
                             <TextView
+                                android:id="@+id/tvSkuInformation"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/poppins_regular"
-                                android:lines="1"
+                                android:singleLine="true"
                                 android:text="SUNSLK (Nama/Merk) - SHP (Kategori) - SOFT (Jenis) - 160ML (Ukuran)"
                                 android:textColor="@color/slate_600"
                                 android:textSize="10sp"
                                 android:ellipsize="marquee"
                                 android:marqueeRepeatLimit="marquee_forever"
+                                android:focusable="true"
+                                android:focusableInTouchMode="true"
+                                android:scrollHorizontally="true"
                                 android:layout_marginTop="1dp"
                                 android:layout_marginStart="5dp" />
 
-                            <RelativeLayout
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="10dp">
-                                <EditText
-                                    android:id="@+id/etProductSKU"
-                                    style="@style/FormInputText"
-                                    android:layout_width="match_parent"
-                                    android:layout_alignParentStart="true"
-                                    android:autofillHints=""
-                                    android:background="@drawable/bg_input_selector_blue"
-                                    android:hint="AZARIN-PFM-TTES-STNDR"
-                                    android:inputType="textVisiblePassword"
-                                    android:digits="0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                    android:textAllCaps="true"
-                                    android:maxLength="22"
-                                    android:paddingHorizontal="17dp"
-                                    android:paddingTop="15dp"
-                                    android:paddingBottom="11dp"/>
-                            </RelativeLayout>
+                            <EditText
+                                android:id="@+id/etProductSKU"
+                                style="@style/FormInputText"
+                                android:autofillHints=""
+                                android:background="@drawable/bg_input_selector_blue"
+                                android:hint="AZARIN-PFM-TTES-STNDR"
+                                android:inputType="textCapCharacters|textNoSuggestions"
+                                android:digits="0123456789-ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                android:maxLength="21"
+                                android:layout_marginTop="10dp"
+                                android:paddingHorizontal="17dp"
+                                android:paddingTop="15dp"
+                                android:paddingBottom="11dp"/>
 
                             <LinearLayout
                                 android:id="@+id/llCheckBoxData"
@@ -614,6 +611,7 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/llBarcode"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="16dp"
@@ -755,6 +753,7 @@
                                 android:textColorHint="#191C1D"
                                 android:textColor="#191C1D"
                                 android:textSize="16sp"
+                                android:maxLength="13"
                                 android:fontFamily="sans-serif-medium"
                                 android:inputType="number"/>
 
@@ -770,7 +769,7 @@
 
                         </FrameLayout>
 
-                        <!-- Final Price -->
+                        <!-- Selling Price -->
                         <LinearLayout
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -822,6 +821,7 @@
                                 android:textColorHint="#191C1D"
                                 android:textColor="#191C1D"
                                 android:textSize="16sp"
+                                android:maxLength="13"
                                 android:fontFamily="sans-serif-medium"
                                 android:inputType="number"/>
 
@@ -883,6 +883,7 @@
 
                     <!-- Sold Quantity and Stock -->
                     <LinearLayout
+                        android:id="@+id/containerQuantity"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="18dp"
@@ -1039,6 +1040,7 @@
                             </LinearLayout>
                         </LinearLayout>
                     </LinearLayout>
+
                     <!-- Rating -->
                     <TextView
                         style="@style/FormLabel"
@@ -1048,7 +1050,9 @@
                         android:textColor="@color/form_label_color"
                         android:textSize="14sp"
                         android:textStyle="bold" />
+
                     <LinearLayout
+                        android:id="@+id/llRating"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="17dp"
@@ -1141,7 +1145,7 @@
                     </LinearLayout>
 
                     <com.google.android.material.card.MaterialCardView
-                        android:id="@+id/cvCommission"
+                        android:id="@+id/cvShareProfit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginHorizontal="19dp"
@@ -1342,12 +1346,19 @@
                                 app:tint="#38BDF8" />
                         </androidx.constraintlayout.widget.ConstraintLayout>
                     </com.google.android.material.card.MaterialCardView>
+
+                    <View
+                        android:id="@+id/bottomPageLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"/>
+
                     <!-- Bottom padding so it doesn't get covered by fixed bottom navigation -->
                     <View
                         android:id="@+id/view_space"
                         android:layout_width="match_parent"
                         android:layout_height="90dp"
                         android:visibility="visible" />
+
                 </LinearLayout>
             </androidx.core.widget.NestedScrollView>
 

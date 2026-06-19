@@ -1138,12 +1138,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     private fun displayAllData(outlet: Outlet) {
         lifecycleScope.launch {
             // Only update if value differs to avoid TextWatcher loop
-            fun setIfDiff(current: String?, newVal: String, set: (String) -> Unit) {
-                if (current != newVal) {
-                    Logger.d("UpdateFormData", "Updating field from '$current' to '$newVal'")
-                    set(newVal)
-                }
-            }
             setIfDiff(binding.etOutletName.text?.toString(), outlet.outletName) { binding.etOutletName.setText(it) }
             val formattedIncomingPhone = if (outlet.outletPhoneNumber.isNotEmpty()) {
                 formatPhoneNumberCodeCountry(outlet.outletPhoneNumber, "+62")
@@ -1647,156 +1641,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         }
     }
 
-    // ─── Save / Navigation ────────────────────────────────────────────────────
-//    private fun getAllData() {
-//        lifecycleScope.launch {
-//            addOutletViewModel.allDataMutex.withStateLock {
-//                Logger.d("UpdateFormData", "getAllData first line")
-//                try {
-//                    if (barbershopId.isEmpty()) throw IllegalStateException("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
-//
-//                    coroutineScope {
-//                        awaitAll(
-//                            async {
-//                                getCollectionData(
-//                                    collectionPath = "outlets",
-//                                    dataClass = Outlet::class.java,
-//                                    isCollectionGroup = false
-//                                )
-//                            },
-//                            async {
-//                                getCollectionData(
-//                                    collectionPath = "services",
-//                                    dataClass = Service::class.java,
-//                                    isCollectionGroup = false
-//                                )
-//                            },
-//                            async {
-//                                getCollectionData(
-//                                    collectionPath = "bundling_packages",
-//                                    dataClass = BundlingPackage::class.java,
-//                                    isCollectionGroup = false
-//                                )
-//                            },
-//                            async {
-//                                getCollectionData(
-//                                    collectionPath = "products",
-//                                    dataClass = Product::class.java,
-//                                    isCollectionGroup = false
-//                                )
-//                            },
-//                            async {
-//                                getCollectionData(
-//                                    collectionPath = "employees",
-//                                    dataClass = UserEmployeeData::class.java,
-//                                    isCollectionGroup = false,
-//                                    queryField = "root_ref",
-//                                    queryValue = "barbershops/$barbershopId"
-//                                )
-//                            }
-//                        )
-//                    }
-//                } catch (e: Exception) {
-//                    Logger.d("UpdateFormData", "getAllData Catch Blok")
-//                    toastViewModel.showToast(e.message.toString(), false)
-//                    val initialData = Outlet()
-//                    addOutletViewModel.setOutletList(emptyList())
-//                    addOutletViewModel.setAllServices(emptyList())
-//                    addOutletViewModel.setAllBundling(emptyList())
-//                    addOutletViewModel.setAllProducts(emptyList())
-//                    addOutletViewModel.setAllStaff(emptyList())
-//                    addOutletViewModel.setOriginalOutlet(initialData.deepCopy())
-//                    addOutletViewModel.updateOutletParams(initialData)
-//                }
-//            }
-//        }
-//    }
-
-    private suspend fun <T> getCollectionData(
-        collectionPath: String,
-        dataClass: Class<T>,
-        // listToUpdate: MutableList<T>,
-        isCollectionGroup: Boolean = false,
-        queryField: String? = null,
-        queryValue: Any? = null
-    ) {
-        try {
-            val collectionRef = if (isCollectionGroup) {
-                val groupRef = db.collectionGroup(collectionPath)
-                if (queryField != null && queryValue != null)
-                    groupRef.whereEqualTo(queryField, queryValue)
-                else groupRef
-            } else {
-                if (collectionPath == "employees") {
-                    val groupRef = db.collection(collectionPath)
-                    if (queryField != null && queryValue != null)
-                        groupRef.whereEqualTo(queryField, queryValue)
-                    else groupRef
-                } else {
-                    db.collection("barbershops")
-                        .document(barbershopId)
-                        .collection(collectionPath)
-                }
-            }
-
-            // 🔹 Jalankan get() dengan Offline Aware Handler
-            val snapshot = withContext(Dispatchers.IO) {
-                collectionRef
-                    .awaitGetWithOfflineFallback(tag = "GetCollectionData-${dataClass.simpleName}")
-            }
-
-            if (snapshot.isSuccessful) {
-                val documents = snapshot.data
-                if (documents != null) {
-                    withContext(Dispatchers.Default) {
-                        val items = documents.mapNotNull { document ->
-                            val obj = document.toObject(dataClass)
-                            when (dataClass) {
-                                Outlet::class.java -> (obj as Outlet).apply {
-                                    outletReference = document.reference.path
-                                } as T
-                                else -> obj as T
-                            }
-                        }
-
-                        // 🔹 Pilih mutex sesuai data
-                        val mutex = when (dataClass) {
-                            Service::class.java -> addOutletViewModel.servicesListMutex
-                            BundlingPackage::class.java -> addOutletViewModel.bundlingListMutex
-                            UserEmployeeData::class.java -> addOutletViewModel.employeesListMutex
-                            Product::class.java -> addOutletViewModel.productsListMutex
-                            Outlet::class.java -> addOutletViewModel.outletListMutex
-                            else -> ReentrantCoroutineMutex()
-                        }
-
-                        mutex.withStateLock {
-                            when (dataClass) {
-                                Service::class.java -> addOutletViewModel.setAllServices(items as List<Service>)
-                                BundlingPackage::class.java -> addOutletViewModel.setAllBundling(items as List<BundlingPackage>)
-                                UserEmployeeData::class.java -> addOutletViewModel.setAllStaff(items as List<UserEmployeeData>)
-                                Product::class.java -> addOutletViewModel.setAllProducts(items as List<Product>)
-                                Outlet::class.java -> addOutletViewModel.setOutletList(items as List<Outlet>)
-                            }
-                        }
-                    }
-                } else throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
-            } else throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
-        } catch (e: Exception) {
-            throw e
-        }
-    }
-
-    private fun <T> handleFetchError(snapshot: FirestoreResult<T>, type: String) {
-        if (snapshot.displayMessage) {
-            val errMsg = snapshot.errorMessage.toString()
-            if (errMsg == NetworkMonitor.errorMessage.value || errMsg == "Koneksi internet tidak tersedia. Periksa koneksi Anda.") {
-                NetworkMonitor.showToast(errMsg, true)
-            } else toastViewModel.showToast(errMsg, false)
-        } else {
-            toastViewModel.showToast("Gagal memuat data $type!", false)
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         selectedServicesAdapter.stopAllShimmerEffects()
@@ -1819,119 +1663,128 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     private fun attemptSave() {
         if (!validateInputs()) return
 
-        val currentOutlet = addOutletViewModel.outletParams.value ?: Outlet()
+        forceClearFocus()
+        lifecycleScope.launch {
+            delay(300)
+            val currentOutlet = addOutletViewModel.outletParams.value ?: Outlet()
 
-        // 🔹 SINKRONISASI EKSPLISIT: Pastikan data visual layar disinkronkan ke objek sebelum disimpan
-        currentOutlet.outletName = binding.etOutletName.text.toString().trim()
-        currentOutlet.outletPhoneNumber = binding.etPhone.text.toString().trim()
-        currentOutlet.taglineOrDesc = binding.etTagline.text.toString().trim()
-        currentOutlet.outletAddress = binding.etAddress.text.toString().trim()
+            // 🔹 SINKRONISASI EKSPLISIT: Pastikan data visual layar disinkronkan ke objek sebelum disimpan
+            currentOutlet.outletName = binding.etOutletName.text.toString().trim()
+            currentOutlet.outletPhoneNumber = binding.etPhone.text.toString().trim()
+            currentOutlet.taglineOrDesc = binding.etTagline.text.toString().trim()
+            currentOutlet.outletAddress = binding.etAddress.text.toString().trim()
 
-        // Sinkronisasi titik koordinat dari input visual
-        val coords = binding.etCoordinate.text.toString().trim()
-        if (coords.isNotEmpty() && coords.contains(",")) {
-            val parts = coords.split(",")
-            if (parts.size == 2) {
-                currentOutlet.latitudePoint = parts[0].trim().toDoubleOrNull() ?: 0.0
-                currentOutlet.longitudePoint = parts[1].trim().toDoubleOrNull() ?: 0.0
+            // Sinkronisasi titik koordinat dari input visual
+            val coords = binding.etCoordinate.text.toString().trim()
+            if (coords.isNotEmpty() && coords.contains(",")) {
+                val parts = coords.split(",")
+                if (parts.size == 2) {
+                    currentOutlet.latitudePoint = parts[0].trim().toDoubleOrNull() ?: 0.0
+                    currentOutlet.longitudePoint = parts[1].trim().toDoubleOrNull() ?: 0.0
+                }
             }
-        }
 
-        if (currentMode == 2) {
-            currentOutlet.uid = binding.etOutletName.text.toString()
-                .lowercase()
-                .replace("\\s".toRegex(), "")
-        }
+            if (currentMode == 2) {
+                currentOutlet.uid = binding.etOutletName.text.toString()
+                    .lowercase()
+                    .replace("\\s".toRegex(), "")
+            }
 
-        addOutletViewModel.updateOutletParams(currentOutlet)
-        addOutletViewModel.saveOutlet(currentMode == 2)
+            addOutletViewModel.updateOutletParams(currentOutlet)
+            addOutletViewModel.saveOutlet(currentMode == 2)
+        }
     }
 
     private fun validateInputs(): Boolean {
-        val name = binding.etOutletName.text.toString().trim()
-        val phone = binding.etPhone.text.toString().trim()
-        val tagline = binding.etTagline.text.toString().trim()
-        val address = binding.etAddress.text.toString().trim()
-        val coords = binding.etCoordinate.text.toString().trim()
+        with (binding) {
+            val name = etOutletName.text.toString().trim()
+            val phone = etPhone.text.toString().trim()
+            val tagline = etTagline.text.toString().trim()
+            val address = etAddress.text.toString().trim()
+            val coords = etCoordinate.text.toString().trim()
+            val outletList = addOutletViewModel.outletList.value ?: emptyList()
+            val currentOutletUid = addOutletViewModel.outletParams.value?.uid.orEmpty()
+            val resultEliminateData = outletList.filter { it.uid != currentOutletUid }
 
-        val countryCode = phone.findCountryCode()
-        // Nomor telepon setelah kode negara (hanya angka)
-        val numberAfterCode = phone.removePrefix(countryCode).replace("\\D".toRegex(), "")
+            val countryCode = phone.findCountryCode()
+            // Nomor telepon setelah kode negara (hanya angka)
+            val numberAfterCode = phone.removePrefix(countryCode).replace("\\D".toRegex(), "")
 
-        return when {
-            name.isEmpty() -> {
-                binding.etOutletName.error = "Nama outlet tidak boleh kosong"
-                binding.etOutletName.setSelection(binding.etOutletName.text?.length ?: 0)
-                setFocus(binding.etOutletName)
-                false
-            }
-            currentMode == 2 && addOutletViewModel.outletList.value?.any { it.outletName.equals(name, ignoreCase = true) } == true -> {
-                binding.etOutletName.error = "Nama outlet sudah digunakan, silahkan gunakan nama lain"
-                binding.etOutletName.setSelection(binding.etOutletName.text?.length ?: 0)
-                setFocus(binding.etOutletName)
-                false
-            }
-            phone.isEmpty() -> {
-                binding.etPhone.error = getString(R.string.phone_number_cannot_be_empty)
-                binding.etPhone.setText("+62 ")
-                binding.etPhone.setSelection(binding.etPhone.text?.length ?: 0)
-                setFocus(binding.etPhone)
-                false
-            }
-            phone == "+62" -> {
-                binding.etPhone.error = getString(R.string.phone_number_cannot_be_empty)
-                binding.etPhone.setSelection(binding.etPhone.text?.length ?: 0)
-                setFocus(binding.etPhone)
-                false
-            }
-            numberAfterCode.length !in 5..13 -> {
-                val errorRes = if (numberAfterCode.length < 5) R.string.phone_number_is_too_short else R.string.phone_number_is_too_long
-                binding.etPhone.error = getString(errorRes)
-                binding.etPhone.setSelection(binding.etPhone.text?.length ?: 0)
-                setFocus(binding.etPhone)
-                false
-            }
-            tagline.isEmpty() -> {
-                binding.etTagline.error = "Tagline/Diskripsi tidak boleh kosong"
-                binding.etTagline.setSelection(binding.etTagline.text?.length ?: 0)
-                setFocus(binding.etTagline)
-                false
-            }
-            address.isEmpty() -> {
-                binding.etAddress.error = "Alamat outlet tidak boleh kosong"
-                binding.etAddress.setSelection(binding.etAddress.text?.length ?: 0)
-                setFocus(binding.etAddress)
-                false
-            }
-            coords.isEmpty() || coords == "0.0, 0.0" -> {
-                binding.etCoordinate.error = "Titik koordinat tidak boleh kosong"
-                toastViewModel.showToast("Silakan pilih titik koordinat di peta", true)
-                binding.etCoordinate.setSelection(binding.etCoordinate.text?.length ?: 0)
-                setFocus(binding.etCoordinate)
-                false
-            }
-            selectedServicesAdapter.currentList.isEmpty() -> {
-                toastViewModel.showToast("Silahkan pilih daftar layanan yang tersedia", true)
-                false
-            }
-            selectedBundlingAdapter.currentList.isEmpty() -> {
-                toastViewModel.showToast("Silahkan pilih daftar paket yang tersedia", true)
-                false
-            }
-            selectedStaffAdapter.currentList.isEmpty() -> {
-                toastViewModel.showToast("Silahkan pilih daftar pegawai yang tersedia", true)
-                false
-            }
-            selectedProductsAdapter.currentList.isEmpty() -> {
-                toastViewModel.showToast("Silahkan pilih daftar produk yang tersedia", true)
-                false
-            }
-            else -> {
-                binding.etOutletName.error = null
-                binding.etPhone.error = null
-                binding.etAddress.error = null
-                binding.etCoordinate.error = null
-                true
+            return when {
+                name.isEmpty() -> {
+                    etOutletName.error = "Nama outlet tidak boleh kosong"
+                    etOutletName.setSelection(etOutletName.text?.length ?: 0)
+                    setFocus(etOutletName)
+                    false
+                }
+                resultEliminateData.any { it.outletName.equals(name, ignoreCase = true) } -> {
+                    etOutletName.error = "Nama outlet sudah digunakan, silahkan gunakan nama lain"
+                    etOutletName.setSelection(etOutletName.text?.length ?: 0)
+                    setFocus(etOutletName)
+                    false
+                }
+                phone.isEmpty() -> {
+                    etPhone.error = getString(R.string.phone_number_cannot_be_empty)
+                    etPhone.setText("+62 ")
+                    etPhone.setSelection(etPhone.text?.length ?: 0)
+                    setFocus(etPhone)
+                    false
+                }
+                phone == "+62" -> {
+                    etPhone.error = getString(R.string.phone_number_cannot_be_empty)
+                    etPhone.setSelection(etPhone.text?.length ?: 0)
+                    setFocus(etPhone)
+                    false
+                }
+                numberAfterCode.length !in 5..13 -> {
+                    val errorRes = if (numberAfterCode.length < 5) R.string.phone_number_is_too_short else R.string.phone_number_is_too_long
+                    etPhone.error = getString(errorRes)
+                    etPhone.setSelection(etPhone.text?.length ?: 0)
+                    setFocus(etPhone)
+                    false
+                }
+                tagline.isEmpty() -> {
+                    etTagline.error = "Tagline/Diskripsi tidak boleh kosong"
+                    etTagline.setSelection(etTagline.text?.length ?: 0)
+                    setFocus(etTagline)
+                    false
+                }
+                address.isEmpty() -> {
+                    etAddress.error = "Alamat outlet tidak boleh kosong"
+                    etAddress.setSelection(etAddress.text?.length ?: 0)
+                    setFocus(etAddress)
+                    false
+                }
+                coords.isEmpty() || coords == "0.0, 0.0" -> {
+                    etCoordinate.error = "Titik koordinat tidak boleh kosong"
+                    toastViewModel.showToast("Silakan pilih titik koordinat di peta", true)
+                    etCoordinate.setSelection(etCoordinate.text?.length ?: 0)
+                    setFocus(etCoordinate)
+                    false
+                }
+                selectedServicesAdapter.currentList.isEmpty() -> {
+                    toastViewModel.showToast("Silahkan pilih daftar layanan yang tersedia", true)
+                    false
+                }
+                selectedBundlingAdapter.currentList.isEmpty() -> {
+                    toastViewModel.showToast("Silahkan pilih daftar paket yang tersedia", true)
+                    false
+                }
+                selectedStaffAdapter.currentList.isEmpty() -> {
+                    toastViewModel.showToast("Silahkan pilih daftar pegawai yang tersedia", true)
+                    false
+                }
+                selectedProductsAdapter.currentList.isEmpty() -> {
+                    toastViewModel.showToast("Silahkan pilih daftar produk yang tersedia", true)
+                    false
+                }
+                else -> {
+                    etOutletName.error = null
+                    etPhone.error = null
+                    etAddress.error = null
+                    etCoordinate.error = null
+                    true
+                }
             }
         }
     }
@@ -2093,6 +1946,10 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         if (current.listProducts != original.listProducts) return true
 
         // Image change
+        if (original.imgOutlet != current.imgOutlet) {
+            Logger.d("UnsavedChanges", "Image URL mismatch: ${current.imgOutlet} != ${original.imgOutlet}")
+            return true
+        }
         if (addOutletViewModel.pendingImageUri.value != null) {
             Logger.d("UnsavedChanges", "Pending image change exists")
             return true
@@ -2111,4 +1968,10 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             .show()
     }
 
+    private fun setIfDiff(current: String?, newVal: String, set: (String) -> Unit) {
+        if (current != newVal) {
+            Logger.d("UpdateFormData", "Updating field from '$current' to '$newVal'")
+            set(newVal)
+        }
+    }
 }

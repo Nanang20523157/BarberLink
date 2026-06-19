@@ -100,7 +100,9 @@ class LayoutPreviewTest {
             ServiceIcon(iconRes = R.drawable.img_service_icon_placeholder),
             ServiceIcon(iconRes = R.drawable.img_service_icon_placeholder)
         )
-        rvServiceIcons?.adapter = ItemListServiceIconAdapter(dummyIcons) { }
+        val adapter = ItemListServiceIconAdapter { }
+        adapter.submitList(dummyIcons)
+        rvServiceIcons?.adapter = adapter
 
         // Hide view_space to reduce gap in snapshot
         val viewSpace = view.findViewById<View>(R.id.view_space)

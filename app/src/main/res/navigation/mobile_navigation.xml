@@ -42,6 +42,14 @@
             app:popEnterAnim="@anim/slide_maximize_in_left"
             app:popExitAnim="@anim/slide_minimize_out_right" />
         <action
+            android:id="@+id/action_nav_beranda_to_manageProductPage"
+            app:destination="@id/manageProductPage"
+            app:enterAnim="@anim/slide_maximize_in_right"
+            app:exitAnim="@anim/slide_minimize_out_left"
+            app:launchSingleTop="true"
+            app:popEnterAnim="@anim/slide_maximize_in_left"
+            app:popExitAnim="@anim/slide_minimize_out_right" />
+        <action
             android:id="@+id/action_nav_beranda_to_manageBundlingPage"
             app:destination="@id/manageBundlingPage"
             app:enterAnim="@anim/slide_maximize_in_right"
@@ -134,6 +142,22 @@
         <argument
             android:name="serviceList"
             app:argType="com.example.barberlink.DataClass.Service[]" />
+    </activity>
+
+    <activity
+        android:id="@+id/manageProductPage"
+        android:name="com.example.barberlink.UserInterface.Admin.ManageProductPage"
+        android:label="ManageProductPage"
+        tools:layout="@layout/activity_manage_product_page">
+        <argument
+            android:name="productList"
+            app:argType="com.example.barberlink.DataClass.Product[]" />
+        <argument
+            android:name="userAdminData"
+            app:argType="com.example.barberlink.DataClass.UserAdminData" />
+        <argument
+            android:name="categoryList"
+            app:argType="com.example.barberlink.DataClass.DataCategories[]" />
     </activity>
 
 </navigation>

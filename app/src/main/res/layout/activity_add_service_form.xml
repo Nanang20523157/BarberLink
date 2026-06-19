@@ -804,7 +804,6 @@
                         android:layout_height="wrap_content"
                         android:orientation="horizontal">
 
-
                         <TextView
                             style="@style/FormLabel"
                             android:layout_marginStart="18dp"
@@ -846,6 +845,7 @@
                             android:textColorHint="#191C1D"
                             android:textColor="#191C1D"
                             android:textSize="16sp"
+                            android:maxLength="13"
                             android:fontFamily="sans-serif-medium"
                             android:inputType="number"/>
 
@@ -984,6 +984,11 @@
                         </androidx.constraintlayout.widget.ConstraintLayout>
 
                     </com.google.android.material.card.MaterialCardView>
+
+                    <View
+                        android:id="@+id/bottomPageLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="2dp"/>
 
                     <!-- Bottom padding so it doesn't get covered by fixed bottom navigation -->
                     <View
