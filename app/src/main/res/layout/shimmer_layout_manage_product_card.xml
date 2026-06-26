@@ -22,7 +22,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        app:cardElevation="0.5dp"
+        app:cardElevation="0.7dp"
         app:cardCornerRadius="20dp"
         app:cardBackgroundColor="@color/light_grey_horizons_background">
 

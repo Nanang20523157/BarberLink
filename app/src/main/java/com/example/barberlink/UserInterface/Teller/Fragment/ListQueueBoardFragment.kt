@@ -229,7 +229,7 @@ class ListQueueBoardFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        queueAdapter.stopAllShimmerEffects()
+        if (::queueAdapter.isInitialized) queueAdapter.stopAllShimmerEffects()
         lifecycleListener?.let {
             viewLifecycleOwner.lifecycle.removeObserver(it)
         }

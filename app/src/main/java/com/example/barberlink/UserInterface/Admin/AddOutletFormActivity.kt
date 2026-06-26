@@ -93,16 +93,17 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     private val outletSelectedId: String get() = addOutletViewModel.outletSelectedId.value ?: ""
 
     private val debounce by lazy { ScopedUniversalDebounce() }
+
     private var blockAllUserClickAction: Boolean = false
-
     // Pending image URI selected from gallery
-
     private var remainingListeners = AtomicInteger(6)
     // Horizontal Adapters for the relational sections
+
     private lateinit var selectedServicesAdapter: ItemListServiceProvideAdapter
     private lateinit var selectedBundlingAdapter: ItemListPackageBundlingAdapter
     private lateinit var selectedStaffAdapter: ItemListEmployeeAdapter
     private lateinit var selectedProductsAdapter: ItemListProductAdapter
+    // ─── Firestore listeners ──────────────────────────────────────────────────
     private lateinit var serviceListener: ListenerRegistration
     private lateinit var bundlingListener: ListenerRegistration
     private lateinit var employeeListener: ListenerRegistration
@@ -558,7 +559,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                 setRelationalAddButtonsVisibility(View.VISIBLE)
             }
             2 -> { // ADD
-                binding.tvTitle.text = "Create Outlet"
+                binding.tvTitle.text = "Tambah Outlet"
                 binding.tvModeBadge.text = getString(R.string.form_type_mode)
 
                 setFormEnabled(true)
@@ -571,13 +572,6 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         binding.tvRating.isEnabled = false
         binding.etAccessCode.isEnabled = false
 
-        // Toggle interactivity of relational section "Link/Edit" buttons
-        val isEditable = currentMode != 0
-        binding.btnLinkServiceData.isEnabled = isEditable
-        binding.btnLinkBundlingData.isEnabled = isEditable
-        binding.btnLinkEmployeeData.isEnabled = isEditable
-        binding.btnLinkProductData.isEnabled = isEditable
-
         // ivMore: disabled (grey) in ADD mode, active in VIEW/EDIT
         if (currentMode == 2) {
             binding.ivMore.isEnabled = false
@@ -589,23 +583,36 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
     }
 
     private fun setFormEnabled(enabled: Boolean) {
-        if (!enabled) {
-            binding.etOutletName.error = null
-            binding.etPhone.error = null
-            binding.etTagline.error = null
-            binding.etAddress.error = null
-            binding.etCoordinate.error = null
-        }
+        binding.apply {
+            if (!enabled) {
+                etOutletName.error = null
+                etPhone.error = null
+                etTagline.error = null
+                etAddress.error = null
+                etCoordinate.error = null
+            }
 
-        binding.etOutletName.isEnabled = enabled
-        binding.etPhone.isEnabled = enabled
-        binding.etTagline.isEnabled = enabled
-        binding.etAddress.isEnabled = enabled
-        binding.etCoordinate.isEnabled = enabled
-        binding.flImagePicker.isClickable = enabled
-        binding.flImagePicker.isEnabled = enabled
-        binding.btnMapPicker.isClickable = enabled
-        binding.btnMapPicker.isEnabled = enabled
+            etOutletName.isEnabled = enabled
+            etPhone.isEnabled = enabled
+            etTagline.isEnabled = enabled
+            etAddress.isEnabled = enabled
+            etCoordinate.isEnabled = enabled
+
+            ivAddProductItem.isEnabled = enabled
+            ivAddBundlingItem.isEnabled = enabled
+            ivAddEmployeeItem.isEnabled = enabled
+            ivAddServiceItem.isEnabled = enabled
+            // Toggle interactivity of relational section "Link/Edit" buttons
+            btnLinkServiceData.isEnabled = enabled
+            btnLinkBundlingData.isEnabled = enabled
+            btnLinkEmployeeData.isEnabled = enabled
+            btnLinkProductData.isEnabled = enabled
+
+            flImagePicker.isClickable = enabled
+            flImagePicker.isEnabled = enabled
+            btnMapPicker.isClickable = enabled
+            btnMapPicker.isEnabled = enabled
+        }
     }
 
     // ─── Listeners ────────────────────────────────────────────────────────────
@@ -1139,12 +1146,12 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         lifecycleScope.launch {
             // Only update if value differs to avoid TextWatcher loop
             setIfDiff(binding.etOutletName.text?.toString(), outlet.outletName) { binding.etOutletName.setText(it) }
-            val formattedIncomingPhone = if (outlet.outletPhoneNumber.isNotEmpty()) {
+            val formattedPhone = if (outlet.outletPhoneNumber.isNotEmpty()) {
                 formatPhoneNumberCodeCountry(outlet.outletPhoneNumber, "+62")
             } else {
-                ""
+                "+62 "
             }
-            setIfDiff(binding.etPhone.text?.toString(), formattedIncomingPhone) { binding.etPhone.setText(it) }
+            setIfDiff(binding.etPhone.text?.toString(), formattedPhone) { binding.etPhone.setText(it) }
             setIfDiff(binding.etTagline.text?.toString(), outlet.taglineOrDesc) { binding.etTagline.setText(it) }
             setIfDiff(binding.etAddress.text?.toString(), outlet.outletAddress) { binding.etAddress.setText(it) }
             setIfDiff(binding.tvRating.text?.toString(), outlet.outletRating.toString()) { binding.tvRating.text =
@@ -1168,6 +1175,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                     Glide.with(this@AddOutletFormActivity).load(outlet.imgOutlet)
                         .centerCrop()
                         .placeholder(R.drawable.img_outlet_placeholder)
+                        .error(R.drawable.img_outlet_placeholder)
                         .into(binding.ivOutletPhoto)
                 }
             } else if (addOutletViewModel.pendingImageUri.value == null) {
@@ -1299,7 +1307,10 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
             else -> emptySet()
         }
 
-        val bottomSheet = RelationalSelectionFragment.newInstance(type, currentSelection, addOutletViewModel.userAdminData.value)
+        val bottomSheet = RelationalSelectionFragment.newInstance(
+            type,
+            currentSelection
+        )
         attachRelationalSheetListener(bottomSheet, type)
         bottomSheet.show(supportFragmentManager, tag)
     }
@@ -1643,10 +1654,10 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
 
     override fun onDestroy() {
         super.onDestroy()
-        selectedServicesAdapter.stopAllShimmerEffects()
-        selectedBundlingAdapter.stopAllShimmerEffects()
-        selectedStaffAdapter.stopAllShimmerEffects()
-        selectedProductsAdapter.stopAllShimmerEffects()
+        if (::selectedServicesAdapter.isInitialized) selectedServicesAdapter.stopAllShimmerEffects()
+        if (::selectedBundlingAdapter.isInitialized) selectedBundlingAdapter.stopAllShimmerEffects()
+        if (::selectedStaffAdapter.isInitialized) selectedStaffAdapter.stopAllShimmerEffects()
+        if (::selectedProductsAdapter.isInitialized) selectedProductsAdapter.stopAllShimmerEffects()
 
         binding.etPhone.removeTextChangedListener(phoneTextWatcher)
         binding.etOutletName.removeTextChangedListener(outletNameTextWatcher)
@@ -1723,15 +1734,9 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                     setFocus(etOutletName)
                     false
                 }
-                phone.isEmpty() -> {
+                phone.isEmpty() || phone == "+62" -> {
                     etPhone.error = getString(R.string.phone_number_cannot_be_empty)
-                    etPhone.setText("+62 ")
-                    etPhone.setSelection(etPhone.text?.length ?: 0)
-                    setFocus(etPhone)
-                    false
-                }
-                phone == "+62" -> {
-                    etPhone.error = getString(R.string.phone_number_cannot_be_empty)
+                    if (phone.isEmpty()) etPhone.setText("+62 ")
                     etPhone.setSelection(etPhone.text?.length ?: 0)
                     setFocus(etPhone)
                     false
@@ -1919,7 +1924,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         val currentPhoneRaw = binding.etPhone.text.toString().trim().replace("[^\\d+]".toRegex(), "")
         val originalPhoneRaw = original.outletPhoneNumber.replace("[^\\d+]".toRegex(), "")
         Logger.d("UnsavedChanges", "Phone mismatch: $currentPhoneRaw != $originalPhoneRaw")
-        if (currentPhoneRaw != originalPhoneRaw) return true
+        if (currentPhoneRaw != originalPhoneRaw && currentPhoneRaw != "+62") return true
         Logger.d("UnsavedChanges", "Tagline mismatch: ${binding.etTagline.text.toString().trim()} != ${original.taglineOrDesc}")
         if (binding.etTagline.text.toString().trim() != original.taglineOrDesc) return true
         Logger.d("UnsavedChanges", "Address mismatch: ${binding.etAddress.text.toString().trim()} != ${original.outletAddress}")
@@ -1946,7 +1951,7 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
         if (current.listProducts != original.listProducts) return true
 
         // Image change
-        if (original.imgOutlet != current.imgOutlet) {
+        if (current.imgOutlet != original.imgOutlet) {
             Logger.d("UnsavedChanges", "Image URL mismatch: ${current.imgOutlet} != ${original.imgOutlet}")
             return true
         }

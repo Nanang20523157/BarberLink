@@ -1,53 +1,57 @@
 package com.example.barberlink.Adapter
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.example.barberlink.R
+import com.example.barberlink.DataClass.PermissionItem
 import com.example.barberlink.databinding.ItemListPermissionCardBinding
 
-data class PermissionItem(
-    val id: String,
-    val name: String,
-    val description: String,
-    var isChecked: Boolean = false
-)
-
 class ItemListPermissionAdapter(
-    private var permissions: List<PermissionItem>,
     private val onPermissionChanged: (String, Boolean) -> Unit
-) : RecyclerView.Adapter<ItemListPermissionAdapter.PermissionViewHolder>() {
+) : ListAdapter<PermissionItem, ItemListPermissionAdapter.PermissionViewHolder>(PermissionDiffCallback()) {
+
+    var isEditable: Boolean = true
+        @SuppressLint("NotifyDataSetChanged")
+        set(value) {
+            field = value
+            notifyDataSetChanged()
+        }
+
+    constructor(
+        initialList: List<PermissionItem>,
+        onPermissionChanged: (String, Boolean) -> Unit
+    ) : this(onPermissionChanged) {
+        submitList(initialList)
+    }
 
     inner class PermissionViewHolder(private val binding: ItemListPermissionCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
+        @SuppressLint("DefaultLocale")
         fun bind(item: PermissionItem, position: Int) {
             binding.tvPermissionNumber.text = String.format("%02d", position + 1)
-            binding.tvPermissionDesc.text = item.description
+            binding.tvPermissionDesc.text = item.permissionName
             
             updateCheckboxUI(item.isChecked)
 
-            binding.root.setOnClickListener {
-                item.isChecked = !item.isChecked
-                updateCheckboxUI(item.isChecked)
-                onPermissionChanged(item.id, item.isChecked)
-            }
+            // Disable checkbox interaction in VIEW mode
+            binding.cbPermission.isEnabled = isEditable
+            // Make the whole row visually indicate read-only
+            binding.root.alpha = if (isEditable) 1.0f else 0.85f
 
             binding.cbPermission.setOnClickListener {
+                if (!isEditable) return@setOnClickListener
                 item.isChecked = binding.cbPermission.isChecked
                 updateCheckboxUI(item.isChecked)
-                onPermissionChanged(item.id, item.isChecked)
+                onPermissionChanged(item.permissionIdentity, item.isChecked)
             }
         }
 
         private fun updateCheckboxUI(isChecked: Boolean) {
             binding.cbPermission.isChecked = isChecked
-            if (isChecked) {
-                binding.cbPermission.setBackgroundResource(R.drawable.ic_checkbox_item_selected)
-            } else {
-                binding.cbPermission.setBackgroundResource(R.drawable.ic_checkbox_item_unselected)
-            }
         }
     }
 
@@ -61,13 +65,20 @@ class ItemListPermissionAdapter(
     }
 
     override fun onBindViewHolder(holder: PermissionViewHolder, position: Int) {
-        holder.bind(permissions[position], position)
+        holder.bind(getItem(position), position)
     }
 
-    override fun getItemCount(): Int = permissions.size
-
     fun updateData(newPermissions: List<PermissionItem>) {
-        permissions = newPermissions
-        notifyDataSetChanged()
+        submitList(newPermissions)
+    }
+
+    class PermissionDiffCallback : DiffUtil.ItemCallback<PermissionItem>() {
+        override fun areItemsTheSame(oldItem: PermissionItem, newItem: PermissionItem): Boolean {
+            return oldItem.uid == newItem.uid
+        }
+
+        override fun areContentsTheSame(oldItem: PermissionItem, newItem: PermissionItem): Boolean {
+            return oldItem == newItem
+        }
     }
 }

@@ -122,6 +122,7 @@ class ItemAnalyticsProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder
                 tvProductCounter.layoutParams = layoutParams
 
                 // Use Glide to load the image
+                Glide.with(root.context).clear(ivProduct)
                 if (product.imgProduct.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(product.imgProduct)

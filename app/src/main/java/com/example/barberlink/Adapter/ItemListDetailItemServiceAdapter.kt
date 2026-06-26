@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.barberlink.DataClass.Service
+import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListDetailItemServiceAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutDetailItemServiceBinding
 
@@ -95,8 +96,11 @@ class ItemListDetailItemServiceAdapter : ListAdapter<Service, RecyclerView.ViewH
 //                tvRating.text = service.serviceRating.toString()
 
                 // Use Glide to load the image
+                Glide.with(root.context).clear(imageLayanan)
                 Glide.with(root.context)
                     .load(service.serviceIcon)
+                    .placeholder(R.drawable.img_service_icon_placeholder)
+                    .error(R.drawable.ic_questions)
                     .into(imageLayanan)
             }
         }

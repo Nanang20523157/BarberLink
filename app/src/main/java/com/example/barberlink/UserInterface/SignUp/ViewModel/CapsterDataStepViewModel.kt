@@ -319,6 +319,7 @@ class CapsterDataStepViewModel(
         viewModelScope.launch {
             _registerResult.postValue(ResultState.Loading)
             try {
+                userEmployeeData.talentAvailability = true
                 val task = withContext(Dispatchers.IO) {
                     db.collection("employees")
                         .document(userEmployeeData.uid)

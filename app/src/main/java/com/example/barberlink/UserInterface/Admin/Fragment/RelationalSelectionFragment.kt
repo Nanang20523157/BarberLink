@@ -267,10 +267,10 @@ class RelationalSelectionFragment : BottomSheetDialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        serviceAdapter?.stopAllShimmer()
-        packageAdapter?.stopAllShimmer()
-        staffAdapter?.stopAllShimmer()
-        productAdapter?.stopAllShimmer()
+        serviceAdapter?.stopAllShimmerEffects()
+        packageAdapter?.stopAllShimmerEffects()
+        staffAdapter?.stopAllShimmerEffects()
+        productAdapter?.stopAllShimmerEffects()
         _binding = null
     }
 
@@ -282,13 +282,12 @@ class RelationalSelectionFragment : BottomSheetDialogFragment() {
 
         fun newInstance(
             type: String,
-            currentSelection: Set<String>,
-            @Suppress("UNUSED_PARAMETER") adminData: Any? = null
+            selectedids: Set<String>,
         ): RelationalSelectionFragment {
             return RelationalSelectionFragment().apply {
                 arguments = Bundle().apply {
                     putString(ARG_SELECTION_TYPE, type)
-                    putStringArrayList(ARG_INITIAL_SELECTION, ArrayList(currentSelection.toList()))
+                    putStringArrayList(ARG_INITIAL_SELECTION, ArrayList(selectedids.toList()))
                 }
             }
         }

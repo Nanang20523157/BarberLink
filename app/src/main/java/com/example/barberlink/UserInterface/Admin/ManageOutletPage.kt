@@ -17,6 +17,8 @@ import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.example.barberlink.Adapter.ItemManageOutletAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.DataClass.UserEmployeeData
@@ -322,22 +324,17 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
         }
 
         // ── Swipe to delete ──────────────────────────────────────────────────
-        val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
-            0, // no drag directions
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
+        val swipeCallback = object : ItemTouchHelper.SimpleCallback(
+            0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
-            override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
-                                vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
-                                target: androidx.recyclerview.widget.RecyclerView.ViewHolder) = false
-
-            override fun getSwipeThreshold(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder) = 0.4f
-
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) = false
+            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.4f
             override fun isItemViewSwipeEnabled(): Boolean = !outletAdapter.isShimmerMode()
 
-            override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 Log.d("SwipeDelete", "onSwiped triggered at position: ${viewHolder.bindingAdapterPosition}")
                 val pos = viewHolder.bindingAdapterPosition
-                if (pos == androidx.recyclerview.widget.RecyclerView.NO_ID.toInt()) return
+                if (pos == RecyclerView.NO_ID.toInt()) return
                 val outlet = outletAdapter.currentList.getOrNull(pos) ?: run {
                     Log.e("SwipeDelete", "Outlet not found at position $pos")
                     outletAdapter.notifyItemChanged(pos)
@@ -347,7 +344,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                 // Snap back after a tiny delay so the user sees the swipe completion
                 // The recyclerView parameter is available in onChildDraw, but not directly in onSwiped.
                 // We can get it from the viewHolder's itemView parent.
-                (viewHolder.itemView.parent as? androidx.recyclerview.widget.RecyclerView)?.post {
+                (viewHolder.itemView.parent as? RecyclerView)?.post {
                     outletAdapter.notifyItemChanged(pos)
                 }
 
@@ -363,8 +360,8 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
 
             override fun onChildDraw(
                 c: android.graphics.Canvas,
-                recyclerView: androidx.recyclerview.widget.RecyclerView,
-                viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
                 dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
             ) {
                 val itemView = viewHolder.itemView
@@ -504,16 +501,15 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
 
             private val Int.dp get() = (this * resources.displayMetrics.density).toInt()
         }
-        androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvOutletList)
+        ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvOutletList)
         // ─────────────────────────────────────────────────────────────────────
+
+        manageOutletViewModel.setDefaultCode(getString(R.string.default_empty_code_access))
 
         if (savedInstanceState == null || isShimmerVisible) {
             outletAdapter.setShimmer(true)
             isShimmerVisible = true
-        }
-        manageOutletViewModel.setDefaultCode(getString(R.string.default_empty_code_access))
 
-        if (savedInstanceState == null || isShimmerVisible) {
             lifecycleScope.launch {
                 delay(600)
                 if (isDestroyed) return@launch
@@ -987,13 +983,6 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        if (isChangingConfigurations) {
-            return // Jangan hapus data jika hanya orientasi yang berubah
-        }
-    }
-
     private fun clearBackStack() {
         while (fragmentManager.backStackEntryCount > 0) {
             fragmentManager.popBackStackImmediate()
@@ -1036,9 +1025,9 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
             
             val bottomPadding = if (doesItemsExceedRecycleView) {
-                initialPaddingBottom + modulo
+                initialPaddingBottom + modulo + 2
             } else {
-                initialPaddingBottom
+                initialPaddingBottom + 2
             }
             
             val currentPaddingBottom = binding.rvOutletList.paddingBottom
@@ -1053,7 +1042,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
 
     override fun onDestroy() {
         super.onDestroy()
-        outletAdapter.stopAllShimmerEffects()
+        if (::outletAdapter.isInitialized) outletAdapter.stopAllShimmerEffects()
         // Hapus listener untuk menghindari memory leak
         if (::outletListener.isInitialized) outletListener.remove()
         if (::employeeListener.isInitialized) employeeListener.remove()

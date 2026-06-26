@@ -436,12 +436,6 @@ class SignUpUserPhoneStep : AppCompatActivity(), View.OnClickListener {
             )
             // ⛔ TIDAK dilepas → activity selesai
         }
-//        if (!blockAllUserClickAction) {
-//        } else {
-//            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
-//            // ⛔ Lepas lock setelah frame selesai
-//            isHandlingBack = false
-//        }
 
     }
 

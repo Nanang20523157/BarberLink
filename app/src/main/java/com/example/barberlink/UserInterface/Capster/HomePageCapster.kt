@@ -1115,7 +1115,7 @@ class HomePageCapster : BaseActivity(), View.OnClickListener, CapitalDialogHost 
     private fun setEmployeeRoleDefaultValue(): EmployeeRolesData {
         return EmployeeRolesData(
             barbershopRef = "All",
-            jobDesc = "Default role with default permissions. Please contact your administrator to assign the correct role.",
+            jobDesc = "Default role with default permissions. Please contact your admin to assign the correct role.",
             permissions = mapOf(
                 "approval_bon" to false,
                 "beranda_admin" to false,

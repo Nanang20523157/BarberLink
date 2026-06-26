@@ -66,8 +66,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
-class KasbonGatewayPage : AppCompatActivity(), View.OnClickListener, ItemListTagFilteringAdapter.OnItemClicked, ItemListTagFilteringAdapter.ActiveTagCategory, ItemListApprovalBonAdapter.OnItemClicked
-    ,ItemListApprovalBonAdapter.DisplayThisToastMessage, ItemListApprovalBonAdapter.UpdateBonStatus, ItemListApprovalBonAdapter.UpdateReturnStatus {
+class KasbonGatewayPage : AppCompatActivity(), View.OnClickListener, ItemListTagFilteringAdapter.OnItemClicked, ItemListTagFilteringAdapter.ActiveTagCategory, ItemListApprovalBonAdapter.OnItemClicked,
+    ItemListApprovalBonAdapter.DisplayThisToastMessage, ItemListApprovalBonAdapter.UpdateBonStatus, ItemListApprovalBonAdapter.UpdateReturnStatus {
     private lateinit var binding: ActivityKasbonGatewayPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
@@ -1502,7 +1502,7 @@ class KasbonGatewayPage : AppCompatActivity(), View.OnClickListener, ItemListTag
 
     override fun onDestroy() {
         super.onDestroy()
-        listApprovalAdapter.stopAllShimmerEffects()
+        if (::listApprovalAdapter.isInitialized) listApprovalAdapter.stopAllShimmerEffects()
 
         // Hapus listener untuk menghindari memory leak
         binding.acCapsterName.removeTextChangedListener(textWatcher)

@@ -71,7 +71,7 @@
             android:contentDescription="@string/icon_remove_item_desc"
             android:padding="6dp"
             android:src="@drawable/ic_cross_eliminate_figma"
-            android:tint="#CBD5E1" />
+            app:tint="#CBD5E1" />
 
     </RelativeLayout>
 

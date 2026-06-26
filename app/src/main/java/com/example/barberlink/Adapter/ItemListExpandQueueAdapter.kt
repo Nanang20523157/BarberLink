@@ -196,6 +196,7 @@ class ItemListExpandQueueAdapter(
                     })
                 tvPaymentAmount.text = NumberUtils.numberToCurrency(reservationData.paymentDetail.finalPrice.toDouble())
 
+                Glide.with(root.context).clear(ivCustomerPhotoProfile)
                 val customerData = reservationData.dataCreator?.userDetails
                 customerData?.let { customer ->
                     setMembershipStatus((customer as UserCustomerData).membership)

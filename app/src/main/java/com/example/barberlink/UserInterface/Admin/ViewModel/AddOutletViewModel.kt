@@ -73,6 +73,12 @@ class AddOutletViewModel(
     private val _saveResult = MutableLiveData<FirestoreResult<Unit>?>()
     val saveResult: LiveData<FirestoreResult<Unit>?> get() = _saveResult
 
+    private val _outletList = MutableLiveData<List<Outlet>>(emptyList())
+    val outletList: LiveData<List<Outlet>> get() = _outletList
+
+    private val _pendingImageUri = handle.getLiveData<Uri?>(PENDING_IMAGE_URI_KEY)
+    val pendingImageUri: LiveData<Uri?> get() = _pendingImageUri
+
     private val _allServices = MutableLiveData<List<Service>>()
     val allServices: LiveData<List<Service>> get() = _allServices
 
@@ -85,12 +91,6 @@ class AddOutletViewModel(
     private val _allProducts = MutableLiveData<List<Product>>()
     val allProducts: LiveData<List<Product>> get() = _allProducts
 
-    private val _outletList = MutableLiveData<List<Outlet>>()
-    val outletList: LiveData<List<Outlet>> get() = _outletList
-
-    // Backed by SavedStateHandle
-    private val _pendingImageUri = handle.getLiveData<Uri?>(PENDING_IMAGE_URI_KEY)
-    val pendingImageUri: LiveData<Uri?> get() = _pendingImageUri
 
     fun setUserAdminData(userAdminData: UserAdminData) {
         viewModelScope.launch {

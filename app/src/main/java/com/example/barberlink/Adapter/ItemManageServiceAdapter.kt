@@ -2,6 +2,7 @@ package com.example.barberlink.Adapter
 
 import android.os.Build
 import android.util.Log
+import com.example.barberlink.Utils.Logger
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,21 +17,20 @@ import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.Utils.NumberUtils
-import com.example.barberlink.Utils.ServiceIconUtils
 import com.example.barberlink.databinding.ItemListManageServiceAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageServiceCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemManageServiceAdapter(
     private val onItemClicked: OnItemClicked,
-    private val onNavigationPage: OnNavigationPage,
-    private val displayThisToastMessage: DisplayThisToastMessage
+    private val navigatePage: OnNavigationPage,
+    private val callbackToast: DisplayThisToastMessage
 ) : ListAdapter<Service, RecyclerView.ViewHolder>(ServiceDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val debounce by lazy { ScopedUniversalDebounce() }
 
     private var isShimmer = true
-    private val shimmerItemCount = 7
+    private val shimmerItemCount = 8
     private var recyclerView: RecyclerView? = null
     private var lastScrollPosition = 0
     private var isOnline: Boolean = true
@@ -112,6 +112,7 @@ class ItemManageServiceAdapter(
     }
 
     fun setShimmer(shimmer: Boolean) {
+        Logger.d("ScrollingCheckUrgent", "ItemManageServiceAdapter -> setShimmer called: shimmer=$shimmer, current isShimmer=$isShimmer, lastScrollPosition=$lastScrollPosition")
         if (isShimmer == shimmer) return
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
@@ -120,6 +121,7 @@ class ItemManageServiceAdapter(
             if (lastScrollPosition == -1) {
                 lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
             }
+            Logger.d("ScrollingCheckUrgent", "ItemManageServiceAdapter -> setShimmer: Saved lastScrollPosition=$lastScrollPosition")
         }
 
         isShimmer = shimmer
@@ -133,9 +135,12 @@ class ItemManageServiceAdapter(
                 lastScrollPosition
             }
 
+            Logger.d("ScrollingCheckUrgent", "ItemManageServiceAdapter -> setShimmer post: positionToScroll=$positionToScroll, itemCount=$itemCount, isShimmer=$isShimmer")
             if (positionToScroll in 0 until itemCount) {
+                Logger.d("ScrollingCheckUrgent", "ItemManageServiceAdapter -> setShimmer post: calling scrollToPosition($positionToScroll)")
                 layoutManager?.scrollToPosition(positionToScroll)
             } else {
+                Logger.e("ScrollingCheckUrgent", "ItemManageServiceAdapter -> setShimmer post: Invalid target position: $positionToScroll, itemCount: $itemCount")
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
@@ -178,7 +183,16 @@ class ItemManageServiceAdapter(
                 }
 
                 // Service icon
-                ServiceIconUtils.loadServiceIcon(root.context, service.serviceIcon, ivIconService)
+                Glide.with(root.context).clear(ivIconService)
+                if (service.serviceIcon.isNotEmpty()) {
+                    Glide.with(root.context)
+                        .load(service.serviceIcon)
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
+                        .into(ivIconService)
+                } else {
+                    ivIconService.setImageResource(R.drawable.ic_questions)
+                }
 
                 // Fee capster info visibility
                 if (service.resultsShareFormat.isNotEmpty()) {
@@ -190,7 +204,7 @@ class ItemManageServiceAdapter(
                 // Delete button click
                 btnDeleteItem.setOnClickListener {
                     if (blockAllUserClickAction) {
-                        displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
+                        callbackToast.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
@@ -200,11 +214,11 @@ class ItemManageServiceAdapter(
                 // Card click (navigate to view)
                 cvMainInfoService.setOnClickListener {
                     if (blockAllUserClickAction) {
-                        displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
+                        callbackToast.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
-                    onNavigationPage.onNavigationRequest(0, service) // mode 0 = view
+                    navigatePage.onNavigationRequest(0, service) // mode 0 = view
                 }
 
             }

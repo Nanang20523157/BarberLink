@@ -7,9 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.DataClass.EmployeeRolesData
+import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.Repository.EmployeeRepository
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Logger
-import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +45,12 @@ class ManageEmployeeViewModel(
     private val _userAdminData = MutableLiveData<UserAdminData>()
     val userAdminData: LiveData<UserAdminData> = _userAdminData
 
+    private val _employeeRoles = MutableLiveData<List<EmployeeRolesData>>().apply { value = emptyList() }
+    val employeeRoles: LiveData<List<EmployeeRolesData>> = _employeeRoles
+
+    private val _outletList = MutableLiveData<List<Outlet>>().apply { value = emptyList() }
+    val outletList: LiveData<List<Outlet>> = _outletList
+
     private val _updateStateResult = MutableLiveData<ResultState?>()
     val updateStateResult: LiveData<ResultState?> = _updateStateResult
 
@@ -64,33 +72,40 @@ class ManageEmployeeViewModel(
         }
     }
 
+    fun setEmployeeRolesList(roles: List<EmployeeRolesData>) {
+        viewModelScope.launch {
+            _employeeRoles.value = roles
+        }
+    }
+
+    fun setOutletList(outlets: List<Outlet>) {
+        viewModelScope.launch {
+            _outletList.value = outlets
+        }
+    }
+
     fun deleteEmployee(employee: UserEmployeeData) {
         viewModelScope.launch {
             try {
                 _updateStateResult.value = ResultState.Loading
 
-                // 1. Delete employee profile photo from Storage if it exists
-                if (employee.photoProfile.isNotEmpty()) {
-                    try {
-                        val imageRef = storage.getReferenceFromUrl(employee.photoProfile)
-                        imageRef.delete().await()
-                    } catch (e: Exception) {
-                        Logger.e("DeleteEmployee", "Failed to delete image: ${e.message}")
-                    }
-                }
+                // Soft-unlink fields: reset root_ref, attendance_status, talent_availability, and clear uid_list_placement.
+                employee.attendanceStatus = false
+                employee.blackList = false
+                employee.rootRef = ""
+                employee.talentAvailability = true
+                employee.uidListPlacement = emptyList()
 
-                // 2. Delete from Firestore
-//                val barbershopId = employee.rootRef.split("/").last()
-//                val result = db.collection("employees")
-//                    .document(employee.uid)
-//                    .delete()
-//                    .awaitWriteWithOfflineFallback(tag = "DeleteEmployee")
-//
-//                if (result.isSuccessful) {
-//                    _updateStateResult.value = ResultState.Success("Delete", "Karyawan \"${employee.fullname}\" berhasil dihapus.")
-//                } else {
-//                    _updateStateResult.value = ResultState.Failure("Delete", result.errorMessage ?: "Gagal menghapus karyawan!", -1)
-//                }
+                val repository = EmployeeRepository(db)
+                val task = repository.updateEmployee("", employee)
+
+                if (task.isSuccessful) {
+                    if (task.displayMessage) _updateStateResult.value = ResultState.Success("Delete", task.errorMessage.toString())
+                    else _updateStateResult.value = ResultState.Success("Delete", "Karyawan \"${employee.fullname}\" berhasil dihapus.")
+                } else {
+                    if (task.displayMessage) _updateStateResult.value = ResultState.Failure("Delete", task.errorMessage.toString(), -1)
+                    else _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus karyawan!", -1)
+                }
             } catch (e: Exception) {
                 Logger.e("DeleteEmployee", "❌ Error: ${e.message}")
                 _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus karyawan!", -1)

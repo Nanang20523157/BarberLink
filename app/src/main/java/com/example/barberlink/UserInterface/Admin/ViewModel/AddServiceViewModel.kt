@@ -167,7 +167,7 @@ class AddServiceViewModel(
             try {
                 // 1. Handle Service Image Upload if needed
                 _pendingImageUri.value?.let { uri ->
-                    val storageRef = storage.reference.child("services/images/${currentService.uid}.png")
+                    val storageRef = storage.reference.child("services/images/${currentService.uid}")
 
                     // Delete old image if it exists
                     if (currentService.serviceImg.isNotEmpty()) {

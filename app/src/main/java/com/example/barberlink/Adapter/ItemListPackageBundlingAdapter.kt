@@ -144,30 +144,42 @@ class ItemListPackageBundlingAdapter(
                 val serviceCount = packageBundling.listItemDetails?.size ?: 0
                 Logger.d("CheckShimmer", "service count list itm bundling: $serviceCount")
 
+                Glide.with(root.context).clear(ivImageOne)
                 if (serviceCount >= 1) {
                     Glide.with(root.context)
                         .load(packageBundling.listItemDetails?.get(0)?.serviceIcon)
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
                         .into(ivImageOne)
                     ivImageOne.visibility = View.VISIBLE
                 } else ivImageOne.visibility = View.INVISIBLE
                 
+                Glide.with(root.context).clear(ivImageTwo)
                 if (serviceCount >= 2) {
                     Glide.with(root.context)
                         .load(packageBundling.listItemDetails?.get(1)?.serviceIcon)
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
                         .into(ivImageTwo)
                     ivImageTwo.visibility = View.VISIBLE
                 } else ivImageTwo.visibility = View.GONE
 
+                Glide.with(root.context).clear(ivImageThree)
                 if (serviceCount >= 3) {
                     Glide.with(root.context)
                         .load(packageBundling.listItemDetails?.get(2)?.serviceIcon)
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
                         .into(ivImageThree)
                     ivImageThree.visibility = View.VISIBLE
                 } else ivImageThree.visibility = View.GONE
 
+                Glide.with(root.context).clear(ivImageFour)
                 if (serviceCount >= 4) {
                     Glide.with(root.context)
                         .load(packageBundling.listItemDetails?.get(3)?.serviceIcon)
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
                         .into(ivImageFour)
                     ivImageFour.visibility = View.VISIBLE
                 } else ivImageFour.visibility = View.GONE

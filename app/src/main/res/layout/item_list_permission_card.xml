@@ -46,9 +46,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Akses Halaman Dashboard"
+                android:text="Akses Halaman Dashboard Admin"
                 android:textColor="#334155"
-                android:textSize="15sp"
+                android:textSize="14sp"
+                android:gravity="center_vertical"
+                android:layout_gravity="center_vertical"
+                android:layout_marginTop="3dp"
                 android:textStyle="bold"/>
         </LinearLayout>
 

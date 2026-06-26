@@ -140,8 +140,11 @@ class ItemListServiceBookingAdapter(
                 tvPrice.text = priceItem
 
                 // Use Glide to load the image
+                Glide.with(root.context).clear(ivIconService)
                 Glide.with(root.context)
                     .load(service.serviceIcon)
+                    .placeholder(R.drawable.img_service_icon_placeholder)
+                    .error(R.drawable.ic_questions)
                     .into(ivIconService)
 
                 btnSelectOrder.visibility = if (service.serviceQuantity == 0 && !service.defaultItem) View.VISIBLE else View.GONE

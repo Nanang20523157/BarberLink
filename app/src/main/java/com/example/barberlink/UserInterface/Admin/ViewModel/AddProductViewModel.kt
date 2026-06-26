@@ -77,9 +77,9 @@ class AddProductViewModel(
     private val _generatedSku = MutableLiveData<String>()
     val generatedSku: LiveData<String> get() = _generatedSku
 
-    fun setCategories(categoryListList: List<DataCategories>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
+    fun setCategories(categoryList: List<DataCategories>, setupDropdown: Boolean?, isSavedInstanceStateNull: Boolean?) {
         viewModelScope.launch {
-            _categoryList.value = categoryListList
+            _categoryList.value = categoryList
             _setupDropdownFilter.value = setupDropdown
             _setupDropdownFilterWithNullState.value = isSavedInstanceStateNull
         }
@@ -223,7 +223,7 @@ class AddProductViewModel(
             try {
                 // Handle Product Image Upload
                 _pendingImageUri.value?.let { uri ->
-                    val storageRef = storage.reference.child("products/images/${currentProduct.uid}.png")
+                    val storageRef = storage.reference.child("products/${currentProduct.uid}")
 
                     // Delete old image if it exists and path is different
                     if (currentProduct.imgProduct.isNotEmpty()) {

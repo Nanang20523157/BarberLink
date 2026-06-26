@@ -177,10 +177,10 @@ class SignUpCapsterDataStep : AppCompatActivity(), View.OnClickListener {
             }
 
             savedInstanceState.getString("image_uri_string")?.let {
-                capsterDataStepViewModel.setImageUri(Uri.parse(it))
+                capsterDataStepViewModel.setImageUri(it.toUri())
             }
             savedInstanceState.getString("image_copy_string")?.let {
-                capsterDataStepViewModel.setImageCopy(Uri.parse(it))
+                capsterDataStepViewModel.setImageCopy(it.toUri())
             }
             savedInstanceState.getString("user_input_gender")?.let {
                 capsterDataStepViewModel.setUserInputGender(it)

@@ -3,6 +3,7 @@ package com.example.barberlink.UserInterface.Admin
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
@@ -82,7 +83,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                 categoryCode = "GNL",
                 categoryName = "General",
                 intendedFor = "Produk",
-                uid = "ZZzzzzzzzzzzzzZZ"
+                uid = "I4MUaWDpsX7wlzXXk11D"
             )
         )
     }
@@ -91,6 +92,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
 
     private var blockAllUserClickAction: Boolean = false
     private var remainingListeners = AtomicInteger(3)
+
     private lateinit var categoryAdapter: ArrayAdapter<String>
     // ─── Firestore listeners ──────────────────────────────────────────────────
     private lateinit var barbershopListener: ListenerRegistration
@@ -109,17 +111,17 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
     private var isPopUpDropdownShow: Boolean = false
     private var uidDropdownPosition: String = ""
     private var textDropdownCategoryName: String = ""
-    private var previousSellingText: String = ""
-    private var previousSellingCursorPosition: Int = 0
     private var previousPurchaseText: String = ""
     private var previousPurchaseCursorPosition: Int = 0
-    private var restoredPurchasePriceRawText: String? = null
-    private var restoredPurchasePriceCursorPosition: Int = 0
-    private var restoredPurchasePriceErrorMsg: CharSequence? = null
-    private var restoredSellingPriceRawText: String? = null
-    private var restoredSellingPriceCursorPosition: Int = 0
-    private var restoredSellingPriceErrorMsg: CharSequence? = null
-    private var defaultCategoryTouchListener: android.view.View.OnTouchListener? = null
+    private var previousSellingText: String = ""
+    private var previousSellingCursorPosition: Int = 0
+    private var restoredPurchaseRawText: String? = null
+    private var restoredPurchaseCursorPosition: Int = 0
+    private var restoredPurchaseErrorMsg: CharSequence? = null
+    private var restoredSellingRawText: String? = null
+    private var restoredSellingCursorPosition: Int = 0
+    private var restoredSellingErrorMsg: CharSequence? = null
+    private var defaultCategoryTouchListener: View.OnTouchListener? = null
 
     // ─── TextWatcher references for cleanup ───────────────────────────────────
     private lateinit var productNameTextWatcher: TextWatcher
@@ -325,12 +327,12 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             previousPurchaseCursorPosition = savedInstanceState.getInt("previous_purchase_cursor_position", 0)
             previousSellingText = savedInstanceState.getString("previous_selling_text", "") ?: ""
             previousSellingCursorPosition = savedInstanceState.getInt("previous_selling_cursor_position", 0)
-            restoredPurchasePriceRawText = savedInstanceState.getString("purchase_price_raw_text")
-            restoredPurchasePriceCursorPosition = savedInstanceState.getInt("purchase_price_cursor_position", 0)
-            restoredPurchasePriceErrorMsg = savedInstanceState.getCharSequence("purchase_price_error_msg")
-            restoredSellingPriceRawText = savedInstanceState.getString("selling_price_raw_text")
-            restoredSellingPriceCursorPosition = savedInstanceState.getInt("selling_price_cursor_position", 0)
-            restoredSellingPriceErrorMsg = savedInstanceState.getCharSequence("selling_price_error_msg")
+            restoredPurchaseRawText = savedInstanceState.getString("restored_purchase_raw_text")
+            restoredPurchaseCursorPosition = savedInstanceState.getInt("restored_purchase_cursor_position", 0)
+            restoredPurchaseErrorMsg = savedInstanceState.getCharSequence("restored_purchase_error_msg")
+            restoredSellingRawText = savedInstanceState.getString("restored_selling_raw_text")
+            restoredSellingCursorPosition = savedInstanceState.getInt("restored_selling_cursor_position", 0)
+            restoredSellingErrorMsg = savedInstanceState.getCharSequence("restored_selling_error_msg")
 
             addProductViewModel.setupDropdownFilterWithNullState()
         } else {
@@ -413,12 +415,12 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
         outState.putBoolean("is_price_selling_formatting", isPriceSellingFormatting)
         outState.putBoolean("is_price_purchase_formatting", isPricePurchaseFormatting)
-        outState.putString("purchase_price_raw_text", binding.etPurchasePrice.text.toString())
-        outState.putInt("purchase_price_cursor_position", binding.etPurchasePrice.selectionStart)
-        outState.putCharSequence("purchase_price_error_msg", binding.etPurchasePrice.error)
-        outState.putString("selling_price_raw_text", binding.etSellingPrice.text.toString())
-        outState.putInt("selling_price_cursor_position", binding.etSellingPrice.selectionStart)
-        outState.putCharSequence("selling_price_error_msg", binding.etSellingPrice.error)
+        outState.putString("restored_purchase_raw_text", binding.etPurchasePrice.text.toString())
+        outState.putInt("restored_purchase_cursor_position", binding.etPurchasePrice.selectionStart)
+        outState.putCharSequence("restored_purchase_error_msg", binding.etPurchasePrice.error)
+        outState.putString("restored_selling_raw_text", binding.etSellingPrice.text.toString())
+        outState.putInt("restored_selling_cursor_position", binding.etSellingPrice.selectionStart)
+        outState.putCharSequence("restored_selling_error_msg", binding.etSellingPrice.error)
 
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_handling_back", isHandlingBack)
@@ -494,15 +496,15 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                     addAll(categoryList)
                 }
 
-                val filteredServiceNames = categoryItemDropdown.map { it.categoryName }
-                categoryAdapter = ArrayAdapter(this@AddProductFormActivity, android.R.layout.simple_dropdown_item_1line, filteredServiceNames)
+                val filteredProductNames = categoryItemDropdown.map { it.categoryName }
+                categoryAdapter = ArrayAdapter(this@AddProductFormActivity, android.R.layout.simple_dropdown_item_1line, filteredProductNames)
                 binding.acProductCategory.setAdapter(categoryAdapter)
 
                 binding.acProductCategory.setOnItemClickListener { _, _, position, _ ->
                     lifecycleScope.launch(Dispatchers.Main) {
                         if (currentMode == 0) return@launch
                         val dataCategory = categoryList[position]
-                        binding.acProductCategory.setText(dataCategory.categoryName, false)
+//                        binding.acProductCategory.setText(dataCategory.categoryName, false)
                         uidDropdownPosition = dataCategory.uid
                         textDropdownCategoryName = dataCategory.categoryName
                         addProductViewModel.productParams.value?.let { product ->
@@ -521,7 +523,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                         val selectedIndex = categoryItemDropdown.indexOfFirst {
                             it.uid.equals(uidDropdownPosition, ignoreCase = true)
                         }.takeIf { it != -1 } ?: -1
-                        // Set initial selection based on serviceParams
+                        // Set initial selection based on productParams
                         val dataCategory = if (selectedIndex != -1) categoryItemDropdown[selectedIndex] else DataCategories()
 
                         addProductViewModel.setOriginalProduct(
@@ -533,11 +535,11 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                         )
                         uidDropdownPosition = dataCategory.uid
                         textDropdownCategoryName = dataCategory.categoryName
-                        addProductViewModel.productParams.value?.let { service ->
-                            service.categoryCode = dataCategory.categoryCode
-                            service.productCategory = dataCategory.categoryName
-                            service.categoryDetail = dataCategory
-                            addProductViewModel.updateProductParams(service)
+                        addProductViewModel.productParams.value?.let { product ->
+                            product.categoryCode = dataCategory.categoryCode
+                            product.productCategory = dataCategory.categoryName
+                            product.categoryDetail = dataCategory
+                            addProductViewModel.updateProductParams(product)
                         }
                     } else {
                         //binding.acProductCategory.setText(textDropdownCategoryName, false)
@@ -601,7 +603,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                 binding.viewSpace.visibility = View.VISIBLE
             }
             2 -> {
-                binding.tvTitle.text = "Create Produk"
+                binding.tvTitle.text = "Tambah Produk"
                 binding.tvModeBadge.text = "ADD MODE"
 
                 setFormEnabled(true)
@@ -624,17 +626,17 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
     private fun setFormEnabled(enabled: Boolean) {
         binding.apply {
             if (!enabled) {
-                binding.etProductName.error = null
-                binding.acProductCategory.error = null
-                binding.etProductType.error = null
-                binding.etProductSize.error = null
-                binding.etProductSKU.error = null
-                binding.etProductCode.error = null
-                binding.etPurchasePrice.error = null
-                binding.etSellingPrice.error = null
-                binding.etProductDescription.error = null
-                binding.etStockQuantity.error = null
-                binding.etLimitQuantity.error = null
+                etProductName.error = null
+                acProductCategory.error = null
+                etProductType.error = null
+                etProductSize.error = null
+                etProductSKU.error = null
+                etProductCode.error = null
+                etPurchasePrice.error = null
+                etSellingPrice.error = null
+                etProductDescription.error = null
+                etStockQuantity.error = null
+                etLimitQuantity.error = null
             }
 
             etProductName.isEnabled = enabled
@@ -657,8 +659,9 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             if (currentMode == 0) {
                 acProductCategory.isEnabled = true
                 tilProductCategory.isEnabled = true
-                acProductCategory.setOnTouchListener { _, _ -> true }
                 tilProductCategory.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_NONE
+                acProductCategory.setOnTouchListener { _, _ -> true }
+                acProductCategory.onFocusChangeListener = null
             } else {
                 acProductCategory.isEnabled = enabled
                 tilProductCategory.isEnabled = enabled
@@ -670,10 +673,19 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                             acProductCategory.showDropDown()
                         }
                     }
-                    false
+                    true
                 }
-                acProductCategory.setOnTouchListener(defaultCategoryTouchListener ?: fallbackTouchListener)
                 tilProductCategory.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_DROPDOWN_MENU
+                val originalCategoryListener = defaultCategoryTouchListener ?: fallbackTouchListener
+                acProductCategory.setOnTouchListener { v, event ->
+                    originalCategoryListener.onTouch(v, event)
+                    true
+                }
+                acProductCategory.setOnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        forceClearFocus()
+                    }
+                }
             }
             flImagePicker.isClickable = enabled
             flImagePicker.isFocusable = enabled
@@ -1114,13 +1126,13 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             }
         }
 
-        addProductViewModel.productParams.observe(this) { service ->
+        addProductViewModel.productParams.observe(this) { product ->
             // Only update UI from model changes automatically if in VIEW mode or First Load
             // This prevents overwriting user input while they are typing in EDIT/ADD mode
-            if (service != null) {
+            if (product != null) {
                 if (currentMode == 0 || isFirstLoad) {
-                    Logger.d("UpdateFormData", "trigger display All Data (service form)")
-                    displayAllData(service)
+                    Logger.d("UpdateFormData", "trigger display All Data (product form)")
+                    displayAllData(product)
                 } else {
                     // updateRecycleViewData()
                 }
@@ -1162,11 +1174,11 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             }
         }
 
-        addProductViewModel.productList.observe(this) { services ->
+        addProductViewModel.productList.observe(this) { products ->
             if (!isFirstLoad) {
                 val mode = currentMode
                 if (mode == 0) { // VIEW mode
-                    services.find { service -> service.uid == productSelectedId }?.let { found ->
+                    products.find { product -> product.uid == productSelectedId }?.let { found ->
                         Logger.d("UpdateFormData", "VIEW mode: outlet found ::")
                         val categoryList = addProductViewModel.categoryList.value ?: emptyList()
                         val dataCategory = categoryList.firstOrNull { category ->
@@ -1182,12 +1194,12 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                         addProductViewModel.updateProductParams(found.deepCopy(copyDataSeller = true, copyCategoryDetail = true))
                     }
                 } else if (mode == 1) { // EDIT mode
-                    services.find { service -> service.uid == productSelectedId }?.let { found ->
+                    products.find { product -> product.uid == productSelectedId }?.let { found ->
                         Logger.d("UpdateFormData", "EDIT mode: outlet found ::")
-                        // Cek perubahan data sebelum originalService diperbarui
+                        // Cek perubahan data sebelum originalProduct diperbarui
                         val hasUnsaved = hasUnsavedChanges()
 
-                        // Selalu perbarui originalService agar pembanding unsaved changes akurat terhadap Firestore terbaru
+                        // Selalu perbarui originalProduct agar pembanding unsaved changes akurat terhadap Firestore terbaru
                         val categoryList = addProductViewModel.categoryList.value ?: emptyList()
                         val dataCategory = categoryList.firstOrNull { category ->
                             category.categoryName.equals(found.productCategory, ignoreCase = true)
@@ -1197,7 +1209,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                         found.categoryDetail = dataCategory
 
                         addProductViewModel.setOriginalProduct(found.deepCopy(copyDataSeller = true, copyCategoryDetail = true))
-                        // Hanya perbarui serviceParams jika belum diinisialisasi (null) atau tidak ada perubahan yang belum disimpan
+                        // Hanya perbarui productParams jika belum diinisialisasi (null) atau tidak ada perubahan yang belum disimpan
                         if (addProductViewModel.productParams.value == null || !hasUnsaved) {
                             uidDropdownPosition = dataCategory.uid
                             textDropdownCategoryName = dataCategory.categoryName
@@ -1238,19 +1250,19 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             binding.checkBoxData.isChecked = isSkuIdentical
             updateBarcodeFieldState(isSkuIdentical)
 
-            val tempPurchaseRawText = restoredPurchasePriceRawText
+            val tempPurchaseRawText = restoredPurchaseRawText
             if (tempPurchaseRawText != null) {
                 isPricePurchaseFormatting = true
                 setIfDiff(binding.etPurchasePrice.text?.toString(), tempPurchaseRawText) { binding.etPurchasePrice.setText(it) }
                 isPricePurchaseFormatting = false
-                binding.etPurchasePrice.setSelection(restoredPurchasePriceCursorPosition.coerceIn(0, tempPurchaseRawText.length))
+                binding.etPurchasePrice.setSelection(restoredPurchaseCursorPosition.coerceIn(0, tempPurchaseRawText.length))
                 binding.etPurchasePrice.post {
-                    restoredPurchasePriceErrorMsg?.let {
+                    restoredPurchaseErrorMsg?.let {
                         binding.etPurchasePrice.error = it
                     }
                     // Bersihkan state restorasi setelah benar-benar diterapkan di layar
-                    restoredPurchasePriceRawText = null
-                    restoredPurchasePriceErrorMsg = null
+                    restoredPurchaseRawText = null
+                    restoredPurchaseErrorMsg = null
                 }
             } else if (product.purchasePrice > 0) {
                 isPricePurchaseFormatting = true
@@ -1263,19 +1275,19 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                 isPricePurchaseFormatting = false
             }
 
-            val tempSellingRawText = restoredSellingPriceRawText
+            val tempSellingRawText = restoredSellingRawText
             if (tempSellingRawText != null) {
                 isPriceSellingFormatting = true
                 setIfDiff(binding.etSellingPrice.text?.toString(), tempSellingRawText) { binding.etSellingPrice.setText(it) }
                 isPriceSellingFormatting = false
-                binding.etSellingPrice.setSelection(restoredSellingPriceCursorPosition.coerceIn(0, tempSellingRawText.length))
+                binding.etSellingPrice.setSelection(restoredSellingCursorPosition.coerceIn(0, tempSellingRawText.length))
                 binding.etSellingPrice.post {
-                    restoredSellingPriceErrorMsg?.let {
+                    restoredSellingErrorMsg?.let {
                         binding.etSellingPrice.error = it
                     }
                     // Bersihkan state restorasi setelah benar-benar diterapkan di layar
-                    restoredSellingPriceRawText = null
-                    restoredSellingPriceErrorMsg = null
+                    restoredSellingRawText = null
+                    restoredSellingErrorMsg = null
                 }
             } else if (product.productPrice > 0) {
                 isPriceSellingFormatting = true
@@ -1303,6 +1315,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                     Glide.with(this@AddProductFormActivity).load(product.imgProduct)
                         .centerCrop()
                         .placeholder(R.drawable.img_product_placeholder2)
+                        .error(R.drawable.img_product_placeholder2)
                         .into(binding.ivProductPhoto)
                 }
             } else if (addProductViewModel.pendingImageUri.value == null) {
@@ -1342,7 +1355,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
             }
             this@AddProductFormActivity.isFirstLoad = false
             this@AddProductFormActivity.skippedProcess = false
-            Logger.d("FirstLoopEdited", "First Load AddServiceForm = false")
+            Logger.d("FirstLoopEdited", "First Load AddProductForm = false")
         }
     }
 
@@ -1418,7 +1431,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                     lifecycleScope.launch {
                         addProductViewModel.listenerProductsMutex.withStateLock {
                             exception?.let {
-                                toastViewModel.showToast("Error listening to services data: ${exception.message}", false)
+                                toastViewModel.showToast("Error listening to products data: ${exception.message}", false)
                                 if (!decrementGlobalListener) {
                                     if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                     decrementGlobalListener = true
@@ -1469,7 +1482,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                     lifecycleScope.launch {
                         addProductViewModel.listenerCategoriesMutex.withStateLock {
                             exception?.let {
-                                toastViewModel.showToast("Error listening to service categoryList data: ${exception.message}", false)
+                                toastViewModel.showToast("Error listening to product categoryList data: ${exception.message}", false)
                                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                 return@withStateLock
                             }
@@ -1477,10 +1490,10 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                                 if (!isFirstLoad && !skippedProcess) {
                                     withContext(Dispatchers.Default) {
                                         addProductViewModel.categoryListMutex.withStateLock {
-                                            val serviceCategoryList = docs.mapNotNull { document ->
+                                            val productCategoryList = docs.mapNotNull { document ->
                                                 document.toObject(DataCategories::class.java)
                                             }
-                                            val categoryList = (localFallbackCategory + serviceCategoryList)
+                                            val categoryList = (localFallbackCategory + productCategoryList)
                                                 .distinctBy { it.categoryName }.sortedBy { it.categoryName.lowercase(Locale.getDefault()) }
 
                                             addProductViewModel.setCategories(categoryList, setupDropdown = false, isSavedInstanceStateNull = true)
@@ -1636,7 +1649,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                     setFocus(etPurchasePrice)
                     false
                 }
-                rawPurchaseText.isNotEmpty() && rawPurchaseText[0] == '0' && clearPurchaseText.length > 1 -> {
+                rawPurchaseText.isNotEmpty() && rawPurchaseText[0] == '0' && rawPurchaseText.length > 1 -> {
                     etPurchasePrice.error = getString(R.string.your_value_entered_not_valid)
                     etPurchasePrice.setSelection(etPurchasePrice.text?.length ?: 0)
                     setFocus(etPurchasePrice)
@@ -1666,7 +1679,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
                     setFocus(etSellingPrice)
                     false
                 }
-                rawSellingText.isNotEmpty() && rawSellingText[0] == '0' && clearSellingText.length > 1 -> {
+                rawSellingText.isNotEmpty() && rawSellingText[0] == '0' && rawSellingText.length > 1 -> {
                     etSellingPrice.error = getString(R.string.your_value_entered_not_valid)
                     etSellingPrice.setSelection(etSellingPrice.text?.length ?: 0)
                     setFocus(etSellingPrice)
@@ -1738,7 +1751,7 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
 
     private fun setFocus(editText: View) {
         editText.requestFocus()
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         imm.showSoftInput(editText, InputMethodManager.SHOW_IMPLICIT)
     }
 
@@ -1759,14 +1772,14 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
         Log.d("CheckLifecycle", "==================== ON RESUME ADD-SERVICE-FORM =====================")
         super.onResume()
         if (isNavigating) {
-            Log.d("NavigationCorner", "Navigating Service Form 2")
+            Log.d("NavigationCorner", "Navigating Product Form 2")
             WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, true)
         }
         isNavigating = false
         if (!isRecreated) {
             if ((!::productListener.isInitialized || !::barbershopListener.isInitialized || !::categoryListener.isInitialized) && !isFirstLoad) {
-                val intent = android.content.Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 startActivity(intent)
                 toastViewModel.showToast("Sesi telah berakhir silahkan masuk kembali", false)
@@ -1808,24 +1821,61 @@ class AddProductFormActivity : BaseActivity(), View.OnClickListener {
     }
 
     private fun hasUnsavedChanges(): Boolean {
-        val original = addProductViewModel.originalProduct.value ?: return false
-        val current = addProductViewModel.productParams.value ?: return false
+        val current = addProductViewModel.productParams.value ?: run {
+            Logger.d("UnsavedChanges", "Product is null")
+            return false
+        }
+        val original = addProductViewModel.originalProduct.value ?: run {
+            Logger.d("UnsavedChanges", "Original product is null")
+            return false
+        }
 
-        if (addProductViewModel.pendingImageUri.value != null) return true
+        // Compare text fields
+        Logger.d("UnsavedChanges", "Name mismatch: ${binding.etProductName.text.toString().trim()} != ${original.productName}")
+        if (binding.etProductName.text.toString().trim() != original.productName) return true
+        Logger.d("UnsavedChanges", "Category mismatch: ${binding.acProductCategory.text.toString().trim()} != ${original.productCategory}")
+        if (binding.acProductCategory.text.toString().trim() != original.productCategory) return true
+        Logger.d("UnsavedChanges", "Type mismatch: ${binding.etProductType.text.toString().trim()} != ${original.productType}")
+        if (binding.etProductType.text.toString().trim() != original.productType) return true
+        Logger.d("UnsavedChanges", "Size mismatch: ${binding.etProductSize.text.toString().trim()} != ${original.productSize}")
+        if (binding.etProductSize.text.toString().trim() != original.productSize) return true
+        Logger.d("UnsavedChanges", "SKU mismatch: ${binding.etProductSKU.text.toString().trim()} != ${original.stockKeepingUnit}")
+        if (binding.etProductSKU.text.toString().trim() != original.stockKeepingUnit) return true
+        Logger.d("UnsavedChanges", "Barcode mismatch: ${binding.etProductCode.text.toString().trim()} != ${original.productBarcode}")
+        if (binding.etProductCode.text.toString().trim() != original.productBarcode) return true
 
-        return original.productName != current.productName ||
-            original.productCategory != current.productCategory ||
-            original.productType != current.productType ||
-            original.productSize != current.productSize ||
-            original.stockKeepingUnit != current.stockKeepingUnit ||
-            original.productBarcode != current.productBarcode ||
-            original.purchasePrice != current.purchasePrice ||
-            original.productPrice != current.productPrice ||
-            original.productDescription != current.productDescription ||
-            original.stockQuantity != current.stockQuantity ||
-            original.minimumQuantity != current.minimumQuantity ||
-            original.productRating != current.productRating ||
-            original.imgProduct != current.imgProduct
+        // Compare price
+        val currentPurchase = binding.etPurchasePrice.text.toString().replace(Regex("\\D"), "").toIntOrNull() ?: 0
+        Logger.d("UnsavedChanges", "Purchase Price mismatch: $currentPurchase != ${original.purchasePrice}")
+        if (currentPurchase != original.purchasePrice) return true
+        val currentSelling = binding.etSellingPrice.text.toString().replace(Regex("\\D"), "").toIntOrNull() ?: 0
+        Logger.d("UnsavedChanges", "Selling Price mismatch: $currentSelling != ${original.productPrice}")
+        if (currentSelling != original.productPrice) return true
+
+        // Compare description
+        Logger.d("UnsavedChanges", "Description mismatch: ${binding.etProductDescription.text.toString().trim()} != ${original.productDescription}")
+        if (binding.etProductDescription.text.toString().trim() != original.productDescription) return true
+
+        // Compare quantity
+        val currentStock = binding.etStockQuantity.text.toString().toIntOrNull() ?: 0
+        Logger.d("UnsavedChanges", "Stock mismatch: $currentStock != ${original.stockQuantity}")
+        if (currentStock != original.stockQuantity) return true
+        val currentLimit = binding.etLimitQuantity.text.toString().toIntOrNull() ?: 0
+        Logger.d("UnsavedChanges", "Limit mismatch: $currentLimit != ${original.minimumQuantity}")
+        if (currentLimit != original.minimumQuantity) return true
+
+        // Image change
+        if (current.imgProduct != original.imgProduct) {
+            Logger.d("UnsavedChanges", "Image URL mismatch: ${current.imgProduct} != ${original.imgProduct}")
+            return true
+        }
+        if (addProductViewModel.pendingImageUri.value != null) {
+            Logger.d("UnsavedChanges", "Pending image change exists")
+            return true
+        }
+
+        Logger.d("UnsavedChanges", "No unsaved changes detected")
+        return false
     }
 
     private fun getOnTouchListener(view: android.view.View): android.view.View.OnTouchListener? {

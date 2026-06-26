@@ -9,7 +9,7 @@ import app.cash.paparazzi.Paparazzi
 import com.example.barberlink.Adapter.ItemListPermissionAdapter
 import com.example.barberlink.Adapter.ItemListServiceIconAdapter
 import com.example.barberlink.Adapter.ItemListWorkPlacementAdapter
-import com.example.barberlink.Adapter.PermissionItem
+import com.example.barberlink.DataClass.PermissionItem
 import com.example.barberlink.DataClass.ServiceIcon
 import com.android.ide.common.rendering.api.SessionParams
 import com.android.resources.NightMode
@@ -49,6 +49,10 @@ class LayoutPreviewTest {
         // Hide view_space to reduce gap in snapshot
         val viewSpace = view.findViewById<View>(R.id.view_space)
         viewSpace?.visibility = View.GONE
+
+        // Prevent rendering massive placeholder image which crashes JVM canvas memory
+        val ivProductPhoto = view.findViewById<android.widget.ImageView>(R.id.ivProductPhoto)
+        ivProductPhoto?.setImageDrawable(null)
 
         paparazzi.snapshot(applyCalculatedHeight(view), "Add Product Form")
     }
@@ -153,7 +157,10 @@ class LayoutPreviewTest {
 
         // Sum components and remove safety buffer as requested
         val buffer = 130
-        val totalHeight = hHeight + sHeight + fHeight + buffer
+        var totalHeight = hHeight + sHeight + fHeight + buffer
+        if (totalHeight > 3000) {
+            totalHeight = 3000
+        }
         
         if (totalHeight > 0) {
             val params = view.layoutParams ?: ViewGroup.LayoutParams(

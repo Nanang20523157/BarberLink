@@ -267,7 +267,7 @@
                         android:id="@+id/etFullname"
                         style="@style/FormInputText"
                         android:autofillHints=""
-                        android:background="@drawable/bg_input_disabled_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="@string/hint_fullname_employee"
                         android:inputType="textPersonName"
                         android:layout_marginTop="7dp"
@@ -306,7 +306,7 @@
                         android:id="@+id/etUsername"
                         style="@style/FormInputText"
                         android:autofillHints="username"
-                        android:background="@drawable/bg_input_disabled_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="\@J5mithJR"
                         android:inputType="textVisiblePassword"
                         android:layout_marginTop="7dp"
@@ -345,7 +345,7 @@
                         android:id="@+id/etEmail"
                         style="@style/FormInputText"
                         android:autofillHints="emailAddress"
-                        android:background="@drawable/bg_input_disabled_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="@string/hint_email_employee"
                         android:inputType="textEmailAddress"
                         android:layout_marginTop="7dp"
@@ -384,7 +384,7 @@
                         android:id="@+id/etPhoneNumber"
                         style="@style/FormInputText"
                         android:autofillHints="phone"
-                        android:background="@drawable/bg_input_disabled_figma"
+                        android:background="@drawable/bg_input_selector_blue"
                         android:hint="@string/outlet_phone_number_hint"
                         android:inputType="phone"
                         android:layout_marginTop="7dp"
@@ -452,7 +452,7 @@
 
                                     <!-- AutoCompleteTextView for Dropdown -->
                                     <com.google.android.material.textfield.TextInputLayout
-                                        android:id="@+id/tilCapsterGander"
+                                        android:id="@+id/textInputLayout"
                                         android:layout_width="match_parent"
                                         android:layout_height="match_parent"
                                         app:hintEnabled="false"
@@ -473,10 +473,10 @@
                                         app:boxCornerRadiusTopStart="7.61dp"
                                         app:endIconTint="@color/grey_default_material_layout"
                                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense"
-                                        app:endIconMode="dropdown_menu">
+                                        app:endIconMode="none">
 
                                         <AutoCompleteTextView
-                                            android:id="@+id/acCapsterGender"
+                                            android:id="@+id/genderDropdown"
                                             android:layout_width="match_parent"
                                             android:layout_height="match_parent"
                                             android:paddingStart="15dp"
@@ -484,7 +484,6 @@
                                             android:textSize="15sp"
                                             android:hint="@string/hint_gender"
                                             android:inputType="none"
-                                            android:background="@drawable/bg_dropdown_disabled_figma"
                                             android:cursorVisible="false"/>
 
                                     </com.google.android.material.textfield.TextInputLayout>
@@ -505,8 +504,7 @@
 
                                     <LinearLayout
                                         android:layout_width="match_parent"
-                                        android:layout_height="match_parent"
-                                        android:background="@drawable/bg_input_disabled_figma">
+                                        android:layout_height="match_parent">
 
                                         <ImageView
                                             android:id="@+id/ivGender"
@@ -572,7 +570,7 @@
 
                             <!-- AutoCompleteTextView for Dropdown -->
                             <com.google.android.material.textfield.TextInputLayout
-                                android:id="@+id/tilRole"
+                                android:id="@+id/tilEmployeeRoles"
                                 android:layout_width="match_parent"
                                 android:layout_height="match_parent"
                                 app:hintEnabled="false"
@@ -594,7 +592,7 @@
                                 app:endIconMode="dropdown_menu">
 
                                 <AutoCompleteTextView
-                                    android:id="@+id/actvRole"
+                                    android:id="@+id/acEmployeeRoles"
                                     android:layout_width="match_parent"
                                     android:layout_height="match_parent"
                                     android:paddingStart="15dp"
@@ -613,7 +611,7 @@
                             android:layout_height="match_parent"/>
 
                         <androidx.cardview.widget.CardView
-                            android:id="@+id/cvAddRole"
+                            android:id="@+id/cvAddRoles"
                             android:layout_width="wrap_content"
                             android:layout_height="match_parent"
                             android:layout_gravity="center"
@@ -740,7 +738,7 @@
                                     android:layout_marginEnd="-16dp" />
 
                                 <TextView
-                                    android:id="@+id/tvAccessRights"
+                                    android:id="@+id/tvRoleDescriptionContent"
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:layout_marginTop="20dp"
@@ -769,7 +767,7 @@
                         app:cardElevation="0dp"
                         app:strokeColor="#E1E3E3"
                         app:strokeWidth="1dp"
-                        android:visibility="gone">
+                        android:visibility="visible">
 
                         <LinearLayout
                             android:layout_width="match_parent"
@@ -992,7 +990,7 @@
                             android:layout_height="wrap_content"
                             android:checked="true"
                             app:thumbTint="@color/white"
-                            app:trackTint="#10BBBB"/>
+                            app:trackTint="@color/switch_track_color"/>
                     </LinearLayout>
 
                     <!-- Availability Status -->
@@ -1020,7 +1018,7 @@
                             android:layout_height="wrap_content"
                             android:checked="true"
                             app:thumbTint="@color/white"
-                            app:trackTint="#10BBBB"/>
+                            app:trackTint="@color/switch_track_color"/>
                     </LinearLayout>
 
                     <!-- Employee Rating -->
@@ -1054,7 +1052,7 @@
                             <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_star_empty_figma" app:tint="#10BBBB" android:contentDescription="@string/star_image_desc"/>
                             <!-- Rating Value -->
                             <TextView
-                                android:id="@+id/tvEmployeeRatingVal"
+                                android:id="@+id/tvRating"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2.25dp"
@@ -1103,7 +1101,7 @@
                             app:layout_constraintBottom_toBottomOf="parent"/>
 
                         <FrameLayout
-                            android:id="@+id/btnAddWorkPlacement"
+                            android:id="@+id/ivAddWorkPlacement"
                             android:layout_width="36dp"
                             android:layout_height="36dp"
                             android:layout_marginTop="1.5dp"
@@ -1135,7 +1133,74 @@
                         android:nestedScrollingEnabled="false"
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/item_list_work_placement_adapter"
-                        tools:itemCount="2"/>
+                        tools:itemCount="2"
+                        android:visibility="gone"/>
+
+                    <!-- Empty State for Work Placement -->
+                    <LinearLayout
+                        android:id="@+id/llEmptyWorkPlacement"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_border_dashed_figma"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="34dp"
+                        android:layout_marginHorizontal="14dp"
+                        android:layout_marginBottom="8dp"
+                        android:visibility="visible">
+
+                        <FrameLayout
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:background="@drawable/bg_round_soft_empty_figma"
+                            android:layout_marginBottom="16dp">
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:layout_gravity="center"
+                                android:src="@drawable/ic_outlet"
+                                android:contentDescription="@string/icon_empty_state_desc"
+                                app:tint="#64748B" />
+                        </FrameLayout>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/empty_state_work_placement_title"
+                            android:textColor="#0F172A"
+                            android:textSize="16sp"
+                            android:layout_marginBottom="8dp"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAlignment="center"
+                            android:fontFamily="@font/poppins_regular"
+                            android:text="@string/empty_state_work_placement_subtitle"
+                            android:textColor="#64748B"
+                            android:textSize="14sp"
+                            android:paddingHorizontal="16dp"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnLinkOutletData"
+                            android:layout_width="wrap_content"
+                            android:layout_height="40dp"
+                            android:layout_marginTop="24dp"
+                            app:backgroundTint="#1A1A1A"
+                            android:fontFamily="@font/poppins_bold"
+                            android:text="@string/btn_select_outlet"
+                            android:textColor="#8FD14F"
+                            android:insetTop="0dp"
+                            android:insetBottom="0dp"
+                            app:cornerRadius="8dp"
+                            android:gravity="center_vertical"
+                            android:includeFontPadding="false"
+                            app:icon="@drawable/ic_add_figma"
+                            app:iconSize="20dp"
+                            app:iconTint="#8FD14F" />
+
+                    </LinearLayout>
 
                     <View
                         android:id="@+id/view_space"

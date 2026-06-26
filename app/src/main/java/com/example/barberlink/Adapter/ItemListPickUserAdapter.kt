@@ -136,6 +136,7 @@ class ItemListPickUserAdapter(
                 setUserGender(userEmployeeData.gender)
                 setUserRole(userEmployeeData.role)
 
+                Glide.with(root.context).clear(ivPhotoProfile)
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(userEmployeeData.photoProfile)
@@ -283,7 +284,7 @@ class ItemListPickUserAdapter(
                     "Keamanan" -> {
                         tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
                     }
-                    "Administrator" -> {
+                    "Admin" -> {
                         tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
                     }
                 }

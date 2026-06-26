@@ -2144,7 +2144,7 @@ class QueueTrackerPage : AppCompatActivity(), View.OnClickListener, ItemListCaps
     @OptIn(DelicateCoroutinesApi::class)
     override fun onDestroy() {
         super.onDestroy()
-        capsterAdapter.stopAllShimmerEffects()
+        if (::capsterAdapter.isInitialized) capsterAdapter.stopAllShimmerEffects()
         Log.d("BindingFocus", "onDestroy: ${binding.realLayout.acCapsterName.text.toString().trim()} || Pop Up Checking: $isPopUpDropdownShow")
         stopAnimation()
 

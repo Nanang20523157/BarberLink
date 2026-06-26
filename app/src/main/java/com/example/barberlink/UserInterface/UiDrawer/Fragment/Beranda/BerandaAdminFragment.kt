@@ -57,6 +57,7 @@ import com.example.barberlink.ToastViewModel
 import com.example.barberlink.UserInterface.Admin.Fragment.DetailServiceListFragment
 import com.example.barberlink.UserInterface.Admin.AddServiceFormActivity
 import com.example.barberlink.UserInterface.Admin.ManageEmployeePage
+import com.example.barberlink.UserInterface.Admin.Fragment.SearchUserCapsterFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.BerandaAdminViewModel
 import com.example.barberlink.UserInterface.MainActivity
 import com.example.barberlink.UserInterface.SettingPageScreen
@@ -1286,21 +1287,6 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
             .start()
     }
 
-
-//    private fun loadImageWithGlide(imageUrl: String) {
-//        if (imageUrl.isNotEmpty()) {
-//            if (!isDestroyed && !isFinishing) {
-//                // Lakukan transaksi fragment
-//                Glide.with(this)
-//                    .load(imageUrl)
-//                    .placeholder(
-//                        ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-//                    .error(ContextCompat.getDrawable(this, R.drawable.placeholder_user_profile))
-//                    .into(binding.ivProfile)
-//            }
-//        }
-//    }
-
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         binding.apply {
@@ -1408,7 +1394,20 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.seeAllPegawai -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-                        //navigatePage(requireContext(), ManageEmployeePage::class.java, true, v)
+                        if (!isShimmerVisible) {
+                            WindowInsetsHandler.setDynamicWindowAllCorner((requireActivity() as MainActivity).getMainBinding().root, requireContext(), false) {
+                                if (!isNavigating) {
+                                    isNavigating = true
+                                    val bundle = Bundle().apply {
+                                        putParcelableArray("employeeList", (berandaAdminViewModel.employeeList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("employeeRoles", (berandaAdminViewModel.employeeRolesList.value ?: emptyList()).toTypedArray())
+                                        putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
+                                        putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
+                                    }
+                                    navController.navigate(R.id.action_nav_beranda_to_manageEmployeePage, bundle)
+                                }
+                            }
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.seeAllPaketBundling -> {
@@ -1472,7 +1471,16 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                 }
                 R.id.ivAddNewPegawai -> {
                     if (berandaAdminViewModel.userAdminData.value?.subscriptionStatus == true) {
-                        //navigatePage(requireContext(), ManageEmployeePage::class.java, true, v)
+                        if (!isShimmerVisible) {
+                            val overlay = SearchUserCapsterFragment.newInstance(
+                                berandaAdminViewModel.userAdminData.value ?: UserAdminData(),
+                                (berandaAdminViewModel.employeeRolesList.value ?: emptyList()).toTypedArray(),
+                                (berandaAdminViewModel.employeeList.value ?: emptyList()).toTypedArray(),
+                                (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray(),
+                                isDirectAdd = true
+                            )
+                            overlay.show(parentFragmentManager, "SearchUserCapsterFragment")
+                        }
                     } else toastViewModel.showToast("Akun Anda tidak terdaftar dalam subscription.", true)
                 }
                 R.id.ivAddNewPaketBundling -> {
@@ -1557,10 +1565,10 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
 
     override fun onDestroy() {
         super.onDestroy()
-        productAdapter.stopAllShimmerEffects()
-        employeeAdapter.stopAllShimmerEffects()
-        bundlingAdapter.stopAllShimmerEffects()
-        serviceAdapter.stopAllShimmerEffects()
+        if (::productAdapter.isInitialized) productAdapter.stopAllShimmerEffects()
+        if (::employeeAdapter.isInitialized) employeeAdapter.stopAllShimmerEffects()
+        if (::bundlingAdapter.isInitialized) bundlingAdapter.stopAllShimmerEffects()
+        if (::serviceAdapter.isInitialized) serviceAdapter.stopAllShimmerEffects()
 
         if (::serviceListener.isInitialized) serviceListener.remove()
         if (::employeeListener.isInitialized) employeeListener.remove()

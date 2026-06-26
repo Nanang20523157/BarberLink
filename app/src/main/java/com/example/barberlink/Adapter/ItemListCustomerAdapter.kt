@@ -130,6 +130,7 @@ class ItemListCustomerAdapter(
                 val phoneNumber = PhoneUtils.formatPhoneNumberWithZero(customer.phone)
                 tvCustomerPhone.text = phoneNumber
 
+                Glide.with(root.context).clear(ivPhotoProfile)
                 if (customer.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(customer.photoProfile)

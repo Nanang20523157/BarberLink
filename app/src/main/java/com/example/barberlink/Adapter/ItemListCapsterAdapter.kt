@@ -171,6 +171,7 @@ class ItemListCapsterAdapter(
 
                 setUserGender(userEmployeeData.gender)
 
+                Glide.with(root.context).clear(ivPhotoProfile)
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(userEmployeeData.photoProfile)

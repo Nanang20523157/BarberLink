@@ -204,7 +204,7 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        queueAdapter.stopAllShimmerEffects()
+        if (::queueAdapter.isInitialized) queueAdapter.stopAllShimmerEffects()
         _binding = null
     }
 

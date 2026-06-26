@@ -3,6 +3,7 @@ package com.example.barberlink.UserInterface.Admin
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Rect
@@ -96,11 +97,11 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     private val localFallbackCategory by lazy {
         listOf(
             DataCategories(
-            barbershopRef = "All",
-            categoryCode = "---",
-            categoryName = "General",
-            intendedFor = "Layanan",
-            uid = "ZZzzzzzzzzzzzzZZ"
+                barbershopRef = "All",
+                categoryCode = "---",
+                categoryName = "General",
+                intendedFor = "Layanan",
+                uid = "AqBCA2gpZkgr7veCkmH0"
             )
         )
     }
@@ -132,7 +133,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     private var restoredPriceRawText: String? = null
     private var restoredPriceCursorPosition: Int = 0
     private var restoredPriceErrorMsg: CharSequence? = null
-    private var defaultCategoryTouchListener: android.view.View.OnTouchListener? = null
+    private var defaultCategoryTouchListener: View.OnTouchListener? = null
 
     // ─── TextWatcher references for cleanup ───────────────────────────────────
     private lateinit var serviceNameTextWatcher: TextWatcher
@@ -324,9 +325,9 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
             isPriceFormatting = savedInstanceState.getBoolean("is_price_formatting", false)
             previousText = savedInstanceState.getString("previous_text", "")
             previousCursorPosition = savedInstanceState.getInt("previous_cursor_position", 0)
-            restoredPriceRawText = savedInstanceState.getString("price_raw_text")
-            restoredPriceCursorPosition = savedInstanceState.getInt("price_cursor_position", 0)
-            restoredPriceErrorMsg = savedInstanceState.getCharSequence("price_error_msg")
+            restoredPriceRawText = savedInstanceState.getString("restored_price_raw_text")
+            restoredPriceCursorPosition = savedInstanceState.getInt("restored_price_cursor_position", 0)
+            restoredPriceErrorMsg = savedInstanceState.getCharSequence("restored_price_error_msg")
 
             addServiceViewModel.setupDropdownFilterWithNullState()
         } else {
@@ -411,9 +412,9 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
         outState.putBoolean("is_price_formatting", isPriceFormatting)
-        outState.putString("price_raw_text", binding.etServicePrice.text.toString())
-        outState.putInt("price_cursor_position", binding.etServicePrice.selectionStart)
-        outState.putCharSequence("price_error_msg", binding.etServicePrice.error)
+        outState.putString("restored_price_raw_text", binding.etServicePrice.text.toString())
+        outState.putInt("restored_price_cursor_position", binding.etServicePrice.selectionStart)
+        outState.putCharSequence("restored_price_error_msg", binding.etServicePrice.error)
 
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_handling_back", isHandlingBack)
@@ -461,7 +462,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                     lifecycleScope.launch(Dispatchers.Main) {
                         if (currentMode == 0) return@launch
                         val dataCategory = categoryList[position]
-                        binding.acServiceCategory.setText(dataCategory.categoryName, false)
+//                        binding.acServiceCategory.setText(dataCategory.categoryName, false)
                         uidDropdownPosition = dataCategory.uid
                         textDropdownCategoryName = dataCategory.categoryName
                         addServiceViewModel.serviceParams.value?.let { service ->
@@ -559,7 +560,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                 binding.viewSpace.visibility = View.VISIBLE
             }
             2 -> { // ADD mode
-                binding.tvTitle.text = "Create Layanan"
+                binding.tvTitle.text = "Tambah Layanan"
                 binding.tvModeBadge.text = getString(R.string.form_type_mode)
 
                 setFormEnabled(true)
@@ -582,9 +583,9 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
     private fun setFormEnabled(enabled: Boolean) {
         binding.apply {
             if (!enabled) {
-                binding.etServiceName.error = null
-                binding.etServiceDescription.error = null
-                binding.etServicePrice.error = null
+                etServiceName.error = null
+                etServiceDescription.error = null
+                etServicePrice.error = null
             }
 
             etServiceName.isEnabled = enabled
@@ -593,8 +594,9 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
             if (currentMode == 0) {
                 acServiceCategory.isEnabled = true
                 tilServiceCategory.isEnabled = true
-                acServiceCategory.setOnTouchListener { _, _ -> true }
                 tilServiceCategory.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_NONE
+                acServiceCategory.setOnTouchListener { _, _ -> true }
+                acServiceCategory.onFocusChangeListener = null
             } else {
                 acServiceCategory.isEnabled = enabled
                 tilServiceCategory.isEnabled = enabled
@@ -606,10 +608,19 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                             acServiceCategory.showDropDown()
                         }
                     }
-                    false
+                    true
                 }
-                acServiceCategory.setOnTouchListener(defaultCategoryTouchListener ?: fallbackTouchListener)
                 tilServiceCategory.endIconMode = com.google.android.material.textfield.TextInputLayout.END_ICON_DROPDOWN_MENU
+                val originalCategoryListener = defaultCategoryTouchListener ?: fallbackTouchListener
+                acServiceCategory.setOnTouchListener { v, event ->
+                    originalCategoryListener.onTouch(v, event)
+                    true
+                }
+                acServiceCategory.setOnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        forceClearFocus()
+                    }
+                }
             }
 
             updateSwitchesInteractivity(switchCore.isChecked)
@@ -1108,6 +1119,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
                     Glide.with(this@AddServiceFormActivity).load(service.serviceImg)
                         .centerCrop()
                         .placeholder(R.drawable.img_service_placeholder)
+                        .error(R.drawable.img_service_placeholder)
                         .into(binding.ivServicePhoto)
                 }
             } else if (addServiceViewModel.pendingImageUri.value == null) {
@@ -1472,8 +1484,8 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         isNavigating = false
         if (!isRecreated) {
             if ((!::serviceListener.isInitialized || !::barbershopListener.isInitialized || !::categoryListener.isInitialized) && !isFirstLoad) {
-                val intent = android.content.Intent(this, SelectUserRolePage::class.java).apply {
-                    flags = android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                val intent = Intent(this, SelectUserRolePage::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 startActivity(intent)
                 toastViewModel.showToast("Sesi telah berakhir silahkan masuk kembali", false)
@@ -1542,8 +1554,6 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         if (binding.switchCore.isChecked != original.defaultItem) return true
         Logger.d("UnsavedChanges", "AutoSelected mismatch: ${binding.switchAuto.isChecked} != ${original.autoSelected}")
         if (binding.switchAuto.isChecked != original.autoSelected) return true
-//        Logger.d("UnsavedChanges", "ServiceStatus mismatch: ${binding.switchStatus.isChecked} != ${original.serviceStatus}")
-//        if (binding.switchStatus.isChecked != original.serviceStatus) return true
 
         // Compare price
         val currentPrice = binding.etServicePrice.text.toString().replace(Regex("\\D"), "").toIntOrNull() ?: 0
@@ -1551,7 +1561,7 @@ class AddServiceFormActivity : BaseActivity(), View.OnClickListener {
         if (currentPrice != original.servicePrice) return true
 
         // Image change
-        if (original.serviceImg != current.serviceImg) {
+        if (current.serviceImg != original.serviceImg) {
             Logger.d("UnsavedChanges", "Service image URL has changed")
             return true
         }

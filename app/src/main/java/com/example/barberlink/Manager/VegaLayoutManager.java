@@ -90,6 +90,13 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
 
         buildLocationRects();
 
+        if (scroll > maxScroll) {
+            scroll = maxScroll;
+        }
+        if (scroll < 0) {
+            scroll = 0;
+        }
+
         // 先回收放到缓存，后面会再次统一layout
         detachAndScrapAttachedViews(recycler);
         layoutItemsOnCreate(recycler);
@@ -353,6 +360,20 @@ public class VegaLayoutManager extends RecyclerView.LayoutManager {
         }
 
         return travel;
+    }
+
+    @Override
+    public void scrollToPosition(int position) {
+        if (position == 0) {
+            scroll = 0;
+            requestLayout();
+        } else if (position > 0 && position < locationRects.size()) {
+            Rect rect = locationRects.get(position);
+            if (rect != null) {
+                scroll = rect.top;
+                requestLayout();
+            }
+        }
     }
 
     @Override

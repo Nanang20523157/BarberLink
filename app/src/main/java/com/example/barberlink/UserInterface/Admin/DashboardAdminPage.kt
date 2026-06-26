@@ -127,29 +127,6 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     private lateinit var builder: MonthPickerDialog.Builder
     private lateinit var startOfMonth: Timestamp
     private lateinit var startOfNextMonth: Timestamp
-    // private var amountOfCapital: Int = 0
-    // private var amountOfExpenditure: Int = 0
-    // private var amountServiceRevenue: Int = 0
-    // private var amountProductRevenue: Int = 0
-    // private var shareProfitService: Int = 0
-    // private var shareProfitProduct: Int = 0
-
-    // private var numberOfCompletedQueue: Int = 0
-    // private var numberOfWaitingQueue: Int = 0
-    // private var numberOfCanceledQueue: Int = 0
-    // private var numberOfProcessQueue: Int = 0
-    // private var numberOfSkippedQueue: Int = 0
-    // private var numberOfCompletedOrders: Int = 0
-    // private var numberOfOrdersCanceled: Int = 0
-    // private var numberOfIncomingOrders: Int = 0
-    // private var numberOfOrdersReturn: Int = 0
-    // private var numberOfOrdersPacked: Int = 0
-    // private var numberOfOrdersShipped: Int = 0
-
-    // private val reservationList = mutableListOf<Reservation>()
-    // private val productSalesList = mutableListOf<ProductSales>()
-    // private val dailyCapitalList = mutableListOf<DailyCapital>()
-    // private val expenditureList = mutableListOf<Expenditure>()
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
 

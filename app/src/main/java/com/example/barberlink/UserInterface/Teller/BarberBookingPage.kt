@@ -2047,9 +2047,9 @@ class BarberBookingPage : AppCompatActivity(), View.OnClickListener, ItemListCus
 
     override fun onDestroy() {
         super.onDestroy()
-        customerAdapter.stopAllShimmerEffects()
-        bundlingAdapter.stopAllShimmerEffects()
-        serviceAdapter.stopAllShimmerEffects()
+        if (::customerAdapter.isInitialized) customerAdapter.stopAllShimmerEffects()
+        if (::bundlingAdapter.isInitialized) bundlingAdapter.stopAllShimmerEffects()
+        if (::serviceAdapter.isInitialized) serviceAdapter.stopAllShimmerEffects()
         Log.d("ScanAll", "XX1")
 
         bookingPageViewModel.clearState()

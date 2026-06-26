@@ -13,7 +13,7 @@ import android.os.Build
 import android.widget.ImageView
 import androidx.annotation.RequiresApi
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.target.BitmapImageViewTarget
 import com.bumptech.glide.request.transition.Transition
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.R
@@ -21,6 +21,7 @@ import com.example.barberlink.Utils.NumberUtils
 import com.example.barberlink.databinding.ItemProductSelectAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutProductSelectBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import androidx.core.graphics.get
 
 class ItemListProductSelectAdapter(
     private val onItemToggled: (product: Product, isSelected: Boolean) -> Unit,
@@ -29,24 +30,27 @@ class ItemListProductSelectAdapter(
 
     private var isShimmer = true
     private val shimmerItemCount = 6
-    private val shimmerList = mutableListOf<ShimmerFrameLayout>()
+    private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
 
-    fun setShimmer(shimmer: Boolean) {
-        if (isShimmer == shimmer) return
-        isShimmer = shimmer
-        notifyDataSetChanged()
+    fun stopAllShimmerEffects() {
+        if (shimmerViewList.isNotEmpty()) {
+            shimmerViewList.forEach {
+                it.stopShimmer()
+            }
+            shimmerViewList.clear()
+        }
     }
+
+    fun isShimmerMode(): Boolean = isShimmer
 
     fun updateSelectedIds(ids: Set<String>) {
         selectedIds = ids
         notifyDataSetChanged()
     }
 
-    override fun getItemViewType(position: Int) =
-        if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
-
-    override fun getItemCount() =
-        if (isShimmer) shimmerItemCount else super.getItemCount()
+    override fun getItemViewType(position: Int): Int {
+        return if (isShimmer) VIEW_TYPE_SHIMMER else VIEW_TYPE_ITEM
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
@@ -62,10 +66,20 @@ class ItemListProductSelectAdapter(
         else if (holder is ShimmerViewHolder) holder.startShimmer()
     }
 
+    override fun getItemCount(): Int {
+        return if (isShimmer) shimmerItemCount else super.getItemCount()
+    }
+
+    fun setShimmer(shimmer: Boolean) {
+        if (isShimmer == shimmer) return
+        isShimmer = shimmer
+        notifyDataSetChanged()
+    }
+
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutProductSelectBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun startShimmer() {
-            shimmerList.add(binding.shimmerViewContainer)
+            shimmerViewList.add(binding.shimmerViewContainer)
             if (!binding.shimmerViewContainer.isShimmerStarted)
                 binding.shimmerViewContainer.startShimmer()
         }
@@ -73,7 +87,10 @@ class ItemListProductSelectAdapter(
 
     inner class ItemViewHolder(private val binding: ItemProductSelectAdapterBinding) :
         RecyclerView.ViewHolder(binding.root) {
+
         fun bind(product: Product) {
+            if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
+
             with(binding) {
                 tvProductName.text = product.productName
                 tvProductName.isSelected = true
@@ -83,22 +100,24 @@ class ItemListProductSelectAdapter(
                 tvPrice.text = NumberUtils.numberToCurrency(product.productPrice.toDouble())
 
                 // Product Image
+                Glide.with(root.context).clear(ivProductImage)
                 if (product.imgProduct.isNotEmpty()) {
                     Glide.with(root.context)
                         .asBitmap()
                         .load(product.imgProduct)
                         .placeholder(R.drawable.mystery_box2)
                         .error(R.drawable.mystery_box2)
-                        .into(object : CustomTarget<Bitmap>() {
+                        .into(object : BitmapImageViewTarget(ivProductImage) {
                             @RequiresApi(Build.VERSION_CODES.O)
                             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                                 val isTransparent = resource.hasTransparentCorners()
                                 ivProductImage.adjustPadding(isTransparent)
-                                ivProductImage.setImageBitmap(resource)
+                                super.onResourceReady(resource, transition)
                             }
 
                             override fun onLoadCleared(placeholder: Drawable?) {
-                                ivProductImage.setImageDrawable(placeholder)
+                                super.onLoadCleared(placeholder)
+                                ivProductImage.adjustPadding(true)
                             }
                         })
                 } else {
@@ -118,14 +137,6 @@ class ItemListProductSelectAdapter(
             binding.btnSelectItem.visibility = if (isSelected) View.GONE else View.VISIBLE
             binding.btnUnselectItem.visibility = if (isSelected) View.VISIBLE else View.GONE
         }
-
-        private fun formatPrice(price: Int): String =
-            "Rp ${String.format("%,d", price).replace(',', '.')}"
-    }
-
-    fun stopAllShimmer() {
-        shimmerList.forEach { it.stopShimmer() }
-        shimmerList.clear()
     }
 
     companion object {
@@ -148,10 +159,10 @@ private fun Bitmap.hasTransparentCorners(): Boolean {
     val w = this.width
     val h = this.height
 
-    val topLeft = this.getPixel(0, 0)
-    val topRight = this.getPixel(w - 1, 0)
-    val bottomLeft = this.getPixel(0, h - 1)
-    val bottomRight = this.getPixel(w - 1, h - 1)
+    val topLeft = this[0, 0]
+    val topRight = this[w - 1, 0]
+    val bottomLeft = this[0, h - 1]
+    val bottomRight = this[w - 1, h - 1]
 
     fun isPixelTransparent(pixelColor: Int): Boolean {
         val alpha = (pixelColor shr 24) and 0xff

@@ -50,6 +50,14 @@
             app:popEnterAnim="@anim/slide_maximize_in_left"
             app:popExitAnim="@anim/slide_minimize_out_right" />
         <action
+            android:id="@+id/action_nav_beranda_to_manageEmployeePage"
+            app:destination="@id/manageEmployeePage"
+            app:enterAnim="@anim/slide_maximize_in_right"
+            app:exitAnim="@anim/slide_minimize_out_left"
+            app:launchSingleTop="true"
+            app:popEnterAnim="@anim/slide_maximize_in_left"
+            app:popExitAnim="@anim/slide_minimize_out_right" />
+        <action
             android:id="@+id/action_nav_beranda_to_manageBundlingPage"
             app:destination="@id/manageBundlingPage"
             app:enterAnim="@anim/slide_maximize_in_right"
@@ -158,6 +166,25 @@
         <argument
             android:name="categoryList"
             app:argType="com.example.barberlink.DataClass.DataCategories[]" />
+    </activity>
+
+    <activity
+        android:id="@+id/manageEmployeePage"
+        android:name="com.example.barberlink.UserInterface.Admin.ManageEmployeePage"
+        android:label="ManageEmployeePage"
+        tools:layout="@layout/activity_manage_employee_page">
+        <argument
+            android:name="employeeList"
+            app:argType="com.example.barberlink.DataClass.UserEmployeeData[]" />
+        <argument
+            android:name="employeeRoles"
+            app:argType="com.example.barberlink.DataClass.EmployeeRolesData[]" />
+        <argument
+            android:name="userAdminData"
+            app:argType="com.example.barberlink.DataClass.UserAdminData" />
+        <argument
+            android:name="outletList"
+            app:argType="com.example.barberlink.DataClass.Outlet[]" />
     </activity>
 
 </navigation>

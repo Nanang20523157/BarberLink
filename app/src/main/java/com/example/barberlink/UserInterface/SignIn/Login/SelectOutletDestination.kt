@@ -14,7 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Adapter.ItemListDestinationAdapter
 import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Factory.DatabaseViewModelFactory
@@ -55,6 +55,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
     private lateinit var fragmentManager: FragmentManager
     private lateinit var dialogFragment: FormAccessCodeFragment
     private lateinit var outletAdapter: ItemListDestinationAdapter
+    private lateinit var vegaLayoutManager: VegaLayoutManager
     private lateinit var outletListener: ListenerRegistration
     private var shouldClearBackStack = true
     private val outletsMutex = Mutex()
@@ -116,10 +117,12 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             ivBack.setOnClickListener {
                 onBackPressedDispatcher.onBackPressed()
             }
+            vegaLayoutManager = VegaLayoutManager()
             outletAdapter = ItemListDestinationAdapter(this@SelectOutletDestination)
-            rvOutletList.layoutManager = LinearLayoutManager(this@SelectOutletDestination)
+            rvOutletList.layoutManager = vegaLayoutManager
             rvOutletList.adapter = outletAdapter
             if (savedInstanceState == null || isShimmerVisible) {
+                updateVegaLayoutManager(null)
                 outletAdapter.setShimmer(true)
                 isShimmerVisible = true
             }
@@ -127,6 +130,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
             // if (savedInstanceState == null || isShimmerVisible || isFirstLoad) getAllOutletsData()
             if (savedInstanceState != null) {
                 val filteredResult = selectOutletViewModel.filteredOutletList.value ?: emptyList()
+                updateVegaLayoutManager(filteredResult)
                 outletAdapter.submitList(filteredResult)
                 outletAdapter.setShimmer(false)
                 isShimmerVisible = false
@@ -141,6 +145,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
                 }
 
                 override fun onQueryTextChange(newText: String?): Boolean {
+                    updateVegaLayoutManager(null)
                     outletAdapter.setShimmer(true)
                     keyword = newText.orEmpty()
                     filterOutlets(keyword, true)
@@ -172,7 +177,9 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         selectOutletViewModel.displayFilteredOutletResult.observe(this) { withShimmer ->
             if (withShimmer != null) {
                 val filteredResult = selectOutletViewModel.filteredOutletList.value ?: emptyList()
+                updateVegaLayoutManager(filteredResult)
                 outletAdapter.submitList(filteredResult)
+                binding.rvOutletList.scrollToPosition(0)
                 if (withShimmer) {
                     outletAdapter.setShimmer(false)
                     isShimmerVisible = false
@@ -328,6 +335,20 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
         }
     }
 
+    private fun updateVegaLayoutManager(outlets: List<Outlet>?) {
+        if (outlets == null) {
+            val shimmerUIDs = List(7) { "shimmer_$it" }
+            val expandedMap = shimmerUIDs.associate { it to false }
+            vegaLayoutManager.setExpandedState(shimmerUIDs, expandedMap, true)
+        } else {
+            val itemUID = outlets.map { it.uid }
+            val expandedMap = outlets.associate { outlet ->
+                outlet.uid to false
+            }
+            vegaLayoutManager.setExpandedState(itemUID, expandedMap, true)
+        }
+    }
+
     private fun filterOutlets(query: String, withShimmer: Boolean) {
         lifecycleScope.launch(Dispatchers.Default) {
             val lowerCaseQuery = query.lowercase(Locale.getDefault())
@@ -460,8 +481,7 @@ class SelectOutletDestination : AppCompatActivity(), ItemListDestinationAdapter.
 
     override fun onDestroy() {
         super.onDestroy()
-        outletAdapter.stopAllShimmerEffects()
-
+        if (::outletAdapter.isInitialized) outletAdapter.stopAllShimmerEffects()
         selectOutletViewModel.clearState()
         if (::outletListener.isInitialized) outletListener.remove()
     }

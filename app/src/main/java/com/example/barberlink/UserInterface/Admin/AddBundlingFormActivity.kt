@@ -74,6 +74,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
     private var remainingListeners = AtomicInteger(3)
 
     private lateinit var serviceAdapter: ItemListServiceProvideAdapter
+    // ─── Firestore listeners ──────────────────────────────────────────────────
     private lateinit var barbershopListener: ListenerRegistration
     private lateinit var serviceListener: ListenerRegistration
     private lateinit var bundlingListener: ListenerRegistration
@@ -199,9 +200,9 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             isDiscountFormatting = savedInstanceState.getBoolean("is_discount_formatting", false)
             previousDiscountText = savedInstanceState.getString("previous_discount_text", "")
             previousDiscountCursorPosition = savedInstanceState.getInt("previous_discount_cursor_position", 0)
-            restoredDiscountRawText = savedInstanceState.getString("discount_raw_text")
-            restoredDiscountCursorPosition = savedInstanceState.getInt("discount_cursor_position", 0)
-            restoredDiscountErrorMsg = savedInstanceState.getCharSequence("discount_error_msg")
+            restoredDiscountRawText = savedInstanceState.getString("restored_discount_raw_text")
+            restoredDiscountCursorPosition = savedInstanceState.getInt("restored_discount_cursor_position", 0)
+            restoredDiscountErrorMsg = savedInstanceState.getCharSequence("restored_discount_error_msg")
         } else {
             addBundlingViewModel.setBarbershopId(adminData?.uid ?: "")
             addBundlingViewModel.setBundlingSelectedId(bundlingData?.uid ?: "")
@@ -278,9 +279,9 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
         outState.putBoolean("should_clear_backstack", shouldClearBackStack)
         outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
         outState.putBoolean("is_discount_formatting", isDiscountFormatting)
-        outState.putString("discount_raw_text", binding.etDiscountAmount.text.toString())
-        outState.putInt("discount_cursor_position", binding.etDiscountAmount.selectionStart)
-        outState.putCharSequence("discount_error_msg", binding.etDiscountAmount.error)
+        outState.putString("restored_discount_raw_text", binding.etDiscountAmount.text.toString())
+        outState.putInt("restored_discount_cursor_position", binding.etDiscountAmount.selectionStart)
+        outState.putCharSequence("restored_discount_error_msg", binding.etDiscountAmount.error)
 
         outState.putBoolean("is_shimmer_visible", isShimmerVisible)
         outState.putBoolean("is_handling_back", isHandlingBack)
@@ -325,7 +326,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
                 binding.ivAddServiceItem.visibility = View.VISIBLE
             }
             2 -> { // ADD mode
-                binding.tvTitle.text = "Create Paket"
+                binding.tvTitle.text = "Tambah Paket"
                 binding.tvModeBadge.text = getString(R.string.form_type_mode)
 
                 setFormEnabled(true)
@@ -829,8 +830,8 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             }
 
             // Price Details Updating
-            etAccumulatedPrice.setText(NumberUtils.numberToCurrency(bundling.accumulatedPrice.toDouble()).replace(Regex("\\D"), "").trim())
-            etFinalPrice.setText(NumberUtils.numberToCurrency(bundling.packagePrice.toDouble()).replace(Regex("\\D"), "").trim())
+            etAccumulatedPrice.setText(format.format(bundling.accumulatedPrice))
+            etFinalPrice.setText(format.format(bundling.packagePrice))
         }
     }
 
@@ -842,8 +843,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
         val currentSelection = addBundlingViewModel.bundlingParams.value?.listItems?.toSet() ?: emptySet()
         val bottomSheet = RelationalSelectionFragment.newInstance(
             "SERVICES",
-            currentSelection,
-            addBundlingViewModel.userAdminData.value
+            currentSelection
         )
         attachServiceSelectionListener(bottomSheet)
         bottomSheet.show(supportFragmentManager, tag)
@@ -1249,17 +1249,23 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
             return false
         }
 
+        // Compare text fields
         Logger.d("UnsavedChanges", "Name mismatch: ${binding.etPackageName.text.toString().trim()} != ${original.packageName}")
         if (binding.etPackageName.text.toString().trim() != original.packageName) return true
         Logger.d("UnsavedChanges", "Description mismatch: ${binding.etPackageDescription.text.toString().trim()} != ${original.packageDesc}")
         if (binding.etPackageDescription.text.toString().trim() != original.packageDesc) return true
+
+        // Item list comparison
         Logger.d("UnsavedChanges", "List items mismatch: ${current.listItems} != ${original.listItems}")
         if (current.listItems != original.listItems) return true
+
+        // Compare switches
         Logger.d("UnsavedChanges", "DefaultItem mismatch: ${binding.switchCore.isChecked} != ${original.defaultItem}")
         if (binding.switchCore.isChecked != original.defaultItem) return true
         Logger.d("UnsavedChanges", "AutoSelected mismatch: ${binding.switchAuto.isChecked} != ${original.autoSelected}")
         if (binding.switchAuto.isChecked != original.autoSelected) return true
 
+        // Compare discount
         val disc = binding.etDiscountAmount.text.toString().replace(Regex("\\D"), "").toIntOrNull() ?: 0
         Logger.d("UnsavedChanges", "Discount option mismatch: ${binding.switchDiscount.isChecked} != ${(original.packageDiscount > 0)}")
         if (binding.switchDiscount.isChecked != (original.packageDiscount > 0)) return true

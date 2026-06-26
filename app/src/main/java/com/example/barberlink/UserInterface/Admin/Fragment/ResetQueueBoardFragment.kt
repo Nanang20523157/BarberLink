@@ -279,7 +279,7 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        queueAdapter.stopAllShimmerEffects()
+        if (::queueAdapter.isInitialized) queueAdapter.stopAllShimmerEffects()
         _binding = null
 
         lifecycleListener?.let {

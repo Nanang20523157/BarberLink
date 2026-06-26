@@ -45,19 +45,29 @@ class ItemListServiceIconAdapter(
         fun bind(icon: ServiceIcon) {
             val context = binding.root.context
             
-            if (icon.iconRes != 0) {
-                Glide.with(context)
-                    .load(icon.iconRes)
-                    .centerCrop()
-                    .placeholder(R.drawable.img_service_icon_placeholder)
-                    .into(binding.ivServiceIcon)
-            } else {
-                Glide.with(context)
-                    .load(icon.iconUrl)
-                    .centerCrop()
-                    .placeholder(R.drawable.img_service_icon_placeholder)
-                    .error(R.drawable.img_service_icon_placeholder)
-                    .into(binding.ivServiceIcon)
+            Glide.with(context).clear(binding.ivServiceIcon)
+            try {
+                if (icon.iconRes != 0) {
+                    Glide.with(context)
+                        .load(icon.iconRes)
+                        .centerCrop()
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
+                        .into(binding.ivServiceIcon)
+                } else {
+                    Glide.with(context)
+                        .load(icon.iconUrl)
+                        .centerCrop()
+                        .placeholder(R.drawable.img_service_icon_placeholder)
+                        .error(R.drawable.ic_questions)
+                        .into(binding.ivServiceIcon)
+                }
+            } catch (e: Exception) {
+                if (icon.iconRes != 0) {
+                    binding.ivServiceIcon.setImageResource(icon.iconRes)
+                } else {
+                    binding.ivServiceIcon.setImageResource(R.drawable.ic_questions)
+                }
             }
 
             // Selection indicator

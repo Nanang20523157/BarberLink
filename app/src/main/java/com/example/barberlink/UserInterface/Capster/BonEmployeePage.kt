@@ -67,8 +67,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
 
-class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFilteringAdapter.OnItemClicked, ItemListTagFilteringAdapter.ActiveTagCategory, ItemListEmployeeBonAdapter.OnItemClicked
-    , ItemListEmployeeBonAdapter.DisplayThisToastMessage, ItemListEmployeeBonAdapter.UpdateBonStatus, ItemListEmployeeBonAdapter.DeleteBonItem {
+class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFilteringAdapter.OnItemClicked, ItemListTagFilteringAdapter.ActiveTagCategory, ItemListEmployeeBonAdapter.OnItemClicked,
+    ItemListEmployeeBonAdapter.DisplayThisToastMessage, ItemListEmployeeBonAdapter.UpdateBonStatus, ItemListEmployeeBonAdapter.DeleteBonItem {
     private lateinit var  binding: ActivityBonEmployeePageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val sessionManager: SessionManager by lazy { SessionManager.getInstance(this) }
@@ -868,7 +868,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
     private fun setEmployeeRoleDefaultValue(): EmployeeRolesData {
         return EmployeeRolesData(
             barbershopRef = "All",
-            jobDesc = "Default role with default permissions. Please contact your administrator to assign the correct role.",
+            jobDesc = "Default role with default permissions. Please contact your admin to assign the correct role.",
             permissions = mapOf(
                 "approval_bon" to false,
                 "beranda_admin" to false,
@@ -1361,8 +1361,7 @@ class BonEmployeePage : AppCompatActivity(), View.OnClickListener, ItemListTagFi
 
     override fun onDestroy() {
         super.onDestroy()
-        listBonAdapter.stopAllShimmerEffects()
-
+        if (::listBonAdapter.isInitialized) listBonAdapter.stopAllShimmerEffects()
         currentSnackbar?.dismiss()
         // Hapus listener untuk menghindari memory leak
         if (::employeeListener.isInitialized) employeeListener.remove()

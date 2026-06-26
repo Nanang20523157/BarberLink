@@ -56,11 +56,11 @@ class AddBundlingViewModel(
     private val _saveResult = MutableLiveData<FirestoreResult<Unit>?>()
     val saveResult: LiveData<FirestoreResult<Unit>?> get() = _saveResult
 
-    private val _allServices = MutableLiveData<List<Service>>(emptyList())
-    val allServices: LiveData<List<Service>> get() = _allServices
-
     private val _bundlingList = MutableLiveData<List<BundlingPackage>>(emptyList())
     val bundlingList: LiveData<List<BundlingPackage>> get() = _bundlingList
+
+    private val _allServices = MutableLiveData<List<Service>>(emptyList())
+    val allServices: LiveData<List<Service>> get() = _allServices
 
     fun setUserAdminData(userAdminData: UserAdminData) {
         viewModelScope.launch {

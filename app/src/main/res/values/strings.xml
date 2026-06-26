@@ -329,10 +329,10 @@
     <string name="example_number">0863-1289-0421</string>
     <string name="nanang_kurniawan">Nanang Kurniawan</string>
     <string name="no_data">No Data</string>
-    <string name="your_value_entered_not_valid">Nilai yang Anda masukkan tidak valid.</string>
+    <string name="your_value_entered_not_valid">Nilai yang Anda masukkan tidak valid</string>
     <string name="re_format_text">Format Nilai ke Rp %1$s</string>
     <string name="rollback_value">Kembalikan nilai ke Rp %1$s</string>
-    <string name="code_access_cannot_be_empty">Kode skses tidak boleh kosong.</string>
+    <string name="code_access_cannot_be_empty">Kode skses tidak boleh kosong</string>
     <string name="wrong_access_code">Kode akses yang Anda masukkan tidak sesuai!</string>
     <string name="male">laki-laki</string>
     <string name="female">perempuan</string>
@@ -434,8 +434,8 @@
     <string name="label_requeue">Antrikan Ulang</string>
     <string name="request_completed">Permintaan Selesai</string>
     <string name="amount_of_monay_label">Nominal Uang</string>
-    <string name="amount_of_money_cannot_be_empty">Nominal uang tidak boleh kosong.</string>
-    <string name="your_input_must_be_a_number">Nominal uang harus berupa angka.</string>
+    <string name="amount_of_money_cannot_be_empty">Nominal uang tidak boleh kosong</string>
+    <string name="your_input_must_be_a_number">Nominal uang harus berupa angka</string>
     <string name="amount_of_money_must_not_be_less_than">Nominal uang tidak boleh kurang dari %1$s</string>
     <string name="waiting_list">Daftar Tunggu:</string>
 
@@ -660,6 +660,9 @@
     <string name="empty_state_product_title">Tidak Ada Product</string>
     <string name="empty_state_product_subtitle">Kelola daftar produk yang tersedia di outlet ini.</string>
     <string name="btn_select_product_relation">Pilih Produk</string>
+    <string name="btn_select_outlet">Pilih Outlet</string>
+    <string name="empty_state_work_placement_title">Belum Ada Penempatan</string>
+    <string name="empty_state_work_placement_subtitle">Kelola daftar tempat kerja untuk pegawai ini.</string>
     <string name="btn_save_outlet_data">Simpan Data Outlet</string>
     <string name="icon_pick_location_desc">Icon pick location from maps</string>
     <string name="icon_add_item_desc">Icon add item to list</string>

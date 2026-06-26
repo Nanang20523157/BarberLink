@@ -91,10 +91,7 @@
                         android:textSize="13sp"
                         android:layout_weight="1"
                         android:letterSpacing="0.05"
-                        android:textAllCaps="true"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent"
-                        app:layout_constraintBottom_toBottomOf="parent" />
+                        android:textAllCaps="true" />
 
                     <LinearLayout
                         android:layout_width="wrap_content"

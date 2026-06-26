@@ -106,7 +106,7 @@
             android:fontFamily="@font/arial_bold"
             android:paddingHorizontal="17dp"
             android:paddingVertical="3dp"
-            tools:text="Aktif"
+            android:text="Aktif"
             android:textColor="@color/sky_blue"
             android:textSize="10sp"
             android:textStyle="bold"

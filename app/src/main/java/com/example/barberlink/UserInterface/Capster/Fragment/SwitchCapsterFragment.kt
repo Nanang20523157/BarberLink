@@ -949,7 +949,7 @@ class SwitchCapsterFragment : DialogFragment() {
                 "Keamanan" -> {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
                 }
-                "Administrator" -> {
+                "Admin" -> {
                     tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
                 }
                 else -> {

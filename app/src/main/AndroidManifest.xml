@@ -148,11 +148,13 @@
         <activity
             android:name=".UserInterface.Admin.AddEmployeeFormActivity"
             android:exported="false"
-            android:theme="@style/Theme.BarberLink.DarkWindow" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".UserInterface.Admin.AddOutletFormActivity"
             android:exported="false"
-            android:theme="@style/Theme.BarberLink.DarkWindow" />
+            android:theme="@style/Theme.BarberLink.DarkWindow"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".UserInterface.Admin.AddServiceFormActivity"
             android:exported="false"

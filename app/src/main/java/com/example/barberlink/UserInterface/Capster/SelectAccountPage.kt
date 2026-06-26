@@ -577,8 +577,7 @@ class SelectAccountPage : AppCompatActivity(), ItemListPickUserAdapter.OnItemCli
 
     override fun onDestroy() {
         super.onDestroy()
-        employeeAdapter.stopAllShimmerEffects()
-
+        if (::employeeAdapter.isInitialized) employeeAdapter.stopAllShimmerEffects()
         selectAccountViewModel.clearState()
         if (::employeeListener.isInitialized) employeeListener.remove()
         if (::outletListener.isInitialized) outletListener.remove()

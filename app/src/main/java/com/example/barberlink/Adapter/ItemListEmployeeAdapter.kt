@@ -154,6 +154,7 @@ class ItemListEmployeeAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewH
                 }
 
                 // Use Glide to load the image
+                Glide.with(root.context).clear(ivPhotoProfile)
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(userEmployeeData.photoProfile)

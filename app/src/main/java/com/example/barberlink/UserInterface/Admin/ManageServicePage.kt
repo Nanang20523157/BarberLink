@@ -15,6 +15,12 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.DefaultItemAnimator
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import com.example.barberlink.Adapter.ItemManageServiceAdapter
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
@@ -42,11 +48,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
-class ManageServicePage : BaseActivity(), View.OnClickListener,
-    ItemManageServiceAdapter.OnItemClicked,
-    ItemManageServiceAdapter.OnNavigationPage,
-    ItemManageServiceAdapter.DisplayThisToastMessage{
-
+class ManageServicePage : BaseActivity(), View.OnClickListener, ItemManageServiceAdapter.OnItemClicked,
+    ItemManageServiceAdapter.OnNavigationPage, ItemManageServiceAdapter.DisplayThisToastMessage {
     private lateinit var binding: ActivityManageServicePageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
@@ -55,7 +58,7 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     }
     private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var serviceAdapter: ItemManageServiceAdapter
-    private lateinit var gridLayoutManager: androidx.recyclerview.widget.GridLayoutManager
+    private lateinit var gridLayoutManager: GridLayoutManager
     private val debounce by lazy { ScopedUniversalDebounce() }
 
     // ARGS
@@ -67,6 +70,11 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
     private var lastScrollDirectionY: Int = 0
+    private var isSwiping: Boolean = false
+    private var isDialogActive: Boolean = false
+    private var currentSwipingHolder: RecyclerView.ViewHolder? = null
+    private lateinit var swipeTouchHelper: ItemTouchHelper
+    private var isUserScrolling: Boolean = false
 
     private lateinit var serviceListener: ListenerRegistration
     private var remainingListeners = AtomicInteger(1)
@@ -195,58 +203,153 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
     }
 
     private fun init(savedInstanceState: Bundle?) {
-        gridLayoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+        gridLayoutManager = object : GridLayoutManager(this, 2) {
+            override fun canScrollVertically(): Boolean {
+                return !isSwiping && !isDialogActive && super.canScrollVertically()
+            }
+        }
         serviceAdapter = ItemManageServiceAdapter(this, this, this)
         binding.rvServiceList.layoutManager = gridLayoutManager
         binding.rvServiceList.adapter = serviceAdapter
+        binding.rvServiceList.itemAnimator = ServiceGridItemAnimator(resources.displayMetrics.density)
+        binding.rvServiceList.addItemDecoration(object : RecyclerView.ItemDecoration() {
+            override fun onDraw(c: android.graphics.Canvas, parent: RecyclerView, state: RecyclerView.State) {
+                super.onDraw(c, parent, state)
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onDraw: parent=${parent.id}, childCount=${parent.childCount}")
+                applyVegaScrollEffect(parent)
+            }
+        })
         adjustRecyclerViewPadding(true)
 
         // Apply Vega-Grid Scroll Effect
-        binding.rvServiceList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+        binding.rvServiceList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onScrolled: dx=$dx, dy=$dy")
                 applyVegaScrollEffect(recyclerView)
                 if (dy != 0) {
                     lastScrollDirectionY = dy
                 }
             }
 
-            override fun onScrollStateChanged(recyclerView: androidx.recyclerview.widget.RecyclerView, newState: Int) {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
-                if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE) {
-                    snapToPosition(recyclerView)
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onScrollStateChanged: newState=$newState, isSwiping=$isSwiping, isDialogActive=$isDialogActive")
+                if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
+                    if (!isSwiping && !isDialogActive) {
+                        isUserScrolling = true
+                    }
+                }
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    if (isUserScrolling) {
+                        snapToPosition(recyclerView)
+                    }
+                    isUserScrolling = false
                 }
             }
         })
-        binding.rvServiceList.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        binding.rvServiceList.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            // [BugFix] Skip if RecyclerView bounds are unchanged (e.g. status bar pull).
+            // A redundant onLayout pass should not trigger Vega recalculation.
+            if (left == oldLeft && top == oldTop && right == oldRight && bottom == oldBottom) {
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> OnLayoutChangeListener skipped: bounds unchanged")
+                return@addOnLayoutChangeListener
+            }
             adjustRecyclerViewPadding(true)
+            Logger.d("ScrollingCheckUrgent", "PPPP")
             applyVegaScrollEffect(binding.rvServiceList)
         }
 
-        // ── Swipe to delete ──────────────────────────────────────────────────
-        val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
-            0, // no drag directions
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
+        val swipeCallback = object : ItemTouchHelper.SimpleCallback(
+            0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
-            override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
-                                vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
-                                target: androidx.recyclerview.widget.RecyclerView.ViewHolder) = false
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) = false
+            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.4f
+            
+            override fun isItemViewSwipeEnabled(): Boolean {
+                val enabled = !serviceAdapter.isShimmerMode() && !isDialogActive
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> isItemViewSwipeEnabled: enabled=$enabled")
+                return enabled
+            }
 
-            override fun getSwipeThreshold(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder) = 0.4f
+            override fun interpolateOutOfBoundsScroll(
+                recyclerView: RecyclerView,
+                viewSize: Int,
+                viewSizeOutOfBounds: Int,
+                totalSize: Int,
+                msSinceStartScroll: Long
+            ): Int {
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> interpolateOutOfBoundsScroll: viewSize=$viewSize, viewSizeOutOfBounds=$viewSizeOutOfBounds")
+                return 0
+            }
 
-            override fun isItemViewSwipeEnabled(): Boolean = !serviceAdapter.isShimmerMode()
+            override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                super.onSelectedChanged(viewHolder, actionState)
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onSelectedChanged: actionState=$actionState, isSwiping=$isSwiping")
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+                    currentSwipingHolder = viewHolder
+                    isSwiping = true
+                    lastScrollDirectionY = 0 // Reset scroll direction to prevent stale snaps
+                    isUserScrolling = false // Reset scrolling flag so snapping doesn't fire when swipe starts or cancels
+                    // Elevate view Z index to ensure it draws on top of everything during swipe
+                    viewHolder?.itemView?.let { iv ->
+                        iv.translationZ = 50f * iv.context.resources.displayMetrics.density
+                    }
+                    Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onSelectedChanged: isSwiping set to true")
+                }
+            }
 
-            override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
-                Log.d("SwipeDelete", "onSwiped triggered at position: ${viewHolder.bindingAdapterPosition}")
+            override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                val oldTranslationY = viewHolder.itemView.translationY
+                super.clearView(recyclerView, viewHolder)
+                // Restore Vega's vertical position immediately after super.clearView since it resets translationY
+                viewHolder.itemView.translationY = oldTranslationY
+                viewHolder.itemView.scaleX = 1f
+                viewHolder.itemView.scaleY = 1f
+                viewHolder.itemView.alpha = 1f
+                
+                val itemView = viewHolder.itemView
+                itemView.postDelayed({
+                    if (!isDialogActive) {
+                        itemView.translationZ = 0f
+                    }
+                }, 500)
+                
+                if (viewHolder == currentSwipingHolder) {
+                    currentSwipingHolder = null
+                }
+                isSwiping = false
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> clearView: isSwiping set to false, isSwipeRecovering=true")
+                applyVegaScrollEffect(recyclerView)
+            }
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onSwiped: position=${viewHolder.bindingAdapterPosition}, direction=$direction")
+                isDialogActive = true
+
                 val pos = viewHolder.bindingAdapterPosition
-                if (pos == androidx.recyclerview.widget.RecyclerView.NO_ID.toInt()) return
+                if (pos == RecyclerView.NO_POSITION) {
+                    isDialogActive = false
+                    viewHolder.itemView.translationX = 0f
+                    viewHolder.itemView.translationY = 0f
+                    viewHolder.itemView.scaleX = 1f
+                    viewHolder.itemView.scaleY = 1f
+                    viewHolder.itemView.alpha = 1f
+                    Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onSwiped: pos is NO_POSITION")
+                    return
+                }
                 val service = serviceAdapter.currentList.getOrNull(pos) ?: run {
-                    Log.e("SwipeDelete", "Service not found at position $pos")
-                    serviceAdapter.notifyItemChanged(pos)
+                    Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onSwiped: service not found")
+                    viewHolder.itemView.translationX = 0f
+                    viewHolder.itemView.translationY = 0f
+                    viewHolder.itemView.scaleX = 1f
+                    viewHolder.itemView.scaleY = 1f
+                    viewHolder.itemView.alpha = 1f
+                    isDialogActive = false
                     return
                 }
 
-                // Snap back after a tiny delay
-                (viewHolder.itemView.parent as? androidx.recyclerview.widget.RecyclerView)?.post {
+                // Restore item immediately in RecyclerView UI, pending user response to confirmation dialog
+                (viewHolder.itemView.parent as? RecyclerView)?.post {
                     serviceAdapter.notifyItemChanged(pos)
                 }
 
@@ -254,18 +357,34 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                     .setTitle("Hapus Layanan")
                     .setMessage("Apakah Anda yakin ingin menghapus layanan \"${service.serviceName}\"? Tindakan ini tidak dapat dibatalkan.")
                     .setPositiveButton("Hapus") { _, _ ->
+                        Logger.d("ScrollingCheckUrgent", "ManageServicePage -> Dialog Hapus clicked for service: ${service.serviceName}")
                         manageServiceViewModel.deleteService(service)
                     }
                     .setNegativeButton("Batal", null)
+                    .setOnDismissListener {
+                        Logger.d("ScrollingCheckUrgent", "ManageServicePage -> Dialog dismissed: isDialogActive=$isDialogActive")
+                        isDialogActive = false
+                        applyVegaScrollEffect(binding.rvServiceList)
+                    }
                     .show()
             }
 
             override fun onChildDraw(
                 c: android.graphics.Canvas,
-                recyclerView: androidx.recyclerview.widget.RecyclerView,
-                viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
                 dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
             ) {
+                Logger.d("ScrollingCheckUrgent", "ManageServicePage -> onChildDraw: dX=$dX, dY=$dY, actionState=$actionState, isCurrentlyActive=$isCurrentlyActive")
+
+                val vegaTranslationY = viewHolder.itemView.translationY
+
+                if (dX == 0f) {
+                    super.onChildDraw(c, recyclerView, viewHolder, 0f, 0f, actionState, isCurrentlyActive)
+                    viewHolder.itemView.translationY = vegaTranslationY
+                    return
+                }
+
                 val itemView = viewHolder.itemView
                 val paint = android.graphics.Paint().apply {
                     color = android.graphics.Color.parseColor("#FF3B30")
@@ -395,18 +514,24 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
                         c.restore()
                     }
                 }
-                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
+                // [BugFix] Force dY=0f so ItemTouchHelper never applies a vertical translation
+                // from Vega's translationY as a positional offset. The dY=-693 in the old logs
+                // was exactly this: ItemTouchHelper reading item.translationY (set by Vega) as
+                // the starting dY for its post-swipe RecoverAnimation, then animating it to 0.
+                // Forcing 0f here cuts that entirely without disturbing the RecoverAnimation
+                // timing, so clearView() still fires normally and the card returns on cancel.
+                super.onChildDraw(c, recyclerView, viewHolder, dX, 0f, actionState, isCurrentlyActive)
+                viewHolder.itemView.translationY = vegaTranslationY
             }
         }
-        androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvServiceList)
+        swipeTouchHelper = ItemTouchHelper(swipeCallback)
+        swipeTouchHelper.attachToRecyclerView(binding.rvServiceList)
         // ─────────────────────────────────────────────────────────────────────
 
         if (savedInstanceState == null || isShimmerVisible) {
             serviceAdapter.setShimmer(true)
             isShimmerVisible = true
-        }
 
-        if (savedInstanceState == null || isShimmerVisible) {
             lifecycleScope.launch {
                 delay(600)
                 if (isDestroyed) return@launch
@@ -594,53 +719,111 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         }
     }
 
-    private fun applyVegaScrollEffect(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+    private fun applyVegaScrollEffect(recyclerView: RecyclerView) {
         val childCount = recyclerView.childCount
+        Logger.d("ScrollingCheckUrgent", "ManageServicePage -> applyVegaScrollEffect: childCount=$childCount")
         if (childCount <= 0) return
 
-        val firstChild = recyclerView.getChildAt(0)
-        // In a 2-column grid, Row 1 consists of indices 0 & 1, Row 2 starts at index 2
-        val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
+        var firstRowChild: View? = null
+        var secondRowChild: View? = null
+        var minPos = Int.MAX_VALUE
+
+        for (j in 0 until childCount) {
+            val c = recyclerView.getChildAt(j)
+            if (c.hasTransientState()) continue
+            val holder = try {
+                recyclerView.getChildViewHolder(c)
+            } catch (e: Exception) {
+                null
+            }
+            val pos = holder?.bindingAdapterPosition ?: RecyclerView.NO_POSITION
+            if (pos != RecyclerView.NO_POSITION && pos < minPos) {
+                minPos = pos
+            }
+        }
+
+        if (minPos != Int.MAX_VALUE) {
+            val firstRowIndex = minPos / 2
+            val secondRowIndex = firstRowIndex + 1
+
+            for (j in 0 until childCount) {
+                val c = recyclerView.getChildAt(j)
+                if (c.hasTransientState()) continue
+                val holder = try {
+                    recyclerView.getChildViewHolder(c)
+                } catch (e: Exception) {
+                    null
+                }
+                val pos = holder?.bindingAdapterPosition ?: RecyclerView.NO_POSITION
+                if (pos != RecyclerView.NO_POSITION) {
+                    val rowIndex = pos / 2
+                    if (rowIndex == firstRowIndex && firstRowChild == null) {
+                        firstRowChild = c
+                    } else if (rowIndex == secondRowIndex && secondRowChild == null) {
+                        secondRowChild = c
+                    }
+                }
+                if (firstRowChild != null && secondRowChild != null) break
+            }
+        }
 
         for (i in 0 until childCount) {
             val child = recyclerView.getChildAt(i)
             val itemHeight = child.height
             if (itemHeight <= 0) continue
 
-            val rowSpacing = if (firstChild != null && secondRowChild != null) {
-                secondRowChild.top - firstChild.top
+            val rowSpacing = if (firstRowChild != null && secondRowChild != null && secondRowChild.top - firstRowChild.top > 0) {
+                secondRowChild.top - firstRowChild.top
             } else {
                 val density = recyclerView.context.resources.displayMetrics.density
                 itemHeight + (10f * density).toInt()
             }
 
-            val transitionRange = rowSpacing.toFloat()
+            val transitionRange = if (rowSpacing > 0) rowSpacing.toFloat() else 1f
             val topDistance = -child.top
             val topDistanceFloat = topDistance.toFloat()
 
-            if (topDistanceFloat in 0f..transitionRange) {
+            var targetScale = 1f
+            var targetAlpha = 1f
+            var targetTranslationY = 0f
+
+            if (transitionRange > 0f && topDistanceFloat in 0f..transitionRange) {
                 val rate1 = topDistanceFloat / transitionRange
-                val rate2 = 1f - (rate1 * rate1) / 3f
-                val rate3 = 1f - (rate1 * rate1)
-                child.scaleX = rate2
-                child.scaleY = rate2
-                child.alpha = rate3
-                child.translationY = topDistanceFloat
+                if (!rate1.isNaN() && !rate1.isInfinite()) {
+                    val rate2 = 1f - (rate1 * rate1) / 3f
+                    val rate3 = 1f - (rate1 * rate1)
+                    targetScale = rate2
+                    targetAlpha = rate3
+                    targetTranslationY = topDistanceFloat
+                }
             } else if (child.top < 0) {
-                child.scaleX = 0.67f
-                child.scaleY = 0.67f
-                child.alpha = 0f
-                child.translationY = 0f
+                targetScale = 0.67f
+                targetAlpha = 0f
+                targetTranslationY = 0f
             } else {
-                child.scaleX = 1f
-                child.scaleY = 1f
-                child.alpha = 1f
-                child.translationY = 0f
+                targetScale = 1f
+                targetAlpha = 1f
+                targetTranslationY = 0f
             }
+
+            val isAnimating = child.hasTransientState()
+
+            if (!isAnimating) {
+                if (!targetScale.isNaN()) {
+                    child.scaleX = targetScale
+                    child.scaleY = targetScale
+                }
+                if (!targetAlpha.isNaN()) {
+                    child.alpha = targetAlpha
+                }
+            }
+            child.translationY = targetTranslationY
         }
     }
 
-    private fun snapToPosition(recyclerView: androidx.recyclerview.widget.RecyclerView) {
+    private fun snapToPosition(recyclerView: RecyclerView) {
+        Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: isSwiping=$isSwiping, isDialogActive=$isDialogActive, lastScrollDirectionY=$lastScrollDirectionY")
+        if (isSwiping || isDialogActive) return
         val childCount = recyclerView.childCount
         if (childCount <= 0) return
 
@@ -655,10 +838,16 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             }
         }
 
-        if (topChild == null) return
+        if (topChild == null) {
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: topChild is null")
+            return
+        }
 
         val itemHeight = topChild.height
-        if (itemHeight <= 0) return
+        if (itemHeight <= 0) {
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: itemHeight <= 0")
+            return
+        }
 
         val firstChild = recyclerView.getChildAt(0)
         val secondRowChild = if (childCount > 2) recyclerView.getChildAt(2) else null
@@ -670,7 +859,11 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
         }
 
         val topDistance = -topChild.top
-        if (topDistance <= 5 || rowSpacing - topDistance <= 5) return // Already snapped
+        Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: topDistance=$topDistance, rowSpacing=$rowSpacing, itemHeight=$itemHeight")
+        if (topDistance <= 5 || rowSpacing - topDistance <= 5) {
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: already snapped")
+            return // Already snapped
+        }
 
         val scrollNeeded = if (lastScrollDirectionY > 0) {
             rowSpacing - topDistance
@@ -681,10 +874,18 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             if (fraction > 0.5f) rowSpacing - topDistance else -topDistance
         }
 
-        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) return
-        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) return
+        Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: scrollNeeded=$scrollNeeded")
+        if (scrollNeeded > 0 && !recyclerView.canScrollVertically(1)) {
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: cannot scroll vertically down")
+            return
+        }
+        if (scrollNeeded < 0 && !recyclerView.canScrollVertically(-1)) {
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: cannot scroll vertically up")
+            return
+        }
 
         if (scrollNeeded != 0) {
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> snapToPosition: calling smoothScrollBy(0, $scrollNeeded)")
             recyclerView.smoothScrollBy(0, scrollNeeded)
         }
     }
@@ -732,15 +933,16 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
             val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
             
             val bottomPadding = if (doesItemsExceedRecycleView) {
-                initialPaddingBottom + modulo
+                initialPaddingBottom + modulo + 2
             } else {
-                initialPaddingBottom
+                initialPaddingBottom + 2
             }
             
             val currentPaddingBottom = binding.rvServiceList.paddingBottom
             val currentPaddingStart = binding.rvServiceList.paddingStart
             val currentPaddingEnd = binding.rvServiceList.paddingEnd
-            
+
+            Logger.d("ScrollingCheckUrgent", "ManageServicePage -> adjustRecyclerViewPadding: bottomPadding=$bottomPadding")
             if (currentPaddingBottom != bottomPadding || currentPaddingStart != startPadding || currentPaddingEnd != endPadding) {
                 binding.rvServiceList.setPaddingRelative(startPadding, 0, endPadding, bottomPadding)
             }
@@ -749,9 +951,37 @@ class ManageServicePage : BaseActivity(), View.OnClickListener,
 
     override fun onDestroy() {
         super.onDestroy()
-        serviceAdapter.stopAllShimmerEffects()
+        if (::serviceAdapter.isInitialized) serviceAdapter.stopAllShimmerEffects()
         // Remove listener to avoid memory leak
         if (::serviceListener.isInitialized) serviceListener.remove()
     }
 
 }
+
+private class ServiceGridItemAnimator(private val density: Float) : DefaultItemAnimator() {
+    override fun animateChange(
+        oldHolder: RecyclerView.ViewHolder,
+        newHolder: RecyclerView.ViewHolder?,
+        fromX: Int, fromY: Int, toX: Int, toY: Int
+    ): Boolean {
+        if (oldHolder == newHolder) {
+            return animateMove(oldHolder, fromX, fromY, toX, toY)
+        }
+
+        val result = super.animateChange(oldHolder, newHolder, fromX, fromY, toX, toY)
+
+        if (newHolder != null) {
+            val prevTranslationX = oldHolder.itemView.translationX
+            val tx = (toX - fromX + prevTranslationX)
+            newHolder.itemView.translationX = tx
+
+            newHolder.itemView.translationZ = 50f * density
+
+            newHolder.itemView.postDelayed({
+                newHolder.itemView.translationZ = 0f
+            }, 350)
+        }
+        return result
+    }
+}
+

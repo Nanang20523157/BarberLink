@@ -240,6 +240,34 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             dismiss() // Close the dialog when ivBack is clicked
         }
 
+        binding.btnSaveChange.setOnClickListener{
+            if (!debounce.run {
+                    it.isSafeClick(
+                        isLoading = blockAllUserClickAction,
+                        onLoadingBlocked = {
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                        }
+                    )
+                }) return@setOnClickListener
+            // hmmmmm
+            checkNetworkConnection {
+                editOrderViewModel.updatingDataReservation(serviceAdapter.currentList, bundlingAdapter.currentList, useUidApplicantCapsterRef, paymentMethod, userUID)
+            }
+        }
+
+        binding.ivSelectPaymentMethod.setOnClickListener {
+            if (!debounce.run {
+                    it.isSafeClick(
+                        isLoading = blockAllUserClickAction,
+                        onLoadingBlocked = {
+                            toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
+                        }
+                    )
+                }) return@setOnClickListener
+            // hmmmmm
+            showPaymentMethodDialog()
+        }
+
         dialog?.setOnShowListener { dialog ->
             val bottomSheet = (dialog as BottomSheetDialog).findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
             shape = GradientDrawable().apply {
@@ -382,34 +410,6 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
             }
         }
 
-        binding.btnSaveChange.setOnClickListener{
-            if (!debounce.run {
-                it.isSafeClick(
-                    isLoading = blockAllUserClickAction,
-                    onLoadingBlocked = {
-                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
-                    }
-                )
-            }) return@setOnClickListener
-            // hmmmmm
-            checkNetworkConnection {
-                editOrderViewModel.updatingDataReservation(serviceAdapter.currentList, bundlingAdapter.currentList, useUidApplicantCapsterRef, paymentMethod, userUID)
-            }
-        }
-
-        binding.ivSelectPaymentMethod.setOnClickListener {
-            if (!debounce.run {
-                it.isSafeClick(
-                    isLoading = blockAllUserClickAction,
-                    onLoadingBlocked = {
-                        toastViewModel.showToast("Tolong tunggu sampai proses selesai!!!", true)
-                    }
-                )
-            }) return@setOnClickListener
-            // hmmmmm
-            showPaymentMethodDialog()
-        }
-
     }
 
     private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
@@ -523,8 +523,8 @@ class EditOrderFragment : BottomSheetDialogFragment(), ItemListServiceBookingAda
 
     override fun onDestroyView() {
         super.onDestroyView()
-        bundlingAdapter.stopAllShimmerEffects()
-        serviceAdapter.stopAllShimmerEffects()
+        if (::bundlingAdapter.isInitialized) bundlingAdapter.stopAllShimmerEffects()
+        if (::serviceAdapter.isInitialized) serviceAdapter.stopAllShimmerEffects()
         _binding = null
 
         if (requireActivity().isChangingConfigurations) {

@@ -153,6 +153,7 @@ class ItemListProductAdapter : ListAdapter<Product, RecyclerView.ViewHolder>(Pro
                 tvProdukMenu.text = product.productName
 
                 // Use Glide to load the image
+                Glide.with(root.context).clear(ivProduct)
                 if (product.imgProduct.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(product.imgProduct)

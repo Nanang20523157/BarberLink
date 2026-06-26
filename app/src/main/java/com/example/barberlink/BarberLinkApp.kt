@@ -18,7 +18,9 @@ import com.example.barberlink.UserInterface.Intro.Landing.LandingPage
 import com.example.barberlink.UserInterface.Intro.Splash.SplashScreen
 import com.example.barberlink.Manager.SessionManager
 import com.example.barberlink.DataClass.EmployeeRolesData
+import com.example.barberlink.DataClass.PermissionItem
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.gson.Gson
 import kotlinx.coroutines.*
 import androidx.lifecycle.lifecycleScope
 
@@ -49,6 +51,7 @@ class BarberLinkApp : Application(), DefaultLifecycleObserver {
         ServiceIconCache.init(this)
         setupActivityLifecycle()
         setupRemoteVersionChecker()
+        setupPermissionAppsListener()
 
         //val sessionManager = SessionManager.getInstance(this)
         //sessionManager.loadRolesFromPrefs()
@@ -114,7 +117,6 @@ class BarberLinkApp : Application(), DefaultLifecycleObserver {
                     val isFromCache = snapshot.metadata.isFromCache
                     if (!isFromCache) {
                         val versionApp = snapshot.get("version_app") as? List<String>
-                        val permissionList = snapshot.get("permission_list") as? Map<String, Any>
 
                         if (versionApp != null) {
                             val isAllowed = currentVersion in versionApp
@@ -123,11 +125,6 @@ class BarberLinkApp : Application(), DefaultLifecycleObserver {
                         } else {
                             // Field missing or wrong type, block for safety
                             sessionManager.setVersionAllowed(false)
-                        }
-
-                        if (permissionList != null) {
-                            sessionManager.savePermissionList(permissionList)
-                            Log.d("VersionCheck", "Permission list saved to SessionManager: $permissionList")
                         }
                     } else {
                         // Data from cache. We DO NOT update the status to ensure persistence 
@@ -138,6 +135,39 @@ class BarberLinkApp : Application(), DefaultLifecycleObserver {
                     // Document not found or explicitly deleted, access must be revoked.
                     sessionManager.setVersionAllowed(false)
                     Log.d("VersionCheck", "Document not found/deleted. Access revoked.")
+                }
+            }
+    }
+
+    private fun setupPermissionAppsListener() {
+        val db = FirebaseFirestore.getInstance()
+        val sessionManager = SessionManager.getInstance(this)
+
+        db.collection("permission_apps")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("PermissionApps", "Listen failed.", e)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && !snapshot.isEmpty) {
+                    val isFromCache = snapshot.metadata.isFromCache
+                    if (!isFromCache) {
+                        val permissionMap = mutableMapOf<String, String>()
+                        for (doc in snapshot.documents) {
+                            val permissionItem = doc.toObject(PermissionItem::class.java)
+                            if (permissionItem != null) {
+                                val jsonString = Gson().toJson(permissionItem)
+                                permissionMap[permissionItem.uid] = jsonString
+                            }
+                        }
+                        sessionManager.savePermissionList(permissionMap)
+                        Log.d("PermissionApps", "Permission list saved to SessionManager: $permissionMap")
+                    } else {
+                        Log.d("PermissionApps", "Data from cache. Skipping update.")
+                    }
+                } else {
+                    Log.d("PermissionApps", "Permission apps collection empty or not found.")
                 }
             }
     }

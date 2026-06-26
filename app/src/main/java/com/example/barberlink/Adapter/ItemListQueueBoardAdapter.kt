@@ -152,6 +152,7 @@ class ItemListQueueBoardAdapter(
                     tvQueueNumber.setTextColor(ContextCompat.getColor(root.context, R.color.sky_blue))
                 }
 
+                Glide.with(root.context).clear(ivPhotoProfile)
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
                     Glide.with(root.context)
                         .load(userEmployeeData.photoProfile)

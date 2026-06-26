@@ -15,6 +15,8 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.example.barberlink.Adapter.ItemManageBundlingAdapter
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Service
@@ -42,11 +44,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 
-class ManageBundlingPage : BaseActivity(), View.OnClickListener,
-    ItemManageBundlingAdapter.OnShowDetailClickListener,
-    ItemManageBundlingAdapter.OnNavigationPage,
-    ItemManageBundlingAdapter.DisplayThisToastMessage {
-
+class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundlingAdapter.OnShowDetailClickListener,
+    ItemManageBundlingAdapter.OnNavigationPage, ItemManageBundlingAdapter.DisplayThisToastMessage {
     private lateinit var binding: ActivityManageBundlingPageBinding
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
@@ -175,6 +174,7 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
             )
 
             bundlingAdapter.submitList(bundlingList)
+            Logger.d("BundlingList", "notifyDataSetChanged()")
             if (!isShimmerVisible) bundlingAdapter.notifyDataSetChanged()
             binding.tvBundlingCountTitle.text = getString(R.string.daftar_bundling_title_template, bundlingList.size)
             if (!isFirstLoad) binding.tvEmptyBundling.visibility = if (bundlingList.isEmpty()) View.VISIBLE else View.GONE
@@ -218,33 +218,28 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
         }
 
         // Swipe to delete
-        val swipeCallback = object : androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(
-            0,
-            androidx.recyclerview.widget.ItemTouchHelper.LEFT or androidx.recyclerview.widget.ItemTouchHelper.RIGHT
+        val swipeCallback = object : ItemTouchHelper.SimpleCallback(
+            0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
-            override fun onMove(rv: androidx.recyclerview.widget.RecyclerView,
-                                vh: androidx.recyclerview.widget.RecyclerView.ViewHolder,
-                                target: androidx.recyclerview.widget.RecyclerView.ViewHolder) = false
-
-            override fun getSwipeThreshold(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder) = 0.4f
-
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder) = false
+            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.4f
             override fun isItemViewSwipeEnabled(): Boolean = !bundlingAdapter.isShimmerMode()
 
-            override fun onSwiped(viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder, direction: Int) {
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos = viewHolder.bindingAdapterPosition
-                if (pos == androidx.recyclerview.widget.RecyclerView.NO_ID.toInt()) return
+                if (pos == RecyclerView.NO_ID.toInt()) return
                 val bundling = bundlingAdapter.currentList.getOrNull(pos) ?: run {
                     bundlingAdapter.notifyItemChanged(pos)
                     return
                 }
 
                 // Snap back item immediately
-                (viewHolder.itemView.parent as? androidx.recyclerview.widget.RecyclerView)?.post {
+                (viewHolder.itemView.parent as? RecyclerView)?.post {
                     bundlingAdapter.notifyItemChanged(pos)
                 }
 
                 android.app.AlertDialog.Builder(this@ManageBundlingPage)
-                    .setTitle("Hapus Paket Bundling")
+                    .setTitle("Hapus Paket")
                     .setMessage("Apakah Anda yakin ingin menghapus paket bundling \"${bundling.packageName}\"? Tindakan ini tidak dapat dibatalkan.")
                     .setPositiveButton("Hapus") { _, _ ->
                         manageBundlingViewModel.deleteBundling(bundling)
@@ -255,8 +250,8 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
 
             override fun onChildDraw(
                 c: android.graphics.Canvas,
-                recyclerView: androidx.recyclerview.widget.RecyclerView,
-                viewHolder: androidx.recyclerview.widget.RecyclerView.ViewHolder,
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
                 dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
             ) {
                 val itemView = viewHolder.itemView
@@ -388,7 +383,7 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
                 super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive)
             }
         }
-        androidx.recyclerview.widget.ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvBundlingList)
+        ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.rvBundlingList)
 
         // Shimmer logic
         if (savedInstanceState == null || isShimmerVisible) {
@@ -601,9 +596,9 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
             val doesItemsExceedRecycleView = totalItemsHeight > realHeightRecycleView
             
             val bottomPadding = if (doesItemsExceedRecycleView) {
-                initialPaddingBottom + modulo
+                initialPaddingBottom + modulo + 2
             } else {
-                initialPaddingBottom
+                initialPaddingBottom + 2
             }
             
             val currentPaddingBottom = binding.rvBundlingList.paddingBottom
@@ -618,7 +613,7 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener,
 
     override fun onDestroy() {
         super.onDestroy()
-        bundlingAdapter.stopAllShimmerEffects()
+        if (::bundlingAdapter.isInitialized) bundlingAdapter.stopAllShimmerEffects()
         if (::bundlingListener.isInitialized) bundlingListener.remove()
     }
 }

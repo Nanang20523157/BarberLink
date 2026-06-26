@@ -22,8 +22,8 @@ import com.facebook.shimmer.ShimmerFrameLayout
 
 class ItemManageBundlingAdapter(
     private val onShowDetailClickListener: OnShowDetailClickListener,
-    private val onNavigationPage: OnNavigationPage,
-    private val displayThisToastMessage: DisplayThisToastMessage
+    private val navigatePage: OnNavigationPage,
+    private val callbackToast: DisplayThisToastMessage
 ) : ListAdapter<BundlingPackage, RecyclerView.ViewHolder>(PackageDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val debounce by lazy { ScopedUniversalDebounce() }
@@ -165,7 +165,7 @@ class ItemManageBundlingAdapter(
                 // Show details click
                 btnShowServiceDetail.setOnClickListener {
                     if (blockAllUserClickAction) {
-                        displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
+                        callbackToast.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
@@ -175,15 +175,16 @@ class ItemManageBundlingAdapter(
                 // Card click (navigate to view mode = 0)
                 cvMainInfoBundling.setOnClickListener {
                     if (blockAllUserClickAction) {
-                        displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
+                        callbackToast.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
-                    onNavigationPage.onNavigationRequest(0, bundling)
+                    navigatePage.onNavigationRequest(0, bundling)
                 }
 
                 // Load service icons inside package
                 val serviceCount = bundling.listItemDetails?.size ?: 0
+                Glide.with(root.context).clear(ivImageOne)
                 if (serviceCount >= 1) {
                     Glide.with(root.context)
                         .load(bundling.listItemDetails?.get(0)?.serviceIcon)
@@ -193,6 +194,7 @@ class ItemManageBundlingAdapter(
                     ivImageOne.visibility = View.INVISIBLE
                 }
 
+                Glide.with(root.context).clear(ivImageTwo)
                 if (serviceCount >= 2) {
                     Glide.with(root.context)
                         .load(bundling.listItemDetails?.get(1)?.serviceIcon)
@@ -202,6 +204,7 @@ class ItemManageBundlingAdapter(
                     ivImageTwo.visibility = View.GONE
                 }
 
+                Glide.with(root.context).clear(ivImageThree)
                 if (serviceCount >= 3) {
                     Glide.with(root.context)
                         .load(bundling.listItemDetails?.get(2)?.serviceIcon)
@@ -211,6 +214,7 @@ class ItemManageBundlingAdapter(
                     ivImageThree.visibility = View.GONE
                 }
 
+                Glide.with(root.context).clear(ivImageFour)
                 if (serviceCount >= 4) {
                     Glide.with(root.context)
                         .load(bundling.listItemDetails?.get(3)?.serviceIcon)

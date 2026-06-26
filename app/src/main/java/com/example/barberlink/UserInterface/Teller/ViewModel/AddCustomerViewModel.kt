@@ -100,9 +100,9 @@ class AddCustomerViewModel(
         }
     }
 
-    fun setUserInputGander(gander: String) {
+    fun setUserInputGender(gender: String) {
         viewModelScope.launch {
-            userInputGender = gander
+            userInputGender = gender
         }
     }
 

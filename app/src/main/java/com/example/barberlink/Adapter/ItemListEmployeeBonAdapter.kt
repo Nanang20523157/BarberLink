@@ -260,6 +260,7 @@ class ItemListEmployeeBonAdapter(
                 }
 
                 // Use Glide to load the image
+                Glide.with(root.context).clear(ivPhotoProfile)
                 if (bonData.dataCreator?.userPhoto?.isNotEmpty() == true) {
                     Glide.with(root.context)
                         .load(bonData.dataCreator?.userPhoto)

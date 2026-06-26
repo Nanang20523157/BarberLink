@@ -30,10 +30,12 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingTop="10dp"
-            android:paddingHorizontal="16dp"
+            android:clipChildren="false"
             android:clipToPadding="false"
-            android:clipChildren="false">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="10dp"
+            tools:layout_editor_absoluteX="-58dp"
+            tools:layout_editor_absoluteY="0dp">
 
             <!-- Back Button -->
             <ImageView
@@ -42,8 +44,8 @@
                 android:layout_height="24dp"
                 android:layout_alignParentStart="true"
                 android:layout_marginStart="10dp"
-                android:src="@drawable/ic_back"
-                android:contentDescription="@string/icon_back_button_desc" />
+                android:contentDescription="@string/icon_back_button_desc"
+                android:src="@drawable/ic_back" />
 
             <!-- Title -->
             <TextView
@@ -52,17 +54,18 @@
                 android:layout_height="wrap_content"
                 android:layout_centerHorizontal="true"
                 android:text="@string/toolbar_select_outlet"
+                android:textColor="#000000"
                 android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="#000000" />
+                android:textStyle="bold" />
 
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="vertical"
                 android:layout_below="@id/tvTitle"
+                android:layout_marginTop="0dp"
                 android:clipChildren="false"
-                android:clipToPadding="false">
+                android:clipToPadding="false"
+                android:orientation="vertical">
 
                 <androidx.cardview.widget.CardView
                     android:id="@+id/matrialCardView"
@@ -71,9 +74,9 @@
                     android:layout_marginHorizontal="4dp"
                     android:layout_marginTop="20dp"
                     android:elevation="18dp"
-                    app:cardCornerRadius="7.61dp"
                     android:outlineAmbientShadowColor="@color/black"
                     android:outlineSpotShadowColor="@color/black"
+                    app:cardCornerRadius="7.61dp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent">
@@ -92,27 +95,27 @@
                     android:id="@+id/tv_outlet_list"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="20dp"
                     android:layout_marginStart="10dp"
-                    android:text="@string/list_outlet"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="20dp"
                     android:fontFamily="@font/arial_bold"
-                    android:textColor="@color/black_font_color"
-                    android:textSize="17sp"
+                    android:text="@string/list_outlet"
                     android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-                    android:layout_marginTop="16dp" />
+                    android:textColor="@color/black_font_color"
+                    android:textSize="17sp" />
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rv_outlet_list"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_marginTop="3dp"
                     android:layout_marginStart="-16dp"
+                    android:layout_marginTop="3dp"
                     android:layout_marginEnd="-16dp"
-                    android:paddingBottom="16dp"
-                    android:clipToPadding="false"
                     android:clipChildren="false"
+                    android:clipToPadding="false"
                     android:nestedScrollingEnabled="true"
-                    tools:listitem="@layout/item_list_select_destination_adapter"/>
+                    android:paddingBottom="16dp"
+                    tools:listitem="@layout/item_list_select_destination_adapter" />
 
             </androidx.appcompat.widget.LinearLayoutCompat>
 

@@ -751,7 +751,7 @@
                                         android:id="@+id/tvEmployeeRole"
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
-                                        android:text="Administrator"
+                                        android:text="Admin"
                                         android:textColor="#62A99C"
                                         android:textSize="14sp"
                                         android:textStyle="bold"

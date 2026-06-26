@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Saat switch ON: warna teal / sky_blue -->
+    <item android:color="@color/sky_blue" android:state_checked="true"/>
+    <!-- Saat switch OFF: warna abu-abu -->
+    <item android:color="@color/grey_300"/>
+</selector>

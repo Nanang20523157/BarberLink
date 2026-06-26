@@ -27,7 +27,7 @@
             android:clipToPadding="false">
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/cdSwitchQueue"
+                android:id="@+id/cdSearchCapster"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:background="@color/white"
@@ -35,7 +35,7 @@
                 app:cardCornerRadius="30dp"
                 android:layout_marginTop="30dp"
                 android:layout_marginBottom="30dp"
-                android:layout_marginHorizontal="10dp">
+                android:layout_marginHorizontal="25dp">
 
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="match_parent"
@@ -117,6 +117,7 @@
                             android:backgroundTint="@color/black">
 
                             <ImageButton
+                                android:id="@+id/btnSearchCapster"
                                 android:layout_width="45dp"
                                 android:layout_height="45dp"
                                 android:src="@drawable/ic_search_figma"
@@ -165,7 +166,7 @@
                                 android:id="@+id/tvEmployeeName"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
-                                tools:text="----------------"
+                                android:text="----------------"
                                 android:textColor="@color/black_font_color"
                                 android:ellipsize="marquee"
                                 android:singleLine="true"
@@ -272,7 +273,7 @@
                                 android:orientation="horizontal"
                                 android:paddingVertical="2dp"
                                 android:gravity="center"
-                                android:background="@drawable/gender_masculine_background"
+                                android:background="@drawable/gender_unknown_background"
                                 android:paddingHorizontal="4dp"
                                 android:layout_marginEnd="13dp"
                                 app:layout_constraintEnd_toEndOf="parent"
@@ -282,16 +283,16 @@
                                     android:id="@+id/ivGender"
                                     android:layout_width="12.5dp"
                                     android:layout_height="12.5dp"
-                                    android:src="@drawable/ic_male"
+                                    android:src="@drawable/ic_unknown"
                                     android:contentDescription="@string/icon_gender_ilustration" />
 
                                 <TextView
                                     android:id="@+id/tvGender"
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    tools:text="laki-laki"
+                                    android:text="@string/long_text_unknown"
                                     android:fontFamily="@font/arial_bold"
-                                    android:textColor="@color/black_font_color"
+                                    android:textColor="@color/dark_black_gradation"
                                     android:textSize="10sp"
                                     android:layout_marginStart="2dp"
                                     android:layout_marginEnd="3dp"
@@ -300,10 +301,13 @@
 
                             </LinearLayout>
 
+
+
                             <TextView
                                 android:id="@+id/tvRole"
                                 android:layout_width="wrap_content"
                                 android:layout_height="30dp"
+                                android:text=""
                                 tools:text="    ???    "
                                 android:background="@drawable/role_background_employee"
                                 android:fontFamily="@font/arial_bold"
@@ -312,10 +316,9 @@
                                 android:layout_marginTop="15dp"
                                 android:textSize="12sp"
                                 android:paddingHorizontal="15dp"
-                                android:layout_gravity="bottom"
                                 android:layout_marginEnd="13dp"
                                 app:layout_constraintEnd_toEndOf="parent"
-                                app:layout_constraintBottom_toBottomOf="parent"/>
+                                app:layout_constraintBottom_toBottomOf="parent" />
 
                             <LinearLayout
                                 android:layout_width="0dp"
@@ -371,20 +374,23 @@
                     <!-- Barbershop Name Label -->
                     <!-- Tidak ditemukan data capster yang sesuai!!! -->
                     <!-- Tekan tombol di bawah ini untuk melanjutkan! -->
+                    <!-- Capster terkait masih terafiliasi dengan barbershop lain! -->
+                    <!-- Capster sedang dalam keadaan tidak aktif mencari kerja!!! -->
                     <TextView
+                        android:id="@+id/tvSearchingResult"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_below="@id/tvSectionTitle"
                         android:text="Tekan tombol di bawah ini untuk melanjutkan!"
                         android:textSize="11sp"
                         android:gravity="center"
-                        android:layout_marginHorizontal="33dp"
+                        android:layout_marginHorizontal="45dp"
                         android:textColor="@color/grey_text_wa"
                         android:textStyle="bold"
                         android:layout_marginTop="20dp"/>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSaveChanges"
+                        android:id="@+id/btnSeeDetail"
                         android:layout_width="match_parent"
                         android:layout_height="47dp"
                         android:layout_marginTop="7dp"

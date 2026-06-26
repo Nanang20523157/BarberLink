@@ -549,11 +549,11 @@ class AddNewCustomerFragment : DialogFragment() {
         val userGender = shareReserveViewModel.userGender.value?.getContentIfNotHandled() ?: ""
         val text = if (message == "Kembalikan inputan pengguna ke nilai awal") {
             if (name != binding.etFullname.text.toString().trim() && userGender != binding.genderDropdown.text.toString().trim()) {
-                "Kembalikan nama dan gander dari pengguna"
+                "Kembalikan nama dan gender dari pengguna"
             } else if (name != binding.etFullname.text.toString().trim()) {
                 "Kembalikan nama panjang dari pengguna"
             } else if (userGender != binding.genderDropdown.text.toString().trim()) {
-                "Kembalikan nilai gander dari pengguna"
+                "Kembalikan nilai gender dari pengguna"
             } else "???"
         } else message
         currentSnackbar = Snackbar.make(binding.root, text, Snackbar.LENGTH_LONG)
@@ -568,7 +568,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 addCustomerViewModel.setUserManualInput(true)
                 Log.d("TriggerUU", "====== UNDO ======")
                 when (text) {
-                    "Kembalikan nama dan gander dari pengguna" -> {
+                    "Kembalikan nama dan gender dari pengguna" -> {
                         isShowSnackbarReplacement = false
                         binding.etFullname.setText(name)
                         binding.etFullname.setSelection(name.length)
@@ -579,7 +579,7 @@ class AddNewCustomerFragment : DialogFragment() {
                         binding.etFullname.setText(name)
                         binding.etFullname.setSelection(name.length)
                     }
-                    "Kembalikan nilai gander dari pengguna" -> {
+                    "Kembalikan nilai gender dari pengguna" -> {
                         isShowSnackbarReplacement = false
                         setUserCustomerGender(userGender)
                         resetInputForm(true)
@@ -626,11 +626,11 @@ class AddNewCustomerFragment : DialogFragment() {
         }
     }
 
-    private fun setUserCustomerGender(gander: String) {
+    private fun setUserCustomerGender(gender: String) {
         // List of gender options
-        val genderIndex = listGender.indexOf(gander)
+        val genderIndex = listGender.indexOf(gender)
 
-        // Log.d("TriggerUU", "gander: $gander, genderIndex: $genderIndex")
+        // Log.d("TriggerUU", "gender: $gender, genderIndex: $genderIndex")
         // Check if the gender is found in the list
         if (genderIndex != -1) {
             setupDropdownOption(genderIndex)
@@ -668,7 +668,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 // Check if gender is different and not empty, then mark as manual input
                 if (selectedGender.isNotEmpty() && currentGenderInViewModel.isNotEmpty()) {
                     if (selectedGender != currentGenderInViewModel && !isSystemWriteData) {
-                        Log.d("DrpDown", "selectedGender: $selectedGender || customerGander: $currentGenderInViewModel")
+                        Log.d("DrpDown", "selectedGender: $selectedGender || customerGender: $currentGenderInViewModel")
                         addCustomerViewModel.setUserManualInput(true)
                         Log.d("CheckPion", "A >> isOrientationChanged: $isOrientationChanged")
                         if (addCustomerViewModel.getButtonStatus() == "Sync" && !isOrientationChanged) {
@@ -690,7 +690,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.cvGender.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.grey_300))
                 binding.ivGender.setImageDrawable(AppCompatResources.getDrawable(binding.root.context, R.drawable.ic_questions))
                 binding.genderDropdown.setText(listGender[0], false)
-                addCustomerViewModel.setUserInputGander(listGender[0])
+                addCustomerViewModel.setUserInputGender(listGender[0])
                 addCustomerViewModel.getUserCustomerData().apply {
                     this.gender = listGender[0]
                 }.let {
@@ -707,7 +707,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.cvGender.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.masculine_faded_blue))
                 binding.ivGender.setImageDrawable(AppCompatResources.getDrawable(binding.root.context, R.drawable.ic_male))
                 binding.genderDropdown.setText(listGender[1], false)
-                addCustomerViewModel.setUserInputGander(listGender[1])
+                addCustomerViewModel.setUserInputGender(listGender[1])
                 addCustomerViewModel.getUserCustomerData().apply {
                     this.gender = listGender[1]
                 }.let {
@@ -725,7 +725,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 binding.cvGender.setCardBackgroundColor(ContextCompat.getColor(binding.root.context, R.color.feminime_pink))
                 binding.ivGender.setImageDrawable(AppCompatResources.getDrawable(binding.root.context, R.drawable.ic_female))
                 binding.genderDropdown.setText(listGender[2], false)
-                addCustomerViewModel.setUserInputGander(listGender[2])
+                addCustomerViewModel.setUserInputGender(listGender[2])
                 addCustomerViewModel.getUserCustomerData().apply {
                     this.gender = listGender[2]
                 }.let {
@@ -1099,7 +1099,7 @@ class AddNewCustomerFragment : DialogFragment() {
             val textInputGender = binding.genderDropdown.text.toString().trim()
             if ((userReplacedName != textInputName || userReplacedGender != textInputGender) && userReplacedName.isNotEmpty() && userReplacedGender.isNotEmpty()) {
                 isShowSnackbarReplacement = false
-                // Toast.makeText(context, "Kembalikan Nama: $userReplacedName dan Gander: $userReplacedGender", Toast.LENGTH_SHORT).show()
+                // Toast.makeText(context, "Kembalikan Nama: $userReplacedName dan Gender: $userReplacedGender", Toast.LENGTH_SHORT).show()
 
                 Logger.d("InputName", "userReplacedName: $userReplacedName || textInputName: $textInputName || userReplacedGender: $userReplacedGender || textInputGender: $textInputGender")
                 shareReserveViewModel.showSnackBarToAll(
@@ -1159,7 +1159,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 shareReserveViewModel.showSnackBarToAll(
                     preSyncName,
                     preSyncGender,
-                    "Kembalikan nama dan gander dari pengguna"
+                    "Kembalikan nama dan gender dari pengguna"
                 )
                 binding.etFullname.setText(userFullname)
                 binding.etFullname.setSelection(userFullname.length) // Set cursor di akhir nama
@@ -1185,7 +1185,7 @@ class AddNewCustomerFragment : DialogFragment() {
                 shareReserveViewModel.showSnackBarToAll(
                     preSyncName,
                     preSyncGender,
-                    "Kembalikan nilai gander dari pengguna"
+                    "Kembalikan nilai gender dari pengguna"
                 )
                 setUserCustomerGender(userGender)
             } else {

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.example.barberlink.DataClass.EmployeeRolesData
+import com.example.barberlink.DataClass.PermissionItem
 
 
 class SessionManager(context: Context) {
@@ -184,7 +185,7 @@ class SessionManager(context: Context) {
         editor.putBoolean(KEY_PERMISSIONS_DECIDED, decided).apply()
     }
 
-    fun savePermissionList(permissions: Map<String, Any>?) {
+    fun savePermissionList(permissions: Map<String, String>?) {
         val json = Gson().toJson(permissions)
         editor.putString(KEY_PERMISSION_LIST, json).apply()
     }
@@ -197,6 +198,22 @@ class SessionManager(context: Context) {
         } else {
             emptyMap()
         }
+    }
+
+    fun getPermissionList(): List<PermissionItem> {
+        val map = getPermissionMap()
+        val list = mutableListOf<PermissionItem>()
+        for (jsonString in map.values) {
+            try {
+                val item = Gson().fromJson(jsonString, PermissionItem::class.java)
+                if (item != null) {
+                    list.add(item)
+                }
+            } catch (e: Exception) {
+                Log.e("SessionManager", "Error parsing PermissionItem JSON", e)
+            }
+        }
+        return list
     }
 
     fun saveRolesData(roles: List<EmployeeRolesData>) {

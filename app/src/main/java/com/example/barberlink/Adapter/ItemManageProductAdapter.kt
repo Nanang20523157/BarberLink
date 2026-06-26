@@ -2,6 +2,7 @@ package com.example.barberlink.Adapter
 
 import android.os.Build
 import android.util.Log
+import com.example.barberlink.Utils.Logger
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +15,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import com.bumptech.glide.Glide
-import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.target.BitmapImageViewTarget
 import com.bumptech.glide.request.transition.Transition
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.Helper.ScopedUniversalDebounce
@@ -24,12 +25,12 @@ import com.example.barberlink.databinding.ItemListManageProductAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageProductCardBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageServiceCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import androidx.core.graphics.get
 
 class ItemManageProductAdapter(
     private val onItemClicked: OnItemClicked,
-    private val onNavigationPage: OnNavigationPage,
-    private val displayThisToastMessage: DisplayThisToastMessage,
-    private val onStatusToggled: OnStatusToggled? = null
+    private val navigatePage: OnNavigationPage,
+    private val callbackToast: DisplayThisToastMessage
 ) : ListAdapter<Product, RecyclerView.ViewHolder>(ProductDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
     private val debounce by lazy { ScopedUniversalDebounce() }
@@ -51,10 +52,6 @@ class ItemManageProductAdapter(
 
     interface DisplayThisToastMessage {
         fun displayThisToast(message: String, isImportant: Boolean)
-    }
-
-    interface OnStatusToggled {
-        fun onStatusToggled(product: Product, isChecked: Boolean)
     }
 
     fun stopAllShimmerEffects() {
@@ -121,6 +118,7 @@ class ItemManageProductAdapter(
     }
 
     fun setShimmer(shimmer: Boolean) {
+        Logger.d("ScrollingCheckUrgent", "ItemManageProductAdapter -> setShimmer called: shimmer=$shimmer, current isShimmer=$isShimmer, lastScrollPosition=$lastScrollPosition")
         if (isShimmer == shimmer) return
 
         val layoutManager = recyclerView?.layoutManager as? LinearLayoutManager
@@ -129,6 +127,7 @@ class ItemManageProductAdapter(
             if (lastScrollPosition == -1) {
                 lastScrollPosition = layoutManager?.findLastVisibleItemPosition() ?: 0
             }
+            Logger.d("ScrollingCheckUrgent", "ItemManageProductAdapter -> setShimmer: Saved lastScrollPosition=$lastScrollPosition")
         }
 
         isShimmer = shimmer
@@ -142,9 +141,12 @@ class ItemManageProductAdapter(
                 lastScrollPosition
             }
 
+            Logger.d("ScrollingCheckUrgent", "ItemManageProductAdapter -> setShimmer post: positionToScroll=$positionToScroll, itemCount=$itemCount, isShimmer=$isShimmer")
             if (positionToScroll in 0 until itemCount) {
+                Logger.d("ScrollingCheckUrgent", "ItemManageProductAdapter -> setShimmer post: calling scrollToPosition($positionToScroll)")
                 layoutManager?.scrollToPosition(positionToScroll)
             } else {
+                Logger.e("ScrollingCheckUrgent", "ItemManageProductAdapter -> setShimmer post: Invalid target position: $positionToScroll, itemCount: $itemCount")
                 Log.e("RecyclerView", "Invalid target position: $positionToScroll, itemCount: $itemCount")
             }
         }
@@ -180,22 +182,24 @@ class ItemManageProductAdapter(
                 tvPrice.text = NumberUtils.numberToCurrency(product.productPrice.toDouble())
 
                 // Product Image
+                Glide.with(root.context).clear(ivProductImage)
                 if (product.imgProduct.isNotEmpty()) {
                     Glide.with(root.context)
                         .asBitmap()
                         .load(product.imgProduct)
                         .placeholder(R.drawable.mystery_box2)
                         .error(R.drawable.mystery_box2)
-                        .into(object : CustomTarget<Bitmap>() {
+                        .into(object : BitmapImageViewTarget(ivProductImage) {
                             @RequiresApi(Build.VERSION_CODES.O)
                             override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
                                 val isTransparent = resource.hasTransparentCorners()
                                 ivProductImage.adjustPadding(isTransparent)
-                                ivProductImage.setImageBitmap(resource)
+                                super.onResourceReady(resource, transition)
                             }
 
                             override fun onLoadCleared(placeholder: Drawable?) {
-                                ivProductImage.setImageDrawable(placeholder)
+                                super.onLoadCleared(placeholder)
+                                ivProductImage.adjustPadding(true)
                             }
                         })
                 } else {
@@ -206,7 +210,7 @@ class ItemManageProductAdapter(
                 // Delete button click
                 btnDeleteItem.setOnClickListener {
                     if (blockAllUserClickAction) {
-                        displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
+                        callbackToast.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
@@ -216,11 +220,11 @@ class ItemManageProductAdapter(
                 // Card click (navigate to edit)
                 cvMainInfoProduct.setOnClickListener {
                     if (blockAllUserClickAction) {
-                        displayThisToastMessage.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
+                        callbackToast.displayThisToast("Mohon tunggu proses sebelumnya selesai", true)
                         return@setOnClickListener
                     }
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
-                    onNavigationPage.onNavigationRequest(0, product) // mode 1 = edit
+                    navigatePage.onNavigationRequest(0, product) // mode 1 = edit
                 }
             }
         }
@@ -251,10 +255,10 @@ private fun Bitmap.hasTransparentCorners(): Boolean {
     val w = this.width
     val h = this.height
 
-    val topLeft = this.getPixel(0, 0)
-    val topRight = this.getPixel(w - 1, 0)
-    val bottomLeft = this.getPixel(0, h - 1)
-    val bottomRight = this.getPixel(w - 1, h - 1)
+    val topLeft = this[0, 0]
+    val topRight = this[w - 1, 0]
+    val bottomLeft = this[0, h - 1]
+    val bottomRight = this[w - 1, h - 1]
 
     fun isPixelTransparent(pixelColor: Int): Boolean {
         val alpha = (pixelColor shr 24) and 0xff
