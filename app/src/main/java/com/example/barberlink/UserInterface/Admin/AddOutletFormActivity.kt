@@ -1527,7 +1527,18 @@ class AddOutletFormActivity : BaseActivity(), View.OnClickListener,
                         if (!isFirstLoad && !skippedProcess) {
                             withContext(Dispatchers.Default) {
                                 val dataList = docs.mapNotNull { document ->
-                                    document.toObject(dataClass)
+                                    val obj = document.toObject(dataClass)
+                                    if (obj is Service) {
+                                        obj.dataRef = document.reference.path
+                                    } else if (obj is Product) {
+                                        obj.dataRef = document.reference.path
+                                    } else if (obj is BundlingPackage) {
+                                        obj.dataRef = document.reference.path
+                                    } else if (obj is UserEmployeeData) {
+                                        obj.userRef = document.reference.path
+                                        obj.outletRef = ""
+                                    }
+                                    obj
                                 }
                                 // Use the corresponding mutex for each list
                                 val mutex = when (dataClass) {

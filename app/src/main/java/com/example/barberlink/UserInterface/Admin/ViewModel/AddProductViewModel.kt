@@ -14,6 +14,7 @@ import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Repository.ProductRepository
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -243,6 +244,9 @@ class AddProductViewModel(
                     currentProduct.imgProduct = downloadUrl.toString()
                 }
 
+                val db = FirebaseFirestore.getInstance()
+                val productRef = db.collection("barbershops").document(bId).collection("products").document(currentProduct.uid)
+
                 val result = if (isAddMode) {
                     repository.createProduct(bId, currentProduct)
                 } else {
@@ -250,7 +254,10 @@ class AddProductViewModel(
                 }
 
                 _isSaving.value = false
-                if (result.isSuccessful) clearPendingImageUri()
+                if (result.isSuccessful) {
+                    clearPendingImageUri()
+                    currentProduct.dataRef = productRef.path
+                }
                 if (isAddMode && result.isSuccessful) _productList.value = _productList.value.orEmpty() + currentProduct
                 else if (result.isSuccessful) {
                     _productList.value = _productList.value.orEmpty().map { if (it.uid == currentProduct.uid) currentProduct else it }

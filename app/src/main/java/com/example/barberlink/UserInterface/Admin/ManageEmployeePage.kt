@@ -28,6 +28,7 @@ import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.UserEmployeeData
 import com.example.barberlink.DataClass.EmployeeRolesData
 import com.example.barberlink.DataClass.Outlet
+import com.example.barberlink.DataClass.Product
 import com.example.barberlink.Factory.DatabaseViewModelFactory
 import com.example.barberlink.Helper.StatusBarDisplayHandler
 import com.example.barberlink.Helper.WindowInsetsHandler
@@ -35,6 +36,7 @@ import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.Fragment.ConfirmDeleteItemFragment
 import com.example.barberlink.UserInterface.Admin.Fragment.SearchUserCapsterFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageEmployeeViewModel
 import com.example.barberlink.UserInterface.BaseActivity
@@ -75,7 +77,11 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
     private var isRecreated: Boolean = false
 
     private lateinit var employeeListener: ListenerRegistration
-    private var remainingListeners = AtomicInteger(1)
+    private lateinit var outletListener: ListenerRegistration
+//    private lateinit var serviceListener: ListenerRegistration
+//    private lateinit var productListener: ListenerRegistration
+//    private lateinit var bundlingListener: ListenerRegistration
+    private var remainingListeners = AtomicInteger(2)
 
     @SuppressLint("SetTextI18n")
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -154,6 +160,15 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
 
             val outletList = args.outletList.toCollection(ArrayList())
             manageEmployeeViewModel.setOutletList(outletList)
+
+//            val serviceList = args.serviceList.toList()
+//            manageEmployeeViewModel.setServiceList(serviceList)
+//
+//            val productList = args.productList.toList()
+//            manageEmployeeViewModel.setProductList(productList)
+//
+//            val bundlingList = args.bundlingList.toList()
+//            manageEmployeeViewModel.setBundlingList(bundlingList)
         }
 
         init(savedInstanceState)
@@ -198,9 +213,21 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
             if (!isFirstLoad) binding.tvEmptyEmployee.visibility = if (employeeList.isEmpty()) View.VISIBLE else View.GONE
         }
 
-        supportFragmentManager.setFragmentResultListener("action_result_user", this) { _, bundle ->
+        supportFragmentManager.setFragmentResultListener("action_dissmis_dialog", this) { _, bundle ->
             val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
             if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+        }
+
+        supportFragmentManager.setFragmentResultListener("action_delete_user", this) { _, bundle ->
+            val isConfirmDelete = bundle.getBoolean("confirm_delete", false)
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            manageEmployeeViewModel.getTargetDeleteData()?.let { employee ->
+                if (isConfirmDelete) {
+                    manageEmployeeViewModel.deleteEmployee(employee)
+                }
+            }
         }
 
         onBackPressedDispatcher.addCallback(this) {
@@ -251,6 +278,7 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
             override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.4f
             override fun isItemViewSwipeEnabled(): Boolean = !employeeAdapter.isShimmerMode()
 
+            @RequiresApi(Build.VERSION_CODES.S)
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos = viewHolder.bindingAdapterPosition
                 if (pos == RecyclerView.NO_POSITION) return
@@ -265,14 +293,17 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
                     employeeAdapter.notifyItemChanged(pos)
                 }
 
-                android.app.AlertDialog.Builder(this@ManageEmployeePage)
-                    .setTitle("Hapus Pegawai")
-                    .setMessage("Apakah Anda yakin ingin menghapus hubungan kerja dengan pegawai \"${employee.fullname}\"? Tindakan ini tidak dapat dibatalkan.")
-                    .setPositiveButton("Hapus") { _, _ ->
-                        manageEmployeeViewModel.deleteEmployee(employee)
-                    }
-                    .setNegativeButton("Batal", null)
-                    .show()
+                manageEmployeeViewModel.setTargetDeleteData(employee)
+                manageEmployeeViewModel.setBundleChangeList(emptyList())
+                showConfirmDeleteDialog(employee)
+//                android.app.AlertDialog.Builder(this@ManageEmployeePage)
+//                    .setTitle("Hapus Pegawai")
+//                    .setMessage("Apakah Anda yakin ingin menghapus hubungan kerja dengan pegawai \"${employee.fullname}\"? Tindakan ini tidak dapat dibatalkan.")
+//                    .setPositiveButton("Hapus") { _, _ ->
+//                        manageEmployeeViewModel.deleteEmployee(employee)
+//                    }
+//                    .setNegativeButton("Batal", null)
+//                    .show()
             }
             
             override fun onChildDraw(
@@ -438,8 +469,12 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(1)
+        if (skippedProcess) remainingListeners.set(2)
         listenToEmployeeList()
+        listenToOutletList()
+//        listenToServiceList()
+//        listenToProductList()
+//        listenToBundlingList()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
@@ -503,6 +538,218 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
         }
     }
 
+    private fun listenToOutletList() {
+        barbershopId.let { bId ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
+
+            if (bId.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            outletListener = db.collection("barbershops")
+                .document(barbershopId)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageEmployeeViewModel.listenerOutletListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlets data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    lifecycleScope.launch(Dispatchers.Default) {
+                                        val newOutletList = docs.mapNotNull { document ->
+                                            document.toObject(com.example.barberlink.DataClass.Outlet::class.java).apply {
+                                                outletReference = document.reference.path
+                                            }
+                                        }
+
+                                        manageEmployeeViewModel.outletListMutex.withStateLock {
+                                            manageEmployeeViewModel.setOutletList(newOutletList)
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+//    private fun listenToServiceList() {
+//        barbershopId.let { bId ->
+//            if (::serviceListener.isInitialized) {
+//                serviceListener.remove()
+//            }
+//
+//            if (bId.isEmpty()) {
+//                serviceListener = db.collection("fake").addSnapshotListener { _, _ -> }
+//                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                return@let
+//            }
+//            var decrementGlobalListener = false
+//
+//            serviceListener = db.collection("barbershops")
+//                .document(barbershopId)
+//                .collection("services")
+//                .addSnapshotListener { documents, exception ->
+//                    lifecycleScope.launch {
+//                        manageEmployeeViewModel.listenerServiceListMutex.withStateLock {
+//                            exception?.let {
+//                                toastViewModel.showToast("Error listening to services data: ${exception.message}", false)
+//                                if (!decrementGlobalListener) {
+//                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                                    decrementGlobalListener = true
+//                                }
+//                                return@withStateLock
+//                            }
+//                            documents?.let { docs ->
+//                                if (!isFirstLoad && !skippedProcess) {
+//                                    lifecycleScope.launch(Dispatchers.Default) {
+//                                        val newServiceList = docs.mapNotNull { document ->
+//                                            document.toObject(com.example.barberlink.DataClass.Service::class.java).apply {
+//                                                dataRef = document.reference.path
+//                                            }
+//                                        }
+//
+//                                        manageEmployeeViewModel.serviceListMutex.withStateLock {
+//                                            manageEmployeeViewModel.setServiceList(newServiceList)
+//                                        }
+//                                    }
+//                                }
+//                            }
+//
+//                            if (!decrementGlobalListener) {
+//                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                                decrementGlobalListener = true
+//                            }
+//                        }
+//                    }
+//                }
+//        }
+//    }
+//
+//    private fun listenToProductList() {
+//        barbershopId.let { bId ->
+//            if (::productListener.isInitialized) {
+//                productListener.remove()
+//            }
+//
+//            if (bId.isEmpty()) {
+//                productListener = db.collection("fake").addSnapshotListener { _, _ -> }
+//                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                return@let
+//            }
+//            var decrementGlobalListener = false
+//
+//            productListener = db.collection("barbershops")
+//                .document(barbershopId)
+//                .collection("products")
+//                .addSnapshotListener { documents, exception ->
+//                    lifecycleScope.launch {
+//                        manageEmployeeViewModel.listenerProductListMutex.withStateLock {
+//                            exception?.let {
+//                                toastViewModel.showToast("Error listening to products data: ${exception.message}", false)
+//                                if (!decrementGlobalListener) {
+//                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                                    decrementGlobalListener = true
+//                                }
+//                                return@withStateLock
+//                            }
+//                            documents?.let { docs ->
+//                                if (!isFirstLoad && !skippedProcess) {
+//                                    lifecycleScope.launch(Dispatchers.Default) {
+//                                        val newProductList = docs.mapNotNull { document ->
+//                                            document.toObject(Product::class.java).apply {
+//                                                dataRef = document.reference.path
+//                                            }
+//                                        }
+//
+//                                        manageEmployeeViewModel.productListMutex.withStateLock {
+//                                            manageEmployeeViewModel.setProductList(newProductList)
+//                                        }
+//                                    }
+//                                }
+//                            }
+//
+//                            if (!decrementGlobalListener) {
+//                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                                decrementGlobalListener = true
+//                            }
+//                        }
+//                    }
+//                }
+//        }
+//    }
+//
+//    private fun listenToBundlingList() {
+//        barbershopId.let { bId ->
+//            if (::bundlingListener.isInitialized) {
+//                bundlingListener.remove()
+//            }
+//
+//            if (bId.isEmpty()) {
+//                bundlingListener = db.collection("fake").addSnapshotListener { _, _ -> }
+//                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                return@let
+//            }
+//            var decrementGlobalListener = false
+//
+//            bundlingListener = db.collection("barbershops")
+//                .document(barbershopId)
+//                .collection("bundling_packages")
+//                .addSnapshotListener { documents, exception ->
+//                    lifecycleScope.launch {
+//                        manageEmployeeViewModel.listenerBundlingListMutex.withStateLock {
+//                            exception?.let {
+//                                toastViewModel.showToast("Error listening to bundling data: ${exception.message}", false)
+//                                if (!decrementGlobalListener) {
+//                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                                    decrementGlobalListener = true
+//                                }
+//                                return@withStateLock
+//                            }
+//                            documents?.let { docs ->
+//                                if (!isFirstLoad && !skippedProcess) {
+//                                    lifecycleScope.launch(Dispatchers.Default) {
+//                                        val newBundlingList = docs.mapNotNull { document ->
+//                                            document.toObject(BundlingPackage::class.java).apply {
+//                                                dataRef = document.reference.path
+//                                            }
+//                                        }
+//
+//                                        manageEmployeeViewModel.bundlingListMutex.withStateLock {
+//                                            manageEmployeeViewModel.setBundlingList(newBundlingList)
+//                                        }
+//                                    }
+//                                }
+//                            }
+//
+//                            if (!decrementGlobalListener) {
+//                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+//                                decrementGlobalListener = true
+//                            }
+//                        }
+//                    }
+//                }
+//        }
+//    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v?.id) {
@@ -559,6 +806,37 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    private fun showConfirmDeleteDialog(employee: UserEmployeeData) {
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        shouldClearBackStack = false
+        if (supportFragmentManager.findFragmentByTag("ConfirmDeleteDialogFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
+//        dialogFragment = ConfirmDeleteDialogFragment.newInstance(capsterList as ArrayList<Employee>, outletSelected)
+        dialogFragment = ConfirmDeleteItemFragment.newInstance("Hapus Pegawai", "Apakah Anda yakin ingin menghapus hubungan kerja dengan pegawai <b>\"${employee.fullname}\"</b>? Tindakan ini tidak dapat dibatalkan.")
+        // The device is smaller, so show the fragment fullscreen.
+        val transaction = fragmentManager.beginTransaction()
+        // For a polished look, specify a transition animation.
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
+        // To make it fullscreen, use the 'content' root view as the container
+        // for the fragment, which is always the root view for the activity.
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "ConfirmDeleteDialogFragment")
+                .addToBackStack("ConfirmDeleteDialogFragment")
+                .commit()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(mode: Int, employee: UserEmployeeData) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
             if (!isNavigating) {
@@ -586,7 +864,7 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
         }
         isNavigating = false
         if (!isRecreated) {
-            if (!::employeeListener.isInitialized && !isFirstLoad) {
+            if (!::employeeListener.isInitialized && !::outletListener.isInitialized && !isFirstLoad) { // && !::serviceListener.isInitialized && !::productListener.isInitialized && !::bundlingListener.isInitialized
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -707,6 +985,11 @@ class ManageEmployeePage : BaseActivity(), View.OnClickListener,
     override fun onDestroy() {
         super.onDestroy()
         if (::employeeAdapter.isInitialized) employeeAdapter.stopAllShimmerEffects()
+        // Hapus listener untuk menghindari memory leak
         if (::employeeListener.isInitialized) employeeListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
+//        if (::serviceListener.isInitialized) serviceListener.remove()
+//        if (::productListener.isInitialized) productListener.remove()
+//        if (::bundlingListener.isInitialized) bundlingListener.remove()
     }
 }

@@ -155,7 +155,7 @@ class ItemListPackageSelectAdapter(
 
         @SuppressLint("DefaultLocale")
         private fun formatPrice(price: Int): String {
-            return "Rp ${String.format("%,d", price).replace(',', '.')}"
+            return if (price == 0) "GRATIS" else "Rp ${String.format("%,d", price).replace(',', '.')}"
         }
     }
 

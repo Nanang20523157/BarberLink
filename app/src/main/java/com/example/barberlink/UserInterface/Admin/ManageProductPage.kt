@@ -21,7 +21,10 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.DefaultItemAnimator
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentManager
 import com.example.barberlink.Adapter.ItemManageProductAdapter
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.DataClass.Product
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.DataClass.DataCategories
@@ -32,6 +35,7 @@ import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.Fragment.ConfirmDeleteItemFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageProductViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
@@ -56,6 +60,8 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
     }
     private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var productAdapter: ItemManageProductAdapter
+    private lateinit var fragmentManager: FragmentManager
+    private lateinit var dialogFragment: DialogFragment
     private lateinit var gridLayoutManager: GridLayoutManager
     private val debounce by lazy { ScopedUniversalDebounce() }
 
@@ -65,6 +71,7 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private var isNavigating = false
+    private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
     private var lastScrollDirectionY: Int = 0
@@ -75,11 +82,15 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
     private var isUserScrolling: Boolean = false
 
     private lateinit var productListener: ListenerRegistration
-    private var remainingListeners = AtomicInteger(1)
+    private lateinit var outletListener: ListenerRegistration
+    private var remainingListeners = AtomicInteger(2)
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
-        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+        val backStackCount = savedInstanceState?.getInt("back_stack_count", 0) ?: 0
+        if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
+        shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         super.onCreate(savedInstanceState)
         binding = ActivityManageProductPageBinding.inflate(layoutInflater)
@@ -118,6 +129,18 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
             binding.mainContent.startAnimation(fadeIn)
         }
 
+        manageProductViewModel
+        toastViewModel
+        fragmentManager = supportFragmentManager
+        setNavigationCallback(object : NavigationCallback {
+            override fun navigate() {
+                // Implementasi navigasi spesifik untuk MainActivity
+//                val intent = Intent(this@MainActivity, SelectUserRoleActivity::class.java)
+//                startActivity(intent)
+                Log.d("UserInteraction", this@ManageProductPage::class.java.simpleName)
+            }
+        })
+
         if (savedInstanceState != null) {
             barbershopId = savedInstanceState.getString("barbershop_id") ?: ""
             isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
@@ -135,6 +158,9 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
 
             val productCategoryList = args.categoryList.toCollection(ArrayList())
             manageProductViewModel.setCategoryList(productCategoryList)
+
+            val outletList = args.outletList.toList()
+            manageProductViewModel.setOutletList(outletList)
         }
 
         init(savedInstanceState)
@@ -168,6 +194,22 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
             if (!isFirstLoad) binding.tvEmptyProduct.visibility = if (productList.isEmpty()) View.VISIBLE else View.GONE
         }
 
+        supportFragmentManager.setFragmentResultListener("action_delete_user", this) { _, bundle ->
+            val isConfirmDelete = bundle.getBoolean("confirm_delete", false)
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) {
+                StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+                isDialogActive = false
+                applyVegaScrollEffect(binding.rvProductList)
+            }
+
+            manageProductViewModel.getTargetDeleteData()?.let { product ->
+                if (isConfirmDelete) {
+                    manageProductViewModel.deleteProduct(product)
+                }
+            }
+        }
+
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
         }
@@ -188,6 +230,9 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("should_clear_backstack", shouldClearBackStack)
+        outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+
         outState.putString("barbershop_id", barbershopId)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("skipped_process", skippedProcess)
@@ -315,6 +360,7 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
                 applyVegaScrollEffect(recyclerView)
             }
 
+            @RequiresApi(Build.VERSION_CODES.S)
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 Logger.d("ScrollingCheckUrgent", "ManageProductPage -> onSwiped: position=${viewHolder.bindingAdapterPosition}, direction=$direction")
                 isDialogActive = true
@@ -346,20 +392,23 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
                     productAdapter.notifyItemChanged(pos)
                 }
 
-                android.app.AlertDialog.Builder(this@ManageProductPage)
-                    .setTitle("Hapus Produk")
-                    .setMessage("Apakah Anda yakin ingin menghapus produk \"${product.productName}\"? Tindakan ini tidak dapat dibatalkan.")
-                    .setPositiveButton("Hapus") { _, _ ->
-                        Logger.d("ScrollingCheckUrgent", "ManageProductPage -> Dialog Hapus clicked for product: ${product.productName}")
-                        manageProductViewModel.deleteProduct(product)
-                    }
-                    .setNegativeButton("Batal", null)
-                    .setOnDismissListener {
-                        Logger.d("ScrollingCheckUrgent", "ManageProductPage -> Dialog dismissed: isDialogActive=$isDialogActive")
-                        isDialogActive = false
-                        applyVegaScrollEffect(binding.rvProductList)
-                    }
-                    .show()
+                manageProductViewModel.setTargetDeleteData(product)
+                manageProductViewModel.setBundleChangeList(emptyList())
+                showConfirmDeleteDialog(product)
+//                android.app.AlertDialog.Builder(this@ManageProductPage)
+//                    .setTitle("Hapus Produk")
+//                    .setMessage("Apakah Anda yakin ingin menghapus produk \"${product.productName}\"? Tindakan ini tidak dapat dibatalkan.")
+//                    .setPositiveButton("Hapus") { _, _ ->
+//                        Logger.d("ScrollingCheckUrgent", "ManageProductPage -> Dialog Hapus clicked for product: ${product.productName}")
+//                        manageProductViewModel.deleteProduct(product)
+//                    }
+//                    .setNegativeButton("Batal", null)
+//                    .setOnDismissListener {
+//                        Logger.d("ScrollingCheckUrgent", "ManageProductPage -> Dialog dismissed: isDialogActive=$isDialogActive")
+//                        isDialogActive = false
+//                        applyVegaScrollEffect(binding.rvProductList)
+//                    }
+//                    .show()
             }
 
             override fun onChildDraw(
@@ -545,8 +594,9 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(1)
+        if (skippedProcess) remainingListeners.set(2)
         listenToProductList()
+        listenToOutletList()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
@@ -610,6 +660,59 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
         }
     }
 
+    private fun listenToOutletList() {
+        barbershopId.let { bId ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
+
+            if (bId.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            outletListener = db.collection("barbershops")
+                .document(barbershopId)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageProductViewModel.listenerOutletListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlets data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    lifecycleScope.launch(Dispatchers.Default) {
+                                        val newOutletList = docs.mapNotNull { document ->
+                                            document.toObject(com.example.barberlink.DataClass.Outlet::class.java).apply {
+                                                outletReference = document.reference.path
+                                            }
+                                        }
+
+                                        manageProductViewModel.outletListMutex.withStateLock {
+                                            manageProductViewModel.setOutletList(newOutletList)
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onClick(v: View?) {
         when (v?.id) {
@@ -624,15 +727,12 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     override fun onItemClickListener(product: Product) {
-        android.app.AlertDialog.Builder(this@ManageProductPage)
-            .setTitle("Hapus Produk")
-            .setMessage("Apakah Anda yakin ingin menghapus produk \"${product.productName}\"? Tindakan ini tidak dapat dibatalkan.")
-            .setPositiveButton("Hapus") { _, _ ->
-                manageProductViewModel.deleteProduct(product)
-            }
-            .setNegativeButton("Batal", null)
-            .show()
+        isDialogActive = true
+        manageProductViewModel.setTargetDeleteData(product)
+        manageProductViewModel.setBundleChangeList(emptyList())
+        showConfirmDeleteDialog(product)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -642,6 +742,37 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
 
     override fun displayThisToast(message: String, isImportant: Boolean) {
         toastViewModel.showToast(message, isImportant)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showConfirmDeleteDialog(product: Product) {
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        shouldClearBackStack = false
+        if (supportFragmentManager.findFragmentByTag("ConfirmDeleteDialogFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
+//        dialogFragment = ConfirmDeleteDialogFragment.newInstance(capsterList as ArrayList<Employee>, outletSelected)
+        dialogFragment = ConfirmDeleteItemFragment.newInstance("Hapus Produk", "Apakah Anda yakin ingin menghapus produk <b>\"${product.productName}\"</b>? Tindakan ini tidak dapat dibatalkan.")
+        // The device is smaller, so show the fragment fullscreen.
+        val transaction = fragmentManager.beginTransaction()
+        // For a polished look, specify a transition animation.
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
+        // To make it fullscreen, use the 'content' root view as the container
+        // for the fragment, which is always the root view for the activity.
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "ConfirmDeleteDialogFragment")
+                .addToBackStack("ConfirmDeleteDialogFragment")
+                .commit()
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
@@ -672,7 +803,7 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
         }
         isNavigating = false
         if (!isRecreated) {
-            if (!::productListener.isInitialized && !isFirstLoad) {
+            if (!::productListener.isInitialized && !::outletListener.isInitialized && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -688,6 +819,30 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
         if (isHandlingBack) return
         isHandlingBack = true
 
+        if (fragmentManager.backStackEntryCount > 0) {
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
+            shouldClearBackStack = true
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
+            }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
         // ACTIVITY FINISH (no fragment stack in ManageServicePage)
         WindowInsetsHandler.setDynamicWindowAllCorner(
             binding.root,
@@ -699,6 +854,20 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
                 R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
+        }
+    }
+
+    override fun onPause() {
+        Log.d("CheckLifecycle", "==================== ON PAUSE MANAGE-OUTLET  =====================")
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
+    }
+
+    private fun clearBackStack() {
+        while (fragmentManager.backStackEntryCount > 0) {
+            fragmentManager.popBackStackImmediate()
         }
     }
 
@@ -937,6 +1106,7 @@ class ManageProductPage : BaseActivity(), View.OnClickListener, ItemManageProduc
         if (::productAdapter.isInitialized) productAdapter.stopAllShimmerEffects()
         // Remove listener to avoid memory leak
         if (::productListener.isInitialized) productListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
     }
 }
 

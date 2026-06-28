@@ -54,6 +54,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import androidx.core.graphics.toColorInt
 
 // TNODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -806,7 +807,7 @@ class SwitchCapsterFragment : DialogFragment() {
 
             Log.d("Gender", "Gender: ${userEmployeeData.gender}")
             setUserGender(userEmployeeData.gender)
-            setUserRole(userEmployeeData.role)
+            setUserRole(userEmployeeData)
 
             if (userEmployeeData.photoProfile.isNotEmpty()) {
                 Glide.with(root.context)
@@ -933,31 +934,17 @@ class SwitchCapsterFragment : DialogFragment() {
         }
     }
 
-    private fun setUserRole(role: String) {
+    private fun setUserRole(userEmployeeData: UserEmployeeData) {
         with (binding) {
-            tvRole.text = role
-            when (role) {
-                "Supervisor" -> {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_text_wa))
-                }
-                "Capster" -> {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
-                }
-                "Kasir" -> {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
-                }
-                "Keamanan" -> {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
-                }
-                "Admin" -> {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
-                }
-                else -> {
-                    tvRole.setTextColor(root.context.resources.getColor(R.color.dark_black_gradation))
-                }
+            tvRole.text = userEmployeeData.role
+            val hexColor = userEmployeeData.roleDetail?.hexColor
+            val colorStr = if (!hexColor.isNullOrEmpty()) hexColor else "#FF8FD14F"
+            try {
+                tvRole.setTextColor(colorStr.toColorInt())
+            } catch (e: Exception) {
+                tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
             }
         }
-
     }
 
     override fun onResume() {

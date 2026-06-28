@@ -2,6 +2,17 @@
 
 Log ini mencatat seluruh aktivitas pengembangan dan keputusan teknis penting.
 
+## [2026-06-27] - Implementasi Adapter & Shimmer Perubahan Bundling
+### 🛠️ Aktivitas
+- Membuat data class `BundlingChangeInfo.kt` untuk menyimpan detail data perubahan harga paket bundling (sebelum dan sesudah) ketika suatu produk/layanan dihapus.
+- Membuat layout XML shimmer `shimmer_layout_list_bundling_change.xml` yang sesuai secara presisi dengan layout `item_list_bundling_change_adapter.xml` menggunakan placeholder drawable kustom.
+- Membuat adapter RecyclerView kustom `ItemListBundlingChangeAdapter.kt` dengan dukungan dual-state (shimmer loading & item rendering), marquee/scroll teks otomatis, dan format perbedaan harga ribuan (`K`).
+- Memverifikasi keberhasilan kompilasi seluruh proyek menggunakan gradlew compileDebugKotlin.
+
+### 📝 Keputusan Teknis
+- Menggunakan `ListAdapter` dengan `DiffUtil` kustom untuk efisiensi pembaruan list data.
+- Menggunakan view binding `ShimmerLayoutListBundlingChangeBinding` dan `ItemListBundlingChangeAdapterBinding` agar kode lebih aman dari NullPointerException.
+
 ## [2026-06-22] - Perbaikan Bug & Error Kompilasi di Halaman ManageEmployeePage
 ### 🛠️ Aktivitas
 - Memperbaiki kesalahan kompilasi `qwerty` di dalam `ManageEmployeePage.kt` pada method `onChildDraw` dan `navigatePage`.

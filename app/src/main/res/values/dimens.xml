@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?><!-- dimens.xml -->
 <resources>
-    <dimen name="recycler_height_large_queue_board">427dp</dimen>
-    <dimen name="recycler_height_large_reset_board">250dp</dimen>
+    <dimen name="recycler_height_large_queue_board">431dp</dimen>
+    <dimen name="recycler_height_large_reset_board">253dp</dimen>
+    <dimen name="recycler_height_large_bundle_change">210dp</dimen>
     <dimen name="start_corner_radius">26dp</dimen>
 
     <dimen name="activity_horizontal_margin">16dp</dimen>

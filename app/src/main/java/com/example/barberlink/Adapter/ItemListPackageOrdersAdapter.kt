@@ -138,9 +138,9 @@ class ItemListPackageOrdersAdapter(
                 tvDescription.text = packageBundling.packageDesc
                 tvRating.text = packageBundling.packageRating.toString()
                 tvHargaPaket.text = if (capsterRef.isEmpty()) {
-                    NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
+                    if (packageBundling.packagePrice == 0) "GRATIS" else NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
                 } else {
-                    NumberUtils.numberToCurrency(packageBundling.priceToDisplay.toDouble())
+                    if (packageBundling.priceToDisplay == 0) "GRATIS" else NumberUtils.numberToCurrency(packageBundling.priceToDisplay.toDouble())
                 }
 
                 btnSelectOrder.visibility = if (packageBundling.bundlingQuantity == 0 && !packageBundling.defaultItem) View.VISIBLE else View.GONE

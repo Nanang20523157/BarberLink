@@ -6,119 +6,116 @@ import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
 import android.view.GestureDetector
+import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
-import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.barberlink.Adapter.ItemListBundlingChangeAdapter
 import com.example.barberlink.Adapter.ItemListQueueResetAdapter
-import com.example.barberlink.DataClass.Outlet
-import com.example.barberlink.DataClass.UserEmployeeData
+import com.example.barberlink.DataClass.BundlingChangeInfo
 import com.example.barberlink.Helper.ScopedUniversalDebounce
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
+import com.example.barberlink.UserInterface.Admin.ManageBundlingPage
+import com.example.barberlink.UserInterface.Admin.ManageEmployeePage
+import com.example.barberlink.UserInterface.Admin.ManageOutletPage
+import com.example.barberlink.UserInterface.Admin.ManageProductPage
+import com.example.barberlink.UserInterface.Admin.ManageServicePage
+import com.example.barberlink.UserInterface.Admin.ViewModel.ConfirmDeleteViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.ManageBundlingViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.ManageEmployeeViewModel
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.ManageProductViewModel
+import com.example.barberlink.UserInterface.Admin.ViewModel.ManageServiceViewModel
+import androidx.core.text.HtmlCompat
+import com.example.barberlink.databinding.FragmentConfirmDeleteItemBinding
 import com.example.barberlink.databinding.FragmentResetQueueBoardBinding
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.getValue
 
+// NTODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
 private const val ARG_PARAM1 = "param1"
 private const val ARG_PARAM2 = "param2"
 
 /**
  * A simple [Fragment] subclass.
- * Use the [ResetQueueBoardFragment.newInstance] factory method to
+ * Use the [ConfirmDeleteItemFragment.newInstance] factory method to
  * create an instance of this fragment.
  */
-class ResetQueueBoardFragment : DialogFragment() {
-    private var _binding: FragmentResetQueueBoardBinding? = null
-    private val resetQueueViewModel: ManageOutletViewModel by activityViewModels()
+class ConfirmDeleteItemFragment : DialogFragment() {
+    // NTODO: Rename and change types of parameters
+    private var _binding: FragmentConfirmDeleteItemBinding? = null
+
+    private val parentFragmentViewModel: ConfirmDeleteViewModel by lazy {
+        when (requireActivity()) {
+            is ManageOutletPage -> activityViewModels<ManageOutletViewModel>().value
+            is ManageBundlingPage -> activityViewModels<ManageBundlingViewModel>().value
+            is ManageProductPage -> activityViewModels<ManageProductViewModel>().value
+            is ManageEmployeePage -> activityViewModels<ManageEmployeeViewModel>().value
+            is ManageServicePage -> activityViewModels<ManageServiceViewModel>().value
+            else -> throw IllegalStateException("Fragment ini gagal dibuka di ${requireActivity().javaClass.simpleName}")
+        }
+    }
     private val debounce by lazy { ScopedUniversalDebounce() }
     private lateinit var context: Context
-    //private var capsterList: ArrayList<Employee>? = null
-    private lateinit var currentQueue: Map<String, String>
-    //private var outlet: Outlet? = null
-    private lateinit var queueAdapter: ItemListQueueResetAdapter
+    private lateinit var bundleAdapter: ItemListBundlingChangeAdapter
     private var lifecycleListener: DefaultLifecycleObserver? = null
+    private var isConfirmDelete: Boolean = false
     private var isFirstLoad: Boolean = true
+    private var isHandled = false
 
     private val binding get() = _binding!!
-    private var param1: String? = null
-    private var param2: String? = null
 
-//    private lateinit var sessionDelegate: FragmentSessionDelegate
-
-//    override fun onAttach(context: Context) {
-//        super.onAttach(context)
-//        sessionDelegate = FragmentSessionDelegate(context)
-//    }
+    private var title: String? = null
+    private var subtitle: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        resetQueueViewModel
-//        arguments?.let {
-//            capsterList = it.getParcelableArrayList(ARG_PARAM1)
-//            outlet = it.getParcelable(ARG_PARAM2)
-//        }
-        if (savedInstanceState != null) isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
+        parentFragmentViewModel
+        arguments?.let {
+            title = it.getString(ARG_PARAM1)
+            subtitle = it.getString(ARG_PARAM2)
+        }
+        if (savedInstanceState != null) {
+            isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
+            isHandled = savedInstanceState.getBoolean("is_handled", false)
+            isConfirmDelete = savedInstanceState.getBoolean("is_confirm_delete", false)
+        }
 
         context = requireContext()
     }
-
-//    override fun onStart() {
-//        BarberLinkApp.sessionManager.setActivePage("Admin")
-//        super.onStart()
-//        sessionDelegate.checkSession {
-//            handleSessionExpired()
-//        }
-//    }
-
-//    private fun handleSessionExpired() {
-//        dismiss()
-//        parentFragmentManager.popBackStack()
-//
-//        sessionDelegate.handleSessionExpired(context, SelectUserRolePage::class.java)
-//    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         // Inflate the layout for this fragment
-        _binding = FragmentResetQueueBoardBinding.inflate(inflater, container, false)
+        _binding = FragmentConfirmDeleteItemBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        queueAdapter = ItemListQueueResetAdapter()
-        binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
-        binding.rvListQueue.adapter = queueAdapter
-        if (isFirstLoad) queueAdapter.setShimmer(true)
-        else queueAdapter.setShimmer(false)
+        binding.tvTitle.text = title
+        binding.tvSubtitle.text = HtmlCompat.fromHtml(subtitle ?: "", HtmlCompat.FROM_HTML_MODE_LEGACY)
+        bundleAdapter = ItemListBundlingChangeAdapter()
+        binding.rvListBundling.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
+        binding.rvListBundling.adapter = bundleAdapter
 
-        resetQueueViewModel.outletSelected.observe(viewLifecycleOwner) { outlet ->
-            outlet?.let {
-                // Ambil currentQueue dari outlet
-                currentQueue = it.currentQueue?.toList() // Ubah ke List<Pair<K, V>>
-                    ?.sortedBy { (_, value) -> value.toIntOrNull() } // Urutkan berdasarkan nilai (value) sebagai Int
-                    ?.toMap() // Kembalikan ke Map
-                    ?: emptyMap() // Jika null, gunakan Map kosong
-
-                // Set currentQueue ke adapter
-                queueAdapter.setCurrentQueue(currentQueue)
-                if (!isFirstLoad) queueAdapter.notifyDataSetChanged()
-            }
-        }
+        binding.rvListBundling.visibility = if (parentFragmentViewModel.bundleChangeList.value?.isEmpty() == true) View.GONE else View.VISIBLE
+        if (isFirstLoad) bundleAdapter.setShimmer(true)
+        else bundleAdapter.setShimmer(false)
 
         // Panggil fungsi pertama kali
         updateMargins()
@@ -142,11 +139,11 @@ class ResetQueueBoardFragment : DialogFragment() {
                     return false  // Jangan lanjutkan dismiss
                 }
 
-                Log.d("ListQueueBoardFragment", "Background scrim clicked")
-                setFragmentResult("action_result_user", bundleOf(
-                    "switch_non_active" to false,
-                    "dismiss_dialog" to true
-                ))
+                Log.d("ConfirmDeleteItemFragment", "Background scrim clicked")
+//                setFragmentResult("action_dismiss_dialog", bundleOf(
+//                    "dismiss_dialog" to true
+//                ))
+                isConfirmDelete = false
 
                 dismiss()
                 parentFragmentManager.popBackStack()
@@ -165,71 +162,55 @@ class ResetQueueBoardFragment : DialogFragment() {
             }
         }
 
-        resetQueueViewModel.capsterList.observe(viewLifecycleOwner) { capsterList ->
+        parentFragmentViewModel.bundleChangeList.observe(viewLifecycleOwner) { bundleChangeList ->
             // Menggunakan coroutine untuk menunda eksekusi submitList
-            val layoutParams = binding.rvListQueue.layoutParams
-            layoutParams.height = if (capsterList.size > 3) {
-                resources.getDimensionPixelSize(R.dimen.recycler_height_large_reset_board) // 315dp dalam pixels
-            } else {
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            }
-            binding.rvListQueue.layoutParams = layoutParams
-
             lifecycleScope.launch {
                 // Hitung mundur 800 ms
                 if (isFirstLoad) delay(500)
 
-                // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
-                val sortedKeys = currentQueue
-                    .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
-                    .keys
-                    .toList()
-
-                // Urutkan capsterList berdasarkan urutan di sortedKeys
-                val sortedCapsterList = capsterList
-                    .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
-                    .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
-
-                // Tambahkan capsterList yang tidak ada di currentQueue
-                val remainingCapsters = capsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
-
-                // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
-                val finalCapsterList = sortedCapsterList + remainingCapsters
-
                 // Submit data ke adapter setelah delay
-                queueAdapter.submitList(finalCapsterList)
+                bundleAdapter.submitList(bundleChangeList)
 
                 // Matikan shimmer setelah data di-submit
                 if (isFirstLoad) {
-                    queueAdapter.setShimmer(false)
+                    bundleAdapter.setShimmer(false)
                     isFirstLoad = false
                 } else {
-                    queueAdapter.notifyDataSetChanged()
+                    bundleAdapter.notifyDataSetChanged()
                 }
+
+                val layoutParams = binding.rvListBundling.layoutParams
+                layoutParams.height = if (bundleChangeList.size > 3) {
+                    resources.getDimensionPixelSize(R.dimen.recycler_height_large_bundle_change) // 315dp dalam pixels
+                } else {
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                }
+                binding.rvListBundling.layoutParams = layoutParams
             }
         }
 
-        binding.btnYes.setOnClickListener {
+        binding.btnDelete.setOnClickListener {
             if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
             // hmmmmm
             checkNetworkConnection {
-                setFragmentResult("action_result_user", bundleOf(
-                    "switch_non_active" to true,
-                    "dismiss_dialog" to true
-                ))
+//                setFragmentResult("action_delete_user", bundleOf(
+//                    "confirm_delete" to true,
+//                    "dismiss_dialog" to true
+//                ))
+                isConfirmDelete = true
 
                 dismiss()
                 parentFragmentManager.popBackStack()
             }
         }
 
-        binding.btnNo.setOnClickListener {
+        binding.btnCancel.setOnClickListener {
             if (!debounce.run { it.isSafeClick() }) return@setOnClickListener
             // hmmmmm
-            setFragmentResult("action_result_user", bundleOf(
-                "switch_non_active" to false,
-                "dismiss_dialog" to true
-            ))
+//            setFragmentResult("action_dismiss_dialog", bundleOf(
+//                "dismiss_dialog" to true
+//            ))
+            isConfirmDelete = false
 
             dismiss()
             parentFragmentManager.popBackStack()
@@ -240,6 +221,8 @@ class ResetQueueBoardFragment : DialogFragment() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_first_load", isFirstLoad)
+        outState.putBoolean("is_handled", isHandled)
+        outState.putBoolean("is_confirm_delete", isConfirmDelete)
     }
 
     private fun checkNetworkConnection(runningThisProcess: () -> Unit) {
@@ -253,16 +236,30 @@ class ResetQueueBoardFragment : DialogFragment() {
         }
     }
 
+    private fun handleDismissAction() {
+        if (isHandled) {
+            Log.d("TagDismiss", "onDismiss: Already handled")
+            return
+        }
+
+        setFragmentResult("action_delete_user", bundleOf(
+            "confirm_delete" to isConfirmDelete,
+            "dismiss_dialog" to true
+        ))
+        isHandled = true
+        Log.d("TagDismiss", "onDismiss: 94")
+    }
+
     private fun isTouchOnForm(event: MotionEvent): Boolean {
         val location = IntArray(2)
-        binding.cdResetQueueBoard.getLocationOnScreen(location)
-        val rect = Rect(location[0], location[1], location[0] + binding.cdResetQueueBoard.width, location[1] + binding.cdResetQueueBoard.height)
+        binding.cdConfirmDelete.getLocationOnScreen(location)
+        val rect = Rect(location[0], location[1], location[0] + binding.cdConfirmDelete.width, location[1] + binding.cdConfirmDelete.height)
 
         return rect.contains(event.rawX.toInt(), event.rawY.toInt())
     }
 
     private fun updateMargins() {
-        val params = binding.cdResetQueueBoard.layoutParams as ViewGroup.MarginLayoutParams
+        val params = binding.cdConfirmDelete.layoutParams as ViewGroup.MarginLayoutParams
         val orientation = resources.configuration.orientation
 
         if (orientation == Configuration.ORIENTATION_PORTRAIT) {
@@ -275,7 +272,7 @@ class ResetQueueBoardFragment : DialogFragment() {
             Log.d("FormulirBon", "updateMargins: LANDSCAPE")
         }
 
-        binding.cdResetQueueBoard.layoutParams = params
+        binding.cdConfirmDelete.layoutParams = params
     }
 
     // Konversi dari dp ke pixel
@@ -285,7 +282,7 @@ class ResetQueueBoardFragment : DialogFragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        if (::queueAdapter.isInitialized) queueAdapter.stopAllShimmerEffects()
+        if (::bundleAdapter.isInitialized) bundleAdapter.stopAllShimmerEffects()
         _binding = null
 
         lifecycleListener?.let {
@@ -295,7 +292,7 @@ class ResetQueueBoardFragment : DialogFragment() {
         if (requireActivity().isChangingConfigurations) {
             return // Jangan hapus data jika hanya orientasi yang berubah
         }
-        resetQueueViewModel.clearFragmentData()
+        handleDismissAction()
     }
 
     companion object {
@@ -305,18 +302,17 @@ class ResetQueueBoardFragment : DialogFragment() {
          *
          * @param param1 Parameter 1.
          * @param param2 Parameter 2.
-         * @return A new instance of fragment ResetQueueBoardFragment.
+         * @return A new instance of fragment ConfirmDeleteItemFragment.
          */
+        // NTODO: Rename and change types and number of parameters
         @JvmStatic
-        fun newInstance(capsterList: ArrayList<UserEmployeeData>, outlet: Outlet) =
-            ResetQueueBoardFragment().apply {
+        fun newInstance(title: String, subtitle: String) =
+            ConfirmDeleteItemFragment().apply {
                 arguments = Bundle().apply {
-                    putParcelableArrayList(ARG_PARAM1, capsterList)
-                    putParcelable(ARG_PARAM2, outlet)
+                    putString(ARG_PARAM1, title)
+                    putString(ARG_PARAM2, subtitle)
                 }
             }
 
-        @JvmStatic
-        fun newInstance() = ResetQueueBoardFragment()
     }
 }

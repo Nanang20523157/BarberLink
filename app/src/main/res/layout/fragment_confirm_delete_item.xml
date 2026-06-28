@@ -9,7 +9,7 @@
     android:clipChildren="false"
     android:orientation="vertical">
 
-<!--    <androidx.core.widget.NestedScrollView-->
+    <!--    <androidx.core.widget.NestedScrollView-->
     <com.example.barberlink.CustomView.CustomNestedScrollView
         android:id="@+id/nvBackgroundScrim"
         android:layout_width="match_parent"
@@ -19,12 +19,12 @@
         android:focusable="true">
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cdResetQueueBoard"
+            android:id="@+id/cdConfirmDelete"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardBackgroundColor="@color/white"
             android:layout_gravity="center"
-            app:cardCornerRadius="30dp"
+            app:cardCornerRadius="28dp"
             android:layout_marginHorizontal="20dp">
 
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -33,41 +33,53 @@
                 android:orientation="vertical"
                 android:paddingHorizontal="40dp">
 
+                <ImageView
+                    android:layout_width="57dp"
+                    android:layout_height="57dp"
+                    android:padding="12dp"
+                    android:layout_marginTop="50dp"
+                    android:layout_gravity="center"
+                    app:tint="@color/magenta"
+                    android:src="@drawable/ic_rubbish_bin"
+                    android:background="@drawable/bg_icon_circle_magenta"
+                    android:contentDescription="@string/image_question_icon_desc" />
+
                 <TextView
-                    android:id="@+id/tvQuestion"
+                    android:id="@+id/tvTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/label_reset_queue_board"
-                    android:layout_marginTop="50dp"
+                    android:text="Hapus Item"
+                    android:layout_marginTop="17dp"
                     android:layout_marginHorizontal="5dp"
                     android:textAppearance="@style/TextAppearance.AppCompat.Large"
                     android:fontFamily="@font/arial_bold"
-                    android:textSize="19.5sp"
+                    android:textSize="20sp"
                     android:gravity="center"
                     android:layout_gravity="center_horizontal" />
 
                 <TextView
-                    android:id="@+id/tvMessage"
+                    android:id="@+id/tvSubtitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/content_message_reset_current_queue"
-                    android:layout_marginTop="1dp"
+                    android:text="Apakah Anda yakin ingin menghapus produk %1$s? Tindakan ini tidak dapat dibatalkan."
+                    android:layout_marginTop="4dp"
                     android:layout_marginHorizontal="20dp"
+                    android:layout_marginBottom="5dp"
                     android:fontFamily="@font/arial_medium"
-                    android:textSize="11.5sp"
+                    android:textSize="12sp"
                     android:gravity="center"
                     android:layout_gravity="center_horizontal" />
 
                 <!-- RecyclerView -->
                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvListQueue"
+                    android:id="@+id/rvListBundling"
                     android:layout_width="match_parent"
-                    android:layout_height="253dp"
+                    android:layout_height="wrap_content"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginTop="12dp"
-                    tools:itemCount="4"
+                    tools:itemCount="1"
                     android:visibility="visible"
-                    tools:listitem="@layout/item_list_queue_reset_adapter"
+                    tools:listitem="@layout/item_list_bundling_change_adapter"
                     android:orientation="vertical"
                     android:scrollbars="vertical"
                     app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
@@ -77,33 +89,35 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="18dp"
-                    android:layout_marginBottom="50dp"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="45dp"
                     android:gravity="center_horizontal">
 
                     <Button
-                        android:id="@+id/btnYes"
+                        android:id="@+id/btnDelete"
                         android:layout_width="0dp"
-                        android:layout_height="43dp"
+                        android:layout_height="44dp"
                         android:layout_weight="1"
                         android:layout_marginStart="8dp"
                         android:layout_marginEnd="10dp"
-                        android:textColor="@color/white"
-                        android:text="@string/btn_yes"
+                        android:textColor="@color/magenta"
+                        android:textStyle="bold"
+                        android:text="Hapus"
                         android:textSize="12sp"
-                        android:backgroundTint="@color/green_btn"
+                        android:backgroundTint="@color/black"
                         style="?android:attr/buttonBarButtonStyle" />
 
                     <Button
-                        android:id="@+id/btnNo"
+                        android:id="@+id/btnCancel"
                         android:layout_width="0dp"
-                        android:layout_height="43dp"
+                        android:layout_height="44dp"
                         android:layout_weight="1"
-                        android:text="@string/btn_no"
-                        android:textColor="@color/white"
+                        android:textStyle="bold"
+                        android:text="Batal"
+                        android:textColor="@color/orange_role"
                         android:textSize="12sp"
                         android:layout_marginEnd="8dp"
-                        android:backgroundTint="@color/magenta"
+                        android:backgroundTint="@color/black"
                         android:layout_marginStart="10dp"
                         style="?android:attr/buttonBarButtonStyle" />
                 </LinearLayout>

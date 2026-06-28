@@ -27,13 +27,14 @@ import com.google.firebase.storage.FirebaseStorage
 import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
 class ManageOutletViewModel(
     private val db: FirebaseFirestore,
     private val storage: FirebaseStorage
-) : ViewModel() {
+) : ConfirmDeleteViewModel() {
 
     val outletListMutex = ReentrantCoroutineMutex()
     val employeeListMutex = ReentrantCoroutineMutex()
@@ -65,6 +66,8 @@ class ManageOutletViewModel(
         data class Failure(val type: String, val message: String,  val index: Int, val oldCode: String = ""): ResultState()
     }
 
+    private var targetDeleteData: Outlet? = null
+
     private val _outletList = MutableLiveData<MutableList<Outlet>>().apply { value = mutableListOf() }
     val outletList: LiveData<MutableList<Outlet>> = _outletList
 
@@ -88,9 +91,6 @@ class ManageOutletViewModel(
     private val _capsterList = MutableLiveData<List<UserEmployeeData>>(emptyList())
     val capsterList: LiveData<List<UserEmployeeData>> = _capsterList
 
-    private val _updateStateResult = MutableLiveData<ResultState?>()
-    val updateStateResult: LiveData<ResultState?> = _updateStateResult
-
     private val _serviceList = MutableLiveData<List<Service>>().apply { value = emptyList() }
     val serviceList: LiveData<List<Service>> = _serviceList
 
@@ -105,6 +105,21 @@ class ManageOutletViewModel(
     val allEmployeeList: LiveData<List<UserEmployeeData>> = _allEmployeeList
 
     private var defaultCode: String = ""
+
+    private val _updateStateResult = MutableLiveData<ResultState?>()
+    val updateStateResult: LiveData<ResultState?> = _updateStateResult
+
+    fun getTargetDeleteData(): Outlet? {
+        return runBlocking {
+            targetDeleteData
+        }
+    }
+
+    fun setTargetDeleteData(data: Outlet?) {
+        viewModelScope.launch {
+            targetDeleteData = data
+        }
+    }
 
     fun setDefaultCode(code: String) {
         defaultCode = code
@@ -268,17 +283,30 @@ class ManageOutletViewModel(
                     }
                 }
 
-                val task = withContext(Dispatchers.IO) {
-                    docsRef.delete().awaitWriteWithOfflineFallback(tag = "DeleteOutlet")
+                val affectedEmployees = (_allEmployeeList.value ?: emptyList())
+                    .filter { outlet.uid in it.uidListPlacement }
+
+                // 2. Run transaction for Firestore changes
+                withContext(Dispatchers.IO) {
+                    db.runTransaction { transaction ->
+                        // Hapus uid outlet dari uidListPlacement semua employee yang terdampak
+                        for (employee in affectedEmployees) {
+                            val employeeRef = if (employee.userRef.isNotEmpty()) {
+                                db.document(employee.userRef)
+                            } else {
+                                db.document("${employee.rootRef}/employees/${employee.uid}")
+                            }
+
+                            val newPlacements = employee.uidListPlacement.filter { it != outlet.uid }
+                            transaction.update(employeeRef, "uid_list_placement", newPlacements)
+                        }
+
+                        // Hapus dokumen outlet
+                        transaction.delete(docsRef)
+                    }.await()
                 }
 
-                if (task.isSuccessful) {
-                    if (task.displayMessage) _updateStateResult.value = ResultState.Success("Delete", task.errorMessage.toString())
-                    else _updateStateResult.value = ResultState.Success("Delete", "Outlet \"${outlet.outletName}\" berhasil dihapus.")
-                } else {
-                    if (task.displayMessage) _updateStateResult.value = ResultState.Failure("Delete", task.errorMessage.toString(), -1)
-                    else _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus outlet!", -1)
-                }
+                _updateStateResult.value = ResultState.Success("Delete", "Outlet \"${outlet.outletName}\" berhasil dihapus.")
             } catch (e: Exception) {
                 Logger.e("DeleteOutlet", "❌ Error: ${e.message}")
                 _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus outlet!", -1)

@@ -142,7 +142,7 @@ class ItemListPackageBookingAdapter(
                 tvPackageTitle.text = packageBundling.packageName
                 tvDescription.text = packageBundling.packageDesc
                 tvRating.text = packageBundling.packageRating.toString()
-                tvHargaPaket.text = NumberUtils.numberToCurrency(packageBundling.priceToDisplay.toDouble())
+                tvHargaPaket.text = if (packageBundling.priceToDisplay == 0) "GRATIS" else NumberUtils.numberToCurrency(packageBundling.priceToDisplay.toDouble())
 
                 btnSelectOrder.visibility = if (packageBundling.bundlingQuantity == 0 && !packageBundling.defaultItem) View.VISIBLE else View.GONE
                 btnCardCounter.visibility = if (packageBundling.bundlingQuantity > 0 && !packageBundling.defaultItem) View.VISIBLE else View.GONE

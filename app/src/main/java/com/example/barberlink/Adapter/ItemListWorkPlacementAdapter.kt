@@ -79,6 +79,19 @@ class ItemListWorkPlacementAdapter(
         notifyDataSetChanged()
     }
 
+    /**
+     * Submit list dan paksa re-bind semua item agar badge nomor urut
+     * selalu sinkron dengan posisi setelah ada item yang dihapus/ditambah.
+     */
+    fun submitListAndRefreshBadge(list: List<Outlet>) {
+        submitList(list) {
+            // Callback ini dipanggil setelah DiffUtil selesai dan list sudah teraplikasi.
+            // notifyItemRangeChanged memaksa onBindViewHolder dipanggil ulang
+            // untuk semua item sehingga badge number selalu sesuai posisi terkini.
+            notifyItemRangeChanged(0, itemCount)
+        }
+    }
+
     inner class ShimmerViewHolder(private val binding: ShimmerLayoutWorkPlacementBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind() {
             shimmerViewList.add(binding.shimmerViewContainer)
@@ -95,11 +108,14 @@ class ItemListWorkPlacementAdapter(
         fun bind(outlet: Outlet, position: Int) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
+            // Gunakan position dari parameter (sudah di-pass dari onBindViewHolder)
+            // agar badge selalu sesuai posisi list terkini.
             binding.badgeNumber.text = (position + 1).toString()
             binding.outletName.text = outlet.outletName
             // Hide the delete button when in VIEW mode
             binding.closeButton.visibility = if (isEditable) View.VISIBLE else View.GONE
             binding.closeButton.setOnClickListener {
+                // Ambil posisi terbaru saat klik terjadi (bukan saat bind)
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     onOutletRemoved(pos)

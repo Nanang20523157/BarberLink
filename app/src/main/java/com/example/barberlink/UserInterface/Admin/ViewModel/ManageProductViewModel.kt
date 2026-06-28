@@ -16,14 +16,18 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import com.example.barberlink.DataClass.DataCategories
+import com.example.barberlink.DataClass.Outlet
+import kotlinx.coroutines.runBlocking
 
 class ManageProductViewModel(
     private val db: FirebaseFirestore,
     private val storage: FirebaseStorage
-) : ViewModel() {
+) : ConfirmDeleteViewModel() {
 
     val productsMutex = ReentrantCoroutineMutex()
+    val outletListMutex = ReentrantCoroutineMutex()
     val listenerProductListMutex = ReentrantCoroutineMutex()
+    val listenerOutletListMutex = ReentrantCoroutineMutex()
 
     private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
         withContext(Dispatchers.Main) { value = newValue }
@@ -37,6 +41,8 @@ class ManageProductViewModel(
         data class Failure(val type: String, val message: String, val index: Int, val oldCode: String = ""): ResultState()
     }
 
+    private var targetDeleteData: Product? = null
+
     private val _productList = MutableLiveData<MutableList<Product>>().apply { value = mutableListOf() }
     val productList: LiveData<MutableList<Product>> = _productList
 
@@ -46,8 +52,23 @@ class ManageProductViewModel(
     private val _userAdminData = MutableLiveData<UserAdminData>()
     val userAdminData: LiveData<UserAdminData> = _userAdminData
 
+    private val _outletList = MutableLiveData<List<Outlet>>(emptyList())
+    val outletList: LiveData<List<Outlet>> get() = _outletList
+
     private val _updateStateResult = MutableLiveData<ResultState?>()
     val updateStateResult: LiveData<ResultState?> = _updateStateResult
+
+    fun getTargetDeleteData(): Product? {
+        return runBlocking {
+            targetDeleteData
+        }
+    }
+
+    fun setTargetDeleteData(data: Product?) {
+        viewModelScope.launch {
+            targetDeleteData = data
+        }
+    }
 
     fun setUpdateStateResult(value: ResultState?) {
         viewModelScope.launch {
@@ -58,6 +79,12 @@ class ManageProductViewModel(
     fun setProductList(productList: MutableList<Product>) {
         viewModelScope.launch {
             _productList.value = productList
+        }
+    }
+
+    fun setOutletList(list: List<Outlet>) {
+        viewModelScope.launch {
+            _outletList.value = list
         }
     }
 
@@ -88,7 +115,6 @@ class ManageProductViewModel(
                     .collection("products")
                     .document(product.uid)
 
-                // Delete product image from Storage if it exists
                 if (product.imgProduct.isNotEmpty()) {
                     try {
                         val imageRef = storage.getReferenceFromUrl(product.imgProduct)
@@ -99,17 +125,25 @@ class ManageProductViewModel(
                     }
                 }
 
-                val task = withContext(Dispatchers.IO) {
-                    productRef.delete().awaitWriteWithOfflineFallback(tag = "DeleteProduct")
+                val outlets = _outletList.value ?: emptyList()
+                val outletsToUpdate = outlets.filter { outlet ->
+                    outlet.listProducts.contains(product.uid)
                 }
 
-                if (task.isSuccessful) {
-                    if (task.displayMessage) _updateStateResult.value = ResultState.Success("Delete", task.errorMessage.toString())
-                    else _updateStateResult.value = ResultState.Success("Delete", "Produk \"${product.productName}\" berhasil dihapus.")
-                } else {
-                    if (task.displayMessage) _updateStateResult.value = ResultState.Failure("Delete", task.errorMessage.toString(), -1)
-                    else _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus produk!", -1)
+                withContext(Dispatchers.IO) {
+                    db.runTransaction { transaction ->
+                        transaction.delete(productRef)
+
+                        // Update outlets
+                        for (outlet in outletsToUpdate) {
+                            val ref = db.document(outlet.outletReference)
+                            val newListProducts = outlet.listProducts.filter { it != product.uid }
+                            transaction.update(ref, "list_products", newListProducts)
+                        }
+                    }.await()
                 }
+
+                _updateStateResult.value = ResultState.Success("Delete", "Produk \"${product.productName}\" berhasil dihapus.")
             } catch (e: Exception) {
                 Logger.e("DeleteProduct", "❌ Error: ${e.message}")
                 _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus produk!", -1)

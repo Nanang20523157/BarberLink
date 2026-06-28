@@ -17,6 +17,7 @@ import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListPickUserAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutPickUserCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import androidx.core.graphics.toColorInt
 
 class ItemListPickUserAdapter(
     private val itemClicked: OnItemClicked
@@ -134,7 +135,7 @@ class ItemListPickUserAdapter(
 
                 Log.d("Gender", "Gender: ${userEmployeeData.gender}")
                 setUserGender(userEmployeeData.gender)
-                setUserRole(userEmployeeData.role)
+                setUserRole(userEmployeeData)
 
                 Glide.with(root.context).clear(ivPhotoProfile)
                 if (userEmployeeData.photoProfile.isNotEmpty()) {
@@ -268,28 +269,17 @@ class ItemListPickUserAdapter(
             }
         }
 
-        private fun setUserRole(role: String) {
+        private fun setUserRole(userEmployeeData: UserEmployeeData) {
             with (binding) {
-                tvRole.text = role
-                when (role) {
-                    "Supervisor" -> {
-                        tvRole.setTextColor(root.context.resources.getColor(R.color.green_text_wa))
-                    }
-                    "Capster" -> {
-                        tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
-                    }
-                    "Kasir" -> {
-                        tvRole.setTextColor(root.context.resources.getColor(R.color.yellow))
-                    }
-                    "Keamanan" -> {
-                        tvRole.setTextColor(root.context.resources.getColor(R.color.orange_role))
-                    }
-                    "Admin" -> {
-                        tvRole.setTextColor(root.context.resources.getColor(R.color.magenta))
-                    }
+                tvRole.text = userEmployeeData.role
+                val hexColor = userEmployeeData.roleDetail?.hexColor
+                val colorStr = if (!hexColor.isNullOrEmpty()) hexColor else "#FF8FD14F"
+                try {
+                    tvRole.setTextColor(colorStr.toColorInt())
+                } catch (e: Exception) {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
                 }
             }
-
         }
 
     }

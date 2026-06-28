@@ -14,6 +14,7 @@ import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemEmployeeSelectAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutEmployeeSelectBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import androidx.core.graphics.toColorInt
 
 class ItemListEmployeeSelectAdapter(
     private val onItemToggled: (employee: UserEmployeeData, isSelected: Boolean) -> Unit,
@@ -87,6 +88,13 @@ class ItemListEmployeeSelectAdapter(
                 tvEmployeeName.text = employee.fullname
                 tvUsername.text = root.context.getString(R.string.username_template, employee.username)
                 tvRole.text = employee.role.ifEmpty { employee.role }
+                val hexColor = employee.roleDetail?.hexColor
+                val colorStr = if (!hexColor.isNullOrEmpty()) hexColor else "#FF8FD14F"
+                try {
+                    tvRole.setTextColor(colorStr.toColorInt())
+                } catch (e: Exception) {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
+                }
                 tvRating.text = employee.employeeRating.toString()
                 tvReviewsAmount.text = root.context.getString(
                     R.string.number_of_reviews_placeholder

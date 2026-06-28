@@ -15,13 +15,12 @@ import com.example.barberlink.databinding.ItemListQueueResetAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListQueueResetBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListQueueResetAdapter(
-    private val shimmerItemCount: Int
-) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
+class ItemListQueueResetAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
 
     private var isShimmer = true
     private var recyclerView: RecyclerView? = null
+    private val shimmerItemCount = 3
     private var lastScrollPosition = 0
     private lateinit var currentQueue: Map<String, String>
 

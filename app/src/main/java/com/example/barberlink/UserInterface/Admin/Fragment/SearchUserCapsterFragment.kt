@@ -16,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.toColorInt
 import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.activityViewModels
@@ -113,7 +114,7 @@ class SearchUserCapsterFragment : DialogFragment() {
                 }
 
                 Log.d("ListQueueBoardFragment", "Background scrim clicked")
-                setFragmentResult("action_result_user", bundleOf(
+                setFragmentResult("action_dissmis_dialog", bundleOf(
                     "dismiss_dialog" to true
                 ))
 
@@ -223,6 +224,7 @@ class SearchUserCapsterFragment : DialogFragment() {
             startActivity(intent)
             requireActivity().overridePendingTransition(R.anim.slide_maximize_in_right, R.anim.slide_minimize_out_left)
             dismiss()
+            parentFragmentManager.popBackStack()
         }
 
         if (savedInstanceState != null) {
@@ -348,6 +350,13 @@ class SearchUserCapsterFragment : DialogFragment() {
                 tvEmployeeName.text = employee.fullname
                 tvUsername.text = "@${employee.username}"
                 tvRole.text = employee.role.ifEmpty { "    ???    " }
+                val hexColor = employee.roleDetail?.hexColor
+                val colorStr = if (!hexColor.isNullOrEmpty()) hexColor else "#FF8FD14F"
+                try {
+                    tvRole.setTextColor(colorStr.toColorInt())
+                } catch (e: Exception) {
+                    tvRole.setTextColor(resources.getColor(R.color.green_lime_wf))
+                }
 
                 // Set Gender
                 val mappedGender = when {

@@ -94,7 +94,7 @@ class AddEmployeeFormActivity : BaseActivity(), View.OnClickListener {
         listOf(
             EmployeeRolesData(
                 barbershopRef = "All",
-                jobDesc = "Trainee adalah individu yang sedang dalam tahap pelatihan dan pengembangan intensif untuk menguasai seni penataan serta perawatan gaya rambut. Di bawah bimbingan dan pengawasan langsung dari Capster senior atau Supervisor, mereka fokus untuk mengasah keterampilan teknis pangkas rambut, memahami standar pelayanan terbaik, serta mempelajari cara menciptakan pengalaman pelanggan yang memuaskan sebelum akhirnya memegang tanggung jawab penuh sebagai seorang Capster.",
+                jobDesc = "Trainee adalah individu yang sedang dalam tahap pelatihan dan pengembangan intensif untuk menguasai seni penataan serta perawatan gaya rambut. Di bawah bimbingan dan pengawasan langsung dari Capster senior atau Supervisi, mereka fokus untuk mengasah keterampilan teknis pangkas rambut, memahami standar pelayanan terbaik, serta mempelajari cara menciptakan pengalaman pelanggan yang memuaskan sebelum akhirnya memegang tanggung jawab penuh sebagai seorang Capster.",
                 permissions = mapOf(
                     "approval_bon" to false,
                     "beranda_admin" to false,
@@ -1396,11 +1396,11 @@ class AddEmployeeFormActivity : BaseActivity(), View.OnClickListener {
         if (selectedOutlets.isEmpty()) {
             binding.llEmptyWorkPlacement.visibility = View.VISIBLE
             binding.rvWorkPlacement.visibility = View.GONE
-            workPlacementAdapter.submitList(emptyList())
+            workPlacementAdapter.submitListAndRefreshBadge(emptyList())
         } else {
             binding.llEmptyWorkPlacement.visibility = View.GONE
             binding.rvWorkPlacement.visibility = View.VISIBLE
-            workPlacementAdapter.submitList(selectedOutlets)
+            workPlacementAdapter.submitListAndRefreshBadge(selectedOutlets)
         }
     }
 
@@ -1507,10 +1507,7 @@ class AddEmployeeFormActivity : BaseActivity(), View.OnClickListener {
                     lifecycleScope.launch {
                         addEmployeeViewModel.listenerEmployeeMutex.withStateLock {
                             exception?.let {
-                                toastViewModel.showToast(
-                                    "Error listening to employee data: ${it.message}",
-                                    false
-                                )
+                                toastViewModel.showToast("Error listening to employee data: ${it.message}", false)
                                 if (!decrementGlobalListener) {
                                     if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                                     decrementGlobalListener = true
@@ -1521,25 +1518,20 @@ class AddEmployeeFormActivity : BaseActivity(), View.OnClickListener {
                                 if (!isFirstLoad && !skippedProcess) {
                                     withContext(Dispatchers.Default) {
                                         addEmployeeViewModel.employeeListMutex.withStateLock {
-                                             val employeeList = docs.mapNotNull { document ->
-                                                 document.toObject(UserEmployeeData::class.java)
-                                                     .apply {
-                                                         userRef = document.reference.path
-                                                         outletRef = ""
-                                                         val dataRoles = addEmployeeViewModel.rolesList.value?.find {
-                                                                 it.roleName == role
-                                                             }
-                                                         safeSetRoleDetail(this, dataRoles)
-                                                     }
-                                             }
-
+                                            val employeeList = docs.mapNotNull { document ->
+                                                document.toObject(UserEmployeeData::class.java).apply {
+                                                    userRef = document.reference.path
+                                                    outletRef = ""
+                                                    val dataRoles = addEmployeeViewModel.rolesList.value?.find {
+                                                        it.roleName == role
+                                                    }
+                                                    safeSetRoleDetail(this, dataRoles)
+                                                }
+                                            }
                                             addEmployeeViewModel.setEmployeeList(employeeList)
                                         }
                                     }
                                 }
-                                addEmployeeViewModel.setEmployeeList(docs.mapNotNull { document ->
-                                    document.toObject(UserEmployeeData::class.java)
-                                })
                             }
                         }
 
@@ -1833,14 +1825,14 @@ class AddEmployeeFormActivity : BaseActivity(), View.OnClickListener {
                     setFocus(etPhoneNumber)
                     false
                 }
-                role.isEmpty() -> {
-                    acEmployeeRoles.error = "Role pegawai tidak boleh kosong"
-                    setFocus(acEmployeeRoles)
-                    false
-                }
                 gender.isEmpty() -> {
                     genderDropdown.error = "Jenis kelamin tidak boleh kosong"
                     setFocus(genderDropdown)
+                    false
+                }
+                role.isEmpty() -> {
+                    acEmployeeRoles.error = "Role pegawai tidak boleh kosong"
+                    setFocus(acEmployeeRoles)
                     false
                 }
                 rawSalaryText.isEmpty() -> {

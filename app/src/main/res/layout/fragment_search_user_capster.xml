@@ -35,7 +35,7 @@
                 app:cardCornerRadius="30dp"
                 android:layout_marginTop="30dp"
                 android:layout_marginBottom="30dp"
-                android:layout_marginHorizontal="25dp">
+                android:layout_marginHorizontal="10dp">
 
                 <androidx.appcompat.widget.LinearLayoutCompat
                     android:layout_width="match_parent"
@@ -306,6 +306,7 @@
                             <TextView
                                 android:id="@+id/tvRole"
                                 android:layout_width="wrap_content"
+                                android:minWidth="110dp"
                                 android:layout_height="30dp"
                                 android:text=""
                                 tools:text="    ???    "

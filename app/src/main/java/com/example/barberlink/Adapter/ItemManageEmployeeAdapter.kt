@@ -22,6 +22,7 @@ import com.example.barberlink.R
 import com.example.barberlink.databinding.ItemListManageEmployeeAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutManageEmployeeCardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
+import androidx.core.graphics.toColorInt
 
 class ItemManageEmployeeAdapter(
     private val navigatePage: OnNavigationPage,
@@ -140,7 +141,7 @@ class ItemManageEmployeeAdapter(
     inner class EmployeeViewHolder(private val binding: ItemListManageEmployeeAdapterBinding)
         : RecyclerView.ViewHolder(binding.root) {
 
-        @SuppressLint("SetTextI18n", "DefaultLocale")
+        @SuppressLint("SetTextI18n", "DefaultLocale", "UseKtx")
         fun bind(employee: UserEmployeeData) {
             if (shimmerViewList.isNotEmpty()) shimmerViewList.clear()
 
@@ -148,6 +149,14 @@ class ItemManageEmployeeAdapter(
                 tvEmployeeName.text = employee.fullname
                 tvUsername.text = "@${employee.username}"
                 tvRole.text = employee.role
+                val hexColor = employee.roleDetail?.hexColor
+                Log.d("EmployeeAdapter", "Role: ${employee.role}, HexColor: $hexColor")
+                val colorStr = if (!hexColor.isNullOrEmpty()) hexColor else "#FF8FD14F"
+                try {
+                    tvRole.setTextColor(colorStr.toColorInt())
+                } catch (e: Exception) {
+                    tvRole.setTextColor(root.context.resources.getColor(R.color.green_lime_wf))
+                }
 
                 // Set Gender using helper logic
                 val mappedGender = when {

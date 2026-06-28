@@ -70,6 +70,7 @@ class QueueSuccessFragment : DialogFragment() {
             previousStatus = it.getString(ARG_PARAM4)
             message = it.getString(ARG_PARAM5)
         }
+        if (savedInstanceState != null) isHandled = savedInstanceState.getBoolean("is_handled", false)
 
         context = requireContext()
     }
@@ -157,6 +158,11 @@ class QueueSuccessFragment : DialogFragment() {
                 false
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_handled", isHandled)
     }
 
     private fun checkNetworkConnection(runningThisProcess: () -> Unit) {

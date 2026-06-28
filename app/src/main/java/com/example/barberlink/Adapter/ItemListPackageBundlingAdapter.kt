@@ -134,7 +134,7 @@ class ItemListPackageBundlingAdapter(
                 tvPackageTitle.text = packageBundling.packageName
                 tvDescription.text = packageBundling.packageDesc
                 tvRating.text = packageBundling.packageRating.toString()
-                tvHargaPaket.text = NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
+                tvHargaPaket.text = if (packageBundling.packagePrice == 0) "GRATIS" else NumberUtils.numberToCurrency(packageBundling.packagePrice.toDouble())
 
                 btnShowServiceDetail.setOnClickListener {
                     if (!debounce.run { it.isSafeClick() }) return@setOnClickListener

@@ -134,6 +134,12 @@
         <argument
             android:name="categoryList"
             app:argType="com.example.barberlink.DataClass.DataCategories[]" />
+        <argument
+            android:name="bundlingList"
+            app:argType="com.example.barberlink.DataClass.BundlingPackage[]" />
+        <argument
+            android:name="outletList"
+            app:argType="com.example.barberlink.DataClass.Outlet[]" />
     </activity>
 
     <activity
@@ -150,6 +156,9 @@
         <argument
             android:name="serviceList"
             app:argType="com.example.barberlink.DataClass.Service[]" />
+        <argument
+            android:name="outletList"
+            app:argType="com.example.barberlink.DataClass.Outlet[]" />
     </activity>
 
     <activity
@@ -166,6 +175,9 @@
         <argument
             android:name="categoryList"
             app:argType="com.example.barberlink.DataClass.DataCategories[]" />
+        <argument
+            android:name="outletList"
+            app:argType="com.example.barberlink.DataClass.Outlet[]" />
     </activity>
 
     <activity
@@ -185,6 +197,15 @@
         <argument
             android:name="outletList"
             app:argType="com.example.barberlink.DataClass.Outlet[]" />
+        <argument
+            android:name="serviceList"
+            app:argType="com.example.barberlink.DataClass.Service[]" />
+        <argument
+            android:name="productList"
+            app:argType="com.example.barberlink.DataClass.Product[]" />
+        <argument
+            android:name="bundlingList"
+            app:argType="com.example.barberlink.DataClass.BundlingPackage[]" />
     </activity>
 
 </navigation>

@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/shimmerViewContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:shimmer_auto_start="true"
+    app:shimmer_base_alpha="0.7"
+    app:shimmer_direction="left_to_right"
+    app:shimmer_duration="500"
+    app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+    app:shimmer_repeat_delay="500"
+    app:shimmer_shape="linear"
+    app:shimmer_tilt="0">
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="4dp"
+        app:cardCornerRadius="15dp"
+        app:cardElevation="0.5dp"
+        android:layout_gravity="center_horizontal"
+        android:backgroundTint="@color/light_grey_horizons_background"
+        android:layout_marginTop="2dp"
+        android:layout_marginBottom="3dp">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="17dp"
+            android:paddingTop="13dp"
+            android:paddingEnd="17dp"
+            android:paddingBottom="13dp">
+
+            <!-- Left Container: Number Badge + Text -->
+            <LinearLayout
+                android:id="@+id/top_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:orientation="horizontal">
+
+                <!-- Number Badge Background -->
+                <FrameLayout
+                    android:id="@+id/badge_background"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:background="@drawable/shimmer_circle_shape"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="8dp" />
+
+                <!-- Outlet Name -->
+                <View
+                    android:id="@+id/bundling_name"
+                    android:layout_width="0dp"
+                    android:layout_height="18dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginEnd="8dp"/>
+
+                <!-- Price Change Badge -->
+                <View
+                    android:id="@+id/minus_price"
+                    android:layout_width="48dp"
+                    android:layout_height="22dp"
+                    android:background="@drawable/shimmer_corner_empat_dp_300"
+                    android:layout_gravity="center_vertical" />
+
+            </LinearLayout>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="10dp"
+                app:cardElevation="0.5dp"
+                android:backgroundTint="@color/light_grey_horizons_background"
+                android:layout_marginTop="4dp"
+                android:layout_below="@id/top_container"
+                android:layout_marginBottom="4dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+
+                    <View
+                        android:id="@+id/tvPriceBefore"
+                        android:layout_width="0dp"
+                        android:layout_height="16dp"
+                        android:layout_weight="1"
+                        android:layout_marginHorizontal="20dp"
+                        android:layout_marginVertical="14dp"
+                        android:background="@drawable/shimmer_corner_empat_dp_300"
+                        android:layout_gravity="center_vertical"/>
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cvArrowIncrease"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        app:strokeWidth="2dp"
+                        app:strokeColor="@color/grey_300"
+                        app:cardBackgroundColor="@color/light_grey_horizons_background"
+                        app:cardCornerRadius="50dp"
+                        android:layout_gravity="center_vertical"
+                        app:cardElevation="5dp">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:padding="3dp"
+                            app:tint="@color/grey_300"
+                            android:src="@drawable/ic_arrow_of_change"
+                            android:contentDescription="@null"/>
+
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <View
+                        android:id="@+id/tvPriceAfter"
+                        android:layout_width="0dp"
+                        android:layout_height="16dp"
+                        android:layout_weight="1"
+                        android:layout_marginHorizontal="20dp"
+                        android:layout_marginVertical="14dp"
+                        android:background="@drawable/shimmer_corner_empat_dp_300"
+                        android:layout_gravity="center_vertical"/>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+        </RelativeLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</com.facebook.shimmer.ShimmerFrameLayout>

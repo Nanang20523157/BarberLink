@@ -32,7 +32,9 @@ import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.Fragment.ConfirmDeleteItemFragment
 import com.example.barberlink.UserInterface.Admin.Fragment.ResetQueueBoardFragment
+import com.example.barberlink.UserInterface.Admin.Fragment.SearchUserCapsterFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageOutletViewModel
 import com.example.barberlink.UserInterface.BaseActivity
 import com.example.barberlink.UserInterface.SignIn.Gateway.SelectUserRolePage
@@ -237,6 +239,18 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             outletAdapter.setEmployeeList(employeeList)
         }
 
+        supportFragmentManager.setFragmentResultListener("action_delete_user", this) { _, bundle ->
+            val isConfirmDelete = bundle.getBoolean("confirm_delete", false)
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            manageOutletViewModel.getTargetDeleteData()?.let { outlet ->
+                if (isConfirmDelete) {
+                    manageOutletViewModel.deleteOutlet(outlet)
+                }
+            }
+        }
+
         supportFragmentManager.setFragmentResultListener("action_result_user", this) { _, bundle ->
             val isSwitchInActive = bundle.getBoolean("switch_non_active", false)
             val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
@@ -331,6 +345,7 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.4f
             override fun isItemViewSwipeEnabled(): Boolean = !outletAdapter.isShimmerMode()
 
+            @RequiresApi(Build.VERSION_CODES.S)
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 Log.d("SwipeDelete", "onSwiped triggered at position: ${viewHolder.bindingAdapterPosition}")
                 val pos = viewHolder.bindingAdapterPosition
@@ -348,14 +363,17 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
                     outletAdapter.notifyItemChanged(pos)
                 }
 
-                android.app.AlertDialog.Builder(this@ManageOutletPage)
-                    .setTitle("Hapus Outlet")
-                    .setMessage("Apakah Anda yakin ingin menghapus outlet \"${outlet.outletName}\"? Tindakan ini tidak dapat dibatalkan.")
-                    .setPositiveButton("Hapus") { _, _ ->
-                        manageOutletViewModel.deleteOutlet(outlet)
-                    }
-                    .setNegativeButton("Batal", null)
-                    .show()
+                manageOutletViewModel.setTargetDeleteData(outlet)
+                manageOutletViewModel.setBundleChangeList(emptyList())
+                showConfirmDeleteDialog(outlet)
+//                android.app.AlertDialog.Builder(this@ManageOutletPage)
+//                    .setTitle("Hapus Outlet")
+//                    .setMessage("Apakah Anda yakin ingin menghapus outlet \"${outlet.outletName}\"? Tindakan ini tidak dapat dibatalkan.")
+//                    .setPositiveButton("Hapus") { _, _ ->
+//                        manageOutletViewModel.deleteOutlet(outlet)
+//                    }
+//                    .setNegativeButton("Batal", null)
+//                    .show()
             }
 
             override fun onChildDraw(
@@ -870,6 +888,37 @@ class ManageOutletPage : BaseActivity(), View.OnClickListener, ItemManageOutletA
             transaction
                 .add(android.R.id.content, dialogFragment, "ResetQueueBoardFragment")
                 .addToBackStack("ResetQueueBoardFragment")
+                .commit()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun showConfirmDeleteDialog(outlet: Outlet) {
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        shouldClearBackStack = false
+        if (supportFragmentManager.findFragmentByTag("ConfirmDeleteDialogFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
+//        dialogFragment = ConfirmDeleteDialogFragment.newInstance(capsterList as ArrayList<Employee>, outletSelected)
+        dialogFragment = ConfirmDeleteItemFragment.newInstance("Hapus Outlet", "Apakah Anda yakin ingin menghapus outlet <b>\"${outlet.outletName}\"</b>? Tindakan ini tidak dapat dibatalkan.")
+        // The device is smaller, so show the fragment fullscreen.
+        val transaction = fragmentManager.beginTransaction()
+        // For a polished look, specify a transition animation.
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
+        // To make it fullscreen, use the 'content' root view as the container
+        // for the fragment, which is always the root view for the activity.
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "ConfirmDeleteDialogFragment")
+                .addToBackStack("ConfirmDeleteDialogFragment")
                 .commit()
         }
     }

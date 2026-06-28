@@ -697,7 +697,17 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                                 it.roleName == this.role
                                             }
                                         }
-                                    } else document.toObject(dataClass)
+                                    } else {
+                                        val obj = document.toObject(dataClass)
+                                        if (obj is Service) {
+                                            obj.dataRef = document.reference.path
+                                        } else if (obj is Product) {
+                                            obj.dataRef = document.reference.path
+                                        } else if (obj is BundlingPackage) {
+                                            obj.dataRef = document.reference.path
+                                        }
+                                        obj
+                                    }
                                 }
                                 // Use the corresponding mutex for each list
                                 val mutex = when (dataClass) {
@@ -1134,6 +1144,19 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         it.roleName == this.role
                                     }
                                 } as T
+
+                                Service::class.java -> (obj as Service).apply {
+                                    dataRef = document.reference.path
+                                } as T
+
+                                Product::class.java -> (obj as Product).apply {
+                                    dataRef = document.reference.path
+                                } as T
+
+                                BundlingPackage::class.java -> (obj as BundlingPackage).apply {
+                                    dataRef = document.reference.path
+                                } as T
+
                                 else -> obj as T
                             }
                         }
@@ -1368,6 +1391,8 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         putParcelableArray("serviceList", (berandaAdminViewModel.servicesList.value ?: emptyList()).toTypedArray())
                                         putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
                                         putParcelableArray("categoryList", (berandaAdminViewModel.serviceCategoryList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("bundlingList", (berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
                                     }
                                     navController.navigate(R.id.action_nav_beranda_to_manageServicePage, bundle)
                                 }
@@ -1385,6 +1410,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         putParcelableArray("productList", (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray())
                                         putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
                                         putParcelableArray("categoryList", (berandaAdminViewModel.productCategoryList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
                                     }
                                     navController.navigate(R.id.action_nav_beranda_to_manageProductPage, bundle)
                                 }
@@ -1403,6 +1429,9 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         putParcelableArray("employeeRoles", (berandaAdminViewModel.employeeRolesList.value ?: emptyList()).toTypedArray())
                                         putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
                                         putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("serviceList", (berandaAdminViewModel.servicesList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("productList", (berandaAdminViewModel.productList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("bundlingList", (berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()).toTypedArray())
                                     }
                                     navController.navigate(R.id.action_nav_beranda_to_manageEmployeePage, bundle)
                                 }
@@ -1420,6 +1449,7 @@ class BerandaAdminFragment : Fragment(), View.OnClickListener,
                                         putParcelableArray("bundlingList", (berandaAdminViewModel.bundlingPackagesList.value ?: emptyList()).toTypedArray())
                                         putParcelable("userAdminData", berandaAdminViewModel.userAdminData.value ?: UserAdminData())
                                         putParcelableArray("serviceList", (berandaAdminViewModel.servicesList.value ?: emptyList()).toTypedArray())
+                                        putParcelableArray("outletList", (berandaAdminViewModel.outletList.value ?: emptyList()).toTypedArray())
                                     }
                                     navController.navigate(R.id.action_nav_beranda_to_manageBundlingPage, bundle)
                                 }

@@ -16,6 +16,7 @@ import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.DataClass.ServiceIcon
 import com.example.barberlink.UserInterface.Capster.ViewModel.InputFragmentViewModel
 import com.example.barberlink.Utils.Logger
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -187,6 +188,9 @@ class AddServiceViewModel(
                     currentService.serviceImg = downloadUrl.toString()
                 }
 
+                val db = FirebaseFirestore.getInstance()
+                val serviceRef = db.collection("barbershops").document(bId).collection("services").document(currentService.uid)
+
                 val result = if (isAddMode) {
                     repository.createService(bId, currentService)
                 } else {
@@ -194,7 +198,10 @@ class AddServiceViewModel(
                 }
 
                 _isSaving.value = false
-                if (result.isSuccessful) clearPendingImageUri()
+                if (result.isSuccessful) {
+                    clearPendingImageUri()
+                    currentService.dataRef = serviceRef.path
+                }
                 if (isAddMode && result.isSuccessful) _serviceList.value = _serviceList.value.orEmpty() + currentService
                 else if (result.isSuccessful) {
                     _serviceList.value = _serviceList.value.orEmpty().map { if (it.uid == currentService.uid) currentService else it }

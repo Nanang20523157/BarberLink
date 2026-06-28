@@ -7,22 +7,27 @@ import androidx.lifecycle.viewModelScope
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
+import com.example.barberlink.DataClass.Outlet
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Logger
 import com.example.barberlink.Utils.awaitWriteWithOfflineFallback
+import kotlinx.coroutines.tasks.await
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 class ManageBundlingViewModel(
     private val db: FirebaseFirestore,
     private val storage: FirebaseStorage
-) : ViewModel() {
+) : ConfirmDeleteViewModel() {
 
     val bundlingMutex = ReentrantCoroutineMutex()
+    val outletListMutex = ReentrantCoroutineMutex()
     val listenerBundlingListMutex = ReentrantCoroutineMutex()
+    val listenerOutletListMutex = ReentrantCoroutineMutex()
 
     private suspend fun <T> MutableLiveData<T>.updateOnMain(newValue: T) =
         withContext(Dispatchers.Main) { value = newValue }
@@ -36,21 +41,44 @@ class ManageBundlingViewModel(
         data class Failure(val type: String, val message: String, val index: Int): ResultState()
     }
 
+    private var targetDeleteData: BundlingPackage? = null
+
     private val _bundlingList = MutableLiveData<MutableList<BundlingPackage>>().apply { value = mutableListOf() }
     val bundlingList: LiveData<MutableList<BundlingPackage>> = _bundlingList
 
     private val _userAdminData = MutableLiveData<UserAdminData>()
     val userAdminData: LiveData<UserAdminData> = _userAdminData
 
+    private val _allServices = MutableLiveData<List<Service>>(emptyList())
+    val allServices: LiveData<List<Service>> get() = _allServices
+
+    private val _outletList = MutableLiveData<List<Outlet>>(emptyList())
+    val outletList: LiveData<List<Outlet>> get() = _outletList
+
     private val _updateStateResult = MutableLiveData<ResultState?>()
     val updateStateResult: LiveData<ResultState?> = _updateStateResult
 
-    private val _allServices = MutableLiveData<List<Service>>(emptyList())
-    val allServices: LiveData<List<Service>> get() = _allServices
+    fun getTargetDeleteData(): BundlingPackage? {
+        return runBlocking {
+            targetDeleteData
+        }
+    }
+
+    fun setTargetDeleteData(data: BundlingPackage?) {
+        viewModelScope.launch {
+            targetDeleteData = data
+        }
+    }
 
     fun setAllServices(services: List<Service>) {
         viewModelScope.launch {
             _allServices.value = services
+        }
+    }
+
+    fun setOutletList(list: List<Outlet>) {
+        viewModelScope.launch {
+            _outletList.value = list
         }
     }
 
@@ -77,18 +105,29 @@ class ManageBundlingViewModel(
             try {
                 _updateStateResult.value = ResultState.Loading
 
-                // Delete from Firestore
-                val result = db.document(bundling.rootRef)
+                val bundlingRef = db.document(bundling.rootRef)
                     .collection("bundling_packages")
                     .document(bundling.uid)
-                    .delete()
-                    .awaitWriteWithOfflineFallback(tag = "DeleteBundling")
 
-                if (result.isSuccessful) {
-                    _updateStateResult.value = ResultState.Success("Delete", "Paket bundling \"${bundling.packageName}\" berhasil dihapus.")
-                } else {
-                    _updateStateResult.value = ResultState.Failure("Delete", result.errorMessage ?: "Gagal menghapus bundling!", -1)
+                val outlets = _outletList.value ?: emptyList()
+                val outletsToUpdate = outlets.filter { outlet ->
+                    outlet.listBundling.contains(bundling.uid)
                 }
+
+                withContext(Dispatchers.IO) {
+                    db.runTransaction { transaction ->
+                        transaction.delete(bundlingRef)
+
+                        // Update outlets
+                        for (outlet in outletsToUpdate) {
+                            val ref = db.document(outlet.outletReference)
+                            val newListBundling = outlet.listBundling.filter { it != bundling.uid }
+                            transaction.update(ref, "list_bundling", newListBundling)
+                        }
+                    }.await()
+                }
+
+                _updateStateResult.value = ResultState.Success("Delete", "Paket bundling \"${bundling.packageName}\" berhasil dihapus.")
             } catch (e: Exception) {
                 Logger.e("DeleteBundling", "❌ Error: ${e.message}")
                 _updateStateResult.value = ResultState.Failure("Delete", "Gagal menghapus bundling!", -1)

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- 20% Opacity of Green Button (#0CA789) -->
+    <solid android:color="#330CA789" />
+    <corners android:radius="4dp" />
+</shape>

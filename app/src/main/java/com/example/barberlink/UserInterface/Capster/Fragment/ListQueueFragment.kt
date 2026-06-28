@@ -80,6 +80,8 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 //            reservations = it.getParcelableArrayList(ARG_PARAM1)
 //            currentIndex = it.getInt(ARG_PARAM2)
 //        }
+        if (savedInstanceState != null) isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
+
 
         context = requireContext()
     }
@@ -119,7 +121,8 @@ class ListQueueFragment : BottomSheetDialogFragment() {
 
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
-        queueAdapter.setShimmer(true)
+        if (isFirstLoad) queueAdapter.setShimmer(true)
+        else queueAdapter.setShimmer(false)
 
         binding.ivBack.setOnClickListener {
             dismiss() // Close the dialog when ivBack is clicked
@@ -166,6 +169,11 @@ class ListQueueFragment : BottomSheetDialogFragment() {
                 }
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_first_load", isFirstLoad)
     }
 
     private fun setupBottomSheetCorners() {

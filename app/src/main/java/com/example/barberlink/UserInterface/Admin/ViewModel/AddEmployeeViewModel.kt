@@ -19,8 +19,11 @@ import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
 import com.example.barberlink.Utils.Concurrency.withStateLock
 import com.google.firebase.Timestamp
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
 import kotlin.collections.map
 import kotlin.collections.orEmpty
@@ -231,14 +234,73 @@ class AddEmployeeViewModel(
                     currentEmployee.photoProfile = downloadUrl.toString()
                 }
 
-                val result = if (isAddMode) {
-                    repository.createEmployee(bId, currentEmployee)
-                } else {
-                    repository.updateEmployee(bId, currentEmployee)
+                val db = FirebaseFirestore.getInstance()
+                val employeeRef = db.collection("employees").document(currentEmployee.uid)
+                if (isAddMode) {
+                    currentEmployee.rootRef = "barbershops/$bId"
                 }
 
+                withContext(Dispatchers.IO) {
+                    db.runTransaction { transaction ->
+                        val outletsToClean = mutableSetOf<String>()
+                        val outletsToAdd = mutableSetOf<String>()
+
+                        if (!isAddMode) {
+                            val oldEmployee = originalEmployee.value
+                            if (oldEmployee != null) {
+                                val oldPlacements = oldEmployee.uidListPlacement.toSet()
+                                val newPlacements = currentEmployee.uidListPlacement.toSet()
+                                outletsToClean.addAll(oldPlacements - newPlacements)
+                                outletsToAdd.addAll(newPlacements - oldPlacements)
+                            } else {
+                                outletsToAdd.addAll(currentEmployee.uidListPlacement)
+                            }
+                        } else {
+                            outletsToAdd.addAll(currentEmployee.uidListPlacement)
+                        }
+
+                        // Write/Update employee document
+                        transaction.set(employeeRef, currentEmployee)
+
+                        // 1. Process outlets to remove employee from
+                        for (outletId in outletsToClean) {
+                            val outlet = _outletList.value?.find { it.uid == outletId }
+                            if (outlet != null) {
+                                val outletRef = db.document(outlet.outletReference)
+                                val newListEmployees = outlet.listEmployees.filter { it != currentEmployee.uid }
+                                val newQueue = outlet.currentQueue?.toMutableMap()?.apply { remove(currentEmployee.uid) } ?: emptyMap()
+                                transaction.update(outletRef, mapOf(
+                                    "list_employees" to newListEmployees,
+                                    "current_queue" to newQueue
+                                ))
+                            }
+                        }
+
+                        // 2. Process outlets to add employee to
+                        for (outletId in outletsToAdd) {
+                            val outlet = _outletList.value?.find { it.uid == outletId }
+                            if (outlet != null) {
+                                val outletRef = db.document(outlet.outletReference)
+                                val newListEmployees = (outlet.listEmployees + currentEmployee.uid).distinct()
+                                val newQueue = (outlet.currentQueue ?: emptyMap()).toMutableMap().apply {
+                                    put(currentEmployee.uid, "00")
+                                }
+                                transaction.update(outletRef, mapOf(
+                                    "list_employees" to newListEmployees,
+                                    "current_queue" to newQueue
+                                ))
+                            }
+                        }
+                    }.await()
+                }
+
+                val result = FirestoreResult<Unit>(isSuccessful = true)
+
                 _isSaving.value = false
-                if (result.isSuccessful) clearPendingPhotoUri()
+                if (result.isSuccessful) {
+                    clearPendingPhotoUri()
+                    currentEmployee.userRef = employeeRef.path
+                }
                 if (isAddMode && result.isSuccessful) _employeeList.value = _employeeList.value.orEmpty() + currentEmployee
                 else if (result.isSuccessful) {
                     _employeeList.value = _employeeList.value.orEmpty().map { if (it.uid == currentEmployee.uid) currentEmployee else it }

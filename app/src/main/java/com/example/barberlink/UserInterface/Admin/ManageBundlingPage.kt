@@ -12,12 +12,15 @@ import android.view.animation.AnimationUtils
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
+import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.example.barberlink.Adapter.ItemManageBundlingAdapter
+import com.example.barberlink.Contract.NavigationCallback
 import com.example.barberlink.DataClass.BundlingPackage
 import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
@@ -29,6 +32,7 @@ import com.example.barberlink.Manager.VegaLayoutManager
 import com.example.barberlink.Network.NetworkMonitor
 import com.example.barberlink.R
 import com.example.barberlink.ToastViewModel
+import com.example.barberlink.UserInterface.Admin.Fragment.ConfirmDeleteItemFragment
 import com.example.barberlink.UserInterface.Admin.Fragment.DetailServiceListFragment
 import com.example.barberlink.UserInterface.Admin.ViewModel.ManageBundlingViewModel
 import com.example.barberlink.UserInterface.BaseActivity
@@ -54,6 +58,8 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
     }
     private val toastViewModel: ToastViewModel by viewModels()
     private lateinit var bundlingAdapter: ItemManageBundlingAdapter
+    private lateinit var fragmentManager: FragmentManager
+    private lateinit var dialogFragment: DialogFragment
     private lateinit var vegaLayoutManager: VegaLayoutManager
     private val debounce by lazy { ScopedUniversalDebounce() }
 
@@ -63,15 +69,20 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
     private var isNavigating = false
+    private var shouldClearBackStack: Boolean = true
     private var isRecreated: Boolean = false
     private var isHandlingBack: Boolean = false
 
     private lateinit var bundlingListener: ListenerRegistration
-    private var remainingListeners = AtomicInteger(1)
+    private lateinit var outletListener: ListenerRegistration
+    private var remainingListeners = AtomicInteger(2)
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
-        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+        val backStackCount = savedInstanceState?.getInt("back_stack_count", 0) ?: 0
+        if (backStackCount == 0) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = true)
+        else StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = true)
+        shouldClearBackStack = savedInstanceState?.getBoolean("should_clear_backstack", true) ?: true
 
         super.onCreate(savedInstanceState)
         binding = ActivityManageBundlingPageBinding.inflate(layoutInflater)
@@ -112,6 +123,15 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
 
         manageBundlingViewModel
         toastViewModel
+        fragmentManager = supportFragmentManager
+        setNavigationCallback(object : NavigationCallback {
+            override fun navigate() {
+                // Implementasi navigasi spesifik untuk MainActivity
+//                val intent = Intent(this@MainActivity, SelectUserRoleActivity::class.java)
+//                startActivity(intent)
+                Log.d("UserInteraction", this@ManageBundlingPage::class.java.simpleName)
+            }
+        })
 
         if (savedInstanceState != null) {
             barbershopId = savedInstanceState.getString("barbershop_id") ?: ""
@@ -137,6 +157,9 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
                 }
             }
             manageBundlingViewModel.setBundlingList(bundlingList)
+
+            val outletList = args.outletList.toList()
+            manageBundlingViewModel.setOutletList(outletList)
         }
 
         init(savedInstanceState)
@@ -180,6 +203,18 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
             if (!isFirstLoad) binding.tvEmptyBundling.visibility = if (bundlingList.isEmpty()) View.VISIBLE else View.GONE
         }
 
+        supportFragmentManager.setFragmentResultListener("action_delete_user", this) { _, bundle ->
+            val isConfirmDelete = bundle.getBoolean("confirm_delete", false)
+            val isDismissDialog = bundle.getBoolean("dismiss_dialog", false)
+            if (isDismissDialog) StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = true, statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF), addStatusBar = false)
+
+            manageBundlingViewModel.getTargetDeleteData()?.let { bundling ->
+                if (isConfirmDelete) {
+                    manageBundlingViewModel.deleteBundling(bundling)
+                }
+            }
+        }
+
         onBackPressedDispatcher.addCallback(this) {
             handleCustomBack()
         }
@@ -200,6 +235,9 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("is_recreated", true)
+        outState.putBoolean("should_clear_backstack", shouldClearBackStack)
+        outState.putInt("back_stack_count", supportFragmentManager.backStackEntryCount)
+
         outState.putString("barbershop_id", barbershopId)
         outState.putBoolean("is_first_load", isFirstLoad)
         outState.putBoolean("skipped_process", skippedProcess)
@@ -225,6 +263,7 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
             override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder) = 0.4f
             override fun isItemViewSwipeEnabled(): Boolean = !bundlingAdapter.isShimmerMode()
 
+            @RequiresApi(Build.VERSION_CODES.S)
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val pos = viewHolder.bindingAdapterPosition
                 if (pos == RecyclerView.NO_ID.toInt()) return
@@ -238,14 +277,17 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
                     bundlingAdapter.notifyItemChanged(pos)
                 }
 
-                android.app.AlertDialog.Builder(this@ManageBundlingPage)
-                    .setTitle("Hapus Paket")
-                    .setMessage("Apakah Anda yakin ingin menghapus paket bundling \"${bundling.packageName}\"? Tindakan ini tidak dapat dibatalkan.")
-                    .setPositiveButton("Hapus") { _, _ ->
-                        manageBundlingViewModel.deleteBundling(bundling)
-                    }
-                    .setNegativeButton("Batal", null)
-                    .show()
+                manageBundlingViewModel.setTargetDeleteData(bundling)
+                manageBundlingViewModel.setBundleChangeList(emptyList())
+                showConfirmDeleteDialog(bundling)
+//                android.app.AlertDialog.Builder(this@ManageBundlingPage)
+//                    .setTitle("Hapus Paket")
+//                    .setMessage("Apakah Anda yakin ingin menghapus paket bundling \"${bundling.packageName}\"? Tindakan ini tidak dapat dibatalkan.")
+//                    .setPositiveButton("Hapus") { _, _ ->
+//                        manageBundlingViewModel.deleteBundling(bundling)
+//                    }
+//                    .setNegativeButton("Batal", null)
+//                    .show()
             }
 
             override fun onChildDraw(
@@ -411,8 +453,9 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
 
     private fun setupListeners(skippedProcess: Boolean = false) {
         this.skippedProcess = skippedProcess
-        if (skippedProcess) remainingListeners.set(1)
+        if (skippedProcess) remainingListeners.set(2)
         listenToBundlingList()
+        listenToOutletList()
 
         lifecycleScope.launch {
             while (remainingListeners.get() > 0) {
@@ -455,12 +498,65 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
                                     lifecycleScope.launch(Dispatchers.Default) {
                                         val newBundlingList = docs.mapNotNull { document ->
                                             document.toObject(BundlingPackage::class.java).apply {
-                                                uid = document.id
+                                                dataRef = document.reference.path
                                             }
                                         }
 
                                         manageBundlingViewModel.bundlingMutex.withStateLock {
                                             manageBundlingViewModel.updateBundlingList(newBundlingList.toMutableList())
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (!decrementGlobalListener) {
+                                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                decrementGlobalListener = true
+                            }
+                        }
+                    }
+                }
+        }
+    }
+
+    private fun listenToOutletList() {
+        barbershopId.let { bId ->
+            if (::outletListener.isInitialized) {
+                outletListener.remove()
+            }
+
+            if (bId.isEmpty()) {
+                outletListener = db.collection("fake").addSnapshotListener { _, _ -> }
+                if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                return@let
+            }
+            var decrementGlobalListener = false
+
+            outletListener = db.collection("barbershops")
+                .document(barbershopId)
+                .collection("outlets")
+                .addSnapshotListener { documents, exception ->
+                    lifecycleScope.launch {
+                        manageBundlingViewModel.listenerOutletListMutex.withStateLock {
+                            exception?.let {
+                                toastViewModel.showToast("Error listening to outlets data: ${exception.message}", false)
+                                if (!decrementGlobalListener) {
+                                    if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
+                                    decrementGlobalListener = true
+                                }
+                                return@withStateLock
+                            }
+                            documents?.let { docs ->
+                                if (!isFirstLoad && !skippedProcess) {
+                                    lifecycleScope.launch(Dispatchers.Default) {
+                                        val newOutletList = docs.mapNotNull { document ->
+                                            document.toObject(com.example.barberlink.DataClass.Outlet::class.java).apply {
+                                                outletReference = document.reference.path
+                                            }
+                                        }
+
+                                        manageBundlingViewModel.outletListMutex.withStateLock {
+                                            manageBundlingViewModel.setOutletList(newOutletList)
                                         }
                                     }
                                 }
@@ -505,6 +601,37 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
+    private fun showConfirmDeleteDialog(bundling: BundlingPackage) {
+        StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(this, lightStatusBar = false, statusBarColor = Color.TRANSPARENT, addStatusBar = false)
+        shouldClearBackStack = false
+        if (supportFragmentManager.findFragmentByTag("ConfirmDeleteDialogFragment") != null) {
+            // Jika dialog dengan tag "CapitalInputFragment" sudah ada, jangan tampilkan lagi.
+            return
+        }
+//        dialogFragment = ConfirmDeleteDialogFragment.newInstance(capsterList as ArrayList<Employee>, outletSelected)
+        dialogFragment = ConfirmDeleteItemFragment.newInstance("Hapus Paket", "Apakah Anda yakin ingin menghapus paket bundling <b>\"${bundling.packageName}\"</b>? Tindakan ini tidak dapat dibatalkan.")
+        // The device is smaller, so show the fragment fullscreen.
+        val transaction = fragmentManager.beginTransaction()
+        // For a polished look, specify a transition animation.
+//        transaction.setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+        transaction.setCustomAnimations(
+            R.anim.fade_in_dialog,  // Animasi masuk
+            R.anim.fade_out_dialog,  // Animasi keluar
+            R.anim.fade_in_dialog,   // Animasi masuk saat popBackStack
+            R.anim.fade_out_dialog  // Animasi keluar saat popBackStack
+        )
+        // To make it fullscreen, use the 'content' root view as the container
+        // for the fragment, which is always the root view for the activity.
+        if (!isDestroyed && !isFinishing && !supportFragmentManager.isStateSaved) {
+            // Lakukan transaksi fragment
+            transaction
+                .add(android.R.id.content, dialogFragment, "ConfirmDeleteDialogFragment")
+                .addToBackStack("ConfirmDeleteDialogFragment")
+                .commit()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun navigatePage(mode: Int, bundling: BundlingPackage) {
         WindowInsetsHandler.setDynamicWindowAllCorner(binding.root, this, false) {
             if (!isNavigating) {
@@ -531,7 +658,7 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
         }
         isNavigating = false
         if (!isRecreated) {
-            if (!::bundlingListener.isInitialized && !isFirstLoad) {
+            if (!::bundlingListener.isInitialized && !::outletListener.isInitialized && !isFirstLoad) {
                 val intent = Intent(this, SelectUserRolePage::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
@@ -547,6 +674,30 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
         if (isHandlingBack) return
         isHandlingBack = true
 
+        if (fragmentManager.backStackEntryCount > 0) {
+
+            StatusBarDisplayHandler.enableEdgeToEdgeAllVersion(
+                this,
+                lightStatusBar = true,
+                statusBarColor = Color.argb(0x66, 0xFF, 0xFF, 0xFF),
+                addStatusBar = false
+            )
+
+            shouldClearBackStack = true
+
+            if (::dialogFragment.isInitialized) {
+                dialogFragment.dismiss()
+            }
+
+            fragmentManager.popBackStack()
+
+            // ⛔ Lepas lock setelah frame selesai
+            binding.root.post {
+                isHandlingBack = false
+            }
+            return
+        }
+
         WindowInsetsHandler.setDynamicWindowAllCorner(
             binding.root,
             this,
@@ -557,6 +708,20 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
                 R.anim.slide_maximize_in_left,
                 R.anim.slide_minimize_out_right
             )
+        }
+    }
+
+    override fun onPause() {
+        Log.d("CheckLifecycle", "==================== ON PAUSE MANAGE-OUTLET  =====================")
+        super.onPause()
+        if (shouldClearBackStack && !supportFragmentManager.isDestroyed) {
+            clearBackStack()
+        }
+    }
+
+    private fun clearBackStack() {
+        while (fragmentManager.backStackEntryCount > 0) {
+            fragmentManager.popBackStackImmediate()
         }
     }
 
@@ -614,6 +779,8 @@ class ManageBundlingPage : BaseActivity(), View.OnClickListener, ItemManageBundl
     override fun onDestroy() {
         super.onDestroy()
         if (::bundlingAdapter.isInitialized) bundlingAdapter.stopAllShimmerEffects()
+        // Hapus listener untuk menghindari memory leak
         if (::bundlingListener.isInitialized) bundlingListener.remove()
+        if (::outletListener.isInitialized) outletListener.remove()
     }
 }

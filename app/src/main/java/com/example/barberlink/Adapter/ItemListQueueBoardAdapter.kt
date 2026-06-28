@@ -15,22 +15,15 @@ import com.example.barberlink.databinding.ItemListQueueBoardAdapterBinding
 import com.example.barberlink.databinding.ShimmerLayoutListQueueBoardBinding
 import com.facebook.shimmer.ShimmerFrameLayout
 
-class ItemListQueueBoardAdapter(
-    private val shimmerItemCount: Int
-) : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
+class ItemListQueueBoardAdapter : ListAdapter<UserEmployeeData, RecyclerView.ViewHolder>(CustomerDiffCallback()) {
     private val shimmerViewList = mutableListOf<ShimmerFrameLayout>()
 
     private var isShimmer = true
     private var recyclerView: RecyclerView? = null
+    private val shimmerItemCount = 3
     private var lastScrollPosition = 0
     private lateinit var currentQueue: Map<String, String>
     private lateinit var capsterWaitingQueues: Map<String, List<String>>
-    // Dummy data saat map kosong
-    private val dummyCapsterWaitingQueues: Map<String, List<String>> = mapOf(
-        "pVWmALmoKcZf9ODiuMosGKFuuqS2" to listOf("03", "04", "09"),
-        "6PX1QsNy41WvlPAS2rnxSS0xz8J2" to listOf("01"),
-        "kHS5OFfTnWbD7WgaF7PoGZJMl8g2" to listOf("02", "05")
-    )
 
     fun stopAllShimmerEffects() {
         if (shimmerViewList.isNotEmpty()) {

@@ -11,6 +11,7 @@ import com.example.barberlink.DataClass.Service
 import com.example.barberlink.DataClass.UserAdminData
 import com.example.barberlink.Repository.BundlingRepository
 import com.example.barberlink.Utils.Concurrency.ReentrantCoroutineMutex
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 
 class AddBundlingViewModel(
@@ -117,6 +118,9 @@ class AddBundlingViewModel(
 
             _isSaving.value = true
             try {
+                val db = FirebaseFirestore.getInstance()
+                val bundlingRef = db.collection("barbershops").document(bId).collection("bundling_packages").document(currentBundling.uid)
+
                 val result = if (isAddMode) {
                     repository.createBundling(bId, currentBundling)
                 } else {
@@ -125,11 +129,11 @@ class AddBundlingViewModel(
 
                 _isSaving.value = false
                 if (result.isSuccessful) {
-                    if (isAddMode) {
-                        _bundlingList.value = _bundlingList.value.orEmpty() + currentBundling
-                    } else {
-                        _bundlingList.value = _bundlingList.value.orEmpty().map { if (it.uid == currentBundling.uid) currentBundling else it }
-                    }
+                    currentBundling.dataRef = bundlingRef.path
+                }
+                if (isAddMode && result.isSuccessful) _bundlingList.value = _bundlingList.value.orEmpty() + currentBundling
+                else if (result.isSuccessful) {
+                    _bundlingList.value = _bundlingList.value.orEmpty().map { if (it.uid == currentBundling.uid) currentBundling else it }
                 }
                 _saveResult.value = result
             } catch (e: Exception) {

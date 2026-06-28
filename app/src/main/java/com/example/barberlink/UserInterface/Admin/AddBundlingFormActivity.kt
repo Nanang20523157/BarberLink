@@ -700,6 +700,7 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
                         services.find { svc -> svc.uid == serviceId }
                     }
                     bundling.accumulatedPrice = bundling.listItemDetails.orEmpty().sumOf { it.servicePrice }
+
                     if (binding.switchDiscount.isChecked) {
                         val disc = binding.etDiscountAmount.text.toString().replace(Regex("\\D"), "").toIntOrNull() ?: 0
                         bundling.packageDiscount = disc
@@ -1130,8 +1131,8 @@ class AddBundlingFormActivity : BaseActivity(), View.OnClickListener {
                     setFocus(etPackageDescription)
                     false
                 }
-                selectedServices.isEmpty() -> {
-                    toastViewModel.showToast("Silahkan pilih daftar layanan yang tersedia", false)
+                selectedServices.size <= 1 -> {
+                    toastViewModel.showToast("Bundling harus terdiri dari lebih dari 1 layanan", false)
                     false
                 }
                 rawDiscountText.isEmpty() -> {

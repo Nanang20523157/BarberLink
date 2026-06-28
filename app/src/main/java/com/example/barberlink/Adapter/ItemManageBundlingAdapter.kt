@@ -152,7 +152,7 @@ class ItemManageBundlingAdapter(
 
                 tvDescription.text = bundling.packageDesc
                 tvRating.text = bundling.packageRating.toString()
-                tvHargaPaket.text = NumberUtils.numberToCurrency(bundling.packagePrice.toDouble())
+                tvHargaPaket.text = if (bundling.packagePrice == 0) "GRATIS" else NumberUtils.numberToCurrency(bundling.packagePrice.toDouble())
 
                 // Fee capster info visibility
                 if (bundling.resultsShareFormat.isNotEmpty()) {

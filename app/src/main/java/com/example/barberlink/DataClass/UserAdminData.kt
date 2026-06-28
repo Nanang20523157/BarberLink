@@ -553,32 +553,7 @@ data class Seller(
     }
 }
 
-// Role data class
-@Parcelize
-data class Role(
-    @get:PropertyName("barbershop_ref") @set:PropertyName("barbershop_ref") var barbershopRef: String = "",
-    @get:PropertyName("job_desc") @set:PropertyName("job_desc") var jobDesc: String = "",
-    @get:PropertyName("permissions") @set:PropertyName("permissions") var permissions: @RawValue Map<String, Boolean>? = emptyMap(),
-    @get:PropertyName("role_name") @set:PropertyName("role_name") var roleName: String = "",
-    @get:PropertyName("uid") @set:PropertyName("uid") var uid: String = "",
-    @get:Exclude @set:Exclude var alert: Boolean = true,
-) : Parcelable {
-    // Mencegah field stability ikut terserialisasi ke Firestore
-    @get:Exclude
-    val stability: Int
-        get() = 0
 
-    fun deepCopy(): Role {
-        return Role(
-            barbershopRef = this.barbershopRef,
-            jobDesc = this.jobDesc,
-            permissions = this.permissions?.toMap(),
-            roleName = this.roleName,
-            uid = this.uid,
-            alert = this.alert
-        )
-    }
-}
 
 
 // Service data class

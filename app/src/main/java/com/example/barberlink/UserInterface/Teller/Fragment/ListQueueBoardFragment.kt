@@ -60,6 +60,7 @@ class ListQueueBoardFragment : DialogFragment() {
 //            outlet = it.getParcelable(ARG_PARAM2)
             isSameDate = it.getBoolean(ARG_PARAM3)
         }
+        if (savedInstanceState != null) isFirstLoad = savedInstanceState.getBoolean("is_first_load", true)
 
         context = requireContext()
     }
@@ -76,10 +77,11 @@ class ListQueueBoardFragment : DialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        queueAdapter = ItemListQueueBoardAdapter(3)
+        queueAdapter = ItemListQueueBoardAdapter()
         binding.rvListQueue.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
         binding.rvListQueue.adapter = queueAdapter
-        queueAdapter.setShimmer(true)
+        if (isFirstLoad) queueAdapter.setShimmer(true)
+        else queueAdapter.setShimmer(false)
         queueBoardViewModel.outletSelected.observe(viewLifecycleOwner) { outlet ->
             outlet?.let {
                 // Ambil currentQueue dari outlet
@@ -151,50 +153,53 @@ class ListQueueBoardFragment : DialogFragment() {
 
         queueBoardViewModel.capsterList.observe(viewLifecycleOwner) { capsterList ->
             // Menggunakan coroutine untuk menunda eksekusi submitList
-            capsterList?.let { originalCapsterList ->
-                val layoutParams = binding.rvListQueue.layoutParams
-                layoutParams.height = if (originalCapsterList.size > 3) {
-                    resources.getDimensionPixelSize(R.dimen.recycler_height_large_queue_board) // 315dp dalam pixels
+            val layoutParams = binding.rvListQueue.layoutParams
+            layoutParams.height = if (capsterList.size > 3) {
+                resources.getDimensionPixelSize(R.dimen.recycler_height_large_queue_board) // 315dp dalam pixels
+            } else {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            binding.rvListQueue.layoutParams = layoutParams
+
+            lifecycleScope.launch {
+                // Hitung mundur 800 ms
+                if (isFirstLoad) delay(500)
+
+                // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
+                val sortedKeys = currentQueue
+                    .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
+                    .keys
+                    .toList()
+
+                // Urutkan capsterList berdasarkan urutan di sortedKeys
+                val sortedCapsterList = capsterList
+                    .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
+                    .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
+
+                // Tambahkan capsterList yang tidak ada di currentQueue
+                val remainingCapsters = capsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
+
+                // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
+                val finalCapsterList = sortedCapsterList + remainingCapsters
+
+                // Submit data ke adapter setelah delay
+                queueAdapter.submitList(finalCapsterList)
+
+                // Matikan shimmer setelah data di-submit
+                if (isFirstLoad) {
+                    queueAdapter.setShimmer(false)
+                    isFirstLoad = false
                 } else {
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                }
-                binding.rvListQueue.layoutParams = layoutParams
-
-                lifecycleScope.launch {
-                    // Hitung mundur 800 ms
-                    if (isFirstLoad) delay(500)
-
-                    // Ambil urutan kunci dari currentQueue yang sudah diurutkan berdasarkan value
-                    val sortedKeys = currentQueue
-                        .filterValues { (it.toIntOrNull() ?: 0) > 0 } // Hanya ambil yang memiliki nilai > 0
-                        .keys
-                        .toList()
-
-                    // Urutkan capsterList berdasarkan urutan di sortedKeys
-                    val sortedCapsterList = originalCapsterList
-                        .filter { capster -> sortedKeys.contains(capster.uid) } // Capster yang ada di currentQueue
-                        .sortedBy { capster -> sortedKeys.indexOf(capster.uid) } // Urutkan berdasarkan posisi di sortedKeys
-
-                    // Tambahkan capsterList yang tidak ada di currentQueue
-                    val remainingCapsters = originalCapsterList.filterNot { capster -> sortedKeys.contains(capster.uid) }
-
-                    // Gabungkan daftar yang sudah diurutkan dengan yang tersisa
-                    val finalCapsterList = sortedCapsterList + remainingCapsters
-
-                    // Submit data ke adapter setelah delay
-                    queueAdapter.submitList(finalCapsterList)
-
-                    // Matikan shimmer setelah data di-submit
-                    if (isFirstLoad) {
-                        queueAdapter.setShimmer(false)
-                        isFirstLoad = false
-                    } else {
-                        queueAdapter.notifyDataSetChanged()
-                    }
+                    queueAdapter.notifyDataSetChanged()
                 }
             }
         }
 
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("is_first_load", isFirstLoad)
     }
 
     private fun isTouchOnForm(event: MotionEvent): Boolean {
