@@ -246,10 +246,8 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
     }
 
     // Metode untuk CalendarList
-    fun addCalendarList2(calendarDateModel: CalendarDateModel) {
+    fun setCalendarList(list: ArrayList<CalendarDateModel>) {
         viewModelScope.launch {
-            val list = _calendarList2.value ?: arrayListOf()
-            list.add(calendarDateModel)
             _calendarList2.value = list
         }
     }
@@ -257,14 +255,10 @@ class DashboardViewModel(state: SavedStateHandle) : InputFragmentViewModel(state
     fun setCalendarListWithIndex(date: CalendarDateModel, index: Int) {
         viewModelScope.launch {
             val list = _calendarList2.value ?: arrayListOf()
-            list[index] = date
-            _calendarList2.value = list
-        }
-    }
-
-    fun clearCalendarList2() {
-        viewModelScope.launch {
-            _calendarList2.value = ArrayList()
+            if (index in list.indices) {
+                list[index] = date
+                _calendarList2.value = list
+            }
         }
     }
 

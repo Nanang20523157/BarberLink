@@ -310,7 +310,7 @@
 
                                             <androidx.recyclerview.widget.RecyclerView
                                                 android:id="@+id/rvCalendar"
-                                                android:layout_width="match_parent"
+                                                android:layout_width="0dp"
                                                 android:layout_height="wrap_content"
                                                 android:layout_weight="1"
                                                 tools:listitem="@layout/item_date_calendar"
@@ -337,14 +337,14 @@
                                     android:clipToPadding="false">
 
                                     <include
-                                        android:id="@+id/shimmerLayoutHeader"
-                                        layout="@layout/shimmer_layout_dashboard_admin_top"
-                                        android:visibility="gone" />
-
-                                    <include
                                         android:id="@+id/realLayoutHeader"
                                         layout="@layout/real_layout_dashboard_admin_top"
                                         android:visibility="visible" />
+
+                                    <include
+                                        android:id="@+id/shimmerLayoutHeader"
+                                        layout="@layout/shimmer_layout_dashboard_admin_top"
+                                        android:visibility="gone" />
 
                                 </FrameLayout>
 

@@ -2,6 +2,17 @@
 
 Log ini mencatat seluruh aktivitas pengembangan dan keputusan teknis penting.
 
+## [2026-07-08] - Instalasi Global transitions-dev & Pembersihan Proyek
+### 🛠️ Aktivitas
+- Menginstal skill `transitions-dev` (`Jakubantalik/transitions.dev`) secara global di folder konfigurasi global AI Agent (`C:\Users\Acer\.gemini\config\skills\transitions-dev`).
+- Menghapus folder lokal `.agents` dan file `skills-lock.json` yang sebelumnya dibuat di dalam proyek BarberLink agar folder proyek bersih total dari konfigurasi lokal AI.
+- Mengembalikan isi `.gitignore` proyek ke kondisi semula karena tidak ada lagi folder `.agents` yang perlu diabaikan.
+- Memasang konfigurasi server MCP Agentation (`agentation-mcp`) secara global di `mcp_config.json`.
+
+### 📝 Keputusan Teknis
+- Memindahkan modul skill AI ke tingkat global agar dapat diakses oleh semua proyek di komputer ini tanpa mengotori berkas Git proyek BarberLink.
+- Mengonfigurasi Agentation MCP di tingkat global agar siap mendukung sinkronisasi anotasi visual jika kelak terdapat modul atau dashboard berbasis web.
+
 ## [2026-06-27] - Implementasi Adapter & Shimmer Perubahan Bundling
 ### 🛠️ Aktivitas
 - Membuat data class `BundlingChangeInfo.kt` untuk menyimpan detail data perubahan harga paket bundling (sebelum dan sesudah) ketika suatu produk/layanan dihapus.

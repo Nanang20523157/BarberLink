@@ -1863,19 +1863,20 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         }
     }
 
-    private fun listenSpecificOutletData() {
-        queueControlViewModel.outletSelected.value?.let { outletSelected ->
+    private fun listenSpecificOutletData(specificOutlet: Outlet? = null) {
+        val outletSelected = specificOutlet ?: queueControlViewModel.outletSelected.value
+        outletSelected?.let { outletSelectedVal ->
             // Hapus listener jika sudah terinisialisasi
             if (::dataOutletListener.isInitialized) {
                 dataOutletListener.remove()
             }
 
-            if (outletSelected.rootRef.isEmpty()) {
+            if (outletSelectedVal.rootRef.isEmpty()) {
                 dataOutletListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 return@let
             }
 
-            dataOutletListener = db.document("${outletSelected.rootRef}/outlets/${outletSelected.uid}")
+            dataOutletListener = db.document("${outletSelectedVal.rootRef}/outlets/${outletSelectedVal.uid}")
                 .addSnapshotListener { documents, exception ->
                     lifecycleScope.launch {
                         queueControlViewModel.listenerOutletDataMutex.withStateLock {
@@ -2195,26 +2196,27 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         }
     }
 
-    private fun listenForTodayListReservation() {
-        queueControlViewModel.outletSelected.value?.let { outletSelected ->
+    private fun listenForTodayListReservation(specificOutlet: Outlet? = null) {
+        val outletSelectedVal = specificOutlet ?: queueControlViewModel.outletSelected.value
+        if (outletSelectedVal != null) {
             if (::reservationListener.isInitialized) {
                 reservationListener.remove()
             }
 
-            if (outletSelected.rootRef.isEmpty()) {
+            if (outletSelectedVal.rootRef.isEmpty()) {
                 reservationListener = db.collection("fake").addSnapshotListener { _, _ -> }
                 if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
                 return
             }
             var decrementGlobalListener = false
 
-            reservationListener = db.collection("${outletSelected.rootRef}/reservations")
+            reservationListener = db.collection("${outletSelectedVal.rootRef}/reservations")
                 .where(Filter.and(
                     Filter.or(
                         Filter.equalTo("capster_info.capster_ref", queueControlViewModel.userEmployeeData.value?.userRef ?: ""),
                         Filter.equalTo("capster_info.capster_ref", "")
                     ),
-                    Filter.equalTo("outlet_identifier", outletSelected.uid),
+                    Filter.equalTo("outlet_identifier", outletSelectedVal.uid),
                     Filter.greaterThanOrEqualTo("timestamp_to_booking", startOfDay),
                     Filter.lessThan("timestamp_to_booking", startOfNextDay),
                     // Tambahkan pemeriksaan null untuk timestamp_to_booking
@@ -2260,8 +2262,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                         queueControlViewModel.reservationListMutex.withStateLock {
                                             Log.d("MyListenerData", "listener >>>")
                                             Log.d("MyListenerData", "reservationList contains: Reservation, size: ${reservationDataList.size}")
-                                            queueControlViewModel.setReservationList(reservationDataList)
-
+                                            
                                             val allWaiting = reservationDataList.all { it2 -> it2.queueStatus == "waiting" }
                                             var currentIndex: Int
 
@@ -2300,7 +2301,11 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                                             }
 
                                             Log.d("MyListenerData", "currentIndex in listener: $currentIndex")
-                                            queueControlViewModel.setCurrentIndexQueue(currentIndex) // Use setValue on the main thread
+                                            withContext(Dispatchers.Main) {
+                                                this@QueueControlPage.currentIndexQueue = currentIndex
+                                                queueControlViewModel.setReservationList(reservationDataList)
+                                                queueControlViewModel.setCurrentIndexQueue(currentIndex)
+                                            }
                                         }
 
                                         Log.d("MyListenerData", "listener reservation")
@@ -2319,7 +2324,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                         }
                     }
                 }
-        } ?: run {
+        } else {
             reservationListener = db.collection("fake").addSnapshotListener { _, _ -> }
             if (remainingListeners.get() > 0) remainingListeners.decrementAndGet()
         }
@@ -2435,11 +2440,11 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                             if (!::reservationListener.isInitialized) reservationListener.remove()
                             queueControlViewModel.setReservationList(emptyList())
                             queueControlViewModel.setCurrentIndexQueue(0)
-                            withContext(Dispatchers.Default) { calculateQueueData() }
+                            withContext(Dispatchers.Default) { calculateQueueData(emptyList()) }
                         } else {
-                            listenSpecificOutletData()
+                            listenSpecificOutletData(dataOutlet)
                             editor.remove("currentIndexQueue").apply()
-                            listenForTodayListReservation()
+                            listenForTodayListReservation(dataOutlet)
                         }
                     }
                 }
@@ -2484,7 +2489,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                             if (!::reservationListener.isInitialized) reservationListener.remove()
                             queueControlViewModel.setReservationList(emptyList())
                             queueControlViewModel.setCurrentIndexQueue(0)
-                            withContext(Dispatchers.Default) { calculateQueueData() }
+                            withContext(Dispatchers.Default) { calculateQueueData(emptyList()) }
                         }
                         Logger.d("CheckShimmer", "setup dropdown by outletlist listener")
                     } else {
@@ -2696,16 +2701,18 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                             Log.d("MyListenerData", "getting data >>>")
                             Logger.d("CheckShimmer", "sortedItems contains: ${dataClass.simpleName}, size: ${sortedItems.size}")
 
-                            // Perbarui LiveData di ViewModel
-                            when (dataClass) {
-                                Service::class.java -> queueControlViewModel.setServiceList(sortedItems as List<Service>, true)
-                                BundlingPackage::class.java -> queueControlViewModel.setBundlingPackageList(sortedItems as List<BundlingPackage>, true)
-                                ReservationData::class.java -> {
-                                    Logger.d("ReservationData", "list >>> sortedItems: ${sortedItems.size}")
-                                    queueControlViewModel.setReservationList(sortedItems as List<ReservationData>)
-                                }
-                                UserEmployeeData::class.java -> switchCapsterViewModel.setCapsterList(sortedItems as List<UserEmployeeData>, setupDropdown = null, isSavedInstanceStateNull = null)
-                            }
+                             withContext(Dispatchers.Main) {
+                                 // Perbarui LiveData di ViewModel
+                                 when (dataClass) {
+                                     Service::class.java -> queueControlViewModel.setServiceList(sortedItems as List<Service>, true)
+                                     BundlingPackage::class.java -> queueControlViewModel.setBundlingPackageList(sortedItems as List<BundlingPackage>, true)
+                                     ReservationData::class.java -> {
+                                         Logger.d("ReservationData", "list >>> sortedItems: ${sortedItems.size}")
+                                         queueControlViewModel.setReservationList(sortedItems as List<ReservationData>)
+                                     }
+                                     UserEmployeeData::class.java -> switchCapsterViewModel.setCapsterList(sortedItems as List<UserEmployeeData>, setupDropdown = null, isSavedInstanceStateNull = null)
+                                 }
+                             }
 
                         }
 
@@ -2858,24 +2865,26 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 reservation.dataCreator?.userDetails = customerData
             }
 
-            if (isFromListener && queueControlViewModel.currentReservationData.value != null) {
-                queueControlViewModel.setCurrentReservationData(reservationData[currentIndexQueue])
+            if (isFromListener) {
+                val newCurrent = reservationData.getOrNull(currentIndexQueue)
+                queueControlViewModel.setCurrentReservationData(newCurrent)
             }
 
             // Menghitung total antrian
-            calculateQueueData()
+            calculateQueueData(reservationData)
             Logger.d("CheckShimmer", "sequence 01")
         }
     }
 
-    private suspend fun calculateQueueData() {
+    private suspend fun calculateQueueData(specificList: List<ReservationData>? = null) {
         queueControlViewModel.reservationListMutex.withStateLock {
             // Menghitung jumlah reservation "waiting" untuk setiap capster
             totalQueue = 0
             completeQueue = 0
             restQueue = 0
 
-            queueControlViewModel.reservationDataList.value.orEmpty().forEach { reservation ->
+            val listToCalculate = specificList ?: queueControlViewModel.reservationDataList.value.orEmpty()
+            listToCalculate.forEach { reservation ->
                 when (reservation.queueStatus) {
                     "waiting" -> {
                         restQueue++
@@ -2899,14 +2908,19 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
             Log.d("IndexingData", "calculateQueueData")
             // Menampilkan data
-            displayAllData(setBoard = true, updateServiceAdapter = true)
+            displayAllData(setBoard = true, updateServiceAdapter = true, specificList = listToCalculate)
             Logger.d("CheckShimmer", "display dari calculate")
         }
     }
 
-    private fun displayAllData(setBoard: Boolean, updateServiceAdapter: Boolean, isOrientasiChange: Boolean = false) {
+    private fun displayAllData(
+        setBoard: Boolean,
+        updateServiceAdapter: Boolean,
+        isOrientasiChange: Boolean = false,
+        specificList: List<ReservationData>? = null
+    ) {
         lifecycleScope.launch {
-            val reservationList = queueControlViewModel.reservationDataList.value.orEmpty()
+            val reservationList = specificList ?: queueControlViewModel.reservationDataList.value.orEmpty()
             val filteredServices = queueControlViewModel.listServiceOrders.value.orEmpty()
             val filteredBundlingPackages = queueControlViewModel.listBundlingPackageOrders.value.orEmpty()
             val currentReservation = if (reservationList.isNotEmpty()) {
@@ -2924,6 +2938,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
             }
 
             if (reservationList.isEmpty() || currentReservation == null) {
+                queueControlViewModel.setCurrentReservationData(null)
                 Log.d("CheckShimmer", "reservation to display: queueNumber --- || currentIndex: $currentIndexQueue")
                 serviceAdapter.setCapsterRef("")
                 bundlingAdapter.setCapsterRef("")
@@ -2947,7 +2962,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
                 queueDataDeferred.await() // Tunggu sampai displayQueueData selesai
 
                 // Pastikan displayListQueue juga selesai sebelum melanjutkan
-                updateQueueList = { displayListQueueSuspending() }
+                updateQueueList = { displayListQueueSuspending(reservationList) }
 //                val listQueueDeferred = async { displayListQueue() }
 //                listQueueDeferred.await()
             }
@@ -2971,7 +2986,7 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
             // Menjalankan preDisplayOrderData
             val displayAllListData = if (updateServiceAdapter) {
-                async { preDisplayOrderData(isOrientasiChange) }
+                async { preDisplayOrderData(isOrientasiChange, reservationList) }
             } else {
                 async {
                     setupAdapterWithSubmitData(filteredServices, filteredBundlingPackages, isOrientasiChange)
@@ -3195,9 +3210,10 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
 
     }
 
-    private suspend fun displayListQueueSuspending() = suspendCancellableCoroutine<Unit> { cont ->
+    private suspend fun displayListQueueSuspending(specificList: List<ReservationData>? = null) = suspendCancellableCoroutine<Unit> { cont ->
         Log.d("CheckListQueue", "4444")
-        queueAdapter.submitList(queueControlViewModel.reservationDataList.value.orEmpty()) {
+        val listToSubmit = specificList ?: queueControlViewModel.reservationDataList.value.orEmpty()
+        queueAdapter.submitList(listToSubmit) {
             // if (adjustAdapterQueue) disini biar habis submit langsung scroll to position yang bener sebelum setShimmer(false)
             if (adjustAdapterQueue) {
                 Log.d("CheckShimmer", "displayListQueue :: currentIndexQueue: $currentIndexQueue adjustAdapterQueue: $adjustAdapterQueue")
@@ -3210,11 +3226,11 @@ class QueueControlPage : BaseActivity(),  View.OnClickListener, ItemListServiceO
         }
     }
 
-    private suspend fun preDisplayOrderData(isOrientasiChange: Boolean = false) {
+    private suspend fun preDisplayOrderData(isOrientasiChange: Boolean = false, specificList: List<ReservationData>? = null) {
         Logger.d("CheckShimmer", "#######?? preDisplayOrderData")
         withContext(Dispatchers.Default) {
             // Pisahkan data berdasarkan non_package
-            val reservationList = queueControlViewModel.reservationDataList.value.orEmpty()
+            val reservationList = specificList ?: queueControlViewModel.reservationDataList.value.orEmpty()
             Logger.d("CheckShimmer", "reservationList size: ${reservationList.size}")
             val filteredServices = mutableListOf<Service>()
             val filteredBundlingPackages = mutableListOf<BundlingPackage>()
@@ -4396,7 +4412,7 @@ NB : Apabila nominal uang yang diminta untuk Anda bayarkan tidak sesuai dengan b
                         if (!::reservationListener.isInitialized) reservationListener.remove()
                         queueControlViewModel.setReservationList(emptyList())
                         queueControlViewModel.setCurrentIndexQueue(0)
-                        withContext(Dispatchers.Default) { calculateQueueData() }
+                        withContext(Dispatchers.Default) { calculateQueueData(emptyList()) }
                     }
                 } else {
                     editor.remove("currentIndexQueue").apply()

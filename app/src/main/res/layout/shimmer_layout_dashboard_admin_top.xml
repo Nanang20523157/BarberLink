@@ -18,18 +18,10 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <com.facebook.shimmer.ShimmerFrameLayout
-            android:id="@+id/shimmerUserName"
+        <FrameLayout
+            android:id="@+id/layoutUserNameContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            app:shimmer_auto_start="true"
-            app:shimmer_base_alpha="0.7"
-            app:shimmer_direction="left_to_right"
-            app:shimmer_duration="500"
-            app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
-            app:shimmer_repeat_delay="500"
-            app:shimmer_shape="linear"
-            app:shimmer_tilt="0"
             android:layout_marginStart="34dp"
             android:layout_marginTop="59dp"
             android:layout_marginEnd="100dp"
@@ -38,18 +30,47 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toStartOf="@id/ivProfile">
 
+            <com.facebook.shimmer.ShimmerFrameLayout
+                android:id="@+id/shimmerUserName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:shimmer_auto_start="true"
+                app:shimmer_base_alpha="0.7"
+                app:shimmer_direction="left_to_right"
+                app:shimmer_duration="500"
+                app:shimmer_repeat_count="@android:integer/config_shortAnimTime"
+                app:shimmer_repeat_delay="500"
+                app:shimmer_shape="linear"
+                app:shimmer_tilt="0">
+
+                <TextView
+                    android:id="@+id/userNameShimmer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textStyle="bold"
+                    android:text="@string/hey_dear_example"
+                    android:letterSpacing="0.003"
+                    android:textColor="@color/grey_200"
+                    android:background="@drawable/shimmer_corner_empat_dp_200"
+                    android:textSize="19.5sp" />
+
+            </com.facebook.shimmer.ShimmerFrameLayout>
+
             <TextView
-                android:id="@+id/userName"
+                android:id="@+id/realUserName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
-                android:text="@string/hey_dear_example"
+                android:text="@string/hey_dear"
                 android:letterSpacing="0.003"
-                android:textColor="@color/grey_200"
-                android:background="@drawable/shimmer_corner_empat_dp_200"
-                android:textSize="19.5sp" />
+                android:textColor="@color/black"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:textSize="19.5sp"
+                android:visibility="gone" />
 
-        </com.facebook.shimmer.ShimmerFrameLayout>
+        </FrameLayout>
 
         <TextView
             android:id="@+id/userSymbol"
@@ -63,7 +84,7 @@
             android:textColor="@color/black"
             android:textSize="9sp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/shimmerUserName" />
+            app:layout_constraintTop_toBottomOf="@id/layoutUserNameContainer" />
 
         <TextView
             android:id="@+id/userDescription"
@@ -78,7 +99,7 @@
             android:textSize="9sp"
             app:layout_constraintStart_toEndOf="@id/userSymbol"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/shimmerUserName" />
+            app:layout_constraintTop_toBottomOf="@id/layoutUserNameContainer" />
 
         <!-- Toolbar and Header -->
         <de.hdodenhof.circleimageview.CircleImageView
@@ -90,8 +111,8 @@
             android:scaleType="centerCrop"
             android:src="@drawable/placeholder_user_profile"
             android:contentDescription="@string/profile_picture"
-            app:layout_constraintTop_toTopOf="@id/shimmerUserName"
-            app:layout_constraintBottom_toBottomOf="@id/shimmerUserName"
+            app:layout_constraintTop_toTopOf="@id/layoutUserNameContainer"
+            app:layout_constraintBottom_toBottomOf="@id/layoutUserNameContainer"
             app:layout_constraintEnd_toEndOf="parent"/>
 
         <TextView

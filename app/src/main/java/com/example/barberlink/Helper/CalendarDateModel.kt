@@ -11,7 +11,7 @@ data class  CalendarDateModel(var data: Date, var isSelected: Boolean) {
         get() = SimpleDateFormat("EE", Locale("id", "ID")).format(data)
 
     val calendarYear: String
-        get() = SimpleDateFormat("dd MMMM yyyy", Locale.getDefault()).format(data)
+        get() = SimpleDateFormat("dd MMMM yyyy", Locale("id", "ID")).format(data)
 
 //    val calendarDate: String
 //        get() {

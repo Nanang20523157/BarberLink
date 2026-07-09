@@ -968,7 +968,6 @@ class QueueControlViewModel(
         viewModelScope.launch {
             _reservationDataList.value = listReservationData
         }
-        //Log.d("ObjectReferences", "neptunes 1 - filtered size: ${filteredList.size}")
     }
 
     fun updateCustomerDetailByIndex(index: Int, customerData: UserCustomerData?) {

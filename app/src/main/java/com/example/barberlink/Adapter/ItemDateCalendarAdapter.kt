@@ -108,11 +108,11 @@ class ItemDateCalendarAdapter(
 
     class CalendarDiffCallback : DiffUtil.ItemCallback<CalendarDateModel>() {
         override fun areItemsTheSame(oldItem: CalendarDateModel, newItem: CalendarDateModel): Boolean {
-            return oldItem == newItem
+            return oldItem.calendarYear == newItem.calendarYear
         }
 
         override fun areContentsTheSame(oldItem: CalendarDateModel, newItem: CalendarDateModel): Boolean {
-            return oldItem.calendarDate == newItem.calendarDate && oldItem.calendarDay == newItem.calendarDay
+            return oldItem.isSelected == newItem.isSelected
         }
     }
 }

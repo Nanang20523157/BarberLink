@@ -107,6 +107,8 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
     private lateinit var timeStampFilter: Timestamp
     private var skippedProcess: Boolean = false
     private var isShimmerVisible: Boolean = false
+    private var isCalculatingData: Boolean = false
+    private var pendingShowShimmerOff: Boolean = false
     private var uidDropdownPosition: String = ""
     private var textDropdownOutletName: String = "Semua"
     private var isDaily: Boolean = false
@@ -290,6 +292,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
 
     private fun displayDataOrientationChange() {
         binding.apply {
+            switchExpand.isChecked = isDaily
             updateCardCornerRadius(calendarCardView, isDaily)
             llFilterDateReport.visibility = if (isDaily) View.VISIBLE else View.GONE
             if (isDaily) calendarAdapter.letScrollToCurrentDate(calendarAdapter.currentList)
@@ -349,7 +352,6 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         //binding.rvListProductSales.layoutManager = GridLayoutManager(this, 2, GridLayoutManager.VERTICAL, false)
         binding.rvListProductSales.layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
         binding.rvListProductSales.adapter = productAdapter
-        // Inisialisasi kalender untuk mendapatkan tahun dan bulan saat ini
         val themedContext = ContextThemeWrapper(this@DashboardAdminPage, R.style.MonthPickerDialogStyle)
         builder = MonthPickerDialog.Builder(
             themedContext,
@@ -361,9 +363,9 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 calendar.set(Calendar.DAY_OF_MONTH, 1)
                 if (!isSameMonth(calendar.time, timeStampFilter.toDate())) {
                     setUpCalendar()
-                    showShimmer(true)
+                    showShimmer(true, excludeHeader = true)
                     updateListener = true
-                    getAllData()
+                    getAllData(excludeHeader = true)
                 }
             },
             calendar.get(Calendar.YEAR),
@@ -467,16 +469,16 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 R.id.ivNextMonth -> {
                     calendar.add(Calendar.MONTH, 1)
                     setUpCalendar()
-                    showShimmer(true)
+                    showShimmer(true, excludeHeader = true)
                     updateListener = true
-                    getAllData()
+                    getAllData(excludeHeader = true)
                 }
                 R.id.ivPrevMonth -> {
                     calendar.add(Calendar.MONTH, -1)
                     setUpCalendar()
-                    showShimmer(true)
+                    showShimmer(true, excludeHeader = true)
                     updateListener = true
-                    getAllData()
+                    getAllData(excludeHeader = true)
                 }
                 R.id.tvYear -> {
                     if (!debounce.run { v.isSafeClick() }) return
@@ -498,13 +500,13 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                     updateCardCornerRadius(calendarCardView, isDaily)
                     llFilterDateReport.visibility = if (isDaily) View.VISIBLE else View.GONE
                     // tvFilterType.text = if (isDaily) "Harian" else "Bulanan"
-                    showShimmer(true)
+                    showShimmer(true, excludeHeader = true)
                     if (isDaily) calendarAdapter.letScrollToCurrentDate(calendarAdapter.currentList)
                     calculateDataAsync()
                 }
                 R.id.btnResetDate -> {
                     setUpCalendar()
-                    showShimmer(true)
+                    showShimmer(true, excludeHeader = true)
                     calculateDataAsync()
                 }
                 R.id.fabAddManualReport -> {
@@ -552,10 +554,13 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
      * Function to setup calendar for every month
      */
     private fun setUpCalendar(isSavedInstanceStateNull: Boolean = true) {
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
         val maxDaysInMonth = calendar.getActualMaximum(Calendar.DAY_OF_MONTH)
         var isContainCurrentDate = false
-        // calendarList2.clear()
-        if (isSavedInstanceStateNull) dashboardViewModel.clearCalendarList2()
+        val localList = ArrayList<CalendarDateModel>()
         calendar.set(Calendar.DAY_OF_MONTH, 1)
 
         for (i in 1..maxDaysInMonth) {
@@ -565,8 +570,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 isContainCurrentDate = !isContainCurrentDate
             }
 
-            // calendarList2.add(CalendarDateModel(calendar.time, isCurrentDate))
-            if (isSavedInstanceStateNull) dashboardViewModel.addCalendarList2(CalendarDateModel(calendar.time, isCurrentDate))
+            localList.add(CalendarDateModel(calendar.time, isCurrentDate))
             calendar.add(Calendar.DAY_OF_MONTH, 1)
         }
 
@@ -574,10 +578,17 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         if (isSavedInstanceStateNull) setDateFilterValue(Timestamp(calendar.time))
         else setDateFilterValue(timeStampFilter)
 
+        val listToData = if (isSavedInstanceStateNull) {
+            dashboardViewModel.setCalendarList(localList)
+            localList
+        } else {
+            dashboardViewModel.calendarList2.value ?: localList
+        }
+
         val recycleViewIsVisible = isDaily
         Logger.d("DashboardScroll", "isContainCurrentDate $isContainCurrentDate")
-        if (isContainCurrentDate) calendarAdapter.setData(dashboardViewModel.calendarList2.value ?: ArrayList(), todayDate, recycleViewIsVisible)
-        else calendarAdapter.setData(dashboardViewModel.calendarList2.value ?: ArrayList(), "", recycleViewIsVisible)
+        if (isContainCurrentDate) calendarAdapter.setData(listToData, todayDate, recycleViewIsVisible)
+        else calendarAdapter.setData(listToData, "", recycleViewIsVisible)
     }
 
     private fun setDateFilterValue(timestamp: Timestamp) {
@@ -639,7 +650,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                     uidDropdownPosition = dataOutlet.uid
                     textDropdownOutletName = dataOutlet.outletName
 
-                    showShimmer(true)
+                    showShimmer(true, excludeHeader = true)
                     calculateDataAsync()
                 }
 
@@ -692,20 +703,41 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                     .placeholder(R.drawable.placeholder_user_profile)
                     .error(R.drawable.placeholder_user_profile)
                     .into(binding.realLayoutHeader.ivProfile)
+
+                Glide.with(this)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.placeholder_user_profile)
+                    .error(R.drawable.placeholder_user_profile)
+                    .into(binding.shimmerLayoutHeader.ivProfile)
             }
         }
     }
 
-    private fun showShimmer(show: Boolean) {
+    private fun showShimmer(show: Boolean, excludeHeader: Boolean = false) {
+        if (!show && isCalculatingData) {
+            pendingShowShimmerOff = true
+            return
+        }
+        if (show) {
+            pendingShowShimmerOff = false
+        }
         isShimmerVisible = show
         binding.fabAddManualReport.isClickable = !show
         binding.fabCashflow.isClickable = !show
         productAdapter.setShimmer(show)
         if (show) {
             binding.shimmerLayoutHeader.root.visibility = View.VISIBLE
-            binding.shimmerLayoutReport.root.visibility = View.VISIBLE
             binding.realLayoutHeader.root.visibility = View.GONE
+            binding.shimmerLayoutReport.root.visibility = View.VISIBLE
             binding.realLayoutReport.root.visibility = View.GONE
+
+            if (excludeHeader) {
+                binding.shimmerLayoutHeader.realUserName.visibility = View.VISIBLE
+                binding.shimmerLayoutHeader.shimmerUserName.visibility = View.GONE
+            } else {
+                binding.shimmerLayoutHeader.realUserName.visibility = View.GONE
+                binding.shimmerLayoutHeader.shimmerUserName.visibility = View.VISIBLE
+            }
         } else {
             binding.shimmerLayoutHeader.root.visibility = View.GONE
             binding.shimmerLayoutReport.root.visibility = View.GONE
@@ -1272,148 +1304,158 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         }
     }
 
-    private fun getAllData() {
+    private fun getAllData(excludeHeader: Boolean = false) {
+        isCalculatingData = true
         lifecycleScope.launch {
-            dashboardViewModel.allDataMutex.withStateLock {
-                delay(500)
-                dashboardViewModel.userAdminData.value?.let { userAdminData ->
-                    if (userAdminData.userRef.isEmpty()) {
-                        displayAllData()
-                        toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
-                        return@let
-                    }
-
-                    try {
-                        // 🔹 Gunakan coroutine async agar paralel
-                        val reservationsJob = async(Dispatchers.IO) {
-                            db.collection("${userAdminData.userRef}/reservations")
-                                .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfMonth)
-                                .whereLessThan("timestamp_to_booking", startOfNextMonth)
-                                .awaitGetWithOfflineFallback(tag = "GetReservationsDashboard")
+            try {
+                dashboardViewModel.allDataMutex.withStateLock {
+                    delay(500)
+                    dashboardViewModel.userAdminData.value?.let { userAdminData ->
+                        if (userAdminData.userRef.isEmpty()) {
+                            displayAllData(excludeHeader)
+                            toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
+                            return@let
                         }
 
-                        val appointmentsJob = async(Dispatchers.IO) {
-                            db.collection("${userAdminData.userRef}/appointments")
-                                .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfMonth)
-                                .whereLessThan("timestamp_to_booking", startOfNextMonth)
-                                .awaitGetWithOfflineFallback(tag = "GetAppointmentsDashboard")
-                        }
+                        try {
+                            // 🔹 Gunakan coroutine async agar paralel
+                            val reservationsJob = async(Dispatchers.IO) {
+                                db.collection("${userAdminData.userRef}/reservations")
+                                    .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfMonth)
+                                    .whereLessThan("timestamp_to_booking", startOfNextMonth)
+                                    .awaitGetWithOfflineFallback(tag = "GetReservationsDashboard")
+                            }
 
-                        val salesJob = async(Dispatchers.IO) {
-                            db.collection("${userAdminData.userRef}/sales")
-                                .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-                                .whereLessThan("timestamp_created", startOfNextMonth)
-                                .awaitGetWithOfflineFallback(tag = "GetSalesDashboard")
-                        }
+                            val appointmentsJob = async(Dispatchers.IO) {
+                                db.collection("${userAdminData.userRef}/appointments")
+                                    .whereGreaterThanOrEqualTo("timestamp_to_booking", startOfMonth)
+                                    .whereLessThan("timestamp_to_booking", startOfNextMonth)
+                                    .awaitGetWithOfflineFallback(tag = "GetAppointmentsDashboard")
+                            }
 
-                        val manualReportJob = async(Dispatchers.IO) {
-                            db.collection("${userAdminData.userRef}/manual_report")
-                                .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-                                .whereLessThan("timestamp_created", startOfNextMonth)
-                                .awaitGetWithOfflineFallback(tag = "GetManualReportDashboard")
-                        }
+                            val salesJob = async(Dispatchers.IO) {
+                                db.collection("${userAdminData.userRef}/sales")
+                                    .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                                    .whereLessThan("timestamp_created", startOfNextMonth)
+                                    .awaitGetWithOfflineFallback(tag = "GetSalesDashboard")
+                            }
 
-                        val dailyCapitalJob = async(Dispatchers.IO) {
-                            db.collection("${userAdminData.userRef}/daily_capital")
-                                .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-                                .whereLessThan("timestamp_created", startOfNextMonth)
-                                .awaitGetWithOfflineFallback(tag = "GetDailyCapitalDashboard")
-                        }
+                            val manualReportJob = async(Dispatchers.IO) {
+                                db.collection("${userAdminData.userRef}/manual_report")
+                                    .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                                    .whereLessThan("timestamp_created", startOfNextMonth)
+                                    .awaitGetWithOfflineFallback(tag = "GetManualReportDashboard")
+                            }
 
-                        val expenditureJob = async(Dispatchers.IO) {
-                            db.collection("${userAdminData.userRef}/expenditure")
-                                .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
-                                .whereLessThan("timestamp_created", startOfNextMonth)
-                                .awaitGetWithOfflineFallback(tag = "GetExpenditureDashboard")
-                        }
+                            val dailyCapitalJob = async(Dispatchers.IO) {
+                                db.collection("${userAdminData.userRef}/daily_capital")
+                                    .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                                    .whereLessThan("timestamp_created", startOfNextMonth)
+                                    .awaitGetWithOfflineFallback(tag = "GetDailyCapitalDashboard")
+                            }
 
-                        // 🔹 Tunggu semuanya selesai
-                        val snapshotJobs = awaitAll(
-                            reservationsJob,
-                            appointmentsJob,
-                            salesJob,
-                            manualReportJob,
-                            dailyCapitalJob,
-                            expenditureJob
-                        )
-                        // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
-                        // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
-                        // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+                            val expenditureJob = async(Dispatchers.IO) {
+                                db.collection("${userAdminData.userRef}/expenditure")
+                                    .whereGreaterThanOrEqualTo("timestamp_created", startOfMonth)
+                                    .whereLessThan("timestamp_created", startOfNextMonth)
+                                    .awaitGetWithOfflineFallback(tag = "GetExpenditureDashboard")
+                            }
 
-                        withContext(Dispatchers.Default) {
-                            resetVariabel(reset = true, clear = true)
-
-                            val mappedResults = snapshotJobs.map { it.data }
-                            val reservationsResult = mappedResults.getOrNull(0)
-                            val appointmentsResult = mappedResults.getOrNull(1)
-                            val salesResult = mappedResults.getOrNull(2)
-                            val manualReportResult = mappedResults.getOrNull(3)
-                            val dailyCapitalResult = mappedResults.getOrNull(4)
-                            val expenditureResult = mappedResults.getOrNull(5)
-
-                            // 🔹 Proses data paralel
-                            val normalizedOutletName = this@DashboardAdminPage.normalizedOutletName
-                            val selectedDates = this@DashboardAdminPage.selectedDates
-
-                            val jobs = listOf(
-                                async {
-                                    dashboardViewModel.reservationListMutex.withStateLock {
-                                        dashboardViewModel.iterateReservationData(isDaily, reservationsResult, normalizedOutletName, selectedDates, true)
-                                    }
-                                },
-                                async {
-                                    dashboardViewModel.appointmentListMutex.withStateLock {
-                                        dashboardViewModel.iterateAppointmentData(isDaily, appointmentsResult, normalizedOutletName, selectedDates, true)
-                                    }
-                                },
-                                async {
-                                    dashboardViewModel.productSalesListMutex.withStateLock {
-                                        dashboardViewModel.iterateSalesData(isDaily, salesResult, normalizedOutletName, selectedDates, true)
-                                    }
-                                },
-                                async {
-                                    dashboardViewModel.manualReportListMutex.withStateLock {
-                                        dashboardViewModel.iterateManualReportData(isDaily, manualReportResult, normalizedOutletName, selectedDates, true)
-                                    }
-                                },
-                                async {
-                                    dashboardViewModel.capitalListMutex.withStateLock {
-                                        dashboardViewModel.iterateDailyCapitalData(isDaily, dailyCapitalResult, normalizedOutletName, selectedDates, true)
-                                    }
-                                },
-                                async {
-                                    dashboardViewModel.expenditureListMutex.withStateLock {
-                                        dashboardViewModel.iterateExpenditureData(isDaily, expenditureResult, normalizedOutletName, selectedDates, true)
-                                    }
-                                }
+                            // 🔹 Tunggu semuanya selesai
+                            val snapshotJobs = awaitAll(
+                                reservationsJob,
+                                appointmentsJob,
+                                salesJob,
+                                manualReportJob,
+                                dailyCapitalJob,
+                                expenditureJob
                             )
-
-                            val iterateJobs = jobs.awaitAll()
                             // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
                             // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
                             // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
-                            val allSuccess = snapshotJobs.all { it.isSuccessful } && iterateJobs.all { it }
 
-                            if (allSuccess) {
-                                Log.d("DashboardData", "✅ Data processing completed (Offline-Aware)")
-                                displayAllData()
-                            } else throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                            withContext(Dispatchers.Default) {
+                                resetVariabel(reset = true, clear = true)
+
+                                val mappedResults = snapshotJobs.map { it.data }
+                                val reservationsResult = mappedResults.getOrNull(0)
+                                val appointmentsResult = mappedResults.getOrNull(1)
+                                val salesResult = mappedResults.getOrNull(2)
+                                val manualReportResult = mappedResults.getOrNull(3)
+                                val dailyCapitalResult = mappedResults.getOrNull(4)
+                                val expenditureResult = mappedResults.getOrNull(5)
+
+                                // 🔹 Proses data paralel
+                                val normalizedOutletName = this@DashboardAdminPage.normalizedOutletName
+                                val selectedDates = this@DashboardAdminPage.selectedDates
+
+                                val jobs = listOf(
+                                    async {
+                                        dashboardViewModel.reservationListMutex.withStateLock {
+                                            dashboardViewModel.iterateReservationData(isDaily, reservationsResult, normalizedOutletName, selectedDates, true)
+                                        }
+                                    },
+                                    async {
+                                        dashboardViewModel.appointmentListMutex.withStateLock {
+                                            dashboardViewModel.iterateAppointmentData(isDaily, appointmentsResult, normalizedOutletName, selectedDates, true)
+                                        }
+                                    },
+                                    async {
+                                        dashboardViewModel.productSalesListMutex.withStateLock {
+                                            dashboardViewModel.iterateSalesData(isDaily, salesResult, normalizedOutletName, selectedDates, true)
+                                        }
+                                    },
+                                    async {
+                                        dashboardViewModel.manualReportListMutex.withStateLock {
+                                            dashboardViewModel.iterateManualReportData(isDaily, manualReportResult, normalizedOutletName, selectedDates, true)
+                                        }
+                                    },
+                                    async {
+                                        dashboardViewModel.capitalListMutex.withStateLock {
+                                            dashboardViewModel.iterateDailyCapitalData(isDaily, dailyCapitalResult, normalizedOutletName, selectedDates, true)
+                                        }
+                                    },
+                                    async {
+                                        dashboardViewModel.expenditureListMutex.withStateLock {
+                                            dashboardViewModel.iterateExpenditureData(isDaily, expenditureResult, normalizedOutletName, selectedDates, true)
+                                        }
+                                    }
+                                )
+
+                                val iterateJobs = jobs.awaitAll()
+                                // JIKA INGIN PARTIAL SCOPE DENGAN CHILD THROW EXCEPTIPN MAKA PAKAI SUPER_VISOR_SCOPE + RUN_CATCHING
+                                // KODE AWAIT_ALL DIBAWAH INI TIDAK MENGIMPLEMENTASIKAN THROW APAPAUN PADA CHILDNYA (DI KODE INI IA RETURN FALSE KETIKA GAGAL) MAKA TIDAK PERLU SUPER_VISOR_SCOPE
+                                // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
+                                val allSuccess = snapshotJobs.all { it.isSuccessful } && iterateJobs.all { it }
+
+                                if (allSuccess) {
+                                    Log.d("DashboardData", "✅ Data processing completed (Offline-Aware)")
+                                    displayAllData(excludeHeader)
+                                } else throw Exception("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!")
+                            }
+                        } catch (e: Exception) {
+                            resetVariabel(reset = true, clear = true)
+                            displayAllData(excludeHeader)
+                            toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
+                            Log.e("DashboardData", "❌ Error in getAllData: ${e.message}", e)
                         }
-                    } catch (e: Exception) {
-                        resetVariabel(reset = true, clear = true)
-                        displayAllData()
+                    } ?: run {
+                        displayAllData(excludeHeader)
                         toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
-                        Log.e("DashboardData", "❌ Error in getAllData: ${e.message}", e)
                     }
-                } ?: run {
-                    displayAllData()
-                    toastViewModel.showToast("Terjadi kesalahan: Gagal memuat data yang dibutuhkan!!!", false)
+                }
+            } finally {
+                isCalculatingData = false
+                if (pendingShowShimmerOff) {
+                    showShimmer(false)
+                    pendingShowShimmerOff = false
                 }
             }
         }
     }
 
     private fun calculateDataAsync() {
+        isCalculatingData = true
         lifecycleScope.launch(Dispatchers.Default) {
             try {
                 resetVariabel(reset = true, clear = false)
@@ -1461,30 +1503,43 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
                 // DITAMBAH SEBELUM MENGAKSES SERVER DENGAN GET, UPDATE, SET, ATAUPUN DELETE SUDAH DILAKUKAN PENGCHECKAN PATH SEPERTI NILAI ROOTREF YANG TIDAK BOLEH KOSONG
                 val allSuccess = iterateJobs.all { it }
 
-                if (allSuccess) displayAllData()
+                if (allSuccess) displayAllData(excludeHeader = true)
                 else throw Exception("Terjadi kesalahan saat mengkalkulasi ulang data yang baru saja dimuat!")
             } catch (e: Exception) {
                 resetVariabel(reset = true, clear = false)
-                displayAllData()
-                toastViewModel.showToast("Terjadi kesalahan saat mengkalkulasi ulang data yang baru saja dimuat!", true)
+                displayAllData(excludeHeader = true)
+                withContext(Dispatchers.Main) {
+                    toastViewModel.showToast("Terjadi kesalahan saat mengkalkulasi ulang data yang baru saja dimuat!", true)
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isCalculatingData = false
+                    if (pendingShowShimmerOff) {
+                        showShimmer(false)
+                        pendingShowShimmerOff = false
+                    }
+                }
             }
         }
     }
 
-    private fun displayAllData() {
+    private fun displayAllData(excludeHeader: Boolean = false) {
         lifecycleScope.launch {
             dashboardViewModel.userAdminData.value?.let { userAdminData ->
                 // Implementasi untuk menampilkan data employee
                 with (binding) {
-                    if (userAdminData.uid.isNotEmpty()) {
-                        val text = getString(R.string.hey_dear)
-                        val htmlText = String.format(text, userAdminData.ownerName)
-                        val formattedText: Spanned =
-                            HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
-                        binding.realLayoutHeader.userName.text = formattedText
-                    }
-                    if (userAdminData.imageCompanyProfile.isNotEmpty()) {
-                        loadImageWithGlide(userAdminData.imageCompanyProfile)
+                    if (!excludeHeader) {
+                        if (userAdminData.uid.isNotEmpty()) {
+                            val text = getString(R.string.hey_dear)
+                            val htmlText = String.format(text, userAdminData.ownerName)
+                            val formattedText: Spanned =
+                                HtmlCompat.fromHtml(htmlText, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                            binding.realLayoutHeader.userName.text = formattedText
+                            binding.shimmerLayoutHeader.realUserName.text = formattedText
+                        }
+                        if (userAdminData.imageCompanyProfile.isNotEmpty()) {
+                            loadImageWithGlide(userAdminData.imageCompanyProfile)
+                        }
                     }
                     val amountReserveRevenue = dashboardViewModel.amountReserveRevenue.value?.toDouble() ?: 0.0
                     val amountSalesRevenue = dashboardViewModel.amountSalesRevenue.value?.toDouble() ?: 0.0
@@ -1677,7 +1732,7 @@ class DashboardAdminPage : BaseActivity(), View.OnClickListener, ItemDateCalenda
         dashboardViewModel.setCalendarListWithIndex(date, index)
         Log.d("CalendarDate", "Date: ${dashboardViewModel.calendarList2.value?.get(index)?.isSelected}")
 
-        showShimmer(true)
+        showShimmer(true, excludeHeader = true)
         calculateDataAsync()
     }
 
