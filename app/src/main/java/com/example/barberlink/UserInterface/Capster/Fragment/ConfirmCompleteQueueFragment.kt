@@ -1,5 +1,6 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -122,6 +123,7 @@ class ConfirmCompleteQueueFragment : DialogFragment() {
         return binding.root
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         confirmQueueViewModel.currentReservationData.observe(viewLifecycleOwner) { reservation ->

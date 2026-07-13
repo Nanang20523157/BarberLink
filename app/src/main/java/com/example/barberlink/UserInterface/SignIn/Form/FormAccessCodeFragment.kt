@@ -1,5 +1,6 @@
 package com.example.barberlink.UserInterface.SignIn.Form
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -112,6 +113,7 @@ class FormAccessCodeFragment : DialogFragment() {
         return binding.root
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

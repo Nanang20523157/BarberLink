@@ -1,5 +1,6 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -133,6 +134,7 @@ class SwitchCapsterFragment : DialogFragment() {
         return binding.root
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvEmployeeName.isSelected = true

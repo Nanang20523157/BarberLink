@@ -1,5 +1,6 @@
 package com.example.barberlink.UserInterface.Capster.Fragment
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -89,6 +90,7 @@ class ConfirmFeeCapsterFragment : DialogFragment() {
         return binding.root
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvUseMyFormat.isSelected = true

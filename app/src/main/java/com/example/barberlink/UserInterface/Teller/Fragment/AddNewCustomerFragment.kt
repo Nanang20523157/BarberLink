@@ -1,5 +1,6 @@
 package com.example.barberlink.UserInterface.Teller.Fragment
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -168,6 +169,7 @@ class AddNewCustomerFragment : DialogFragment() {
         }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)

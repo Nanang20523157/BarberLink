@@ -88,6 +88,7 @@ class SearchUserCapsterFragment : DialogFragment() {
         outState.putString("last_searched_username", lastSearchedUsername)
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 

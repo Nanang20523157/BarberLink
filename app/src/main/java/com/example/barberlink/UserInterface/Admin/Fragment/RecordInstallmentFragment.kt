@@ -1,5 +1,6 @@
 package com.example.barberlink.UserInterface.Admin.Fragment
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
@@ -142,6 +143,7 @@ class RecordInstallmentFragment : DialogFragment(), View.OnClickListener {
         return binding.root
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         recordInstallmentViewModel.savingStateResult.observe(this) { result ->
