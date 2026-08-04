@@ -2,6 +2,14 @@
 
 Log ini mencatat seluruh aktivitas pengembangan dan keputusan teknis penting.
 
+## [2026-07-28] - Penambahan Laporan Pengujian Manual (Manual Test Report)
+### 🛠️ Aktivitas
+- Membuat file dokumentasi pengujian manual `barberlink_manual_test_report.md` berdasarkan dokumen PDF laporan pengujian.
+- Menyusun 4 tabel skenario pengujian (Registrasi/Login/Logout & Setup Perangkat Antrean, Fitur Owner/Admin, Fitur Pegawai, dan Fitur Ambil Antrean) lengkap dengan langkah pengujian, hasil yang diharapkan, dan status pengujian.
+
+### 📝 Keputusan Teknis
+- Memformat dokumen pengujian manual ke dalam format Markdown terstruktur agar mudah dibaca dan dijadikan referensi langsung oleh AI Agent serta pengembang dalam melacak cakupan test case aplikasi.
+
 ## [2026-07-08] - Instalasi Global transitions-dev & Pembersihan Proyek
 ### 🛠️ Aktivitas
 - Menginstal skill `transitions-dev` (`Jakubantalik/transitions.dev`) secara global di folder konfigurasi global AI Agent (`C:\Users\Acer\.gemini\config\skills\transitions-dev`).
